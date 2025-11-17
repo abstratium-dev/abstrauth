@@ -27,4 +27,6 @@ The project uses the quarkus framework with Java 21. The extensions in use are:
 
 It MUST be deployed as a native image, so it may only use java constructs that are capable of being built into a native image.
 
-It is EXTREMELY IMPORTANT that this project be tested using unit and integration tests. The aim is to have 80-90% coverage. The project should be developed in small steps, and in cycles of modifying the code, executing tests, fixing tests or modifying them as required, then going through the cycle again.
+It is EXTREMELY IMPORTANT that this project be tested using unit and integration tests. The aim is to have 80-90% coverage. The project should be developed in small steps, and in cycles of modifying the code, executing tests, fixing tests or modifying them as required, then going through the cycle again. Finally, the documentation needs to be checked to ensure that it too is up to date.
+
+Only create markdown documents if they are explicitly requested. Don't create them to simply document what you have just done.
