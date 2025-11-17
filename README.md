@@ -15,7 +15,50 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 - [OAuth 2.0 Authorization Flows](FLOWS.md)
 - [Federated Login](FEDERATED_LOGIN.md)
 
+## Development
+
+### Update CLI
+
+    jbang version --update
+    jbang app install --fresh --force quarkus@quarkusio
+
+### Server
+
+The application uses Quarkus. Run it with either `./mvnw quarkus:dev` or `quarkus dev` if you have installed the Quarkus CLI.
+
+### Database
+
+The application uses a MySQL database. It expects a database to be running at `localhost:41040` with the user `root` and password `secret`.
+
+Create the container, the database and user for abstrauth:
+
+    docker run -d \
+        --restart unless-stopped \
+        --name abstratium-mysql \
+        --network abstratium \
+        -e MYSQL_ROOT_PASSWORD=secret \
+        -p 127.0.0.1:41040:3306 \
+        -v /shared2/mysql-abstratium/:/var/lib/mysql:rw \
+        mysql:9.3
+
+    # create the database and user for abstrauth
+    docker run -it --rm --network abstratium mysql mysql -h abstratium-mysql --port 3306 -u root -psecret
+
+    CREATE USER 'abstrauth'@'%' IDENTIFIED BY 'secret';
+    CREATE DATABASE abstrauth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    GRANT ALL PRIVILEGES ON abstrauth.* TO abstrauth@'%'; -- on own database
+
+    FLUSH PRIVILEGES;
+
+exit, then reconnect using the abstrauth user:
+
+    docker run -it --network abstratium --rm mysql mysql -h abstratium-mysql --port 3306 -u abstrauth -psecret abstrauth
+
+
 ## TODO
+
+- how to build native
+- document production setup
 
 ## Running the application in dev mode
 
