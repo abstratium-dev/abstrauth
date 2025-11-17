@@ -23,5 +23,8 @@ The project uses the quarkus framework with Java 21. The extensions in use are:
 - quarkus-rest-jackson and quarkus-rest for transporting json
 - SmallRye JWT [quarkus-smallrye-jwt] Secure your applications with JSON Web Token
 - SmallRye JWT Build [quarkus-smallrye-jwt-build] Create JSON Web Token with SmallRye JWT Build API
+- quarkus-smallrye-openapi used to document the ui
 
 It MUST be deployed as a native image, so it may only use java constructs that are capable of being built into a native image.
+
+It is EXTREMELY IMPORTANT that this project be tested using unit and integration tests. The aim is to have 80-90% coverage. The project should be developed in small steps, and in cycles of modifying the code, executing tests, fixing tests or modifying them as required, then going through the cycle again.
