@@ -57,6 +57,7 @@ exit, then reconnect using the abstrauth user:
 
 ## TODO
 
+- deal with log entry "The smallrye-jwt extension has configured an in-memory key pair, which is not enabled in production. Please ensure the correct keys/locations are set in production to avoid potential issues."
 - how to build native
 - document production setup
 

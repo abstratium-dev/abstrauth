@@ -1,5 +1,13 @@
 package dev.abstratium.abstrauth.boundary;
 
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AuthorizationCode;
+import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.OAuthClientService;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -11,6 +19,11 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+
 /**
  * OAuth 2.0 Authorization Endpoint
  * RFC 6749 Section 3.1 - Authorization Endpoint
@@ -19,6 +32,15 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Path("/oauth2/authorize")
 @Tag(name = "OAuth 2.0 Authorization", description = "OAuth 2.0 Authorization Code Flow endpoints")
 public class AuthorizationResource {
+
+    @Inject
+    OAuthClientService clientService;
+
+    @Inject
+    AuthorizationService authorizationService;
+
+    @Inject
+    AccountService accountService;
 
     @GET
     @Produces(MediaType.TEXT_HTML)
@@ -98,8 +120,70 @@ public class AuthorizationResource {
         )
         @QueryParam("code_challenge_method") String codeChallengeMethod
     ) {
-        // Implementation pending
-        throw new UnsupportedOperationException("Not implemented yet");
+        // Validate response_type
+        if (!"code".equals(responseType)) {
+            return buildErrorRedirect(redirectUri, "unsupported_response_type", 
+                    "Only 'code' response type is supported", state);
+        }
+
+        // Validate client_id
+        if (clientId == null || clientId.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error</h1><p>client_id is required</p></body></html>")
+                    .build();
+        }
+
+        Optional<OAuthClient> clientOpt = clientService.findByClientId(clientId);
+        if (clientOpt.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error</h1><p>Invalid client_id</p></body></html>")
+                    .build();
+        }
+
+        OAuthClient client = clientOpt.get();
+
+        // Validate redirect_uri
+        if (redirectUri == null || redirectUri.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error</h1><p>redirect_uri is required</p></body></html>")
+                    .build();
+        }
+
+        if (!clientService.isRedirectUriAllowed(client, redirectUri)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error</h1><p>Invalid redirect_uri</p></body></html>")
+                    .build();
+        }
+
+        // Validate scope
+        if (!clientService.isScopeAllowed(client, scope)) {
+            return buildErrorRedirect(redirectUri, "invalid_scope", 
+                    "Requested scope is not allowed", state);
+        }
+
+        // Validate PKCE if required
+        if (client.getRequirePkce() && (codeChallenge == null || codeChallenge.isBlank())) {
+            return buildErrorRedirect(redirectUri, "invalid_request", 
+                    "code_challenge is required for this client", state);
+        }
+
+        if (codeChallenge != null && (codeChallengeMethod == null || codeChallengeMethod.isBlank())) {
+            codeChallengeMethod = "plain"; // Default to plain if not specified
+        }
+
+        if (codeChallengeMethod != null && 
+            !"S256".equals(codeChallengeMethod) && !"plain".equals(codeChallengeMethod)) {
+            return buildErrorRedirect(redirectUri, "invalid_request", 
+                    "code_challenge_method must be 'S256' or 'plain'", state);
+        }
+
+        // Create authorization request
+        AuthorizationRequest authRequest = authorizationService.createAuthorizationRequest(
+                clientId, redirectUri, scope, state, codeChallenge, codeChallengeMethod);
+
+        // Return login form
+        return Response.ok(buildLoginForm(authRequest.getId(), client.getClientName(), scope))
+                .build();
     }
 
     @POST
@@ -126,7 +210,165 @@ public class AuthorizationResource {
         @Parameter(description = "Authorization request identifier", required = true)
         @FormParam("request_id") String requestId
     ) {
-        // Implementation pending
-        throw new UnsupportedOperationException("Not implemented yet");
+        Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
+        if (requestOpt.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error</h1><p>Invalid request</p></body></html>")
+                    .build();
+        }
+
+        AuthorizationRequest authRequest = requestOpt.get();
+
+        if (!"approve".equals(consent)) {
+            // User denied consent
+            return buildErrorRedirect(authRequest.getRedirectUri(), "access_denied",
+                    "User denied authorization", authRequest.getState());
+        }
+
+        // Generate authorization code
+        AuthorizationCode authCode = authorizationService.generateAuthorizationCode(requestId);
+
+        // Redirect back to client with authorization code
+        String redirectUrl = authRequest.getRedirectUri() +
+                (authRequest.getRedirectUri().contains("?") ? "&" : "?") +
+                "code=" + URLEncoder.encode(authCode.getCode(), StandardCharsets.UTF_8);
+
+        if (authRequest.getState() != null && !authRequest.getState().isBlank()) {
+            redirectUrl += "&state=" + URLEncoder.encode(authRequest.getState(), StandardCharsets.UTF_8);
+        }
+
+        return Response.seeOther(URI.create(redirectUrl)).build();
+    }
+
+    @POST
+    @Path("/authenticate")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    @Produces(MediaType.TEXT_HTML)
+    @Operation(summary = "Authenticate user", description = "Authenticates user and shows consent page")
+    public Response authenticate(
+            @FormParam("username") String username,
+            @FormParam("password") String password,
+            @FormParam("request_id") String requestId) {
+
+        Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
+        if (requestOpt.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error</h1><p>Invalid request</p></body></html>")
+                    .build();
+        }
+
+        AuthorizationRequest authRequest = requestOpt.get();
+
+        // Authenticate user
+        Optional<Account> accountOpt = accountService.authenticate(username, password);
+        if (accountOpt.isEmpty()) {
+            // Authentication failed - show login form with error
+            Optional<OAuthClient> clientOpt = clientService.findByClientId(authRequest.getClientId());
+            String clientName = clientOpt.map(OAuthClient::getClientName).orElse("Unknown Client");
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity(buildLoginForm(requestId, clientName, authRequest.getScope(), 
+                            "Invalid username or password"))
+                    .build();
+        }
+
+        Account account = accountOpt.get();
+
+        // Approve the authorization request
+        authorizationService.approveAuthorizationRequest(requestId, account.getId());
+
+        // Show consent page
+        Optional<OAuthClient> clientOpt = clientService.findByClientId(authRequest.getClientId());
+        String clientName = clientOpt.map(OAuthClient::getClientName).orElse("Unknown Client");
+
+        return Response.ok(buildConsentForm(requestId, clientName, authRequest.getScope(), account.getName()))
+                .build();
+    }
+
+    private Response buildErrorRedirect(String redirectUri, String error, String errorDescription, String state) {
+        if (redirectUri == null || redirectUri.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error</h1><p>" + error + ": " + errorDescription + "</p></body></html>")
+                    .build();
+        }
+
+        String redirectUrl = redirectUri +
+                (redirectUri.contains("?") ? "&" : "?") +
+                "error=" + URLEncoder.encode(error, StandardCharsets.UTF_8) +
+                "&error_description=" + URLEncoder.encode(errorDescription, StandardCharsets.UTF_8);
+
+        if (state != null && !state.isBlank()) {
+            redirectUrl += "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
+        }
+
+        return Response.seeOther(URI.create(redirectUrl)).build();
+    }
+
+    private String buildLoginForm(String requestId, String clientName, String scope) {
+        return buildLoginForm(requestId, clientName, scope, null);
+    }
+
+    private String buildLoginForm(String requestId, String clientName, String scope, String errorMessage) {
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html><html><head><title>Login</title>")
+            .append("<style>body{font-family:Arial,sans-serif;max-width:400px;margin:50px auto;padding:20px;}")
+            .append("input{width:100%;padding:10px;margin:5px 0;box-sizing:border-box;}")
+            .append("button{width:100%;padding:10px;background:#007bff;color:white;border:none;cursor:pointer;}")
+            .append(".error{color:red;margin:10px 0;}</style></head><body>")
+            .append("<h2>Login to Abstratium</h2>")
+            .append("<p><strong>").append(clientName).append("</strong> wants to access:</p>")
+            .append("<ul>");
+
+        if (scope != null && !scope.isBlank()) {
+            for (String s : scope.split(" ")) {
+                html.append("<li>").append(s).append("</li>");
+            }
+        }
+
+        html.append("</ul>");
+
+        if (errorMessage != null) {
+            html.append("<div class='error'>").append(errorMessage).append("</div>");
+        }
+
+        html.append("<form method='post' action='/oauth2/authorize/authenticate'>")
+            .append("<input type='hidden' name='request_id' value='").append(requestId).append("'/>")
+            .append("<input type='text' name='username' placeholder='Username' required/>")
+            .append("<input type='password' name='password' placeholder='Password' required/>")
+            .append("<button type='submit'>Login</button>")
+            .append("</form>")
+            .append("<p style='text-align:center;margin-top:20px;'>")
+            .append("Don't have an account? <a href='/register.html'>Sign up</a>")
+            .append("</p>")
+            .append("</body></html>");
+
+        return html.toString();
+    }
+
+    private String buildConsentForm(String requestId, String clientName, String scope, String userName) {
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html><html><head><title>Authorize</title>")
+            .append("<style>body{font-family:Arial,sans-serif;max-width:400px;margin:50px auto;padding:20px;}")
+            .append("button{width:100%;padding:10px;margin:5px 0;border:none;cursor:pointer;}")
+            .append(".approve{background:#28a745;color:white;}.deny{background:#dc3545;color:white;}</style></head><body>")
+            .append("<h2>Authorize Application</h2>")
+            .append("<p>Hi <strong>").append(userName).append("</strong>,</p>")
+            .append("<p><strong>").append(clientName).append("</strong> wants to access:</p>")
+            .append("<ul>");
+
+        if (scope != null && !scope.isBlank()) {
+            for (String s : scope.split(" ")) {
+                html.append("<li>").append(s).append("</li>");
+            }
+        }
+
+        html.append("</ul>")
+            .append("<form method='post' action='/oauth2/authorize'>")
+            .append("<input type='hidden' name='request_id' value='").append(requestId).append("'/>")
+            .append("<button type='submit' name='consent' value='approve' class='approve'>Approve</button>")
+            .append("<button type='submit' name='consent' value='deny' class='deny'>Deny</button>")
+            .append("</form>")
+            .append("</body></html>");
+
+        return html.toString();
     }
 }
