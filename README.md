@@ -10,6 +10,11 @@ It was generated using `quarkus create app --maven --package-name=dev.abstratium
 
 If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
 
+## Documentation
+
+- [OAuth 2.0 Authorization Flows](FLOWS.md)
+- [Federated Login](FEDERATED_LOGIN.md)
+
 ## TODO
 
 ## Running the application in dev mode
