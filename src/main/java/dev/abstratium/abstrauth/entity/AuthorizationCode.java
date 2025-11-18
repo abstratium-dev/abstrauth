@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "authorization_codes")
+@Table(name = "T_authorization_codes")
 public class AuthorizationCode {
 
     @Id

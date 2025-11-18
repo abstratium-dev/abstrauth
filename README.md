@@ -44,7 +44,12 @@ Create the container, the database and user for abstrauth:
     # create the database and user for abstrauth
     docker run -it --rm --network abstratium mysql mysql -h abstratium-mysql --port 3306 -u root -psecret
 
+    DROP USER IF EXISTS 'abstrauth'@'%';
+
     CREATE USER 'abstrauth'@'%' IDENTIFIED BY 'secret';
+
+    DROP DATABASE IF EXISTS abstrauth;
+
     CREATE DATABASE abstrauth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     GRANT ALL PRIVILEGES ON abstrauth.* TO abstrauth@'%'; -- on own database
 
@@ -57,9 +62,23 @@ exit, then reconnect using the abstrauth user:
 
 ## TODO
 
-- why are flyway scripts duplicated in test and main?
 - add ui with simple angular app
 - deal with log entry "The smallrye-jwt extension has configured an in-memory key pair, which is not enabled in production. Please ensure the correct keys/locations are set in production to avoid potential issues."
+- add ability to add and manage applications using a UI and rest endpoints
+- do security scan using claude
+- check code coverage
+- make issuer depend on redirect url?
+- split redirect urls into own table or just up to 5 cols?
+- check db columns and add functionality for them / check that they are used properly
+  - T_accounts.email_verified
+  - T_authorization_codes.used
+  - T_authorization_codes.expires_at
+  - T_authorization_requests.status
+  - T_authorization_requests.expires_at
+  - T_credentials.failed_login_attempts
+  - T_credentials.locked_until
+
+
 - how to build native
 - document production setup
 

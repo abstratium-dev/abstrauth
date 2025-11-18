@@ -334,10 +334,10 @@ public class AuthorizationResource {
             .append("<input type='hidden' name='request_id' value='").append(requestId).append("'/>")
             .append("<input type='text' name='username' placeholder='Username' required/>")
             .append("<input type='password' name='password' placeholder='Password' required/>")
-            .append("<button type='submit'>Login</button>")
+            .append("<button type='submit'>Sign in</button>")
             .append("</form>")
             .append("<p style='text-align:center;margin-top:20px;'>")
-            .append("Don't have an account? <a href='/register.html'>Sign up</a>")
+            .append("Don't have an account? <a href='/api/register'>Sign up</a>")
             .append("</p>")
             .append("</body></html>");
 

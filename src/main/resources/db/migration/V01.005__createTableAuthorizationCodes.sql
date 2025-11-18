@@ -1,6 +1,6 @@
-CREATE TABLE authorization_codes (
+CREATE TABLE T_authorization_codes (
     id VARCHAR(36) PRIMARY KEY,
-    code VARCHAR(255) UNIQUE NOT NULL,
+    code VARCHAR(255) NOT NULL,
     authorization_request_id VARCHAR(36) NOT NULL,
     account_id VARCHAR(36) NOT NULL,
     client_id VARCHAR(255) NOT NULL,
@@ -11,8 +11,9 @@ CREATE TABLE authorization_codes (
     used BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
-    FOREIGN KEY (authorization_request_id) REFERENCES authorization_requests(id) ON DELETE CASCADE,
-    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-    INDEX idx_code (code),
-    INDEX idx_expires (expires_at)
+    CONSTRAINT FK_authorization_codes_authorization_request_id FOREIGN KEY (authorization_request_id) REFERENCES T_authorization_requests(id) ON DELETE CASCADE,
+    CONSTRAINT FK_authorization_codes_account_id FOREIGN KEY (account_id) REFERENCES T_accounts(id) ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX I_authorization_codes_code ON T_authorization_codes(code);
+CREATE INDEX I_authorization_codes_expires_at ON T_authorization_codes(expires_at);

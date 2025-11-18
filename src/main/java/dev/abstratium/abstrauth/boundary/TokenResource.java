@@ -1,5 +1,12 @@
 package dev.abstratium.abstrauth.boundary;
 
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AuthorizationCode;
+import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.OAuthClientService;
+import io.smallrye.jwt.build.Jwt;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -12,6 +19,13 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.Set;
+
 /**
  * OAuth 2.0 Token Endpoint
  * RFC 6749 Section 3.2 - Token Endpoint
@@ -20,6 +34,15 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Path("/oauth2/token")
 @Tag(name = "OAuth 2.0 Token", description = "OAuth 2.0 Token management endpoints")
 public class TokenResource {
+
+    @Inject
+    AuthorizationService authorizationService;
+
+    @Inject
+    OAuthClientService clientService;
+
+    @Inject
+    AccountService accountService;
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -139,8 +162,154 @@ public class TokenResource {
         )
         @FormParam("scope") String scope
     ) {
-        // Implementation pending
-        throw new UnsupportedOperationException("Not implemented yet");
+        // Validate grant_type
+        if (!"authorization_code".equals(grantType) && !"refresh_token".equals(grantType)) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "unsupported_grant_type",
+                    "Grant type must be 'authorization_code' or 'refresh_token'");
+        }
+
+        // Handle authorization_code grant
+        if ("authorization_code".equals(grantType)) {
+            return handleAuthorizationCodeGrant(code, redirectUri, clientId, clientSecret, codeVerifier);
+        }
+
+        // Handle refresh_token grant (not implemented yet)
+        return buildErrorResponse(Response.Status.BAD_REQUEST, "unsupported_grant_type",
+                "Refresh token grant not yet implemented");
+    }
+
+    private Response handleAuthorizationCodeGrant(String code, String redirectUri, String clientId,
+                                                   String clientSecret, String codeVerifier) {
+        // Validate required parameters
+        if (code == null || code.isBlank()) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_request",
+                    "code is required");
+        }
+
+        if (clientId == null || clientId.isBlank()) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_request",
+                    "client_id is required");
+        }
+
+        // Find authorization code
+        Optional<AuthorizationCode> authCodeOpt = authorizationService.findAuthorizationCode(code);
+        if (authCodeOpt.isEmpty()) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
+                    "Authorization code is invalid or expired");
+        }
+
+        AuthorizationCode authCode = authCodeOpt.get();
+
+        // Check if code has been used
+        if (authCode.getUsed()) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
+                    "Authorization code has already been used");
+        }
+
+        // Check if code is expired
+        if (authCode.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
+                    "Authorization code has expired");
+        }
+
+        // Validate client_id matches
+        if (!authCode.getClientId().equals(clientId)) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
+                    "Client ID does not match authorization code");
+        }
+
+        // Validate redirect_uri if provided
+        if (redirectUri != null && !redirectUri.equals(authCode.getRedirectUri())) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
+                    "Redirect URI does not match authorization request");
+        }
+
+        // Validate PKCE code_verifier if code_challenge was used
+        if (authCode.getCodeChallenge() != null && !authCode.getCodeChallenge().isBlank()) {
+            if (codeVerifier == null || codeVerifier.isBlank()) {
+                return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_request",
+                        "code_verifier is required for PKCE");
+            }
+
+            if (!verifyPKCE(codeVerifier, authCode.getCodeChallenge(), authCode.getCodeChallengeMethod())) {
+                return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
+                        "Invalid code_verifier");
+            }
+        }
+
+        // Mark code as used
+        authorizationService.markAuthorizationCodeAsUsed(authCode.getId());
+
+        // Get account information
+        Optional<Account> accountOpt = accountService.findById(authCode.getAccountId());
+        if (accountOpt.isEmpty()) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
+                    "Account not found");
+        }
+
+        Account account = accountOpt.get();
+
+        // Generate JWT access token
+        String accessToken = generateAccessToken(account, authCode.getScope(), clientId);
+
+        // Build token response
+        TokenResponse response = new TokenResponse();
+        response.access_token = accessToken;
+        response.token_type = "Bearer";
+        response.expires_in = 3600; // 1 hour
+        response.scope = authCode.getScope();
+
+        return Response.ok(response).build();
+    }
+
+    private boolean verifyPKCE(String codeVerifier, String codeChallenge, String codeChallengeMethod) {
+        try {
+            String computedChallenge;
+            
+            if ("S256".equals(codeChallengeMethod)) {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(codeVerifier.getBytes(StandardCharsets.UTF_8));
+                computedChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+            } else if ("plain".equals(codeChallengeMethod)) {
+                computedChallenge = codeVerifier;
+            } else {
+                return false;
+            }
+
+            return computedChallenge.equals(codeChallenge);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String generateAccessToken(Account account, String scope, String clientId) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plusSeconds(3600); // 1 hour
+
+        Set<String> groups = Set.of("user");
+        if (account.getEmail().contains("admin")) {
+            groups = Set.of("user", "admin");
+        }
+
+        return Jwt.issuer("https://abstrauth.abstratium.dev")
+                .upn(account.getEmail())
+                .subject(account.getId())
+                .groups(groups)
+                .claim("email", account.getEmail())
+                .claim("name", account.getName())
+                .claim("email_verified", account.getEmailVerified())
+                .claim("scope", scope)
+                .claim("client_id", clientId)
+                .issuedAt(now)
+                .expiresAt(expiresAt)
+                .sign();
+    }
+
+    private Response buildErrorResponse(Response.Status status, String error, String errorDescription) {
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.error = error;
+        errorResponse.error_description = errorDescription;
+        return Response.status(status).entity(errorResponse).build();
     }
 
     /**

@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "oauth_clients")
+@Table(name = "T_oauth_clients")
 public class OAuthClient {
 
     @Id

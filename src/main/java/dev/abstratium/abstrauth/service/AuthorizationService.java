@@ -101,6 +101,15 @@ public class AuthorizationService {
         }
     }
 
+    @Transactional
+    public void markAuthorizationCodeAsUsed(String authCodeId) {
+        AuthorizationCode authCode = em.find(AuthorizationCode.class, authCodeId);
+        if (authCode != null) {
+            authCode.setUsed(true);
+            em.merge(authCode);
+        }
+    }
+
     private String generateSecureCode() {
         byte[] randomBytes = new byte[32];
         secureRandom.nextBytes(randomBytes);

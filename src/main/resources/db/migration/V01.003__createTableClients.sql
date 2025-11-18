@@ -1,6 +1,6 @@
-CREATE TABLE oauth_clients (
+CREATE TABLE T_oauth_clients (
     id VARCHAR(36) PRIMARY KEY,
-    client_id VARCHAR(255) UNIQUE NOT NULL,
+    client_id VARCHAR(255) NOT NULL,
     client_name VARCHAR(255) NOT NULL,
     client_type VARCHAR(20) NOT NULL, -- 'public' or 'confidential'
     redirect_uris VARCHAR(5000) NOT NULL, -- JSON array of allowed redirect URIs
@@ -9,4 +9,4 @@ CREATE TABLE oauth_clients (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_client_id ON oauth_clients(client_id);
+CREATE UNIQUE INDEX I_oauth_clients_client_id ON T_oauth_clients(client_id);
