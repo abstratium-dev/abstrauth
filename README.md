@@ -14,6 +14,7 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 
 - [OAuth 2.0 Authorization Flows](FLOWS.md)
 - [Federated Login](FEDERATED_LOGIN.md)
+- [Database](DATABASE.md)
 
 ## Development
 
