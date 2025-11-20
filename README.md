@@ -27,6 +27,13 @@ It was generated using `quarkus create app --maven --package-name=dev.abstratium
 
 The application uses Quarkus. Run it with either `./mvnw quarkus:dev` or `quarkus dev` if you have installed the Quarkus CLI.
 
+#### Code coverage
+
+    ./mvnw clean verify
+
+Open the jacoco report from `target/jacoco-report/index.html`.
+
+
 ### Database
 
 The application uses a MySQL database. It expects a database to be running at `localhost:41040` with the user `root` and password `secret`.
