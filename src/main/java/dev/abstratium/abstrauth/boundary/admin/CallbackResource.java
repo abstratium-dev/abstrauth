@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary;
+package dev.abstratium.abstrauth.boundary.admin;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -7,12 +7,12 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 @Path("/callback")
-@Tag(name = "Test Interface", description = "Test callback interface for OAuth flow")
-public class CallbackTestResource {
+@Tag(name = "Callback Interface", description = "Callback interface for OAuth flow, for logging into the admin UI")
+public class CallbackResource {
 
     @GET
     @Produces(MediaType.TEXT_HTML)
-    @Operation(summary = "OAuth callback test page", description = "Displays authorization code and allows token exchange")
+    @Operation(summary = "OAuth callback page", description = "Displays authorization code and allows token exchange")
     public Response callback(
             @QueryParam("code") String code,
             @QueryParam("state") String state,
@@ -87,7 +87,7 @@ public class CallbackTestResource {
                 .append("<label>Code Verifier (from PKCE):</label>")
                 .append("<input type='text' id='codeVerifier' placeholder='Enter your code_verifier'/>")
                 .append("<label>Client ID:</label>")
-                .append("<input type='text' id='clientId' value='test_spa_client'/>")
+                .append("<input type='text' id='clientId' value='abstrauth_admin_app'/>")
                 .append("<label>Redirect URI:</label>")
                 .append("<input type='text' id='redirectUri' value='http://localhost:8080/callback'/>")
                 .append("<button onclick='exchangeToken()'>Exchange for Token</button>")

@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary;
+package dev.abstratium.abstrauth.boundary.oauth;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;

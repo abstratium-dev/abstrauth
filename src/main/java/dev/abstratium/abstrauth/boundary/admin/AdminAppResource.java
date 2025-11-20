@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary;
+package dev.abstratium.abstrauth.boundary.admin;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -6,27 +6,17 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-@Path("/sample-app")
-@Tag(name = "Test App", description = "Test app for OAuth flow")
-public class SampleAppTestResource {
+@Path("/")
+@Tag(name = "Admin App", description = "Admin app for OAuth flow")
+public class AdminAppResource {
 
     @GET
     @Produces(MediaType.TEXT_HTML)
-    @Operation(summary = "Sample app page", description = "Allows the user to sign in")
+    @Operation(summary = "Admin app page", description = "Allows the user to sign in")
     public Response signIn() {
 
         StringBuilder html = new StringBuilder();
-        html.append("<!DOCTYPE html><html><head><title>Sample App</title>")
-            .append("<style>")
-            .append("body{font-family:Arial,sans-serif;max-width:800px;margin:50px auto;padding:20px;}")
-            .append("h1{color:#28a745;}")
-            .append(".error{color:#dc3545;}")
-            .append(".code-box{background:#f5f5f5;padding:15px;border-radius:5px;margin:20px 0;word-break:break-all;}")
-            .append("input,textarea{width:100%;padding:10px;margin:5px 0;box-sizing:border-box;font-family:monospace;}")
-            .append("button{padding:10px 20px;background:#007bff;color:white;border:none;cursor:pointer;margin:5px;}")
-            .append("button:hover{background:#0056b3;}")
-            .append(".result{background:#f8f9fa;padding:15px;border-radius:5px;margin-top:20px;white-space:pre-wrap;font-family:monospace;}")
-            .append("</style>")
+        html.append("<!DOCTYPE html><html><head><title>Admin App</title>")
             .append("<script>")
             .append("async function exchangeToken() {")
             .append("  const code = document.getElementById('code').value;")
@@ -94,7 +84,7 @@ async function login() {
   
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: 'test_spa_client',
+    client_id: 'abstrauth_admin_app',
     redirect_uri: 'http://localhost:8080/callback',
     scope: 'openid profile email',
     state: state,
@@ -106,8 +96,7 @@ async function login() {
 }
                 """;
 
-        html.append("<h1>Sample App - OAuth 2.0 Test</h1>")
-            .append("<p>This is a sample app that allows you to sign in using OAuth 2.0 with PKCE.</p>")
+        html.append("<h1>Admin App</h1>")
             .append("<button onclick='login()'>Sign In with OAuth</button>")
             .append("<hr style='margin: 40px 0;'>")
             .append("<h2>PKCE Code Challenge Verification</h2>")

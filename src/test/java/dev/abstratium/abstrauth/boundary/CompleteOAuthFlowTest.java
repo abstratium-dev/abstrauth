@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @QuarkusTest
 public class CompleteOAuthFlowTest {
 
-    private static final String CLIENT_ID = "test_spa_client";
+    private static final String CLIENT_ID = "abstrauth_admin_app";
     private static final String REDIRECT_URI = "http://localhost:8080/callback";
     private static final String TEST_USERNAME = "flowtest_" + System.currentTimeMillis();
     private static final String TEST_EMAIL = "flowtest_" + System.currentTimeMillis() + "@example.com";

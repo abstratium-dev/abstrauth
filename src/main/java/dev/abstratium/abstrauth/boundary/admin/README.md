@@ -1,0 +1,1 @@
+This package contains the endpoints used to administer users, roles, applications, etc.

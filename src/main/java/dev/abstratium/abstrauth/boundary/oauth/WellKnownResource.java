@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary;
+package dev.abstratium.abstrauth.boundary.oauth;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

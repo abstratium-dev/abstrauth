@@ -1,14 +1,14 @@
 # abstrauth
 
 A minimum implementation of an oauth authorization server capable of serving multiple applications at same time.
-It uses JWT for authentication and authorization, signed with a public/private key pair so that third-party applications
-can validate the tokens and roles without calls to the authorization server.
+It uses JWT for authentication and authorization, signed with a public/private key pair so that third-party
+applications can validate the tokens and roles without calls to the authorization server.
+
+It coincidentally also uses itself as an authorization server for users signing into the admin UI.
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
 It was generated using `quarkus create app --maven --package-name=dev.abstratium.abstrauth --java=21 --name abstrauth dev.abstratium:abstrauth`
-
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
 
 ## Documentation
 
@@ -90,6 +90,8 @@ exit, then reconnect using the abstrauth user:
 - don't allow multiple credentials for one account (uk on foreign key?)
 - don't allow multiple auth requests (or codes?) for same client and account - remove if there are duplicates?
 - how to build native
+- github build? https://github.com/abstratium-dev/abstrauth/new/main?filename=.github%2Fworkflows%2Fmaven.yml&workflow_template=ci%2Fmaven
+  - and then show results in github
 - document production setup
 
 ## Running the application in dev mode
