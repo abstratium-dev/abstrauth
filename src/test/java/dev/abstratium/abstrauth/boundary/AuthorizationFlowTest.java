@@ -16,6 +16,9 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * AuthorizationFlowTest: Tests the authorization request/consent phase thoroughly
+ */
 @QuarkusTest
 public class AuthorizationFlowTest {
 

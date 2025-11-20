@@ -70,19 +70,24 @@ exit, then reconnect using the abstrauth user:
 
 ## TODO
 
-- add ui with simple angular app
-- deal with log entry "The smallrye-jwt extension has configured an in-memory key pair, which is not enabled in production. Please ensure the correct keys/locations are set in production to avoid potential issues."
+### Now
+
+- cache public key in wellknown so as not to keep calculating it
+- turn ui into a simple angular app
 - add ability to add and manage applications using a UI and rest endpoints
 - do security scan using claude
   - double check that pkce is properly implemented, especially storing the code challenge in session storage
   - find out how best to store the token, e.g. so that hledger can use it
-- add key pair to sign tokens, configurable using environment variables
 - make the client verify the signature of the token in the sample-app to show how it's done
-- [x] check using https://oauthdebugger.com/
+- add google login
+- add github login
+- add microsoft login
+
+### Later
+
 - add roles
 - add using refresh tokens
 - add a nonce (number used once) to the authorization request
-- check code coverage
 - make issuer depend on redirect url?
 - split redirect urls into own table or just up to 5 cols?
 - check db columns and add functionality for them / check that they are used properly
@@ -93,13 +98,14 @@ exit, then reconnect using the abstrauth user:
   - T_authorization_requests.expires_at
   - T_credentials.failed_login_attempts
   - T_credentials.locked_until
-- logout (revocation)
+- logout (revocation?)
 - don't allow multiple credentials for one account (uk on foreign key?)
 - don't allow multiple auth requests (or codes?) for same client and account - remove if there are duplicates?
 - how to build native
 - github build? https://github.com/abstratium-dev/abstrauth/new/main?filename=.github%2Fworkflows%2Fmaven.yml&workflow_template=ci%2Fmaven
   - and then show results in github
 - document production setup
+- [x] check using https://oauthdebugger.com/
 
 ## Running the application in dev mode
 
