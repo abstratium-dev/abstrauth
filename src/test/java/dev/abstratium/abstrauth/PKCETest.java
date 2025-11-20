@@ -2,6 +2,8 @@ package dev.abstratium.abstrauth;
 
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.test.junit.QuarkusTest;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
@@ -11,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test to verify PKCE code challenge generation matches between JavaScript and Java
  */
+@QuarkusTest
 public class PKCETest {
 
     @Test

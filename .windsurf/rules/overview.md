@@ -27,6 +27,8 @@ The project uses the quarkus framework with Java 21. The extensions in use are:
 
 It MUST be deployed as a native image, so it may only use java constructs that are capable of being built into a native image.
 
-It is EXTREMELY IMPORTANT that this project be tested using unit and integration tests. The aim is to have 80-90% coverage. The project should be developed in small steps, and in cycles of modifying the code, executing tests, fixing tests or modifying them as required, then going through the cycle again. Finally, the documentation needs to be checked to ensure that it too is up to date.
+It is EXTREMELY IMPORTANT that this project be tested using unit and integration tests. The aim is to check that coverage is at 80-90%, in order to find missing tests. Do not write senseless tests just to increase the coverage. Coverage can be measured using `mvn verify` and reading coverage results in xml files from the folder `target/jacoco-report`. The project should be developed in small steps, and in cycles of modifying the code, executing tests, fixing tests or modifying them as required, then going through the cycle again. Only tests annotated with `@QuarkusTest` are counted towards coverage. These are the primary kind of test for this project. You can however write plain unit tests with that annotation, in order to test edge cases.
+
+The documentation in markdown files with the extension m̀d` need to be checked to ensure that it too is up to date.
 
 Only create markdown documents if they are explicitly requested. Don't create them to simply document what you have just done.
