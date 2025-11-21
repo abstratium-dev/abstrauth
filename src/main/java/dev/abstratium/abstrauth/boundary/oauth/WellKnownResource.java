@@ -1,5 +1,6 @@
 package dev.abstratium.abstrauth.boundary.oauth;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -14,7 +15,9 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 
@@ -35,6 +38,8 @@ public class WellKnownResource {
 
     @ConfigProperty(name = "server.base.url", defaultValue = "http://localhost:8080")
     String baseUrl;
+
+    JwksResponse jwksResponse;
 
     @GET
     @Path("/oauth-authorization-server")
@@ -90,36 +95,35 @@ public class WellKnownResource {
         )
     })
     public Response jwks() {
-        try {
-            RSAPublicKey publicKey = extractPublicKey(privateKeyPem);
-            
-            JwkKey jwkKey = new JwkKey();
-            jwkKey.kty = "RSA";
-            jwkKey.use = "sig";
-            jwkKey.kid = "abstrauth-key-1";
-            jwkKey.alg = "PS256";
-            
-            // Extract modulus (n) and exponent (e) from public key
-            jwkKey.n = Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(publicKey.getModulus().toByteArray());
-            jwkKey.e = Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(publicKey.getPublicExponent().toByteArray());
-            
-            JwksResponse response = new JwksResponse();
-            response.keys = new JwkKey[]{jwkKey};
-            
-            return Response.ok(response).build();
-        } catch (Exception e) {
-            return Response.serverError()
-                .entity(new ErrorResponse("server_error", "Failed to generate JWKS: " + e.getMessage()))
-                .build();
-        }
+        return Response.ok(this.jwksResponse).build();
+    }
+    
+    @PostConstruct
+    public void init() throws NoSuchAlgorithmException, InvalidKeySpecException {
+        RSAPublicKey publicKey = extractPublicKey(privateKeyPem);
+        
+        JwkKey jwkKey = new JwkKey();
+        jwkKey.kty = "RSA";
+        jwkKey.use = "sig";
+        jwkKey.kid = "abstrauth-key-1";
+        jwkKey.alg = "PS256";
+        
+        // Extract modulus (n) and exponent (e) from public key
+        jwkKey.n = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(publicKey.getModulus().toByteArray());
+        jwkKey.e = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(publicKey.getPublicExponent().toByteArray());
+        
+        JwksResponse response = new JwksResponse();
+        response.keys = new JwkKey[]{jwkKey};
+
+        this.jwksResponse = response;
     }
     
     /**
      * Extract RSA public key from PEM-encoded private key
      */
-    private RSAPublicKey extractPublicKey(String privateKeyPem) throws Exception {
+    private RSAPublicKey extractPublicKey(String privateKeyPem) throws NoSuchAlgorithmException, InvalidKeySpecException {
         // Remove PEM headers/footers and whitespace
         String keyContent = privateKeyPem
             .replaceAll("-----BEGIN.*?-----", "")
