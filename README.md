@@ -72,7 +72,6 @@ exit, then reconnect using the abstrauth user:
 
 ### Now
 
-- cache public key in wellknown so as not to keep calculating it
 - turn ui into a simple angular app
 - add ability to add and manage applications using a UI and rest endpoints
 - do security scan using claude
