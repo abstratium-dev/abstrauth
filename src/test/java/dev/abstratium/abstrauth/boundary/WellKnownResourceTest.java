@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class WellKnownResourceTest {
 
     private static final String CLIENT_ID = "abstrauth_admin_app";
-    private static final String REDIRECT_URI = "http://localhost:8080/callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/admin/callback";
 
     @Test
     public void testServerMetadataEndpoint() {

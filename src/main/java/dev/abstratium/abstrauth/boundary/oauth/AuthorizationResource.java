@@ -87,7 +87,7 @@ public class AuthorizationResource {
         @Parameter(
             description = "Redirection URI where the response will be sent",
             required = false,
-            example = "https://client.example.com/callback"
+            example = "https://client.example.com/admin/callback"
         )
         @QueryParam("redirect_uri") String redirectUri,
 
@@ -310,10 +310,9 @@ public class AuthorizationResource {
     private String buildLoginForm(String requestId, String clientName, String scope, String errorMessage) {
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html><html><head><title>Login</title>")
-            .append("<style>body{font-family:Arial,sans-serif;max-width:400px;margin:50px auto;padding:20px;}")
-            .append("input{width:100%;padding:10px;margin:5px 0;box-sizing:border-box;}")
-            .append("button{width:100%;padding:10px;background:#007bff;color:white;border:none;cursor:pointer;}")
-            .append(".error{color:red;margin:10px 0;}</style></head><body>")
+            .append("<style>")
+            .append(".error{color:red;margin:10px 0;}")
+            .append("</style></head><body>")
             .append("<h2>Login to Abstratium</h2>")
             .append("<p><strong>").append(clientName).append("</strong> wants to access:</p>")
             .append("<ul>");
@@ -347,9 +346,10 @@ public class AuthorizationResource {
     private String buildConsentForm(String requestId, String clientName, String scope, String userName) {
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html><html><head><title>Authorize</title>")
-            .append("<style>body{font-family:Arial,sans-serif;max-width:400px;margin:50px auto;padding:20px;}")
-            .append("button{width:100%;padding:10px;margin:5px 0;border:none;cursor:pointer;}")
-            .append(".approve{background:#28a745;color:white;}.deny{background:#dc3545;color:white;}</style></head><body>")
+            .append("<style>")
+            .append(".approve{background:#28a745;color:white;}")
+            .append(".deny{background:#dc3545;color:white;}")
+            .append("</style></head><body>")
             .append("<h2>Authorize Application</h2>")
             .append("<p>Hi <strong>").append(userName).append("</strong>,</p>")
             .append("<p><strong>").append(clientName).append("</strong> wants to access:</p>")

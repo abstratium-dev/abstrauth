@@ -6,7 +6,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-@Path("/callback")
+@Path("/admin/callback")
 @Tag(name = "Callback Interface", description = "Callback interface for OAuth flow, for logging into the admin UI")
 public class CallbackResource {
 
@@ -21,16 +21,6 @@ public class CallbackResource {
 
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html><html><head><title>OAuth Callback</title>")
-            .append("<style>")
-            .append("body{font-family:Arial,sans-serif;max-width:800px;margin:50px auto;padding:20px;}")
-            .append("h1{color:#28a745;}")
-            .append(".error{color:#dc3545;}")
-            .append(".code-box{background:#f5f5f5;padding:15px;border-radius:5px;margin:20px 0;word-break:break-all;}")
-            .append("input,textarea{width:100%;padding:10px;margin:5px 0;box-sizing:border-box;font-family:monospace;}")
-            .append("button{padding:10px 20px;background:#007bff;color:white;border:none;cursor:pointer;margin:5px;}")
-            .append("button:hover{background:#0056b3;}")
-            .append(".result{background:#f8f9fa;padding:15px;border-radius:5px;margin-top:20px;white-space:pre-wrap;font-family:monospace;}")
-            .append("</style>")
             .append("<script>")
             .append("async function exchangeToken() {")
             .append("  const code = document.getElementById('code').value;")
@@ -89,7 +79,7 @@ public class CallbackResource {
                 .append("<label>Client ID:</label>")
                 .append("<input type='text' id='clientId' value='abstrauth_admin_app'/>")
                 .append("<label>Redirect URI:</label>")
-                .append("<input type='text' id='redirectUri' value='http://localhost:8080/callback'/>")
+                .append("<input type='text' id='redirectUri' value='http://localhost:8080/admin/callback'/>")
                 .append("<button onclick='exchangeToken()'>Exchange for Token</button>")
                 .append("<h3>Token Response:</h3>")
                 .append("<div id='result' class='result'>Click 'Exchange for Token' to get your access token</div>")

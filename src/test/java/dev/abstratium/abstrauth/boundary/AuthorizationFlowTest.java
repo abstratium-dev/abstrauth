@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AuthorizationFlowTest {
 
     private static final String CLIENT_ID = "abstrauth_admin_app";
-    private static final String REDIRECT_URI = "http://localhost:8080/callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/admin/callback";
     private static final String TEST_USERNAME = "testuser_" + System.currentTimeMillis();
     private static final String TEST_EMAIL = "test_" + System.currentTimeMillis() + "@example.com";
     private static final String TEST_PASSWORD = "SecurePassword123";
@@ -155,7 +155,7 @@ public class AuthorizationFlowTest {
         given()
             .queryParam("response_type", "code")
             .queryParam("client_id", CLIENT_ID)
-            .queryParam("redirect_uri", "https://evil.com/callback")
+            .queryParam("redirect_uri", "https://evil.com/admin/callback")
             .queryParam("code_challenge", "test_challenge")
             .queryParam("code_challenge_method", "S256")
             .when()

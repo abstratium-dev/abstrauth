@@ -72,19 +72,27 @@ exit, then reconnect using the abstrauth user:
 
 ### Now
 
-- turn ui into a simple angular app
+- implement callback as part of angular app
+- fetch token and store it in memory only
+- add http interceptor in angular app to add token to requests
+- add RolesAllowed to rest endpoints that need it
+- make actual login also part of angular app
+- add env vars that allow initial sign in without registration, so that that user has admin role
+- normal registration provides no roles!
+- playwright tests from https://docs.quarkiverse.io/quarkus-quinoa/dev/testing.html
+- what happens to state? it should be returned to callback
 - add ability to add and manage applications using a UI and rest endpoints
 - do security scan using claude
   - double check that pkce is properly implemented, especially storing the code challenge in session storage
   - find out how best to store the token, e.g. so that hledger can use it
 - make the client verify the signature of the token in the sample-app to show how it's done
+- add roles
 - add google login
-- add github login
-- add microsoft login
 
 ### Later
 
-- add roles
+- add microsoft login
+- add github login
 - add using refresh tokens
 - add a nonce (number used once) to the authorization request
 - make issuer depend on redirect url?

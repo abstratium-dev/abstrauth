@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class CompleteOAuthFlowTest {
 
     private static final String CLIENT_ID = "abstrauth_admin_app";
-    private static final String REDIRECT_URI = "http://localhost:8080/callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/admin/callback";
     private static final String TEST_USERNAME = "flowtest_" + System.currentTimeMillis();
     private static final String TEST_EMAIL = "flowtest_" + System.currentTimeMillis() + "@example.com";
     private static final String TEST_PASSWORD = "SecurePassword123";
@@ -314,7 +314,7 @@ public class CompleteOAuthFlowTest {
             .queryParam("code", authCode)
             .queryParam("state", state)
             .when()
-            .get("/callback")
+            .get("/admin/callback")
             .then()
             .statusCode(200)
             .contentType(containsString("text/html"))
@@ -333,7 +333,7 @@ public class CompleteOAuthFlowTest {
             .queryParam("error", "access_denied")
             .queryParam("error_description", "User denied authorization")
             .when()
-            .get("/callback")
+            .get("/admin/callback")
             .then()
             .statusCode(200)
             .extract()

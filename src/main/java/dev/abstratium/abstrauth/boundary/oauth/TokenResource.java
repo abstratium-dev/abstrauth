@@ -123,7 +123,7 @@ public class TokenResource {
         @Parameter(
             description = "Redirection URI used in authorization request (required if included in authorization request)",
             required = false,
-            example = "https://client.example.com/callback"
+            example = "https://client.example.com/admin/callback"
         )
         @FormParam("redirect_uri") String redirectUri,
 

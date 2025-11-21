@@ -13,7 +13,7 @@ import static org.hamcrest.CoreMatchers.*;
 public class TokenResourceTest {
 
     private static final String CLIENT_ID = "abstrauth_admin_app";
-    private static final String REDIRECT_URI = "http://localhost:8080/callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/admin/callback";
 
     @Test
     public void testTokenEndpointWithMissingGrantType() {
@@ -123,7 +123,7 @@ public class TokenResourceTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", "some_code")
             .formParam("client_id", CLIENT_ID)
-            .formParam("redirect_uri", "http://evil.com/callback")
+            .formParam("redirect_uri", "http://evil.com/admin/callback")
             .formParam("code_verifier", "verifier")
             .when()
             .post("/oauth2/token")

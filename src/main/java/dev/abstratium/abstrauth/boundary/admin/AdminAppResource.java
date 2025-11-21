@@ -6,7 +6,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-@Path("/")
+@Path("/admin")
 @Tag(name = "Admin App", description = "Admin app for OAuth flow")
 public class AdminAppResource {
 
@@ -85,7 +85,7 @@ async function login() {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: 'abstrauth_admin_app',
-    redirect_uri: 'http://localhost:8080/callback',
+    redirect_uri: 'http://localhost:8080/admin/callback',
     scope: 'openid profile email',
     state: state,
     code_challenge: codeChallenge,
