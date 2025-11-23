@@ -72,26 +72,25 @@ exit, then reconnect using the abstrauth user:
 
 ### Now
 
-- use an enum for the status on authorization requests - see sql 004 for values
-- implement callback as part of angular app
-- fetch token and store it in memory only
+- fix signup since it should simply redirect to signup straight away, but it needs to include the request id in the url
+- fix tests
+- add playwright tests
+  - https://docs.quarkiverse.io/quarkus-quinoa/dev/testing.html
 - add http interceptor in angular app to add token to requests
 - add RolesAllowed to rest endpoints that need it
-- make actual login also part of angular app
-- add env vars that allow initial sign in without registration, so that that user has admin role
-- normal registration provides no roles!
-- playwright tests from https://docs.quarkiverse.io/quarkus-quinoa/dev/testing.html
-- what happens to state? it should be returned to callback
 - add ability to add and manage applications using a UI and rest endpoints
+- add roles. search for generateAccessToken or "user"
+- add google login
 - do security scan using claude
   - double check that pkce is properly implemented, especially storing the code challenge in session storage
   - find out how best to store the token, e.g. so that hledger can use it
-- make the client verify the signature of the token in the sample-app to show how it's done
-- add roles. search for generateAccessToken or "user"
-- add google login
 
 ### Later
 
+- make aesthetics better and document colours, etc. below
+- add optional env vars that allow initial sign in without registration, so that that user has admin role
+- show how to make the client verify the signature of the token
+- use an enum for the status on authorization requests - see sql 004 for values
 - make authorization requests become expired
 - state needs to work if other third party apps want to use it
 - clean up authorization requests after a month
