@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class WellKnownResourceTest {
 
     private static final String CLIENT_ID = "abstrauth_admin_app";
-    private static final String REDIRECT_URI = "http://localhost:8080/admin/callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
 
     @Test
     public void testServerMetadataEndpoint() {
@@ -80,14 +80,14 @@ public class WellKnownResourceTest {
         String username = "jwkstest_" + System.currentTimeMillis();
         String email = "jwkstest_" + System.currentTimeMillis() + "@example.com";
         
-        // Register user
+        // Sign up user
         given()
             .formParam("email", email)
             .formParam("name", "JWKS Test User")
             .formParam("username", username)
             .formParam("password", "SecurePassword123")
             .when()
-            .post("/api/register")
+            .post("/api/signup")
             .then()
             .statusCode(201);
 

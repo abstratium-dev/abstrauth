@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class CompleteOAuthFlowTest {
 
     private static final String CLIENT_ID = "abstrauth_admin_app";
-    private static final String REDIRECT_URI = "http://localhost:8080/admin/callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
     private static final String TEST_USERNAME = "flowtest_" + System.currentTimeMillis();
     private static final String TEST_EMAIL = "flowtest_" + System.currentTimeMillis() + "@example.com";
     private static final String TEST_PASSWORD = "SecurePassword123";
@@ -35,14 +35,14 @@ public class CompleteOAuthFlowTest {
 
     @BeforeEach
     public void setup() {
-        // Register a test user
+        // Sign up a test user
         given()
             .formParam("email", TEST_EMAIL)
             .formParam("name", TEST_NAME)
             .formParam("username", TEST_USERNAME)
             .formParam("password", TEST_PASSWORD)
             .when()
-            .post("/api/register")
+            .post("/api/signup")
             .then()
             .statusCode(anyOf(is(201), is(409)));
     }
@@ -263,87 +263,6 @@ public class CompleteOAuthFlowTest {
             .body("error_description", containsString("code_verifier is required"));
     }
 
-    @Test
-    public void testCallbackPageWithAuthorizationCode() throws Exception {
-        // Get an authorization code first
-        String codeVerifier = generateCodeVerifier();
-        String codeChallenge = generateCodeChallenge(codeVerifier);
-
-        Response authResponse = given()
-            .queryParam("response_type", "code")
-            .queryParam("client_id", CLIENT_ID)
-            .queryParam("redirect_uri", REDIRECT_URI)
-            .queryParam("state", "callback_test")
-            .queryParam("code_challenge", codeChallenge)
-            .queryParam("code_challenge_method", "S256")
-            .when()
-            .get("/oauth2/authorize")
-            .then()
-            .statusCode(200)
-            .extract()
-            .response();
-
-        String requestId = extractRequestId(authResponse.asString());
-
-        given()
-            .formParam("username", TEST_USERNAME)
-            .formParam("password", TEST_PASSWORD)
-            .formParam("request_id", requestId)
-            .when()
-            .post("/oauth2/authorize/authenticate")
-            .then()
-            .statusCode(200);
-
-        Response consentResponse = given()
-            .formParam("consent", "approve")
-            .formParam("request_id", requestId)
-            .redirects().follow(false)
-            .when()
-            .post("/oauth2/authorize")
-            .then()
-            .statusCode(303)
-            .extract()
-            .response();
-
-        String redirectLocation = consentResponse.getHeader("Location");
-        String authCode = extractParameter(redirectLocation, "code");
-        String state = extractParameter(redirectLocation, "state");
-
-        // Test callback page
-        Response callbackResponse = given()
-            .queryParam("code", authCode)
-            .queryParam("state", state)
-            .when()
-            .get("/admin/callback")
-            .then()
-            .statusCode(200)
-            .contentType(containsString("text/html"))
-            .extract()
-            .response();
-
-        String html = callbackResponse.asString();
-        assertTrue(html.contains("Authorization Successful"));
-        assertTrue(html.contains(authCode));
-        assertTrue(html.contains("Exchange Code for Token"));
-    }
-
-    @Test
-    public void testCallbackPageWithError() {
-        Response callbackResponse = given()
-            .queryParam("error", "access_denied")
-            .queryParam("error_description", "User denied authorization")
-            .when()
-            .get("/admin/callback")
-            .then()
-            .statusCode(200)
-            .extract()
-            .response();
-
-        String html = callbackResponse.asString();
-        assertTrue(html.contains("Authorization Error"));
-        assertTrue(html.contains("access_denied"));
-        assertTrue(html.contains("User denied authorization"));
-    }
 
     // Helper methods
 
@@ -391,7 +310,7 @@ public class CompleteOAuthFlowTest {
             .formParam("username", testUser)
             .formParam("password", testPassword)
             .when()
-            .post("/api/register")
+            .post("/api/signup")
             .then()
             .statusCode(201);
 

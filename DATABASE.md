@@ -40,7 +40,7 @@ erDiagram
         VARCHAR(5000) redirect_uris "JSON array of allowed URIs"
         VARCHAR(5000) allowed_scopes "JSON array of scopes"
         BOOLEAN require_pkce "PKCE requirement flag"
-        TIMESTAMP created_at "Client registration timestamp"
+        TIMESTAMP created_at "Client sign up timestamp"
     }
 
     T_authorization_requests {
@@ -188,7 +188,7 @@ The database follows strict naming conventions for consistency and clarity:
 ### Authorization Code Flow
 
 1. **Client Registration**: OAuth client is registered in `T_oauth_clients`
-2. **User Registration**: User creates account in `T_accounts` with credentials in `T_credentials`
+2. **User Sign Up**: User creates account in `T_accounts` with credentials in `T_credentials`
 3. **Authorization Request**: Client initiates flow, creating entry in `T_authorization_requests`
 4. **User Authentication**: User logs in using credentials from `T_credentials`
 5. **User Consent**: User approves request, updating `T_authorization_requests` status

@@ -1,1 +1,7 @@
-<button (click)="login()">Sign In with OAuth</button>
+@if(!isSignedIn) {
+    <button (click)="signin()">Sign in</button>
+} @else {
+    <pre>
+{{ accessToken() }}
+    </pre>
+}

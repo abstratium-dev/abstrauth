@@ -72,6 +72,7 @@ exit, then reconnect using the abstrauth user:
 
 ### Now
 
+- use an enum for the status on authorization requests - see sql 004 for values
 - implement callback as part of angular app
 - fetch token and store it in memory only
 - add http interceptor in angular app to add token to requests
@@ -86,11 +87,14 @@ exit, then reconnect using the abstrauth user:
   - double check that pkce is properly implemented, especially storing the code challenge in session storage
   - find out how best to store the token, e.g. so that hledger can use it
 - make the client verify the signature of the token in the sample-app to show how it's done
-- add roles
+- add roles. search for generateAccessToken or "user"
 - add google login
 
 ### Later
 
+- make authorization requests become expired
+- state needs to work if other third party apps want to use it
+- clean up authorization requests after a month
 - add microsoft login
 - add github login
 - add using refresh tokens
@@ -113,6 +117,23 @@ exit, then reconnect using the abstrauth user:
   - and then show results in github
 - document production setup
 - [x] check using https://oauthdebugger.com/
+
+# Aesthetics
+
+## favicon
+
+https://favicon.io/favicon-generator/ - text based
+
+Text: a
+Background: rounded
+Font Family: Leckerli One
+Font Variant: Regular 400 Normal
+Font Size: 110
+Font Color: #FFFFFF
+Background Color: #5c6bc0
+
+
+----
 
 ## Running the application in dev mode
 
@@ -170,3 +191,4 @@ If you want to learn more about building native executables, please consult <htt
 Easily start your REST Web Services
 
 [Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+

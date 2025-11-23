@@ -18,6 +18,7 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -181,9 +182,62 @@ public class AuthorizationResource {
         AuthorizationRequest authRequest = authorizationService.createAuthorizationRequest(
                 clientId, redirectUri, scope, state, codeChallenge, codeChallengeMethod);
 
-        // Return login form
-        return Response.ok(buildLoginForm(authRequest.getId(), client.getClientName(), scope))
-                .build();
+        return Response.seeOther(URI.create("/signin/" + authRequest.getId())).build();
+    }
+
+    @GET
+    @Path("/details/{requestId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Authorization Request Details",
+        description = "Fetches the details to a request made previously using GET /authorize"
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "Authorization request details",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = AuthRequestDetails.class),
+                examples = {
+                    @ExampleObject(
+                        name = "Authorization Request Details",
+                        value = """
+                        {
+                            "clientName": "Example Client",
+                            "scope": "openid profile email"
+                        }
+                        """
+                    )
+                }
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Invalid request parameters"
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "User not authenticated"
+        )
+    })
+    public Response getAuthorizationRequestDetails(
+        @Parameter(description = "Authorization request identifier", required = true)
+        @PathParam("requestId") String requestId
+    ) {
+        Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
+        if (requestOpt.isEmpty() || !"pending".equals(requestOpt.get().getStatus())) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        AuthorizationRequest authRequest = requestOpt.get();
+        OAuthClient client = clientService.findByClientId(authRequest.getClientId()).get();
+
+        return Response.ok(new AuthRequestDetails(client.getClientName(), authRequest.getScope())).build();
+    }
+
+    public record AuthRequestDetails(String clientName, String scope) {
+
     }
 
     @POST
@@ -211,7 +265,7 @@ public class AuthorizationResource {
         @FormParam("request_id") String requestId
     ) {
         Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
-        if (requestOpt.isEmpty()) {
+        if (requestOpt.isEmpty() || !"approved".equals(requestOpt.get().getStatus())) { // it is approved when the user signs in with the right password
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>Invalid request</p></body></html>")
                     .build();
@@ -243,31 +297,55 @@ public class AuthorizationResource {
     @POST
     @Path("/authenticate")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-    @Produces(MediaType.TEXT_HTML)
+    @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Authenticate user", description = "Authenticates user and shows consent page")
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "User authenticated successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = AuthenticationResponse.class),
+                examples = {
+                    @ExampleObject(
+                        name = "Authorization Request Details",
+                        value = """
+                        {
+                            "clientName": "Example Client",
+                            "scope": "openid profile email"
+                        }
+                        """
+                    )
+                }
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Invalid username or password"
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "User not authenticated"
+        )
+    })
     public Response authenticate(
             @FormParam("username") String username,
             @FormParam("password") String password,
             @FormParam("request_id") String requestId) {
 
         Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
-        if (requestOpt.isEmpty()) {
+        if (requestOpt.isEmpty() || !"pending".equals(requestOpt.get().getStatus())) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("<html><body><h1>Error</h1><p>Invalid request</p></body></html>")
+                    .entity("Invalid request")
                     .build();
         }
-
-        AuthorizationRequest authRequest = requestOpt.get();
 
         // Authenticate user
         Optional<Account> accountOpt = accountService.authenticate(username, password);
         if (accountOpt.isEmpty()) {
-            // Authentication failed - show login form with error
-            Optional<OAuthClient> clientOpt = clientService.findByClientId(authRequest.getClientId());
-            String clientName = clientOpt.map(OAuthClient::getClientName).orElse("Unknown Client");
+            // Authentication failed - return error
             return Response.status(Response.Status.UNAUTHORIZED)
-                    .entity(buildLoginForm(requestId, clientName, authRequest.getScope(), 
-                            "Invalid username or password"))
+                    .entity("Invalid username or password")
                     .build();
         }
 
@@ -277,11 +355,7 @@ public class AuthorizationResource {
         authorizationService.approveAuthorizationRequest(requestId, account.getId());
 
         // Show consent page
-        Optional<OAuthClient> clientOpt = clientService.findByClientId(authRequest.getClientId());
-        String clientName = clientOpt.map(OAuthClient::getClientName).orElse("Unknown Client");
-
-        return Response.ok(buildConsentForm(requestId, clientName, authRequest.getScope(), account.getName()))
-                .build();
+        return Response.ok(new AuthenticationResponse(account.getName())).build();
     }
 
     private Response buildErrorRedirect(String redirectUri, String error, String errorDescription, String state) {
@@ -303,72 +377,15 @@ public class AuthorizationResource {
         return Response.seeOther(URI.create(redirectUrl)).build();
     }
 
-    private String buildLoginForm(String requestId, String clientName, String scope) {
-        return buildLoginForm(requestId, clientName, scope, null);
-    }
+    public static final class AuthenticationResponse {
+        private final String name;
 
-    private String buildLoginForm(String requestId, String clientName, String scope, String errorMessage) {
-        StringBuilder html = new StringBuilder();
-        html.append("<!DOCTYPE html><html><head><title>Login</title>")
-            .append("<style>")
-            .append(".error{color:red;margin:10px 0;}")
-            .append("</style></head><body>")
-            .append("<h2>Login to Abstratium</h2>")
-            .append("<p><strong>").append(clientName).append("</strong> wants to access:</p>")
-            .append("<ul>");
-
-        if (scope != null && !scope.isBlank()) {
-            for (String s : scope.split(" ")) {
-                html.append("<li>").append(s).append("</li>");
-            }
+        public AuthenticationResponse(String name) {
+            this.name = name;
         }
 
-        html.append("</ul>");
-
-        if (errorMessage != null) {
-            html.append("<div class='error'>").append(errorMessage).append("</div>");
+        public String getName() {
+            return name;
         }
-
-        html.append("<form method='post' action='/oauth2/authorize/authenticate'>")
-            .append("<input type='hidden' name='request_id' value='").append(requestId).append("'/>")
-            .append("<input type='text' name='username' placeholder='Username' required/>")
-            .append("<input type='password' name='password' placeholder='Password' required/>")
-            .append("<button type='submit'>Sign in</button>")
-            .append("</form>")
-            .append("<p style='text-align:center;margin-top:20px;'>")
-            .append("Don't have an account? <a href='/api/register'>Sign up</a>")
-            .append("</p>")
-            .append("</body></html>");
-
-        return html.toString();
-    }
-
-    private String buildConsentForm(String requestId, String clientName, String scope, String userName) {
-        StringBuilder html = new StringBuilder();
-        html.append("<!DOCTYPE html><html><head><title>Authorize</title>")
-            .append("<style>")
-            .append(".approve{background:#28a745;color:white;}")
-            .append(".deny{background:#dc3545;color:white;}")
-            .append("</style></head><body>")
-            .append("<h2>Authorize Application</h2>")
-            .append("<p>Hi <strong>").append(userName).append("</strong>,</p>")
-            .append("<p><strong>").append(clientName).append("</strong> wants to access:</p>")
-            .append("<ul>");
-
-        if (scope != null && !scope.isBlank()) {
-            for (String s : scope.split(" ")) {
-                html.append("<li>").append(s).append("</li>");
-            }
-        }
-
-        html.append("</ul>")
-            .append("<form method='post' action='/oauth2/authorize'>")
-            .append("<input type='hidden' name='request_id' value='").append(requestId).append("'/>")
-            .append("<button type='submit' name='consent' value='approve' class='approve'>Approve</button>")
-            .append("<button type='submit' name='consent' value='deny' class='deny'>Deny</button>")
-            .append("</form>")
-            .append("</body></html>");
-
-        return html.toString();
     }
 }

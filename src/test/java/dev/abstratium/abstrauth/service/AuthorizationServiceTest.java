@@ -27,7 +27,7 @@ public class AuthorizationServiceTest {
     public void testCreateAuthorizationRequest() {
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid profile",
             "test_state",
             "test_challenge",
@@ -37,7 +37,7 @@ public class AuthorizationServiceTest {
         assertNotNull(request);
         assertNotNull(request.getId());
         assertEquals("test_client", request.getClientId());
-        assertEquals("http://localhost:8080/admin/callback", request.getRedirectUri());
+        assertEquals("http://localhost:8080/auth-callback", request.getRedirectUri());
         assertEquals("openid profile", request.getScope());
         assertEquals("test_state", request.getState());
         assertEquals("test_challenge", request.getCodeChallenge());
@@ -52,7 +52,7 @@ public class AuthorizationServiceTest {
     public void testFindAuthorizationRequest() {
         AuthorizationRequest created = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state",
             "challenge",
@@ -85,7 +85,7 @@ public class AuthorizationServiceTest {
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state",
             "challenge",
@@ -113,7 +113,7 @@ public class AuthorizationServiceTest {
     public void testApproveExpiredRequest() {
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state",
             "challenge",
@@ -145,7 +145,7 @@ public class AuthorizationServiceTest {
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid profile",
             "state",
             "challenge",
@@ -162,7 +162,7 @@ public class AuthorizationServiceTest {
         assertEquals(request.getId(), authCode.getAuthorizationRequestId());
         assertEquals(account.getId(), authCode.getAccountId());
         assertEquals("test_client", authCode.getClientId());
-        assertEquals("http://localhost:8080/admin/callback", authCode.getRedirectUri());
+        assertEquals("http://localhost:8080/auth-callback", authCode.getRedirectUri());
         assertEquals("openid profile", authCode.getScope());
         assertEquals("challenge", authCode.getCodeChallenge());
         assertEquals("S256", authCode.getCodeChallengeMethod());
@@ -176,7 +176,7 @@ public class AuthorizationServiceTest {
     public void testGenerateAuthorizationCodeForNonApprovedRequest() {
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state",
             "challenge",
@@ -209,7 +209,7 @@ public class AuthorizationServiceTest {
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state",
             "challenge",
@@ -245,7 +245,7 @@ public class AuthorizationServiceTest {
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state",
             "challenge",
@@ -283,7 +283,7 @@ public class AuthorizationServiceTest {
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state",
             "challenge",
@@ -321,7 +321,7 @@ public class AuthorizationServiceTest {
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state",
             "challenge",
@@ -334,7 +334,7 @@ public class AuthorizationServiceTest {
         // Create another request
         AuthorizationRequest request2 = authorizationService.createAuthorizationRequest(
             "test_client",
-            "http://localhost:8080/admin/callback",
+            "http://localhost:8080/auth-callback",
             "openid",
             "state2",
             "challenge2",

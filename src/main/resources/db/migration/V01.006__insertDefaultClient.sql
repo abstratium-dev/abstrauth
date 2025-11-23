@@ -5,7 +5,7 @@ VALUES (
     'abstrauth_admin_app',
     'abstrauth admin app',
     'public',
-    '["http://localhost:8080/admin/callback", "http://localhost:4200/admin/callback", "https://auth.abstratium.dev/admin/callback"]',
+    '["http://localhost:8080/auth-callback", "http://localhost:4200/auth-callback", "https://auth.abstratium.dev/auth-callback"]',
     '["openid", "profile", "email"]',
     TRUE
 );

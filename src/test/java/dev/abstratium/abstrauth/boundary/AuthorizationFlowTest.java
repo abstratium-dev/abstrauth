@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AuthorizationFlowTest {
 
     private static final String CLIENT_ID = "abstrauth_admin_app";
-    private static final String REDIRECT_URI = "http://localhost:8080/admin/callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
     private static final String TEST_USERNAME = "testuser_" + System.currentTimeMillis();
     private static final String TEST_EMAIL = "test_" + System.currentTimeMillis() + "@example.com";
     private static final String TEST_PASSWORD = "SecurePassword123";
@@ -31,14 +31,14 @@ public class AuthorizationFlowTest {
 
     @BeforeEach
     public void setup() {
-        // Register a test user
+        // sign a test user up
         given()
             .formParam("email", TEST_EMAIL)
             .formParam("name", TEST_NAME)
             .formParam("username", TEST_USERNAME)
             .formParam("password", TEST_PASSWORD)
             .when()
-            .post("/api/register")
+            .post("/api/signup")
             .then()
             .statusCode(anyOf(is(201), is(409))); // 201 Created or 409 if already exists
     }
@@ -155,7 +155,7 @@ public class AuthorizationFlowTest {
         given()
             .queryParam("response_type", "code")
             .queryParam("client_id", CLIENT_ID)
-            .queryParam("redirect_uri", "https://evil.com/admin/callback")
+            .queryParam("redirect_uri", "https://evil.com/auth-callback")
             .queryParam("code_challenge", "test_challenge")
             .queryParam("code_challenge_method", "S256")
             .when()

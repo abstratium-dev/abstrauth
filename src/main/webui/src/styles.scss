@@ -1,1 +1,13 @@
-/* You can add global styles to this file, and also import other style files */
+/* errors */
+.error {
+    color: red;
+    font-size: 0.8em;
+    margin-top: 0.5em;
+}
+
+/* success */
+.success {
+    color: green;
+    font-size: 0.8em;
+    margin-top: 0.5em;
+}
