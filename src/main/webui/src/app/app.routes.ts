@@ -11,7 +11,7 @@ export const routes: Routes = [
   { path: '',         component: HomeComponent },
   { path: 'authorize',   component: AuthorizeComponent },
   { path: 'signin/:requestId',   component: SigninComponent },
-  { path: 'signup',   component: SignupComponent },
+  { path: 'signup/:requestId',   component: SignupComponent },
   { path: 'auth-callback',   component: AuthCallbackComponent },
   { path: 'user/:id', component: UserComponent },
   { path: '**',       component: NotFoundComponent }

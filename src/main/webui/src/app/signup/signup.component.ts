@@ -2,7 +2,7 @@ import { Component, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'signup',
@@ -14,13 +14,18 @@ export class SignupComponent {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
+  requestId = "";
 
   signupForm: FormGroup;
   message: string = '';
   messageType: 'success' | 'error' | '' = '';
   isSubmitting: boolean = false;
 
-  constructor() {
+  constructor(
+  ) {
+    this.requestId = this.route.snapshot.paramMap.get('requestId') || "";
     this.signupForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       name: [''],
@@ -54,9 +59,7 @@ export class SignupComponent {
         this.signupForm.reset();
         this.isSubmitting = false;
 
-        setTimeout(() => {
-          this.router.navigate(['/signin']);
-        }, 2000);
+        this.router.navigate(['/signin', this.requestId]);
       },
       error: (error) => {
         this.messageType = 'error';
