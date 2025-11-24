@@ -72,7 +72,6 @@ exit, then reconnect using the abstrauth user:
 
 ### Now
 
-- fix signup since it should simply redirect to signup straight away, but it needs to include the request id in the url
 - fix tests
 - add playwright tests
   - https://docs.quarkiverse.io/quarkus-quinoa/dev/testing.html
