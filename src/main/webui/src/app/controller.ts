@@ -8,12 +8,12 @@ export class Controller {
 
   modelService = inject(ModelService)
 
-  setSignInUsername(username: string) {
-    this.modelService.setSignInUsername(username)
+  setSignUpUsername(username: string) {
+    this.modelService.setSignUpUsername(username)
   }
 
-  setSignInPassword(password: string) {
-    this.modelService.setSignInPassword(password)
+  setSignUpPassword(password: string) {
+    this.modelService.setSignUpPassword(password)
   }
 
   setSignInRequestId(requestId: string) {

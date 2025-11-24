@@ -9,7 +9,7 @@
         <div class="form-group">
             <label for="email">Email Address *</label>
             <input type="email" id="email" formControlName="email" 
-                    placeholder="your.email@example.com">
+                    placeholder="your.email@example.com" autocomplete="email">
             <div *ngIf="signupForm.get('email')?.invalid && signupForm.get('email')?.touched" class="error">
                 <span *ngIf="signupForm.get('email')?.hasError('required')">Email is required</span>
                 <span *ngIf="signupForm.get('email')?.hasError('email')">Please enter a valid email</span>
@@ -19,13 +19,13 @@
         <div class="form-group">
             <label for="name">Full Name</label>
             <input type="text" id="name" formControlName="name" 
-                    placeholder="John Doe">
+                    placeholder="John Doe" autocomplete="name">
         </div>
         
         <div class="form-group">
             <label for="username">Username *</label>
             <input type="text" id="username" formControlName="username" 
-                    placeholder="johndoe">
+                    placeholder="johndoe" autocomplete="username">
             <div *ngIf="signupForm.get('username')?.invalid && signupForm.get('username')?.touched" class="error">
                 <span *ngIf="signupForm.get('username')?.hasError('required')">Username is required</span>
             </div>
@@ -34,7 +34,7 @@
         <div class="form-group">
             <label for="password">Password *</label>
             <input type="password" id="password" formControlName="password" 
-                    placeholder="••••••••">
+                    placeholder="Password" autocomplete="new-password">
             <p class="help-text">Must be at least 8 characters</p>
             <div *ngIf="signupForm.get('password')?.invalid && signupForm.get('password')?.touched" class="error">
                 <span *ngIf="signupForm.get('password')?.hasError('required')">Password is required</span>

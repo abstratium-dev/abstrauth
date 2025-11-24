@@ -10,14 +10,14 @@
 
         <form [formGroup]="signinForm" (ngSubmit)="signin()">
             <div class="form-group">
-                <input type='text' formControlName='username' placeholder='Username' required/>
+                <input type='text' formControlName='username' autocomplete='username' placeholder='Username' required/>
                 <div *ngIf="signinForm.get('username')?.invalid && signinForm.get('username')?.touched" class="error">
                     <span *ngIf="signinForm.get('username')?.hasError('required')">Username is required</span>
                 </div>
             </div>
             
             <div class="form-group">
-                <input type='password' formControlName='password' placeholder='Password' required/>
+                <input type='password' formControlName='password' autocomplete='current-password' placeholder='Password' required/>
                 <div *ngIf="signinForm.get('password')?.invalid && signinForm.get('password')?.touched" class="error">
                     <span *ngIf="signinForm.get('password')?.hasError('required')">Password is required</span>
                 </div>
@@ -27,7 +27,7 @@
         </form>
         
         <p style='text-align:center;margin-top:20px;'>
-            Don't have an account? <a href='/signup/{{requestId}}'>Sign up</a>
+            Don't have an account? <a routerLink='/signup'>Sign up</a>
         </p>
     } @else {
         <h1>Approve Application</h1>

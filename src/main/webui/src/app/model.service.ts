@@ -1,23 +1,27 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, Signal, WritableSignal } from '@angular/core';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ModelService {
 
-  signInUsername$ = signal('')
-  signInPassword$ = signal('')
-  signInRequestId$ = signal('')
+  private signUpUsername = signal('')
+  private signUpPassword = signal('')
+  private signInRequestId = signal('')
 
-  setSignInUsername(username: string) {
-    this.signInUsername$.set(username)
+  signUpUsername$: Signal<string> = this.signUpUsername.asReadonly()
+  signUpPassword$: Signal<string> = this.signUpPassword.asReadonly()
+  signInRequestId$: Signal<string> = this.signInRequestId.asReadonly()
+
+  setSignUpUsername(username: string) {
+    this.signUpUsername.set(username)
   }
 
-  setSignInPassword(password: string) {
-    this.signInPassword$.set(password)
+  setSignUpPassword(password: string) {
+    this.signUpPassword.set(password)
   }
 
   setSignInRequestId(requestId: string) {
-    this.signInRequestId$.set(requestId)
+    this.signInRequestId.set(requestId)
   }
 }

@@ -1,8 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, effect } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ModelService } from '../model.service';
+import { Controller } from '../controller';
 
 @Component({
   selector: 'signup',
@@ -14,7 +16,8 @@ export class SignupComponent {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
-  private route = inject(ActivatedRoute);
+  private modelService = inject(ModelService)
+  private controller = inject(Controller)
 
   requestId = "";
 
@@ -25,7 +28,10 @@ export class SignupComponent {
 
   constructor(
   ) {
-    this.requestId = this.route.snapshot.paramMap.get('requestId') || "";
+    effect(() => {
+      this.requestId = this.modelService.signInRequestId$();
+    });
+
     this.signupForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       name: [''],
@@ -54,6 +60,9 @@ export class SignupComponent {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     }).subscribe({
       next: (data) => {
+        this.controller.setSignUpUsername(this.signupForm.value.username);
+        this.controller.setSignUpPassword(this.signupForm.value.password);
+
         this.messageType = 'success';
         this.message = `Account created successfully! ID: ${data.id}`;
         this.signupForm.reset();

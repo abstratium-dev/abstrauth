@@ -1,8 +1,10 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { Component, inject, OnInit } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { ModelService } from '../model.service';
+import { Controller } from '../controller';
 
 interface AuthRequestDetails {
     clientName: string;
@@ -15,11 +17,17 @@ interface AuthenticationResponse {
 
 @Component({
     selector: 'signin',
-    imports: [CommonModule, ReactiveFormsModule],
+    imports: [CommonModule, ReactiveFormsModule, RouterLink],
     templateUrl: './signin.component.html',
     styleUrl: './signin.component.scss',
 })
 export class SigninComponent implements OnInit {
+
+    modelService = inject(ModelService)
+    controller = inject(Controller)
+    route = inject(ActivatedRoute)
+    http = inject(HttpClient)
+    fb = inject(FormBuilder)
 
     requestId = "";
     clientName = "";
@@ -31,18 +39,19 @@ export class SigninComponent implements OnInit {
     name = "";
 
     constructor(
-        private route: ActivatedRoute,
-        private http: HttpClient,
-        private fb: FormBuilder
     ) {
+        const username = this.modelService.signUpUsername$();
+        const password = this.modelService.signUpPassword$();
+
         this.signinForm = this.fb.group({
-            username: ['', Validators.required],
-            password: ['', Validators.required]
+            username: [username, Validators.required],
+            password: [password, Validators.required]
         });
     }
 
     ngOnInit(): void {
         this.requestId = this.route.snapshot.paramMap.get('requestId')!;
+        this.controller.setSignInRequestId(this.requestId);
 
         // now fetch details from backend
         this.http.get<AuthRequestDetails>(`/oauth2/authorize/details/${this.requestId}`)

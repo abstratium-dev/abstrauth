@@ -115,6 +115,7 @@ exit, then reconnect using the abstrauth user:
 - github build? https://github.com/abstratium-dev/abstrauth/new/main?filename=.github%2Fworkflows%2Fmaven.yml&workflow_template=ci%2Fmaven
   - and then show results in github
 - document production setup
+- autocomplete: https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fe-autocomplete-username
 - [x] check using https://oauthdebugger.com/
 
 # Aesthetics
