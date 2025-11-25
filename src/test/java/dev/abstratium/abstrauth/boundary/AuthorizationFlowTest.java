@@ -4,7 +4,6 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -49,7 +48,7 @@ public class AuthorizationFlowTest {
         String codeVerifier = generateCodeVerifier();
         String codeChallenge = generateCodeChallenge(codeVerifier);
 
-        // Step 1: Initiate authorization request
+        // Step 1: Initiate authorization request - should redirect to signin page
         Response authResponse = given()
             .queryParam("response_type", "code")
             .queryParam("client_id", CLIENT_ID)
@@ -58,22 +57,20 @@ public class AuthorizationFlowTest {
             .queryParam("state", "test_state_123")
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(200)
-            .contentType(containsString("text/html"))
+            .statusCode(303)
             .extract()
             .response();
 
-        String loginHtml = authResponse.asString();
-        assertTrue(loginHtml.contains("Login to Abstratium"), "Should show login form");
+        // Extract request_id from the redirect location
+        String authRedirectLocation = authResponse.getHeader("Location");
+        String requestId = extractRequestId(authRedirectLocation);
+        assertNotNull(requestId, "Request ID should be present in redirect URL");
 
-        // Extract request_id from the login form
-        String requestId = extractRequestId(loginHtml);
-        assertNotNull(requestId, "Request ID should be present in login form");
-
-        // Step 2: Submit login credentials
+        // Step 2: Submit login credentials - should return 200 OK with JSON
         Response loginResponse = given()
             .formParam("username", TEST_USERNAME)
             .formParam("password", TEST_PASSWORD)
@@ -82,13 +79,12 @@ public class AuthorizationFlowTest {
             .post("/oauth2/authorize/authenticate")
             .then()
             .statusCode(200)
-            .contentType(containsString("text/html"))
+            .contentType(containsString("application/json"))
             .extract()
             .response();
 
-        String consentHtml = loginResponse.asString();
-        assertTrue(consentHtml.contains("Authorize Application"), "Should show consent form");
-        assertTrue(consentHtml.contains(TEST_NAME), "Should show user name");
+        // Verify authentication was successful
+        assertTrue(loginResponse.asString().contains(TEST_NAME), "Should return user name in response");
 
         // Step 3: Approve consent
         Response consentResponse = given()
@@ -103,13 +99,13 @@ public class AuthorizationFlowTest {
             .extract()
             .response();
 
-        String redirectLocation = consentResponse.getHeader("Location");
-        assertTrue(redirectLocation.startsWith(REDIRECT_URI), "Should redirect to callback URI");
-        assertTrue(redirectLocation.contains("code="), "Should contain authorization code");
-        assertTrue(redirectLocation.contains("state=test_state_123"), "Should contain state parameter");
+        String callbackRedirectLocation = consentResponse.getHeader("Location");
+        assertTrue(callbackRedirectLocation.startsWith(REDIRECT_URI), "Should redirect to callback URI");
+        assertTrue(callbackRedirectLocation.contains("code="), "Should contain authorization code");
+        assertTrue(callbackRedirectLocation.contains("state=test_state_123"), "Should contain state parameter");
 
         // Extract authorization code
-        String authCode = extractParameter(redirectLocation, "code");
+        String authCode = extractParameter(callbackRedirectLocation, "code");
         assertNotNull(authCode, "Authorization code should be present");
         assertFalse(authCode.isEmpty(), "Authorization code should not be empty");
 
@@ -177,14 +173,16 @@ public class AuthorizationFlowTest {
             .queryParam("redirect_uri", REDIRECT_URI)
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(200)
+            .statusCode(303)
             .extract()
             .response();
 
-        String requestId = extractRequestId(authResponse.asString());
+        String redirectLocation = authResponse.getHeader("Location");
+        String requestId = extractRequestId(redirectLocation);
 
         // Attempt login with wrong password
         given()
@@ -211,16 +209,19 @@ public class AuthorizationFlowTest {
             .queryParam("state", "test_state")
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(200)
+            .statusCode(303)
             .extract()
             .response();
 
-        String requestId = extractRequestId(authResponse.asString());
+        // extract the request_id from the redirect location
+        String authRedirect = authResponse.getHeader("Location");
+        String requestId = extractRequestId(authRedirect);
 
-        // Login successfully
+        // Login successfully - should return 200 OK
         given()
             .formParam("username", TEST_USERNAME)
             .formParam("password", TEST_PASSWORD)
@@ -242,9 +243,9 @@ public class AuthorizationFlowTest {
             .extract()
             .response();
 
-        String redirectLocation = denyResponse.getHeader("Location");
-        assertTrue(redirectLocation.contains("error=access_denied"), "Should contain access_denied error");
-        assertTrue(redirectLocation.contains("state=test_state"), "Should preserve state parameter");
+        String denyRedirectLocation = denyResponse.getHeader("Location");
+        assertTrue(denyRedirectLocation.contains("error=access_denied"), "Should contain access_denied error");
+        assertTrue(denyRedirectLocation.contains("state=test_state"), "Should preserve state parameter");
     }
 
 
@@ -263,12 +264,28 @@ public class AuthorizationFlowTest {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
     }
 
-    private String extractRequestId(String html) {
-        Pattern pattern = Pattern.compile("name='request_id'\\s+value='([^']+)'");
-        Matcher matcher = pattern.matcher(html);
-        if (matcher.find()) {
-            return matcher.group(1);
+    private String extractRequestId(String url) {
+        // Try to extract from query parameter first (e.g., ?request_id=xxx)
+        Pattern queryPattern = Pattern.compile("request_id=([^&]+)");
+        Matcher queryMatcher = queryPattern.matcher(url);
+        if (queryMatcher.find()) {
+            return queryMatcher.group(1);
         }
+        
+        // Try to extract from path (e.g., /signin/{request_id})
+        Pattern pathPattern = Pattern.compile("/signin/([^/?]+)");
+        Matcher pathMatcher = pathPattern.matcher(url);
+        if (pathMatcher.find()) {
+            return pathMatcher.group(1);
+        }
+        
+        // Try to extract from consent path (e.g., /consent/{request_id})
+        Pattern consentPattern = Pattern.compile("/consent/([^/?]+)");
+        Matcher consentMatcher = consentPattern.matcher(url);
+        if (consentMatcher.find()) {
+            return consentMatcher.group(1);
+        }
+        
         return null;
     }
 

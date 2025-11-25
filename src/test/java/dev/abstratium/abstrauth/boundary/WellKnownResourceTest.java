@@ -95,7 +95,7 @@ public class WellKnownResourceTest {
         String codeVerifier = generateCodeVerifier();
         String codeChallenge = generateCodeChallenge(codeVerifier);
 
-        // Start authorization flow with GET request
+        // Start authorization flow with GET request - should redirect to signin
         Response authResponse = given()
             .queryParam("response_type", "code")
             .queryParam("client_id", CLIENT_ID)
@@ -104,14 +104,15 @@ public class WellKnownResourceTest {
             .queryParam("state", "test_state")
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(200)
+            .statusCode(303)
             .extract()
             .response();
 
-        String requestId = extractRequestIdFromHtml(authResponse.asString());
+        String requestId = extractRequestIdFromHtml(authResponse.getHeader("Location"));
 
         // Submit login credentials to authenticate endpoint
         given()
@@ -235,13 +236,29 @@ public class WellKnownResourceTest {
         throw new IllegalArgumentException("No code in redirect");
     }
 
-    private String extractRequestIdFromHtml(String html) {
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("name='request_id'\\s+value='([^']+)'");
-        java.util.regex.Matcher matcher = pattern.matcher(html);
-        if (matcher.find()) {
-            return matcher.group(1);
+    private String extractRequestIdFromHtml(String url) {
+        // Try to extract from query parameter first (e.g., ?request_id=xxx)
+        java.util.regex.Pattern queryPattern = java.util.regex.Pattern.compile("request_id=([^&]+)");
+        java.util.regex.Matcher queryMatcher = queryPattern.matcher(url);
+        if (queryMatcher.find()) {
+            return queryMatcher.group(1);
         }
-        throw new IllegalArgumentException("No request_id in HTML");
+        
+        // Try to extract from path (e.g., /signin/{request_id})
+        java.util.regex.Pattern pathPattern = java.util.regex.Pattern.compile("/signin/([^/?]+)");
+        java.util.regex.Matcher pathMatcher = pathPattern.matcher(url);
+        if (pathMatcher.find()) {
+            return pathMatcher.group(1);
+        }
+        
+        // Try to extract from consent path (e.g., /consent/{request_id})
+        java.util.regex.Pattern consentPattern = java.util.regex.Pattern.compile("/consent/([^/?]+)");
+        java.util.regex.Matcher consentMatcher = consentPattern.matcher(url);
+        if (consentMatcher.find()) {
+            return consentMatcher.group(1);
+        }
+        
+        throw new IllegalArgumentException("No request_id in URL");
     }
 
     private RSAPublicKey reconstructPublicKey(String nBase64, String eBase64) throws Exception {

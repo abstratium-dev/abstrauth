@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { AuthorizeComponent } from './authorize.component';
 
 describe('AuthorizeComponent', () => {
@@ -14,10 +13,17 @@ describe('AuthorizeComponent', () => {
 
     fixture = TestBed.createComponent(AuthorizeComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    
+    // Spy on authorize to prevent navigation
+    spyOn(component, 'authorize').and.returnValue(Promise.resolve());
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should not navigate during test', () => {
+    fixture.detectChanges();
+    expect(component.authorize).toHaveBeenCalled();
   });
 });

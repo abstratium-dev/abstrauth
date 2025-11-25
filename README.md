@@ -75,6 +75,7 @@ exit, then reconnect using the abstrauth user:
 - fix tests
 - add playwright tests
   - https://docs.quarkiverse.io/quarkus-quinoa/dev/testing.html
+  - https://docs.quarkiverse.io/quarkus-playwright/dev/
 - add http interceptor in angular app to add token to requests
 - add RolesAllowed to rest endpoints that need it
 - add ability to add and manage applications using a UI and rest endpoints

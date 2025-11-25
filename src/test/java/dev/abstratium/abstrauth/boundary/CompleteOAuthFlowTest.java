@@ -53,7 +53,7 @@ public class CompleteOAuthFlowTest {
         String codeVerifier = generateCodeVerifier();
         String codeChallenge = generateCodeChallenge(codeVerifier);
 
-        // Step 2: Initiate authorization request
+        // Step 2: Initiate authorization request - should redirect to signin
         Response authResponse = given()
             .queryParam("response_type", "code")
             .queryParam("client_id", CLIENT_ID)
@@ -62,17 +62,18 @@ public class CompleteOAuthFlowTest {
             .queryParam("state", "test_state_123")
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(200)
+            .statusCode(303)
             .extract()
             .response();
 
-        String requestId = extractRequestId(authResponse.asString());
+        String requestId = extractRequestId(authResponse.getHeader("Location"));
         assertNotNull(requestId);
 
-        // Step 3: Submit login credentials
+        // Step 3: Submit login credentials - should return JSON
         Response loginResponse = given()
             .formParam("username", TEST_USERNAME)
             .formParam("password", TEST_PASSWORD)
@@ -81,10 +82,11 @@ public class CompleteOAuthFlowTest {
             .post("/oauth2/authorize/authenticate")
             .then()
             .statusCode(200)
+            .contentType(containsString("application/json"))
             .extract()
             .response();
 
-        assertTrue(loginResponse.asString().contains("Authorize Application"));
+        assertTrue(loginResponse.asString().contains(TEST_NAME));
 
         // Step 4: Approve consent
         Response consentResponse = given()
@@ -160,14 +162,15 @@ public class CompleteOAuthFlowTest {
             .queryParam("redirect_uri", REDIRECT_URI)
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(200)
+            .statusCode(303)
             .extract()
             .response();
 
-        String requestId = extractRequestId(authResponse.asString());
+        String requestId = extractRequestId(authResponse.getHeader("Location"));
 
         given()
             .formParam("username", TEST_USERNAME)
@@ -218,14 +221,15 @@ public class CompleteOAuthFlowTest {
             .queryParam("redirect_uri", REDIRECT_URI)
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(200)
+            .statusCode(303)
             .extract()
             .response();
 
-        String requestId = extractRequestId(authResponse.asString());
+        String requestId = extractRequestId(authResponse.getHeader("Location"));
 
         given()
             .formParam("username", TEST_USERNAME)
@@ -279,12 +283,28 @@ public class CompleteOAuthFlowTest {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
     }
 
-    private String extractRequestId(String html) {
-        Pattern pattern = Pattern.compile("name='request_id'\\s+value='([^']+)'");
-        Matcher matcher = pattern.matcher(html);
-        if (matcher.find()) {
-            return matcher.group(1);
+    private String extractRequestId(String url) {
+        // Try to extract from query parameter first (e.g., ?request_id=xxx)
+        Pattern queryPattern = Pattern.compile("request_id=([^&]+)");
+        Matcher queryMatcher = queryPattern.matcher(url);
+        if (queryMatcher.find()) {
+            return queryMatcher.group(1);
         }
+        
+        // Try to extract from path (e.g., /signin/{request_id})
+        Pattern pathPattern = Pattern.compile("/signin/([^/?]+)");
+        Matcher pathMatcher = pathPattern.matcher(url);
+        if (pathMatcher.find()) {
+            return pathMatcher.group(1);
+        }
+        
+        // Try to extract from consent path (e.g., /consent/{request_id})
+        Pattern consentPattern = Pattern.compile("/consent/([^/?]+)");
+        Matcher consentMatcher = consentPattern.matcher(url);
+        if (consentMatcher.find()) {
+            return consentMatcher.group(1);
+        }
+        
         return null;
     }
 
@@ -326,14 +346,15 @@ public class CompleteOAuthFlowTest {
             .queryParam("state", "test_state")
             .queryParam("code_challenge", codeChallenge)
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(200)
+            .statusCode(303)
             .extract()
             .response();
 
-        String requestId = extractRequestId(authResponse.asString());
+        String requestId = extractRequestId(authResponse.getHeader("Location"));
 
         // Submit login credentials
         given()
