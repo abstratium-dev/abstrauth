@@ -1,7 +1,7 @@
 <div>
     <h1>Create Account</h1>
     
-    <div *ngIf="message" [class]="messageType">
+    <div id="message" *ngIf="message" [class]="messageType">
         {{ message }}
     </div>
     
@@ -35,13 +35,12 @@
             <label for="password">Password *</label>
             <input type="password" id="password" formControlName="password" 
                     placeholder="Password" autocomplete="new-password">
-            <p class="help-text">Must be at least 8 characters</p>
             <div *ngIf="signupForm.get('password')?.invalid && signupForm.get('password')?.touched" class="error">
                 <span *ngIf="signupForm.get('password')?.hasError('required')">Password is required</span>
                 <span *ngIf="signupForm.get('password')?.hasError('minlength')">Password must be at least 8 characters</span>
             </div>
         </div>
         
-        <button type="submit" [disabled]="isSubmitting">{{ isSubmitting ? 'Creating...' : 'Create Account' }}</button>
+        <button id="create-account-button" type="submit" [disabled]="isSubmitting">{{ isSubmitting ? 'Creating...' : 'Create Account' }}</button>
     </form>
 </div>

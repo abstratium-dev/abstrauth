@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-interface Token {
+export interface Token {
     issuer: string;
     subject: string; // id of the user
     groups: string[];
@@ -13,7 +13,7 @@ interface Token {
     isAuthenticated: boolean;
 }
 
-const anonymous: Token = {
+export const ANONYMOUS: Token = {
     issuer: 'https://abstrauth.abstratium.dev',
     subject: '2354372b-1704-4b88-9d62-b03395e0131c',
     groups: [],
@@ -32,8 +32,8 @@ const anonymous: Token = {
 })
 export class AuthService {
 
-    token$ = signal<Token>(anonymous);
-    private token = anonymous;
+    token$ = signal<Token>(ANONYMOUS);
+    private token = ANONYMOUS;
     private jwt = '';
     private routeBeforeSignIn = '/';
 
@@ -100,7 +100,7 @@ export class AuthService {
     }
 
     isAuthenticated() {
-        return this.token.email !== anonymous.email;
+        return this.token.email !== ANONYMOUS.email;
     }
 
     isExpired() {
@@ -114,7 +114,14 @@ export class AuthService {
     refreshToken() {
         // TODO actually refresh it using the refresh token
         // for the time being, set it to anon
-        this.token = anonymous;
+        this.token = ANONYMOUS;
+        this.token.isAuthenticated = false;
+        this.token$.set(this.token);
+    }
+
+    signout() {
+        // TODO call back end
+        this.token = ANONYMOUS;
         this.token.isAuthenticated = false;
         this.token$.set(this.token);
     }

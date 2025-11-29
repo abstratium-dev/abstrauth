@@ -1,0 +1,23 @@
+{
+  "name": "abstrauth",
+  "version": "1.0.0",
+  "description": "A minimum implementation of an oauth authorization server capable of serving multiple applications at same time. It uses JWT for authentication and authorization, signed with a public/private key pair so that third-party applications can validate the tokens and roles without calls to the authorization server.",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abstratium-dev/abstrauth.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/abstratium-dev/abstrauth/issues"
+  },
+  "homepage": "https://github.com/abstratium-dev/abstrauth#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^24.10.1"
+  }
+}

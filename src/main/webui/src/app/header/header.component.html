@@ -1,0 +1,7 @@
+<div class="header">
+    @if(isSignedIn) {
+        <span id="email">{{ token.email }}</span>
+        &nbsp;|&nbsp;
+        <a class="alink" (click)="signout()">Sign out</a>
+    }
+</div>

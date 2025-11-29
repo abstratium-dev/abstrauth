@@ -23,11 +23,11 @@
                 </div>
             </div>
             
-            <button type='submit' [disabled]="isSubmitting">{{ isSubmitting ? 'Signing in...' : 'Sign in' }}</button>
+            <button id="signin-button" type='submit' [disabled]="isSubmitting">{{ isSubmitting ? 'Signing in...' : 'Sign in' }}</button>
         </form>
         
         <p style='text-align:center;margin-top:20px;'>
-            Don't have an account? <a routerLink='/signup'>Sign up</a>
+            Don't have an account? <a id="signup-link" routerLink='/signup'>Sign up</a>
         </p>
     } @else {
         <h1>Approve Application</h1>
@@ -48,8 +48,8 @@
         <!-- use old skool form, so that browser will redirect to callback and we stay rfc compliant -->
         <form method='post' action='/oauth2/authorize'>
             <input type='hidden' name='request_id' value='{{ requestId }}'/>
-            <button type='submit' name='consent' value='approve'>Approve</button>
-            <button type='submit' name='consent' value='deny'>Deny</button>
+            <button id="approve-button" type='submit' name='consent' value='approve'>Approve</button>
+            <button id="deny-button" type='submit' name='consent' value='deny'>Deny</button>
         </form>
     }
 </div>

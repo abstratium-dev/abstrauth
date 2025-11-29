@@ -68,6 +68,39 @@ exit, then reconnect using the abstrauth user:
     docker run -it --network abstratium --rm mysql mysql -h abstratium-mysql --port 3306 -u abstrauth -psecret abstrauth
 
 
+## Testing
+
+### E2E Testing with Playwright
+
+  npx playwright test
+    Runs the end-to-end tests.
+
+  npx playwright test --ui
+    Starts the interactive UI mode.
+
+  npx playwright test --project=chromium
+    Runs the tests only on Desktop Chrome.
+
+  npx playwright test example
+    Runs the tests in a specific file.
+
+  npx playwright test --debug
+    Runs the tests in debug mode.
+
+  npx playwright codegen
+    Auto generate tests with Codegen.
+
+We suggest that you begin by typing:
+
+    npx playwright test
+
+And check out the following files:
+  - ./tests/example.spec.ts - Example end-to-end test
+  - ./playwright.config.ts - Playwright Test configuration
+
+Visit https://playwright.dev/docs/intro for more information. ✨
+
+
 ## TODO
 
 ### Now
@@ -87,6 +120,8 @@ exit, then reconnect using the abstrauth user:
 
 ### Later
 
+- don't require approval, if client is configured that way and base it on scopes. so user only approves if new scopes are being requested
+- sign out - see auth.service.ts
 - make aesthetics better and document colours, etc. below
 - add optional env vars that allow initial sign in without registration, so that that user has admin role
 - show how to make the client verify the signature of the token
