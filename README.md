@@ -70,35 +70,67 @@ exit, then reconnect using the abstrauth user:
 
 ## Testing
 
+### Unit and Integration Tests
+
+Run unit tests:
+
+    mvn test
+
+Run all tests (unit + integration):
+
+    mvn verify
+
 ### E2E Testing with Playwright
 
-  npx playwright test
-    Runs the end-to-end tests.
+The E2E tests are in `e2e-tests/` and use Playwright to test the full application stack.
 
-  npx playwright test --ui
-    Starts the interactive UI mode.
+#### Running E2E Tests via Maven
 
-  npx playwright test --project=chromium
-    Runs the tests only on Desktop Chrome.
+**IMPORTANT**: E2E tests require the application to be built with H2 database support. 
+Since `quarkus.datasource.db-kind` is a build-time property, you must use the `e2e` profile:
 
-  npx playwright test example
-    Runs the tests in a specific file.
+    mvn verify -Pe2e
 
-  npx playwright test --debug
-    Runs the tests in debug mode.
+This will:
+1. Build the application with H2 database configured
+2. Run unit tests
+3. Package the JAR
+4. Start Quarkus with H2 via `start-e2e-server.sh`
+5. Run Playwright tests against the running application
+6. Stop the server
 
-  npx playwright codegen
-    Auto generate tests with Codegen.
+**Note**: Running `mvn verify` without `-Pe2e` will skip the Playwright tests.
 
-We suggest that you begin by typing:
+#### Running E2E Tests Manually
 
-    npx playwright test
+For development, you can run tests manually:
 
-And check out the following files:
-  - ./tests/example.spec.ts - Example end-to-end test
-  - ./playwright.config.ts - Playwright Test configuration
+1. Start Quarkus in dev mode (uses Quinoa Angular dev server on port 4200):
+   ```bash
+   mvn quarkus:dev
+   ```
 
-Visit https://playwright.dev/docs/intro for more information. ✨
+2. In another terminal in the project root folder (so that the playwright config is picked up), run Playwright tests:
+   ```bash
+   npx playwright test --trace=on --workers=1
+   ```
+
+#### Playwright Commands
+
+    npx playwright test --ui
+      Starts the interactive UI mode.
+
+    npx playwright test --project=chromium
+      Runs the tests only on Desktop Chrome.
+
+    npx playwright test example
+      Runs the tests in a specific file.
+
+    npx playwright test --debug
+      Runs the tests in debug mode.
+
+    npx playwright codegen
+      Auto generate tests with Codegen.
 
 
 ## TODO
@@ -120,6 +152,7 @@ Visit https://playwright.dev/docs/intro for more information. ✨
 
 ### Later
 
+- make build process deploy a test instance and run e2e tests against that and remove all the stuff which maven is doing with the e2e maven profile 
 - don't require approval, if client is configured that way and base it on scopes. so user only approves if new scopes are being requested
 - sign out - see auth.service.ts
 - make aesthetics better and document colours, etc. below

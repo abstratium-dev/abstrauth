@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('sign up and email already exists', async ({ page }) => {
-  await page.goto('http://localhost:4200/');
+  await page.goto('/');
 
   await page.locator("#signup-link").click();
 
@@ -19,7 +19,7 @@ test('sign up and email already exists', async ({ page }) => {
   await page.locator("#create-account-button").click();
 
   // now go back to the home page and sign up again
-  await page.goto('http://localhost:4200/');
+  await page.goto('/');
 
   await page.locator("#signup-link").click();
 
@@ -35,7 +35,7 @@ test('sign up and email already exists', async ({ page }) => {
 });
 
 test('sign up and username already exists', async ({ page }) => {
-  await page.goto('http://localhost:4200/');
+  await page.goto('/');
 
   await page.locator("#signup-link").click();
 
@@ -53,7 +53,7 @@ test('sign up and username already exists', async ({ page }) => {
   await page.locator("#create-account-button").click();
 
   // now go back to the home page
-  await page.goto('http://localhost:4200/');
+  await page.goto('/');
 
   await page.locator("#signup-link").click();
 

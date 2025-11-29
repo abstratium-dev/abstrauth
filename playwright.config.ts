@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+console.log("BASE_URL: ", process.env.BASE_URL);
+
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -9,24 +11,34 @@ import { defineConfig, devices } from '@playwright/test';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 /**
+ * Playwright Configuration
+ * 
+ * Usage:
+ * - Manual testing: Run `mvn quarkus:dev` then `npx playwright test`
+ *   Tests will use http://localhost:4200 (Quinoa Angular dev server)
+ * 
+ * - Maven integration: Run `mvn verify -Pe2e`
+ *   Tests will use http://localhost:8080 (built Quarkus jar with H2 and static Angular files)
+ *   The BASE_URL environment variable is set by Maven to trigger jar startup
+ * 
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
   testDir: './e2e-tests',
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Run tests in series - use 1 worker */
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
-    baseURL: 'http://localhost:4200',
+    baseURL: process.env.BASE_URL || 'http://localhost:4200',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -71,9 +83,13 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  webServer: process.env.BASE_URL ? {
+    // When BASE_URL is set (Maven integration), start the built jar
+    command: './start-e2e-server.sh',
+    url: 'http://localhost:8080/q/health/ready',
+    reuseExistingServer: !process.env.CI,
+    timeout: 12000,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  } : undefined, // When BASE_URL is not set (manual), assume server is already running
 });

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('user denies access', async ({ page }) => {
-  await page.goto('http://localhost:4200/');
+  await page.goto('/');
 
   await page.locator("#signup-link").click();
 
@@ -24,11 +24,11 @@ test('user denies access', async ({ page }) => {
 
   await expect(page.locator(".error")).toContainText("Error: access_denied - User denied authorization");
 
-  await expect(page.url()).toBe("http://localhost:4200/auth-callback?error=access_denied&error_description=User%20denied%20authorization");
+  await expect(page.url()).toContain("/auth-callback?error=access_denied&error_description=User%20denied%20authorization");
 });
 
 test('wrong username or password', async ({ page }) => {
-  await page.goto('http://localhost:4200/');
+  await page.goto('/');
 
   await page.getByRole('textbox', { name: 'Username' }).fill("wrong@doesnt-exist.com");
   await page.getByRole('textbox', { name: 'Password' }).fill("wrong");

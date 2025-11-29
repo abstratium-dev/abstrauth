@@ -74,6 +74,10 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-security</artifactId>
         </dependency>
         <dependency>
@@ -98,7 +102,6 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-jdbc-h2</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -155,6 +158,50 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
+            <!-- 
+                Playwright E2E Tests Plugin
+                
+                IMPORTANT: These tests are DISABLED by default and only run with the 'e2e' profile.
+                
+                Why? The tests require the application to be built with H2 database support.
+                Since quarkus.datasource.db-kind is a BUILD-TIME property (not runtime), 
+                the application must be compiled with H2 configured. The default build uses MySQL.
+                
+                To run E2E tests:
+                  mvn verify -Pe2e
+                
+                This will:
+                1. Build the application with H2 database (via %e2e.* properties)
+                2. Run unit tests
+                3. Package the JAR
+                4. Start Quarkus with H2 via start-e2e-server.sh
+                5. Run Playwright tests against http://localhost:8080
+                6. Stop the server
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>run-playwright-tests</id>
+                        <phase>none</phase> <!-- Disabled by default, enabled in e2e profile -->
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>npx</executable>
+                            <arguments>
+                                <argument>playwright</argument>
+                                <argument>test</argument>
+                            </arguments>
+                            <environmentVariables>
+                                <BASE_URL>http://localhost:8080</BASE_URL>
+                            </environmentVariables>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
@@ -179,6 +226,28 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>e2e</id>
+            <properties>
+                <!-- Activate e2e Quarkus profile to use H2 database at build time -->
+                <quarkus.profile>e2e</quarkus.profile>
+            </properties>
+            <build>
+                <plugins>
+                    <!-- Re-enable Playwright tests for e2e profile -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>run-playwright-tests</id>
+                                <phase>integration-test</phase> <!-- Enable in integration-test phase -->
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>native</id>
             <activation>
