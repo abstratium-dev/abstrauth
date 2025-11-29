@@ -137,18 +137,13 @@ For development, you can run tests manually:
 
 ### Now
 
-- fix tests
-- add playwright tests
-  - https://docs.quarkiverse.io/quarkus-quinoa/dev/testing.html
-  - https://docs.quarkiverse.io/quarkus-playwright/dev/
+- add roles. search for generateAccessToken or "user"
 - add http interceptor in angular app to add token to requests
 - add RolesAllowed to rest endpoints that need it
-- add ability to add and manage applications using a UI and rest endpoints
-- add roles. search for generateAccessToken or "user"
+- add ability to add and manage applications and their roles using a UI and rest endpoints
 - add google login
 - do security scan using claude
   - double check that pkce is properly implemented, especially storing the code challenge in session storage
-  - find out how best to store the token, e.g. so that hledger can use it
 
 ### Later
 
@@ -160,7 +155,7 @@ For development, you can run tests manually:
 - show how to make the client verify the signature of the token
 - use an enum for the status on authorization requests - see sql 004 for values
 - make authorization requests become expired
-- state needs to work if other third party apps want to use it
+- state field needs to work if other third party apps want to use it
 - clean up authorization requests after a month
 - add microsoft login
 - add github login
