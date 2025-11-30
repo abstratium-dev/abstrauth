@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status !== testInfo.expectedStatus) {
+    const screenshot = await page.screenshot();
+    await testInfo.attach('screenshot', { body: screenshot, contentType: 'image/png' });
+  }
+});
+
 test('sign up and email already exists', async ({ page }) => {
   await page.goto('/');
 
@@ -18,8 +25,11 @@ test('sign up and email already exists', async ({ page }) => {
   
   await page.locator("#create-account-button").click();
 
+  // Wait for navigation to signin page after successful signup
+  await page.waitForURL('**/signin/**', { timeout: 10000 });
+  
   // now go back to the home page and sign up again
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'networkidle' });
 
   await page.locator("#signup-link").click();
 
@@ -52,8 +62,11 @@ test('sign up and username already exists', async ({ page }) => {
   
   await page.locator("#create-account-button").click();
 
+  // Wait for navigation to signin page after successful signup
+  await page.waitForURL('**/signin/**', { timeout: 10000 });
+  
   // now go back to the home page
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'networkidle' });
 
   await page.locator("#signup-link").click();
 
