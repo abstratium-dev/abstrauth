@@ -1,1 +1,30 @@
-<p>user works!</p>
+<div class="user-container">
+  <h1>User Profile</h1>
+  
+  <div *ngIf="errorMessage" class="error-message">
+    <h2>⚠️ Access Denied</h2>
+    <p>{{ errorMessage }}</p>
+  </div>
+  
+  <div *ngIf="!errorMessage" class="profile-section">
+    <h2>Token Claims</h2>
+    <p class="description">All claims contained in your JWT access token:</p>
+    
+    <div class="claims-table">
+      <div class="claim-row header">
+        <div class="claim-key">Claim</div>
+        <div class="claim-value">Value</div>
+      </div>
+      
+      <div *ngFor="let claim of tokenClaims" class="claim-row" [attr.data-claim]="claim.key">
+        <div class="claim-key">{{ claim.key }}</div>
+        <div class="claim-value">
+          <span *ngIf="!isArray(claim.value)">{{ claim.value }}</span>
+          <ul *ngIf="isArray(claim.value)" class="array-value">
+            <li *ngFor="let item of claim.value">{{ item }}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

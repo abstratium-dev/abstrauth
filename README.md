@@ -137,12 +137,14 @@ For development, you can run tests manually:
 
 ### Now
 
-- add roles. search for generateAccessToken or "user"
 - add http interceptor in angular app to add token to requests
+- make css uniform
+- implement user component to show all token claims
 - add RolesAllowed to rest endpoints that need it
 - add ability to add and manage applications and their roles using a UI and rest endpoints
 - add google login
 - handle http errors using interceptor
+- add / update all angular tests
 - do security scan using claude
   - double check that pkce is properly implemented, especially storing the code challenge in session storage
 

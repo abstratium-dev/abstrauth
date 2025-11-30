@@ -1,7 +1,10 @@
 <div class="header">
     @if(isSignedIn) {
-        <span id="email">{{ token.email }}</span>
+        <a id="clients-link" routerLink="/clients" routerLinkActive="inactive-link">Clients</a>
+        &nbsp;::&nbsp;
+        <a id="user-link" routerLink="/user/{{ token.sub }}">{{ token.email }}</a>
         &nbsp;|&nbsp;
-        <a class="alink" (click)="signout()">Sign out</a>
+        <a id="signout-link" class="alink" routerLink="/signout">Sign out</a>
     }
+
 </div>

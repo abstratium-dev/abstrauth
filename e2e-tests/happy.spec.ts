@@ -26,5 +26,16 @@ test('sign up and in', async ({ page }) => {
 
   await page.locator("#approve-button").click();
 
-  await expect(page.locator("#email")).toContainText(email);
+  await expect(page.locator("#user-link")).toContainText(email);
+
+  // click the link to the clients route
+  await page.locator("#clients-link").click();
+  
+  // Wait for the clients list to load
+  await page.waitForSelector('.client-card', { timeout: 5000 });
+  
+  // Verify the default client from V01.006 migration is present
+  const defaultClient = page.locator('[data-client-id="abstrauth_admin_app"]');
+  await expect(defaultClient).toBeVisible();
+  await expect(defaultClient).toContainText('abstrauth admin app');
 });

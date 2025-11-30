@@ -10,6 +10,7 @@ The AbsrAuth OAuth 2.0 Authorization Server uses a relational database model des
 erDiagram
     T_accounts ||--o{ T_credentials : "has"
     T_accounts ||--o{ T_authorization_codes : "owns"
+    T_accounts ||--o{ T_account_roles : "has"
     T_oauth_clients ||--o{ T_authorization_requests : "initiates"
     T_authorization_requests ||--o{ T_authorization_codes : "generates"
     T_accounts ||--o{ T_authorization_requests : "approves"
@@ -70,6 +71,14 @@ erDiagram
         BOOLEAN used "Code usage flag"
         TIMESTAMP created_at "Code creation timestamp"
         TIMESTAMP expires_at "Code expiration timestamp"
+    }
+
+    T_account_roles {
+        VARCHAR(36) id PK "UUID primary key"
+        VARCHAR(36) account_id FK "References T_accounts"
+        VARCHAR(255) client_id "Client identifier"
+        VARCHAR(100) role "Role name"
+        TIMESTAMP created_at "Role assignment timestamp"
     }
 ```
 
@@ -173,6 +182,26 @@ The `T_authorization_codes` table stores generated authorization codes that can 
 - PKCE code_verifier validation
 - Cascading deletes maintain referential integrity
 
+### T_account_roles
+
+The `T_account_roles` table stores role assignments for user accounts within the context of specific OAuth clients.
+
+**Key Features:**
+- Links accounts to roles within client applications
+- Supports multi-tenancy by scoping roles to clients
+- Enables fine-grained authorization control
+- Tracks when roles were assigned
+
+**Constraints:**
+- `FK_account_roles_account`: Foreign key to T_accounts with CASCADE delete
+- `I_account_roles_unique`: Unique constraint on (account_id, client_id, role)
+- `I_account_roles_account_client`: Composite index for efficient lookups
+
+**Use Cases:**
+- Assigning admin roles to users for specific applications
+- Managing user permissions per client application
+- Supporting role-based access control (RBAC) in JWT tokens
+
 ## Naming Conventions
 
 The database follows strict naming conventions for consistency and clarity:
@@ -264,3 +293,4 @@ GROUP BY client_id, status;
 - **V01.004**: Create T_authorization_requests table
 - **V01.005**: Create T_authorization_codes table with FKs
 - **V01.006**: Insert default test client for development
+- **V01.007**: Create T_account_roles table for role-based access control

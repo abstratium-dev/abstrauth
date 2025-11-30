@@ -26,6 +26,11 @@ public class OAuthClientService {
         return query.getResultStream().findFirst();
     }
 
+    public List<OAuthClient> findAll() {
+        var query = em.createQuery("SELECT c FROM OAuthClient c ORDER BY c.createdAt DESC", OAuthClient.class);
+        return query.getResultList();
+    }
+
     public boolean isRedirectUriAllowed(OAuthClient client, String redirectUri) {
         try {
             String[] allowedUris = objectMapper.readValue(client.getRedirectUris(), String[].class);

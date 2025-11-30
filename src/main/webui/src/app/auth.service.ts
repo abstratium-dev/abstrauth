@@ -1,29 +1,36 @@
 import { Injectable, signal } from '@angular/core';
 
+
 export interface Token {
-    issuer: string;
-    subject: string; // id of the user
+    iss: string;
+    sub: string; // id of the user
     groups: string[];
     email: string;
-    name: string;
     email_verified: boolean;
+    name: string;
     scope: string;
     iat: number; // issued at
     exp: number; // expires at
     isAuthenticated: boolean;
+    client_id: string;
+    jti: string;
+    upn: string;
 }
 
 export const ANONYMOUS: Token = {
-    issuer: 'https://abstrauth.abstratium.dev',
-    subject: '2354372b-1704-4b88-9d62-b03395e0131c',
+    iss: 'https://abstrauth.abstratium.dev',
+    sub: '2354372b-1704-4b88-9d62-b03395e0131c',
     groups: [],
     email: 'anon@abstratium.dev',
-    name: 'Anonymous',
     email_verified: false,
+    name: 'Anonymous',
     scope: '',
     iat: Date.now(),
     exp: Date.now() + 3650 * 24 * 60 * 60 * 1000,
     isAuthenticated: false,
+    client_id: 'abstrauth_admin_app',
+    jti: 'aeede9a0-3cc3-4536-81c2-5b47a6952abf',
+    upn: 'anon@abstratium.dev',
 };
 
 
@@ -62,6 +69,7 @@ export class AuthService {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         this.token = JSON.parse(jsonPayload);
+        console.log(this.token);
         this.token.isAuthenticated = true;
         this.token$.set(this.token);
 

@@ -1,0 +1,62 @@
+<div>
+  <div class="container">
+    <h1>OAuth Clients</h1>
+    
+    <div *ngIf="loading" class="loading">
+      Loading clients...
+    </div>
+    
+    <div *ngIf="error" class="error">
+      {{ error }}
+    </div>
+    
+    <div *ngIf="!loading && !error" class="clients-list">
+      <div *ngIf="clients.length === 0" class="no-clients">
+        No OAuth clients found.
+      </div>
+      
+      <div *ngFor="let client of clients" class="client-card" [attr.data-client-id]="client.clientId">
+        <div class="client-header">
+          <h2>{{ client.clientName }}</h2>
+          <span class="client-type" [class.public]="client.clientType === 'public'" 
+                [class.confidential]="client.clientType === 'confidential'">
+            {{ client.clientType }}
+          </span>
+        </div>
+        
+        <div class="client-details">
+          <div class="detail-row">
+            <span class="label">Client ID:</span>
+            <span class="value">{{ client.clientId }}</span>
+          </div>
+          
+          <div class="detail-row">
+            <span class="label">Redirect URIs:</span>
+            <ul class="uri-list">
+              <li *ngFor="let uri of parseJsonArray(client.redirectUris)">{{ uri }}</li>
+            </ul>
+          </div>
+          
+          <div class="detail-row">
+            <span class="label">Allowed Scopes:</span>
+            <div class="scopes">
+              <span *ngFor="let scope of parseJsonArray(client.allowedScopes)" class="scope-badge">
+                {{ scope }}
+              </span>
+            </div>
+          </div>
+          
+          <div class="detail-row">
+            <span class="label">Requires PKCE:</span>
+            <span class="value">{{ client.requirePkce ? 'Yes' : 'No' }}</span>
+          </div>
+          
+          <div class="detail-row">
+            <span class="label">Created:</span>
+            <span class="value">{{ client.createdAt }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

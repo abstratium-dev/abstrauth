@@ -1,10 +1,10 @@
 import { Component, effect, inject } from '@angular/core';
-import { AuthService } from '../auth.service';
-import { Token } from '../auth.service';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService, Token } from '../auth.service';
 
 @Component({
   selector: 'header',
-  imports: [],
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
 })
@@ -23,9 +23,4 @@ export class HeaderComponent {
       console.info("header roles: ", this.token.groups)
     })
   }
-
-  signout() {
-    this.authService.signout();
-  }
-
 }
