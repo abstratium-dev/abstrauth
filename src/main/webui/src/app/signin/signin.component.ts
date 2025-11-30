@@ -91,7 +91,7 @@ export class SigninComponent implements OnInit {
                 this.isSubmitting = false;
             },
             error: (error) => {
-                this.errorMessage = error.error || error.message || 'Authentication failed';
+                this.errorMessage = error?.error?.details || error.error || error.message || 'Authentication failed';
                 this.isSubmitting = false;
             }
         });

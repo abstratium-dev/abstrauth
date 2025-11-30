@@ -142,6 +142,7 @@ For development, you can run tests manually:
 - add RolesAllowed to rest endpoints that need it
 - add ability to add and manage applications and their roles using a UI and rest endpoints
 - add google login
+- handle http errors using interceptor
 - do security scan using claude
   - double check that pkce is properly implemented, especially storing the code challenge in session storage
 
@@ -157,6 +158,11 @@ For development, you can run tests manually:
 - make authorization requests become expired
 - state field needs to work if other third party apps want to use it
 - clean up authorization requests after a month
+- make /q/... stuff run on a management port, separated from actual application
+- what are these for?
+  - mp.jwt.verify.issuer=https://quarkus.io/issuer
+  - mp.jwt.verify.publickey=NONE
+  - smallrye.jwt.new-token.issuer=https://quarkus.io/issuer
 - add microsoft login
 - add github login
 - add using refresh tokens
