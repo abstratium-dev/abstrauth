@@ -20,6 +20,7 @@ export class HeaderComponent {
       this.token = this.authService.token$()
       this.isSignedIn = this.token.isAuthenticated
       console.info("header isSignedIn", this.isSignedIn)
+      console.info("header roles: ", this.token.groups)
     })
   }
 

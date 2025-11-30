@@ -1,15 +1,13 @@
 package dev.abstratium.abstrauth.boundary.oauth;
 
-import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.entity.AuthorizationCode;
-import dev.abstratium.abstrauth.service.AccountService;
-import dev.abstratium.abstrauth.service.AuthorizationService;
-import dev.abstratium.abstrauth.service.OAuthClientService;
-import io.smallrye.jwt.build.Jwt;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
@@ -19,12 +17,21 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
-import java.util.Base64;
-import java.util.Optional;
-import java.util.Set;
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AuthorizationCode;
+import dev.abstratium.abstrauth.service.AccountRoleService;
+import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.OAuthClientService;
+import io.smallrye.jwt.build.Jwt;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 /**
  * OAuth 2.0 Token Endpoint
@@ -43,6 +50,9 @@ public class TokenResource {
 
     @Inject
     AccountService accountService;
+
+    @Inject
+    AccountRoleService accountRoleService;
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -286,11 +296,14 @@ public class TokenResource {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(3600); // 1 hour
 
-        Set<String> groups = Set.of("user");
-        if (account.getEmail().contains("admin")) {
-            groups = Set.of("user", "admin");
-        }
-
+        // Get roles (groups) for this account and client from the database
+        Set<String> groups = accountRoleService.getRolesForAccountAndClient(account.getId(), clientId);
+        
+        // default "user" role.
+        // that way we can ensure that a user is at least signed in by using @RolesAllowed({"user"}) 
+        groups = new HashSet<>(groups);
+        groups.add("user");
+        
         return Jwt.issuer("https://abstrauth.abstratium.dev")
                 .upn(account.getEmail())
                 .subject(account.getId())
