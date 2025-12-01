@@ -6,25 +6,25 @@
       Loading clients...
     </div>
     
-    <div *ngIf="error" class="error">
+    <div *ngIf="error" class="error-box">
       {{ error }}
     </div>
     
-    <div *ngIf="!loading && !error" class="clients-list">
-      <div *ngIf="clients.length === 0" class="no-clients">
+    <div *ngIf="!loading && !error" class="card-list">
+      <div *ngIf="clients.length === 0" class="info-message">
         No OAuth clients found.
       </div>
       
-      <div *ngFor="let client of clients" class="client-card" [attr.data-client-id]="client.clientId">
-        <div class="client-header">
+      <div *ngFor="let client of clients" class="card" [attr.data-client-id]="client.clientId">
+        <div class="card-header">
           <h2>{{ client.clientName }}</h2>
-          <span class="client-type" [class.public]="client.clientType === 'public'" 
-                [class.confidential]="client.clientType === 'confidential'">
+          <span class="badge" [class.badge-primary]="client.clientType === 'public'" 
+                [class.badge-secondary]="client.clientType === 'confidential'">
             {{ client.clientType }}
           </span>
         </div>
         
-        <div class="client-details">
+        <div class="detail-section">
           <div class="detail-row">
             <span class="label">Client ID:</span>
             <span class="value">{{ client.clientId }}</span>
@@ -32,15 +32,15 @@
           
           <div class="detail-row">
             <span class="label">Redirect URIs:</span>
-            <ul class="uri-list">
+            <ul class="simple-list">
               <li *ngFor="let uri of parseJsonArray(client.redirectUris)">{{ uri }}</li>
             </ul>
           </div>
           
           <div class="detail-row">
             <span class="label">Allowed Scopes:</span>
-            <div class="scopes">
-              <span *ngFor="let scope of parseJsonArray(client.allowedScopes)" class="scope-badge">
+            <div class="badge-list">
+              <span *ngFor="let scope of parseJsonArray(client.allowedScopes)" class="badge badge-success">
                 {{ scope }}
               </span>
             </div>

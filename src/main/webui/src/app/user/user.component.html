@@ -1,4 +1,4 @@
-<div class="user-container">
+<div class="container">
   <h1>User Profile</h1>
   
   <div *ngIf="errorMessage" class="error-message">
@@ -6,21 +6,21 @@
     <p>{{ errorMessage }}</p>
   </div>
   
-  <div *ngIf="!errorMessage" class="profile-section">
+  <div *ngIf="!errorMessage" class="card">
     <h2>Token Claims</h2>
     <p class="description">All claims contained in your JWT access token:</p>
     
-    <div class="claims-table">
-      <div class="claim-row header">
-        <div class="claim-key">Claim</div>
-        <div class="claim-value">Value</div>
+    <div class="data-table">
+      <div class="table-row header">
+        <div class="table-cell-key">Claim</div>
+        <div class="table-cell-value">Value</div>
       </div>
       
-      <div *ngFor="let claim of tokenClaims" class="claim-row" [attr.data-claim]="claim.key">
-        <div class="claim-key">{{ claim.key }}</div>
-        <div class="claim-value">
+      <div *ngFor="let claim of tokenClaims" class="table-row" [attr.data-claim]="claim.key">
+        <div class="table-cell-key">{{ claim.key }}</div>
+        <div class="table-cell-value">
           <span *ngIf="!isArray(claim.value)">{{ claim.value }}</span>
-          <ul *ngIf="isArray(claim.value)" class="array-value">
+          <ul *ngIf="isArray(claim.value)" class="bullet-list">
             <li *ngFor="let item of claim.value">{{ item }}</li>
           </ul>
         </div>

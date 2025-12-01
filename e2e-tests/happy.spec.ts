@@ -32,7 +32,7 @@ test('sign up and in', async ({ page }) => {
   await page.locator("#clients-link").click();
   
   // Wait for the clients list to load
-  await page.waitForSelector('.client-card', { timeout: 5000 });
+  await page.waitForSelector('.card', { timeout: 5000 });
   
   // Verify the default client from V01.006 migration is present
   const defaultClient = page.locator('[data-client-id="abstrauth_admin_app"]');
