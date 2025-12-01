@@ -72,7 +72,7 @@ exit, then reconnect using the abstrauth user:
 
 ### Unit and Integration Tests
 
-Run unit tests:
+Run unit tests (including angular tests):
 
     mvn test
 
@@ -93,8 +93,8 @@ Since `quarkus.datasource.db-kind` is a build-time property, you must use the `e
 
 This will:
 1. Build the application with H2 database configured
-2. Run unit tests
-3. Package the JAR
+2. Run unit tests, including angular tests
+3. Package the JAR with H2 database drivers too
 4. Start Quarkus with H2 via `start-e2e-server.sh`
 5. Run Playwright tests against the running application
 6. Stop the server
@@ -138,8 +138,6 @@ For development, you can run tests manually:
 ### Now
 
 - add http interceptor in angular app to add token to requests
-- make css uniform
-- implement user component to show all token claims
 - add RolesAllowed to rest endpoints that need it
 - add ability to add and manage applications and their roles using a UI and rest endpoints
 - add google login

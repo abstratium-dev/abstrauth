@@ -183,6 +183,23 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <executions>
+                    <!-- Angular Unit Tests - runs during test phase -->
+                    <execution>
+                        <id>run-angular-tests</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <workingDirectory>${project.basedir}/src/main/webui</workingDirectory>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>source ~/.nvm/nvm.sh &amp;&amp; nvm use v24.11.1 &amp;&amp; npm test -- --browsers=ChromeHeadless --watch=false</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <!-- Playwright E2E Tests - disabled by default, enabled in e2e profile -->
                     <execution>
                         <id>run-playwright-tests</id>
                         <phase>none</phase> <!-- Disabled by default, enabled in e2e profile -->
