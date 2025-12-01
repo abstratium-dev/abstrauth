@@ -137,10 +137,8 @@ For development, you can run tests manually:
 
 ### Now
 
-- add http interceptor in angular app to add token to requests
-- add RolesAllowed to rest endpoints that need it
-- add ability to add and manage applications and their roles using a UI and rest endpoints
 - add google login
+- add ability to add and manage applications and their roles using a UI and rest endpoints
 - handle http errors using interceptor
 - add / update all angular tests
 - do security scan using claude
