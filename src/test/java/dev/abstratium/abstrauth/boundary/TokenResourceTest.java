@@ -12,7 +12,7 @@ import static org.hamcrest.CoreMatchers.*;
 @QuarkusTest
 public class TokenResourceTest {
 
-    private static final String CLIENT_ID = "abstrauth_admin_app";
+    private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
 
     @Test

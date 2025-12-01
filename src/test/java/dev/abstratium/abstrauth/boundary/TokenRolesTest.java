@@ -33,7 +33,7 @@ public class TokenRolesTest {
     @Inject
     AccountRoleService accountRoleService;
 
-    private static final String CLIENT_ID = "abstrauth_admin_app";
+    private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
     
     private String testUsername;
@@ -66,10 +66,10 @@ public class TokenRolesTest {
         // Decode JWT payload
         String payload = decodeJwtPayload(accessToken);
         
-        // Verify it contains default "user" role
+        // Verify it contains default "user" role with client prefix
         assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
-        assertTrue(payload.contains("\"user\""), "JWT should contain default 'user' role");
-        assertFalse(payload.contains("\"admin\""), "JWT should not contain 'admin' role");
+        assertTrue(payload.contains("\"abstratium-abstrauth_user\""), "JWT should contain default 'abstratium-abstrauth_user' role");
+        assertFalse(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should not contain 'admin' role");
     }
 
     @Test
@@ -83,10 +83,10 @@ public class TokenRolesTest {
         // Decode JWT payload
         String payload = decodeJwtPayload(accessToken);
         
-        // Verify it contains both roles
+        // Verify it contains both roles with client prefix
         assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
-        assertTrue(payload.contains("\"user\""), "JWT should contain 'user' role");
-        assertTrue(payload.contains("\"admin\""), "JWT should contain 'admin' role");
+        assertTrue(payload.contains("\"abstratium-abstrauth_user\""), "JWT should contain 'abstratium-abstrauth_user' role");
+        assertTrue(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should contain 'abstratium-abstrauth_admin' role");
     }
 
     @Test
@@ -103,9 +103,9 @@ public class TokenRolesTest {
         // Decode JWT payload
         String payload = decodeJwtPayload(accessToken);
         
-        // Verify it contains only roles for the current client
-        assertTrue(payload.contains("\"admin\""), "JWT should contain 'admin' role for this client");
-        assertFalse(payload.contains("\"superadmin\""), "JWT should not contain roles from other clients");
+        // Verify it contains only roles for the current client with full prefix
+        assertTrue(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should contain 'abstratium-abstrauth_admin' role for this client");
+        assertFalse(payload.contains("\"other_client_superadmin\""), "JWT should not contain roles from other clients");
     }
 
     @Test
@@ -119,11 +119,12 @@ public class TokenRolesTest {
         // Decode JWT payload
         String payload = decodeJwtPayload(accessToken);
         
-        // Verify all roles are present
-        assertTrue(payload.contains("\"user\""), "JWT should contain 'user' role");
-        assertTrue(payload.contains("\"admin\""), "JWT should contain 'admin' role");
-        assertTrue(payload.contains("\"editor\""), "JWT should contain 'editor' role");
-        assertTrue(payload.contains("\"viewer\""), "JWT should contain 'viewer' role");
+        // Verify it contains all roles with client prefix
+        assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
+        assertTrue(payload.contains("\"abstratium-abstrauth_user\""), "JWT should contain 'abstratium-abstrauth_user' role");
+        assertTrue(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should contain 'abstratium-abstrauth_admin' role");
+        assertTrue(payload.contains("\"abstratium-abstrauth_editor\""), "JWT should contain 'abstratium-abstrauth_editor' role");
+        assertTrue(payload.contains("\"abstratium-abstrauth_viewer\""), "JWT should contain 'abstratium-abstrauth_viewer' role");
     }
 
     @Test
@@ -137,8 +138,8 @@ public class TokenRolesTest {
         // Decode JWT payload
         String payload = decodeJwtPayload(accessToken);
         
-        // Verify custom role is present
-        assertTrue(payload.contains("\"custom_role_123\""), "JWT should contain custom role");
+        // Verify custom role is present with client prefix
+        assertTrue(payload.contains("\"abstratium-abstrauth_custom_role_123\""), "JWT should contain custom role with client prefix");
     }
 
     // Helper methods

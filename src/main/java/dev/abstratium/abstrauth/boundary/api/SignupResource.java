@@ -6,6 +6,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.service.AccountService;
+import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.FormParam;
@@ -17,6 +18,7 @@ import jakarta.ws.rs.core.Response;
 
 @Path("/api/signup")
 @Tag(name = "Signup", description = "User signup endpoints")
+@PermitAll
 public class SignupResource {
 
     @Inject

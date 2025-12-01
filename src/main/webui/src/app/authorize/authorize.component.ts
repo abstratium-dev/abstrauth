@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 
-export const CLIENT_ID = 'abstrauth_admin_app';
+export const CLIENT_ID = 'abstratium-abstrauth';
 export const REDIRECT_URI_POSTFIX = '/auth-callback';
 
 @Component({

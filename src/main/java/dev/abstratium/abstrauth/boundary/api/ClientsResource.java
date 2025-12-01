@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.boundary.api;
 
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.OAuthClientService;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 
 @Path("/api/clients")
 @Tag(name = "Clients", description = "OAuth client management endpoints")
+@RolesAllowed("abstratium-abstrauth_manage-clients")
 public class ClientsResource {
 
     @Inject

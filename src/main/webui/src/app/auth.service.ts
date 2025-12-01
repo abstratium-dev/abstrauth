@@ -1,5 +1,7 @@
 import { Injectable, signal } from '@angular/core';
+import { CLIENT_ID } from './authorize/authorize.component';
 
+export const ISSUER = 'https://abstrauth.abstratium.dev';
 
 export interface Token {
     iss: string;
@@ -18,7 +20,7 @@ export interface Token {
 }
 
 export const ANONYMOUS: Token = {
-    iss: 'https://abstrauth.abstratium.dev',
+    iss: ISSUER,
     sub: '2354372b-1704-4b88-9d62-b03395e0131c',
     groups: [],
     email: 'anon@abstratium.dev',
@@ -28,7 +30,7 @@ export const ANONYMOUS: Token = {
     iat: Date.now(),
     exp: Date.now() + 3650 * 24 * 60 * 60 * 1000,
     isAuthenticated: false,
-    client_id: 'abstrauth_admin_app',
+    client_id: CLIENT_ID,
     jti: 'aeede9a0-3cc3-4536-81c2-5b47a6952abf',
     upn: 'anon@abstratium.dev',
 };

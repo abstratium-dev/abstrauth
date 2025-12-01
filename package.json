@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "A minimum implementation of an oauth authorization server capable of serving multiple applications at same time. It uses JWT for authentication and authorization, signed with a public/private key pair so that third-party applications can validate the tokens and roles without calls to the authorization server.",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "postinstall": "playwright install --with-deps chromium firefox webkit"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abstratium-dev/abstrauth.git"

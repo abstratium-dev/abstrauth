@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
@@ -53,6 +54,12 @@ public class TokenResource {
 
     @Inject
     AccountRoleService accountRoleService;
+
+    @ConfigProperty(name = "mp.jwt.verify.issuer")
+    String issuer;
+
+    @ConfigProperty(name = "default.roles", defaultValue = "abstratium-abstrauth_user")
+    String defaultRoles;
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -297,14 +304,18 @@ public class TokenResource {
         Instant expiresAt = now.plusSeconds(3600); // 1 hour
 
         // Get roles (groups) for this account and client from the database
-        Set<String> groups = accountRoleService.getRolesForAccountAndClient(account.getId(), clientId);
+        // Roles are stored as just the role name, so we need to prefix with clientId
+        Set<String> dbRoles = accountRoleService.getRolesForAccountAndClient(account.getId(), clientId);
+        Set<String> groups = new HashSet<>();
+        for (String role : dbRoles) {
+            groups.add(clientId + "_" + role);
+        }
         
-        // default "user" role.
-        // that way we can ensure that a user is at least signed in by using @RolesAllowed({"user"}) 
-        groups = new HashSet<>(groups);
-        groups.add("user");
+        // Add default roles from configuration (already in full format with client prefix)
+        // This allows users to have roles without database entries, simplifying user management
+        addDefaultRoles(groups, clientId);
         
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer(issuer)
                 .upn(account.getEmail())
                 .subject(account.getId())
                 .groups(groups)
@@ -316,6 +327,45 @@ public class TokenResource {
                 .issuedAt(now)
                 .expiresAt(expiresAt)
                 .sign();
+    }
+
+    /**
+     * Add default roles from configuration to the groups set.
+     * Roles are parsed from the default.roles configuration property.
+     * 
+     * Supported formats:
+     * - "clientId_roleName" - Only added if clientId matches current client (e.g., "abstratium-abstrauth_user")
+     * - "roleName" - Auto-prefixed with current clientId and added (e.g., "user" becomes "abstratium-abstrauth_user")
+     * 
+     * @param groups The set of groups to add default roles to
+     * @param clientId The current OAuth client ID
+     */
+    private void addDefaultRoles(Set<String> groups, String clientId) {
+        if (defaultRoles == null || defaultRoles.trim().isEmpty()) {
+            return;
+        }
+
+        String[] roles = defaultRoles.split(",");
+        for (String roleSpec : roles) {
+            roleSpec = roleSpec.trim();
+            if (roleSpec.isEmpty()) {
+                continue;
+            }
+
+            // Role format: "clientId_roleName" - only add if it matches current client
+            if (roleSpec.contains("_")) {
+                int underscoreIndex = roleSpec.indexOf('_');
+                String roleClientId = roleSpec.substring(0, underscoreIndex);
+                
+                if (roleClientId.equals(clientId)) {
+                    // Add the full role name with client prefix
+                    groups.add(roleSpec);
+                }
+            } else {
+                // If no underscore, add it as it is, for all clients
+                groups.add(clientId + "_" + roleSpec);
+            }
+        }
     }
 
     private Response buildErrorResponse(Response.Status status, String error, String errorDescription) {
@@ -330,19 +380,19 @@ public class TokenResource {
      */
     @Schema(description = "OAuth 2.0 Token Response")
     public static class TokenResponse {
-        @Schema(description = "The access token issued by the authorization server", example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")
+        @Schema(description = "The access token issued by the authorization server", examples = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")
         public String access_token;
 
-        @Schema(description = "The type of token - always 'Bearer'", example = "Bearer")
+        @Schema(description = "The type of token - always 'Bearer'", examples = "Bearer")
         public String token_type;
 
-        @Schema(description = "Token lifetime in seconds", example = "3600")
+        @Schema(description = "Token lifetime in seconds", examples = "3600")
         public Integer expires_in;
 
-        @Schema(description = "Refresh token for obtaining new access tokens", example = "tGzv3JOkF0XG5Qx2TlKWIA")
+        @Schema(description = "Refresh token for obtaining new access tokens", examples = "tGzv3JOkF0XG5Qx2TlKWIA")
         public String refresh_token;
 
-        @Schema(description = "Space-delimited list of granted scopes", example = "openid profile email")
+        @Schema(description = "Space-delimited list of granted scopes", examples = "openid profile email")
         public String scope;
     }
 
@@ -353,7 +403,7 @@ public class TokenResource {
     public static class ErrorResponse {
         @Schema(
             description = "Error code",
-            example = "invalid_grant",
+            examples = "invalid_grant",
             enumeration = {
                 "invalid_request",
                 "invalid_client",
@@ -365,10 +415,10 @@ public class TokenResource {
         )
         public String error;
 
-        @Schema(description = "Human-readable error description", example = "Authorization code is invalid or expired")
+        @Schema(description = "Human-readable error description", examples = "Authorization code is invalid or expired")
         public String error_description;
 
-        @Schema(description = "URI identifying a human-readable web page with error information", example = "https://auth.example.com/error/invalid_grant")
+        @Schema(description = "URI identifying a human-readable web page with error information", examples = "https://auth.example.com/error/invalid_grant")
         public String error_uri;
     }
 }

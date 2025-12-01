@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { signal } from '@angular/core';
 import { UserComponent } from './user.component';
-import { AuthService, Token, ANONYMOUS } from '../auth.service';
+import { AuthService, Token, ANONYMOUS, ISSUER } from '../auth.service';
 
 describe('UserComponent', () => {
   let component: UserComponent;
@@ -12,7 +12,7 @@ describe('UserComponent', () => {
   let tokenSignal: any;
 
   const mockToken: Token = {
-    iss: 'https://abstrauth.abstratium.dev',
+    iss: ISSUER,
     sub: 'user-123',
     groups: ['admin', 'users'],
     email: 'test@example.com',

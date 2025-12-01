@@ -3,6 +3,7 @@ package dev.abstratium.abstrauth.service;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.Credential;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.jdt.annotation.NonNull;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.inject.Inject;
@@ -25,13 +26,13 @@ public class AccountService {
     @Inject
     EntityManager em;
 
-    public Optional<Account> findByEmail(String email) {
+    public Optional<@NonNull Account> findByEmail(String email) {
         var query = em.createQuery("SELECT a FROM Account a WHERE a.email = :email", Account.class);
         query.setParameter("email", email);
         return query.getResultStream().findFirst();
     }
 
-    public Optional<Account> findById(String id) {
+    public Optional<@NonNull Account> findById(String id) {
         return Optional.ofNullable(em.find(Account.class, id));
     }
 
@@ -64,20 +65,20 @@ public class AccountService {
         return account;
     }
 
-    public Optional<Credential> findCredentialByUsername(String username) {
+    public Optional<@NonNull Credential> findCredentialByUsername(String username) {
         var query = em.createQuery("SELECT c FROM Credential c WHERE c.username = :username", Credential.class);
         query.setParameter("username", username);
         return query.getResultStream().findFirst();
     }
 
-    public Optional<Credential> findCredentialByAccountId(String accountId) {
+    public Optional<@NonNull Credential> findCredentialByAccountId(String accountId) {
         var query = em.createQuery("SELECT c FROM Credential c WHERE c.accountId = :accountId", Credential.class);
         query.setParameter("accountId", accountId);
         return query.getResultStream().findFirst();
     }
 
     @Transactional
-    public Optional<Account> authenticate(String username, String password) {
+    public Optional<@NonNull Account> authenticate(String username, String password) {
         Optional<Credential> credentialOpt = findCredentialByUsername(username);
         if (credentialOpt.isEmpty()) {
             return Optional.empty();
