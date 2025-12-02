@@ -109,40 +109,40 @@ public class IntrospectionResource {
      */
     @Schema(description = "OAuth 2.0 Token Introspection Response")
     public static class IntrospectionResponse {
-        @Schema(description = "Whether the token is currently active", example = "true", required = true)
+        @Schema(description = "Whether the token is currently active", examples = "true", required = true)
         public Boolean active;
 
-        @Schema(description = "Space-delimited list of scopes", example = "openid profile email")
+        @Schema(description = "Space-delimited list of scopes", examples = "openid profile email")
         public String scope;
 
-        @Schema(description = "Client identifier", example = "client_12345")
+        @Schema(description = "Client identifier", examples = "client_12345")
         public String client_id;
 
-        @Schema(description = "Username of the resource owner", example = "john.doe")
+        @Schema(description = "Username of the resource owner", examples = "john.doe")
         public String username;
 
-        @Schema(description = "Type of the token", example = "Bearer")
+        @Schema(description = "Type of the token", examples = "Bearer")
         public String token_type;
 
-        @Schema(description = "Token expiration timestamp (seconds since epoch)", example = "1719302400")
+        @Schema(description = "Token expiration timestamp (seconds since epoch)", examples = "1719302400")
         public Long exp;
 
-        @Schema(description = "Token issued at timestamp (seconds since epoch)", example = "1719298800")
+        @Schema(description = "Token issued at timestamp (seconds since epoch)", examples = "1719298800")
         public Long iat;
 
-        @Schema(description = "Token not before timestamp (seconds since epoch)", example = "1719298800")
+        @Schema(description = "Token not before timestamp (seconds since epoch)", examples = "1719298800")
         public Long nbf;
 
-        @Schema(description = "Subject of the token", example = "user_67890")
+        @Schema(description = "Subject of the token", examples = "user_67890")
         public String sub;
 
-        @Schema(description = "Audience - intended recipients", example = "https://api.example.com")
+        @Schema(description = "Audience - intended recipients", examples = "https://api.example.com")
         public String aud;
 
-        @Schema(description = "Issuer identifier", example = "https://auth.example.com")
+        @Schema(description = "Issuer identifier", examples = "https://auth.example.com")
         public String iss;
 
-        @Schema(description = "JWT ID - unique identifier", example = "jwt_abc123")
+        @Schema(description = "JWT ID - unique identifier", examples = "jwt_abc123")
         public String jti;
     }
 }

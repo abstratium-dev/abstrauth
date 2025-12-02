@@ -47,7 +47,7 @@ sequenceDiagram
 
     Note over SPA,AuthServer: 2. Authorization Request
     SPA->>Browser: Redirect to /oauth2/authorize
-    Note right of Browser: Parameters:<br/>response_type=code<br/>client_id=spa_client<br/>redirect_uri=https://app.example.com/callback<br/>scope=openid profile email<br/>state=random_state<br/>code_challenge=BASE64URL(SHA256(code_verifier))<br/>code_challenge_method=S256
+    Note right of Browser: Parameters:<br/>response_type=code<br/>client_id=spa_client<br/>redirect_uri=https://app.example.com/callback<br/>scope=openid profile email<br/>state=random_state (CSRF protection)<br/>code_challenge=BASE64URL(SHA256(code_verifier))<br/>code_challenge_method=S256
     
     Browser->>AuthServer: GET /oauth2/authorize?params...
     
@@ -70,8 +70,8 @@ sequenceDiagram
     AuthServer->>Browser: 302 Redirect to redirect_uri
     Browser->>SPA: https://app.example.com/callback?code=AUTH_CODE&state=random_state
     
-    Note over SPA: 8. Validate State
-    SPA->>SPA: Verify state parameter matches
+    Note over SPA: 8. Validate State (CSRF Protection)
+    SPA->>SPA: Verify state === sessionStorage.state<br/>Reject if mismatch (CSRF attack)
     
     Note over SPA,AuthServer: 9. Token Request
     SPA->>AuthServer: POST /oauth2/token
@@ -529,11 +529,12 @@ GET /.well-known/jwks.json
 
 ### For Single Page Applications (SPAs)
 1. **Always use PKCE** - Protects against authorization code interception
-2. **Store tokens in memory** - Never use localStorage or sessionStorage
+2. **Store tokens in memory** - Never use localStorage or sessionStorage for access tokens
 3. **Use short-lived access tokens** - Minimize impact of token theft
 4. **Implement token refresh** - Use refresh tokens to obtain new access tokens
-5. **Validate state parameter** - Prevents CSRF attacks
+5. **Validate state parameter** - **CRITICAL**: Always validate state in callback to prevent CSRF attacks
 6. **Use HTTPS only** - All communication must be encrypted
+7. **Clear sensitive data** - Remove code_verifier and state from sessionStorage after use
 
 ### For Backend Servers
 1. **Protect client secrets** - Store securely, never expose in client-side code
@@ -618,10 +619,17 @@ async function handleCallback() {
   const code = params.get('code');
   const state = params.get('state');
   
-  // Validate state
-  if (state !== sessionStorage.getItem('state')) {
-    throw new Error('Invalid state parameter');
+  // CRITICAL: Validate state to prevent CSRF attacks
+  const storedState = sessionStorage.getItem('state');
+  if (!state || !storedState || state !== storedState) {
+    console.error('CSRF Protection: State mismatch');
+    sessionStorage.removeItem('state');
+    sessionStorage.removeItem('code_verifier');
+    throw new Error('Security Error: Invalid state parameter. Possible CSRF attack detected.');
   }
+  
+  // Clear state after successful validation
+  sessionStorage.removeItem('state');
   
   // Exchange code for tokens
   const codeVerifier = sessionStorage.getItem('code_verifier');
@@ -642,9 +650,8 @@ async function handleCallback() {
   // Store tokens in memory (use a state management solution)
   storeTokensInMemory(tokens);
   
-  // Clean up
+  // Clean up code_verifier
   sessionStorage.removeItem('code_verifier');
-  sessionStorage.removeItem('state');
 }
 
 // 3. Use access token

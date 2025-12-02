@@ -41,6 +41,8 @@ test('sign up and email already exists', async ({ page }) => {
 
   await page.locator("#create-account-button").click();
 
+  // Wait for error message to appear
+  await expect(page.locator("#message")).toBeVisible({ timeout: 10000 });
   await expect(page.locator("#message")).toContainText("Email already exists");
 });
 
@@ -78,5 +80,7 @@ test('sign up and username already exists', async ({ page }) => {
 
   await page.locator("#create-account-button").click();
 
+  // Wait for error message to appear
+  await expect(page.locator("#message")).toBeVisible({ timeout: 10000 });
   await expect(page.locator("#message")).toContainText("Username already exists");
 });

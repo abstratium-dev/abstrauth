@@ -63,10 +63,16 @@
             </ul>
 
             <!-- use old skool form, so that browser will redirect to callback and we stay rfc compliant -->
-            <form method='post' action='/oauth2/authorize'>
-                <input type='hidden' name='request_id' value='{{ requestId }}'/>
-                <button id="approve-button" type='submit' name='consent' value='approve'>Approve</button>
-                <button id="deny-button" type='submit' name='consent' value='deny'>Deny</button>
+            <form method='post' action='/oauth2/authorize' class="centered-form">
+                <div class="form-group">
+                    <input type='hidden' name='request_id' value='{{ requestId }}'/>
+                </div>
+                <div class="form-group">
+                    <button id="approve-button" type='submit' name='consent' value='approve'>Approve</button>
+                </div>
+                <div class="form-group">
+                    <button id="deny-button" type='submit' name='consent' value='deny'>Deny</button>
+                </div>
             </form>
         </div>
     }

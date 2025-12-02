@@ -43,10 +43,10 @@ export class AuthorizeComponent {
         const codeVerifier = this.generateRandomString(128);
         const codeChallenge = await this.generateCodeChallenge(codeVerifier);
 
-        // TODO use url that we want to get to, rather than something random
+        // Generate cryptographically random state for CSRF protection
         const state = this.generateRandomString(32);
 
-        // Store for later use
+        // Store for later validation in callback
         sessionStorage.setItem('code_verifier', codeVerifier);
         sessionStorage.setItem('state', state);
 
@@ -57,6 +57,7 @@ export class AuthorizeComponent {
             client_id: CLIENT_ID,
             redirect_uri: protocolHostPort + REDIRECT_URI_POSTFIX,
             scope: 'openid profile email',
+            state: state,  // Include state parameter for CSRF protection
             code_challenge: codeChallenge,
             code_challenge_method: 'S256'
         });

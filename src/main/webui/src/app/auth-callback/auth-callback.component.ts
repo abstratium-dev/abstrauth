@@ -48,6 +48,22 @@ export class AuthCallbackComponent implements OnInit {
             return;
         }
 
+        // CRITICAL: Validate state parameter to prevent CSRF attacks
+        const receivedState = this.route.snapshot.queryParamMap.get('state');
+        const storedState = sessionStorage.getItem('state');
+        
+        if (!receivedState || !storedState || receivedState !== storedState) {
+            this.error = 'Security Error: Invalid state parameter. Possible CSRF attack detected.';
+            console.error('CSRF Protection: State mismatch', { received: receivedState, stored: storedState });
+            // Clear stored values
+            sessionStorage.removeItem('state');
+            sessionStorage.removeItem('code_verifier');
+            return;
+        }
+
+        // Clear state after successful validation
+        sessionStorage.removeItem('state');
+
         // code comes out of the query param
         const code = this.route.snapshot.queryParamMap.get('code') || '';
 
