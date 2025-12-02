@@ -1,10 +1,10 @@
-import { Component, inject, effect } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { ModelService } from '../model.service';
+import { HttpClient } from '@angular/common/http';
+import { Component, effect, inject } from '@angular/core';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Controller } from '../controller';
+import { ModelService } from '../model.service';
 
 @Component({
   selector: 'signup',

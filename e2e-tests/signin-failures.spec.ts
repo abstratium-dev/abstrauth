@@ -22,7 +22,7 @@ test('user denies access', async ({ page }) => {
 
   await page.locator("#deny-button").click();
 
-  await expect(page.locator(".error")).toContainText("Error: access_denied - User denied authorization");
+  await expect(page.locator(".error-box")).toContainText("Error: access_denied - User denied authorization");
 
   await expect(page.url()).toContain("/auth-callback?error=access_denied&error_description=User%20denied%20authorization");
 });
@@ -35,6 +35,6 @@ test('wrong username or password', async ({ page }) => {
   
   await page.locator("#signin-button").click();
 
-  await expect(page.locator(".error")).toContainText("Invalid username or password");
+  await expect(page.locator(".error-box")).toContainText("Invalid username or password");
 
 });

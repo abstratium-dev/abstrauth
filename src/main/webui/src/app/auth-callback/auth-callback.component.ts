@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CLIENT_ID, REDIRECT_URI_POSTFIX } from '../authorize/authorize.component';
 import { HttpClient } from '@angular/common/http';
 import { HttpHeaders } from '@angular/common/http';
@@ -15,7 +15,7 @@ interface TokenResponse {
 
 @Component({
     selector: 'auth-callback',
-    imports: [],
+    imports: [RouterLink],
     templateUrl: './auth-callback.component.html',
     styleUrl: './auth-callback.component.scss',
 })

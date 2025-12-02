@@ -9,6 +9,7 @@ The AbsrAuth OAuth 2.0 Authorization Server uses a relational database model des
 ```mermaid
 erDiagram
     T_accounts ||--o{ T_credentials : "has"
+    T_accounts ||--o{ T_federated_identities : "links"
     T_accounts ||--o{ T_authorization_codes : "owns"
     T_accounts ||--o{ T_account_roles : "has"
     T_oauth_clients ||--o{ T_authorization_requests : "initiates"
@@ -20,7 +21,18 @@ erDiagram
         VARCHAR(255) email UK "Unique email address"
         BOOLEAN email_verified "Email verification status"
         VARCHAR(255) name "User's full name"
+        VARCHAR(255) picture "Profile picture URL"
+        VARCHAR(20) auth_provider "Initial auth method used"
         TIMESTAMP created_at "Account creation timestamp"
+    }
+
+    T_federated_identities {
+        VARCHAR(36) id PK "UUID primary key"
+        VARCHAR(36) account_id FK "References T_accounts"
+        VARCHAR(50) provider "Provider name (google, etc)"
+        VARCHAR(255) provider_user_id "User ID from provider"
+        VARCHAR(255) email "Email from provider"
+        TIMESTAMP connected_at "Link creation timestamp"
     }
 
     T_credentials {
@@ -202,6 +214,38 @@ The `T_account_roles` table stores role assignments for user accounts within the
 - Managing user permissions per client application
 - Supporting role-based access control (RBAC) in JWT tokens
 
+### T_federated_identities
+
+The `T_federated_identities` table links user accounts to external identity providers (IdPs) like Google, Microsoft, GitHub, etc.
+
+**Key Features:**
+- Enables federated authentication (OAuth/OIDC with external providers)
+- Supports account linking - one account can have multiple federated identities
+- Tracks which external provider and user ID is linked to each account
+- Stores provider-specific email for verification
+
+**Constraints:**
+- `FK_federated_identities_account_id`: Foreign key to T_accounts with CASCADE delete
+- `I_federated_identities_provider_user`: Unique constraint on (provider, provider_user_id)
+- `I_federated_identities_account_provider`: Composite index for lookups
+
+**Relationship with T_accounts:**
+- **One-to-Many**: One account can have multiple federated identities (e.g., Google + GitHub)
+- **Account.auth_provider**: Records which method was used to **create** the account initially ("native" or "google")
+- **FederatedIdentity.provider**: Records which external IdP this identity is linked to
+- **AuthorizationRequest.auth_method**: Records which method was used for **this specific login session**
+
+**Example Scenarios:**
+1. **New Google User**: Creates account via Google → `auth_provider="google"`, creates FederatedIdentity with `provider="google"`
+2. **Existing Native User Links Google**: Account has `auth_provider="native"`, adds FederatedIdentity with `provider="google"`
+3. **User Logs In**: `auth_method` in JWT shows "native" or "google" based on how they logged in **this time**
+
+**Use Cases:**
+- Social login (Sign in with Google, Microsoft, etc.)
+- Account linking (add multiple login methods to one account)
+- Preventing duplicate accounts (check if provider user ID already exists)
+- Tracking authentication methods per session
+
 ## Naming Conventions
 
 The database follows strict naming conventions for consistency and clarity:
@@ -294,3 +338,6 @@ GROUP BY client_id, status;
 - **V01.005**: Create T_authorization_codes table with FKs
 - **V01.006**: Insert default test client for development
 - **V01.007**: Create T_account_roles table for role-based access control
+- **V01.008**: Add picture and auth_provider columns to T_accounts
+- **V01.009**: Create T_federated_identities table for federated login
+- **V01.010**: Add auth_method column to T_authorization_requests

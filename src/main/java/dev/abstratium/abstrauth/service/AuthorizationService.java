@@ -47,7 +47,7 @@ public class AuthorizationService {
     }
 
     @Transactional
-    public void approveAuthorizationRequest(String requestId, String accountId) {
+    public void approveAuthorizationRequest(String requestId, String accountId, String authMethod) {
         AuthorizationRequest request = em.find(AuthorizationRequest.class, requestId);
         if (request == null) {
             throw new IllegalArgumentException("Authorization request not found");
@@ -60,6 +60,7 @@ public class AuthorizationService {
         }
 
         request.setAccountId(accountId);
+        request.setAuthMethod(authMethod);
         request.setStatus("approved");
         em.merge(request);
     }

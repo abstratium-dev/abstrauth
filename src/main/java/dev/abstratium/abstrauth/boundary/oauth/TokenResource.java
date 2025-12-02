@@ -20,6 +20,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
+import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
@@ -254,20 +255,19 @@ public class TokenResource {
             }
         }
 
+        // Get account
+        Account account = accountService.findById(authCode.getAccountId())
+                .orElseThrow(() -> new IllegalStateException("Account not found"));
+
+        // Get the authorization request to retrieve the auth method
+        Optional<AuthorizationRequest> authRequestOpt = authorizationService.findAuthorizationRequest(authCode.getAuthorizationRequestId());
+        String authMethod = authRequestOpt.map(AuthorizationRequest::getAuthMethod).orElse("unknown");
+
         // Mark code as used
-        authorizationService.markAuthorizationCodeAsUsed(authCode.getId());
+        authorizationService.markCodeAsUsed(code);
 
-        // Get account information
-        Optional<Account> accountOpt = accountService.findById(authCode.getAccountId());
-        if (accountOpt.isEmpty()) {
-            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
-                    "Account not found");
-        }
-
-        Account account = accountOpt.get();
-
-        // Generate JWT access token
-        String accessToken = generateAccessToken(account, authCode.getScope(), clientId);
+        // Generate access token with the authentication method used for this session
+        String accessToken = generateAccessToken(account, authCode.getScope(), clientId, authMethod);
 
         // Build token response
         TokenResponse response = new TokenResponse();
@@ -299,7 +299,7 @@ public class TokenResource {
         }
     }
 
-    private String generateAccessToken(Account account, String scope, String clientId) {
+    private String generateAccessToken(Account account, String scope, String clientId, String authMethod) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(3600); // 1 hour
 
@@ -324,6 +324,7 @@ public class TokenResource {
                 .claim("email_verified", account.getEmailVerified())
                 .claim("scope", scope)
                 .claim("client_id", clientId)
+                .claim("auth_method", authMethod)  // Use the auth method from this login session
                 .issuedAt(now)
                 .expiresAt(expiresAt)
                 .sign();

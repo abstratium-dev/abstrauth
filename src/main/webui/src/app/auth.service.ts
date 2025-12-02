@@ -17,6 +17,7 @@ export interface Token {
     client_id: string;
     jti: string;
     upn: string;
+    auth_method: string;
 }
 
 export const ANONYMOUS: Token = {
@@ -33,6 +34,7 @@ export const ANONYMOUS: Token = {
     client_id: CLIENT_ID,
     jti: 'aeede9a0-3cc3-4536-81c2-5b47a6952abf',
     upn: 'anon@abstratium.dev',
+    auth_method: 'none',
 };
 
 

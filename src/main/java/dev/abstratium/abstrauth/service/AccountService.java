@@ -53,6 +53,7 @@ public class AccountService {
         account.setEmail(email);
         account.setName(name);
         account.setEmailVerified(false);
+        account.setAuthProvider("native");
         em.persist(account);
 
         // Create credentials
@@ -63,6 +64,31 @@ public class AccountService {
         em.persist(credential);
 
         return account;
+    }
+
+    @Transactional
+    public Account createFederatedAccount(String email, String name, String picture, 
+                                         Boolean emailVerified, String authProvider) {
+        // Check if email already exists
+        if (findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+
+        // Create account
+        Account account = new Account();
+        account.setEmail(email);
+        account.setName(name);
+        account.setPicture(picture);
+        account.setEmailVerified(emailVerified != null ? emailVerified : false);
+        account.setAuthProvider(authProvider);
+        em.persist(account);
+
+        return account;
+    }
+
+    @Transactional
+    public Account updateAccount(Account account) {
+        return em.merge(account);
     }
 
     public Optional<@NonNull Credential> findCredentialByUsername(String username) {

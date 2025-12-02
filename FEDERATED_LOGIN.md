@@ -96,8 +96,8 @@ sequenceDiagram
     
     Note over SPA: Angular app shows IdP selection
     SPA->>SPA: User selects Google
+    SPA->>AuthServer: GET /oauth2/federated/google?request_id=REQ_123
     
-    AuthServer->>AuthServer: Store original OAuth request
     AuthServer->>Browser: 302 Redirect to Google
     Browser->>Google: GET /o/oauth2/v2/auth?<br/>client_id=ABSTRATIUM_GOOGLE_CLIENT&<br/>redirect_uri=.../callback/google&<br/>state=REQ_123
     
@@ -288,7 +288,35 @@ HTTP/1.1 302 Found
 Location: https://app.example.com/callback?code=AUTH_CODE&state=xyz
 ```
 
-**Note:** Federated login with external IdPs (Google, Microsoft, GitHub) is not yet implemented. When implemented, the flow will involve redirecting to the external IdP from the Angular app.
+### Federated Login Flow
+
+When user selects Google login in the Angular app:
+
+1. Angular app calls the federated login initiation endpoint:
+```http
+GET /oauth2/federated/google?request_id={requestId}
+```
+
+**Response:**
+```http
+HTTP/1.1 303 See Other
+Location: https://accounts.google.com/o/oauth2/v2/auth?client_id=...&redirect_uri=...&state={requestId}
+```
+
+2. User is redirected to Google for authentication
+
+3. After Google authentication, Google redirects back to:
+```http
+GET /oauth2/callback/google?code=GOOGLE_CODE&state={requestId}
+```
+
+4. The server:
+   - Exchanges the Google code for user info
+   - Creates or links the account
+   - Approves the authorization request
+   - Redirects to client with authorization code
+
+**Note:** Microsoft and GitHub federated login are not yet implemented, but will follow the same pattern.
 
 ---
 
@@ -441,10 +469,15 @@ POST /oauth2/authorize/authenticate       // Validates credentials (returns JSON
 // Consent
 POST /oauth2/authorize                    // Processes consent (redirects to client)
 
-// IdP callbacks (not yet implemented)
-// GET /oauth2/callback/google
-// GET /oauth2/callback/microsoft
-// GET /oauth2/callback/github
+// Federated login initiation
+GET  /oauth2/federated/google             // Redirects to Google OAuth (requires request_id param)
+// GET  /oauth2/federated/microsoft       // Not yet implemented
+// GET  /oauth2/federated/github          // Not yet implemented
+
+// IdP callbacks
+GET  /oauth2/callback/google              // Handles Google OAuth callback
+// GET  /oauth2/callback/microsoft        // Not yet implemented
+// GET  /oauth2/callback/github           // Not yet implemented
 ```
 
 ### 3. Security Considerations

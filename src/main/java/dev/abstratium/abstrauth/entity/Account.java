@@ -20,6 +20,11 @@ public class Account {
 
     private String name;
 
+    private String picture;
+
+    @Column(name = "auth_provider")
+    private String authProvider; // "native", "google", "microsoft", "github"
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -72,5 +77,21 @@ public class Account {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getPicture() {
+        return picture;
+    }
+
+    public void setPicture(String picture) {
+        this.picture = picture;
+    }
+
+    public String getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(String authProvider) {
+        this.authProvider = authProvider;
     }
 }

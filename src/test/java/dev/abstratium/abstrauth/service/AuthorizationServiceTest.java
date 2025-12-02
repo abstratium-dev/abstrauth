@@ -92,7 +92,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId());
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
         
         Optional<AuthorizationRequest> approved = authorizationService.findAuthorizationRequest(request.getId());
         assertTrue(approved.isPresent());
@@ -104,7 +104,7 @@ public class AuthorizationServiceTest {
     @Transactional
     public void testApproveNonExistentRequest() {
         assertThrows(IllegalArgumentException.class, () -> {
-            authorizationService.approveAuthorizationRequest("nonexistent-id", "account-id");
+            authorizationService.approveAuthorizationRequest("nonexistent-id", "account-id", "native");
         });
     }
 
@@ -124,7 +124,7 @@ public class AuthorizationServiceTest {
         request.setExpiresAt(LocalDateTime.now().minusMinutes(1));
         
         assertThrows(IllegalStateException.class, () -> {
-            authorizationService.approveAuthorizationRequest(request.getId(), "account-id");
+            authorizationService.approveAuthorizationRequest(request.getId(), "account-id", "native");
         });
         
         // Verify status was set to expired
@@ -152,7 +152,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId());
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
         
         AuthorizationCode authCode = authorizationService.generateAuthorizationCode(request.getId());
         
@@ -216,7 +216,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId());
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
         AuthorizationCode authCode = authorizationService.generateAuthorizationCode(request.getId());
         
         Optional<AuthorizationCode> found = authorizationService.findAuthorizationCode(authCode.getCode());
@@ -252,7 +252,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId());
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
         AuthorizationCode authCode = authorizationService.generateAuthorizationCode(request.getId());
         
         assertFalse(authCode.getUsed());
@@ -290,7 +290,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId());
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
         AuthorizationCode authCode = authorizationService.generateAuthorizationCode(request.getId());
         
         assertFalse(authCode.getUsed());
@@ -328,7 +328,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId());
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
         AuthorizationCode authCode1 = authorizationService.generateAuthorizationCode(request.getId());
         
         // Create another request
@@ -341,7 +341,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request2.getId(), account.getId());
+        authorizationService.approveAuthorizationRequest(request2.getId(), account.getId(), "native");
         AuthorizationCode authCode2 = authorizationService.generateAuthorizationCode(request2.getId());
         
         // Codes should be different

@@ -25,6 +25,10 @@ It was generated using `quarkus create app --maven --package-name=dev.abstratium
 
 ### Server
 
+First add env vars:
+
+    source /w/abstratium-abstrauth.env
+
 The application uses Quarkus. Run it with either `./mvnw quarkus:dev` or `quarkus dev` if you have installed the Quarkus CLI.
 
 #### Code coverage
@@ -107,6 +111,7 @@ For development, you can run tests manually:
 
 1. Start Quarkus in dev mode (uses Quinoa Angular dev server on port 4200):
    ```bash
+   source /w/abstratium-abstrauth.env
    mvn quarkus:dev
    ```
 
@@ -137,11 +142,11 @@ For development, you can run tests manually:
 
 ### Now
 
-- use federated and flow docs to do:
-  - add google login
-- create client in google and use it
-- add ability to add and manage applications and their roles using a UI and rest endpoints
+- measure coverage with jacoco, and for angular tests and see what tests are missing
+- build native image and check it works
 - csrf and state - what do i still need to implement?
+- native sign in: once scopes are accepted for the client_id, don't keep asking until they change
+- add ability to add and manage applications and their roles using a UI and rest endpoints
 - handle http errors using interceptor
 - add / update all angular tests
 - do security scan using claude
@@ -149,6 +154,9 @@ For development, you can run tests manually:
 
 ### Later
 
+- what is the point of having a username in native account? delete it, since email suffices. discord doesn't have email - how would that work? it'd be ok, because you just click the sign in with discord link
+- support for other databases like postgresql
+- account linking
 - make build process deploy a test instance and run e2e tests against that and remove all the stuff which maven is doing with the e2e maven profile 
 - don't require approval, if client is configured that way and base it on scopes. so user only approves if new scopes are being requested
 - sign out - see auth.service.ts
@@ -210,6 +218,7 @@ Background Color: #5c6bc0
 You can run your application in dev mode that enables live coding using:
 
 ```shell script
+source /w/abstratium-abstrauth.env
 ./mvnw quarkus:dev
 ```
 

@@ -24,6 +24,53 @@ h2 {
   font-size: 0.95rem;
 }
 
+/* ===== FORMS ===== */
+.form-group {
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #4285f4;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+}
+
+.centered-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.centered-form .form-group {
+  width: 100%;
+  max-width: 400px;
+}
+
+.centered-form button[type="submit"] {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.75rem;
+  font-size: 1rem;
+}
+
 /* ===== MESSAGES ===== */
 .error {
   color: red;
@@ -60,6 +107,14 @@ h2 {
 .error-box {
   background-color: #ffebee;
   color: #c62828;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.success-box {
+  background-color: #e8f5e9;
+  color: #2e7d32;
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1rem;
@@ -257,6 +312,65 @@ h2 {
   color: gray;
   text-decoration: none;
   cursor: default;
+}
+
+/* ===== DIVIDER ===== */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #666;
+  font-size: 0.875rem;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  span {
+    padding: 0 1rem;
+  }
+}
+
+/* ===== GOOGLE SIGN-IN BUTTON ===== */
+.google-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background-color: white;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  color: #3c4043;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #f8f9fa;
+    border-color: #d2d4d6;
+    box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  }
+
+  &:active:not(:disabled) {
+    background-color: #f1f3f4;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .google-icon {
+    width: 18px;
+    height: 18px;
+  }
 }
 
 /* ===== RESPONSIVE ===== */

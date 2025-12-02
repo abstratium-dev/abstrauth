@@ -351,8 +351,8 @@ public class AuthorizationResource {
 
         Account account = accountOpt.get();
 
-        // Approve the authorization request
-        authorizationService.approveAuthorizationRequest(requestId, account.getId());
+        // Approve the authorization request with native authentication
+        authorizationService.approveAuthorizationRequest(requestId, account.getId(), "native");
 
         // Show consent page
         return Response.ok(new AuthenticationResponse(account.getName())).build();

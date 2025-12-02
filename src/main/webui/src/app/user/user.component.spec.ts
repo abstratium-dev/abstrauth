@@ -24,7 +24,8 @@ describe('UserComponent', () => {
     isAuthenticated: true,
     client_id: 'test-client',
     jti: 'jwt-id-123',
-    upn: 'test@example.com'
+    upn: 'test@example.com',
+    auth_method: 'native'
   };
 
   beforeEach(async () => {

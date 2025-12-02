@@ -36,6 +36,9 @@ public class AuthorizationRequest {
     @Column(nullable = false, length = 20)
     private String status; // 'pending', 'approved', 'denied', 'expired'
 
+    @Column(name = "auth_method", length = 20)
+    private String authMethod; // 'native', 'google' - tracks how user authenticated for THIS session
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -126,6 +129,14 @@ public class AuthorizationRequest {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getAuthMethod() {
+        return authMethod;
+    }
+
+    public void setAuthMethod(String authMethod) {
+        this.authMethod = authMethod;
     }
 
     public LocalDateTime getCreatedAt() {

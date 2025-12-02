@@ -97,4 +97,9 @@ export class SigninComponent implements OnInit {
         });
     }
 
+    signinWithGoogle() {
+        // Redirect to Google OAuth initiation endpoint
+        window.location.href = `/oauth2/federated/google?request_id=${this.requestId}`;
+    }
+
 }
