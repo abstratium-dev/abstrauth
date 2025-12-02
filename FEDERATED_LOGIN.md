@@ -91,10 +91,11 @@ sequenceDiagram
     SPA->>Browser: Redirect to /oauth2/authorize
     Browser->>AuthServer: GET /oauth2/authorize?<br/>response_type=code&client_id=spa_client&<br/>redirect_uri=...&code_challenge=...
     
-    AuthServer->>AuthServer: Check if user authenticated
-    AuthServer->>Browser: Show IdP Selection Page
+    AuthServer->>Browser: 302 Redirect to /signin/{requestId}
+    Browser->>SPA: Load /signin page
     
-    Browser->>AuthServer: POST /oauth2/authorize/idp<br/>idp=google&request_id=REQ_123
+    Note over SPA: Angular app shows IdP selection
+    SPA->>SPA: User selects Google
     
     AuthServer->>AuthServer: Store original OAuth request
     AuthServer->>Browser: 302 Redirect to Google
@@ -204,20 +205,17 @@ sequenceDiagram
     SPA->>Browser: Redirect to /oauth2/authorize (with PKCE)
     Browser->>AuthServer: GET /oauth2/authorize?...
     
-    AuthServer->>Browser: Show IdP Selection Page
-    Browser->>AuthServer: POST /oauth2/authorize/idp<br/>idp=abstratium
+    AuthServer->>Browser: 302 Redirect to /signin/{requestId}
+    Browser->>SPA: Load /signin page
     
-    AuthServer->>Browser: Show Login Form
-    Browser->>AuthServer: POST /oauth2/authenticate<br/>username=john&password=pass&request_id=REQ_123
+    Note over SPA: Angular app shows login form
+    SPA->>AuthServer: POST /oauth2/authorize/authenticate<br/>username=john&password=pass&request_id=REQ_123
+    AuthServer->>SPA: {name} (JSON)
     
-    AuthServer->>AuthServer: Validate credentials<br/>Create session
+    Note over SPA: Angular app shows consent page
+    SPA->>AuthServer: POST /oauth2/authorize<br/>consent=approve&request_id=REQ_123
     
-    alt First time or new scopes
-        AuthServer->>Browser: Show Consent Page
-        Browser->>AuthServer: POST /oauth2/authorize/consent<br/>consent=approve
-    end
-    
-    AuthServer->>Browser: 302 Redirect to SPA
+    AuthServer->>Browser: 302 Redirect to client callback
     Browser->>SPA: /callback?code=CODE&state=xyz
     
     SPA->>AuthServer: POST /oauth2/token (with PKCE)
@@ -237,45 +235,60 @@ sequenceDiagram
 
 ### IdP Selection Page UI
 
-```
-┌─────────────────────────────────────────┐
-│         Abstratium Authorization        │
-│                                         │
-│  app.example.com wants to access:      │
-│  • Your profile information             │
-│  • Your email address                   │
-│                                         │
-│  ┌─────────────────────────────────┐   │
-│  │  🔵 Continue with Google        │   │
-│  └─────────────────────────────────┘   │
-│                                         │
-│  ┌─────────────────────────────────┐   │
-│  │  🔷 Continue with Microsoft     │   │
-│  └─────────────────────────────────┘   │
-│                                         │
-│  ┌─────────────────────────────────┐   │
-│  │  🔐 Continue with Abstratium    │   │
-│  └─────────────────────────────────┘   │
-│                                         │
-│  Don't have an account? Sign up         │
-└─────────────────────────────────────────┘
-```
+The IdP selection is handled by the Angular application at `/signin/{requestId}`. The Angular app:
 
-### IdP Selection Request
-
+1. Fetches authorization request details:
 ```http
-POST /oauth2/authorize/idp
+GET /oauth2/authorize/details/{requestId}
+```
+
+**Response:**
+```json
+{
+  "clientName": "Example Client",
+  "scope": "openid profile email"
+}
+```
+
+2. Displays the IdP selection UI showing:
+   - Client name and requested scopes
+   - Available identity providers (Google, Microsoft, GitHub, etc.)
+   - Native Abstratium login option
+   - Sign up link
+
+3. When user selects native login, the Angular app shows a login form and submits:
+```http
+POST /oauth2/authorize/authenticate
 Content-Type: application/x-www-form-urlencoded
 
-idp=google&
-request_id=REQ_123
+username=john.doe&
+password=secret&
+request_id={requestId}
 ```
 
-**Supported `idp` values:**
-- `google`
-- `microsoft`
-- `github`
-- `abstratium` (native)
+**Response:**
+```json
+{
+  "name": "John Doe"
+}
+```
+
+4. After successful authentication, the Angular app shows a consent page and submits:
+```http
+POST /oauth2/authorize
+Content-Type: application/x-www-form-urlencoded
+
+consent=approve&
+request_id={requestId}
+```
+
+**Response:**
+```http
+HTTP/1.1 302 Found
+Location: https://app.example.com/callback?code=AUTH_CODE&state=xyz
+```
+
+**Note:** Federated login with external IdPs (Google, Microsoft, GitHub) is not yet implemented. When implemented, the flow will involve redirecting to the external IdP from the Angular app.
 
 ---
 
@@ -418,21 +431,20 @@ oauth2:
 ### 2. Required API Endpoints
 
 ```java
-// IdP selection
-GET  /oauth2/authorize          // Shows IdP selection page
-POST /oauth2/authorize/idp      // Handles IdP selection
+// Authorization initiation
+GET  /oauth2/authorize                    // Redirects to Angular app at /signin/{requestId}
+GET  /oauth2/authorize/details/{requestId} // Returns authorization request details (JSON)
 
 // Native authentication
-POST /oauth2/authenticate       // Validates credentials
+POST /oauth2/authorize/authenticate       // Validates credentials (returns JSON)
 
 // Consent
-GET  /oauth2/authorize/consent  // Shows consent page
-POST /oauth2/authorize/consent  // Processes consent
+POST /oauth2/authorize                    // Processes consent (redirects to client)
 
-// IdP callbacks
-GET /oauth2/callback/google
-GET /oauth2/callback/microsoft
-GET /oauth2/callback/github
+// IdP callbacks (not yet implemented)
+// GET /oauth2/callback/google
+// GET /oauth2/callback/microsoft
+// GET /oauth2/callback/github
 ```
 
 ### 3. Security Considerations

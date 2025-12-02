@@ -137,8 +137,11 @@ For development, you can run tests manually:
 
 ### Now
 
-- add google login
+- use federated and flow docs to do:
+  - add google login
+- create client in google and use it
 - add ability to add and manage applications and their roles using a UI and rest endpoints
+- csrf and state - what do i still need to implement?
 - handle http errors using interceptor
 - add / update all angular tests
 - do security scan using claude

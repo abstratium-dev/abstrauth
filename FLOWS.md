@@ -51,28 +51,33 @@ sequenceDiagram
     
     Browser->>AuthServer: GET /oauth2/authorize?params...
     
-    Note over AuthServer: 3. User Authentication
-    AuthServer->>Browser: Show login page (if not authenticated)
-    Browser->>AuthServer: User submits credentials
-    AuthServer->>AuthServer: Authenticate user
+    Note over AuthServer: 3. Redirect to Angular App
+    AuthServer->>Browser: 302 Redirect to /signin/{requestId}
+    Browser->>SPA: Load /signin page
     
-    Note over AuthServer: 4. User Consent
-    AuthServer->>Browser: Show consent page
-    Browser->>AuthServer: POST /oauth2/authorize (consent)
+    Note over SPA: 4. Fetch Request Details
+    SPA->>AuthServer: GET /oauth2/authorize/details/{requestId}
+    AuthServer->>SPA: {clientName, scope}
     
-    Note over AuthServer: 5. Authorization Response
-    AuthServer->>AuthServer: Generate authorization code<br/>Store code_challenge
-    AuthServer->>Browser: Redirect to redirect_uri
+    Note over SPA: 5. User Authentication
+    SPA->>AuthServer: POST /oauth2/authorize/authenticate<br/>{username, password, request_id}
+    AuthServer->>SPA: {name} (JSON)
+    
+    Note over SPA: 6. User Consent
+    SPA->>AuthServer: POST /oauth2/authorize<br/>{consent=approve, request_id}
+    
+    Note over AuthServer: 7. Authorization Response
+    AuthServer->>Browser: 302 Redirect to redirect_uri
     Browser->>SPA: https://app.example.com/callback?code=AUTH_CODE&state=random_state
     
-    Note over SPA: 6. Validate State
+    Note over SPA: 8. Validate State
     SPA->>SPA: Verify state parameter matches
     
-    Note over SPA,AuthServer: 7. Token Request
+    Note over SPA,AuthServer: 9. Token Request
     SPA->>AuthServer: POST /oauth2/token
     Note right of SPA: Parameters:<br/>grant_type=authorization_code<br/>code=AUTH_CODE<br/>redirect_uri=https://app.example.com/callback<br/>client_id=spa_client<br/>code_verifier=original_code_verifier
     
-    Note over AuthServer: 8. Validate PKCE
+    Note over AuthServer: 10. Validate PKCE
     AuthServer->>AuthServer: Verify SHA256(code_verifier) == stored code_challenge
     AuthServer->>AuthServer: Validate authorization code
     AuthServer->>AuthServer: Generate access_token (JWT)
@@ -81,10 +86,10 @@ sequenceDiagram
     AuthServer->>SPA: 200 OK
     Note right of AuthServer: Response:<br/>{<br/>  "access_token": "eyJhbG...",<br/>  "token_type": "Bearer",<br/>  "expires_in": 3600,<br/>  "refresh_token": "tGzv3J...",<br/>  "scope": "openid profile email"<br/>}
     
-    Note over SPA: 9. Store Tokens Securely
+    Note over SPA: 11. Store Tokens Securely
     SPA->>SPA: Store tokens in memory<br/>(NOT localStorage)
     
-    Note over SPA,ResourceServer: 10. Access Protected Resources
+    Note over SPA,ResourceServer: 12. Access Protected Resources
     SPA->>ResourceServer: GET /api/user/profile
     Note right of SPA: Header:<br/>Authorization: Bearer eyJhbG...
     
@@ -115,7 +120,58 @@ GET /oauth2/authorize?
   code_challenge_method=S256
 ```
 
-#### 7. Token Request
+**Response:**
+```http
+HTTP/1.1 302 Found
+Location: /signin/{requestId}
+```
+
+#### 3. Fetch Authorization Request Details
+```http
+GET /oauth2/authorize/details/{requestId}
+```
+
+**Response:**
+```json
+{
+  "clientName": "Example Client",
+  "scope": "openid profile email"
+}
+```
+
+#### 4. Authenticate User
+```http
+POST /oauth2/authorize/authenticate
+Content-Type: application/x-www-form-urlencoded
+
+username=john.doe&
+password=secret123&
+request_id={requestId}
+```
+
+**Response:**
+```json
+{
+  "name": "John Doe"
+}
+```
+
+#### 5. Submit Consent
+```http
+POST /oauth2/authorize
+Content-Type: application/x-www-form-urlencoded
+
+consent=approve&
+request_id={requestId}
+```
+
+**Response:**
+```http
+HTTP/1.1 302 Found
+Location: https://app.example.com/callback?code=AUTH_CODE&state=xyz123
+```
+
+#### 6. Token Request
 ```http
 POST /oauth2/token
 Content-Type: application/x-www-form-urlencoded
@@ -127,7 +183,7 @@ client_id=spa_client_12345&
 code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 ```
 
-#### 8. Token Response
+#### 7. Token Response
 ```json
 {
   "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -161,28 +217,29 @@ sequenceDiagram
     
     Browser->>AuthServer: GET /oauth2/authorize?params...
     
-    Note over AuthServer: 2. User Authentication
-    AuthServer->>Browser: Show login page (if not authenticated)
-    Browser->>AuthServer: User submits credentials
-    AuthServer->>AuthServer: Authenticate user
+    Note over AuthServer: 2. Redirect to Angular App
+    AuthServer->>Browser: 302 Redirect to /signin/{requestId}
+    Browser->>Backend: Load /signin page (served by backend)
     
-    Note over AuthServer: 3. User Consent
-    AuthServer->>Browser: Show consent page
-    Browser->>AuthServer: POST /oauth2/authorize (consent)
+    Note over Backend: 3. User Authentication (via Angular)
+    Backend->>AuthServer: POST /oauth2/authorize/authenticate
+    AuthServer->>Backend: {name} (JSON)
     
-    Note over AuthServer: 4. Authorization Response
-    AuthServer->>AuthServer: Generate authorization code
-    AuthServer->>Browser: Redirect to redirect_uri
+    Note over Backend: 4. User Consent (via Angular)
+    Backend->>AuthServer: POST /oauth2/authorize<br/>{consent=approve, request_id}
+    
+    Note over AuthServer: 5. Authorization Response
+    AuthServer->>Browser: 302 Redirect to redirect_uri
     Browser->>Backend: https://backend.example.com/callback?code=AUTH_CODE&state=random_state
     
-    Note over Backend: 5. Validate State
+    Note over Backend: 6. Validate State
     Backend->>Backend: Verify state parameter matches
     
-    Note over Backend,AuthServer: 6. Token Request (Server-to-Server)
+    Note over Backend,AuthServer: 7. Token Request (Server-to-Server)
     Backend->>AuthServer: POST /oauth2/token
     Note right of Backend: Parameters:<br/>grant_type=authorization_code<br/>code=AUTH_CODE<br/>redirect_uri=https://backend.example.com/callback<br/>client_id=backend_client<br/>client_secret=SECRET_KEY
     
-    Note over AuthServer: 7. Validate Client Credentials
+    Note over AuthServer: 8. Validate Client Credentials
     AuthServer->>AuthServer: Verify client_id and client_secret
     AuthServer->>AuthServer: Validate authorization code
     AuthServer->>AuthServer: Generate access_token (JWT)
@@ -191,10 +248,10 @@ sequenceDiagram
     AuthServer->>Backend: 200 OK
     Note right of AuthServer: Response:<br/>{<br/>  "access_token": "eyJhbG...",<br/>  "token_type": "Bearer",<br/>  "expires_in": 3600,<br/>  "refresh_token": "tGzv3J...",<br/>  "scope": "openid profile email"<br/>}
     
-    Note over Backend: 8. Store Tokens Securely
+    Note over Backend: 9. Store Tokens Securely
     Backend->>Backend: Store tokens in secure session<br/>or encrypted database
     
-    Note over Backend,ResourceServer: 9. Access Protected Resources
+    Note over Backend,ResourceServer: 10. Access Protected Resources
     Backend->>ResourceServer: GET /api/user/profile
     Note right of Backend: Header:<br/>Authorization: Bearer eyJhbG...
     
