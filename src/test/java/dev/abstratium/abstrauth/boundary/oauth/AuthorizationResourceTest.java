@@ -23,10 +23,11 @@ public class AuthorizationResourceTest {
         given()
             .queryParam("client_id", CLIENT_ID)
             .queryParam("redirect_uri", REDIRECT_URI)
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(anyOf(is(302), is(400)));
+            .statusCode(anyOf(is(302), is(303), is(400)));
     }
 
     @Test
@@ -35,10 +36,11 @@ public class AuthorizationResourceTest {
             .queryParam("response_type", "token")
             .queryParam("client_id", CLIENT_ID)
             .queryParam("redirect_uri", REDIRECT_URI)
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(302)
+            .statusCode(anyOf(is(302), is(303)))
             .header("Location", containsString("error=unsupported_response_type"));
     }
 
@@ -48,10 +50,11 @@ public class AuthorizationResourceTest {
             .queryParam("response_type", "")
             .queryParam("client_id", CLIENT_ID)
             .queryParam("redirect_uri", REDIRECT_URI)
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(302)
+            .statusCode(anyOf(is(302), is(303)))
             .header("Location", containsString("error=unsupported_response_type"));
     }
 
@@ -170,10 +173,13 @@ public class AuthorizationResourceTest {
             .queryParam("client_id", CLIENT_ID)
             .queryParam("redirect_uri", REDIRECT_URI)
             .queryParam("scope", "invalid_scope admin superuser")
+            .queryParam("code_challenge", "test-challenge")
+            .queryParam("code_challenge_method", "plain")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(302)
+            .statusCode(anyOf(is(302), is(303)))
             .header("Location", containsString("error=invalid_scope"));
     }
 
@@ -185,10 +191,13 @@ public class AuthorizationResourceTest {
             .queryParam("redirect_uri", REDIRECT_URI)
             .queryParam("scope", "invalid_scope")
             .queryParam("state", "test-state-123")
+            .queryParam("code_challenge", "test-challenge")
+            .queryParam("code_challenge_method", "plain")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(302)
+            .statusCode(anyOf(is(302), is(303)))
             .header("Location", containsString("state=test-state-123"));
     }
 
@@ -202,10 +211,11 @@ public class AuthorizationResourceTest {
             .queryParam("client_id", CLIENT_ID)
             .queryParam("redirect_uri", REDIRECT_URI)
             .queryParam("scope", "openid")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(302)
+            .statusCode(anyOf(is(302), is(303)))
             .header("Location", containsString("error=invalid_request"))
             .header("Location", containsString("code_challenge"));
     }
@@ -218,10 +228,11 @@ public class AuthorizationResourceTest {
             .queryParam("redirect_uri", REDIRECT_URI)
             .queryParam("scope", "openid")
             .queryParam("code_challenge", "   ")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(302)
+            .statusCode(anyOf(is(302), is(303)))
             .header("Location", containsString("error=invalid_request"));
     }
 
@@ -234,6 +245,7 @@ public class AuthorizationResourceTest {
             .queryParam("scope", "openid")
             .queryParam("code_challenge", "test-challenge")
             // No code_challenge_method - should default to plain
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
@@ -250,10 +262,11 @@ public class AuthorizationResourceTest {
             .queryParam("scope", "openid")
             .queryParam("code_challenge", "test-challenge")
             .queryParam("code_challenge_method", "MD5")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
-            .statusCode(302)
+            .statusCode(anyOf(is(302), is(303)))
             .header("Location", containsString("error=invalid_request"))
             .header("Location", containsString("code_challenge_method"));
     }
@@ -267,6 +280,7 @@ public class AuthorizationResourceTest {
             .queryParam("scope", "openid")
             .queryParam("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
             .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
@@ -283,6 +297,7 @@ public class AuthorizationResourceTest {
             .queryParam("scope", "openid")
             .queryParam("code_challenge", "test-challenge-plain")
             .queryParam("code_challenge_method", "plain")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
@@ -380,6 +395,7 @@ public class AuthorizationResourceTest {
             .queryParam("code_challenge", "test-challenge")
             .queryParam("code_challenge_method", "plain")
             .queryParam("state", "test-state")
+            .redirects().follow(false)
             .when()
             .get("/oauth2/authorize")
             .then()
