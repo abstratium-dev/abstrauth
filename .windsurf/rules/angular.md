@@ -9,4 +9,6 @@ The general design pattern used here is that components write data to the model 
 
 It is the controller which should generally make backend calls. Exceptions to that are the AuthService.
 
-Whenever making changes, remember to make sure that tests are updated and test them using `ng test`
+Whenever making changes, remember to make sure that tests are updated and test them using `ng test`.
+
+code coverage is measured using `ng test --code-coverage --watch=false` - goals are 80% statement coverage and 70% branch coverage.

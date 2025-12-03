@@ -167,4 +167,147 @@ public class TokenResourceTest {
             .statusCode(400)
             .body("error", anyOf(equalTo("invalid_request"), equalTo("unsupported_grant_type")));
     }
+
+    // ========== Additional Validation Tests for Branch Coverage ==========
+
+    @Test
+    public void testTokenEndpointWithBlankCode() {
+        given()
+            .formParam("grant_type", "authorization_code")
+            .formParam("code", "   ")
+            .formParam("client_id", CLIENT_ID)
+            .formParam("redirect_uri", REDIRECT_URI)
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("invalid_request"))
+            .body("error_description", containsString("code is required"));
+    }
+
+    @Test
+    public void testTokenEndpointWithBlankClientId() {
+        given()
+            .formParam("grant_type", "authorization_code")
+            .formParam("code", "some_code")
+            .formParam("client_id", "   ")
+            .formParam("redirect_uri", REDIRECT_URI)
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("invalid_request"))
+            .body("error_description", containsString("client_id is required"));
+    }
+
+    @Test
+    public void testTokenEndpointWithEmptyCode() {
+        given()
+            .formParam("grant_type", "authorization_code")
+            .formParam("code", "")
+            .formParam("client_id", CLIENT_ID)
+            .formParam("redirect_uri", REDIRECT_URI)
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("invalid_request"))
+            .body("error_description", containsString("code is required"));
+    }
+
+    @Test
+    public void testTokenEndpointWithEmptyClientId() {
+        given()
+            .formParam("grant_type", "authorization_code")
+            .formParam("code", "some_code")
+            .formParam("client_id", "")
+            .formParam("redirect_uri", REDIRECT_URI)
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("invalid_request"))
+            .body("error_description", containsString("client_id is required"));
+    }
+
+    @Test
+    public void testTokenEndpointWithRefreshTokenGrant() {
+        given()
+            .formParam("grant_type", "refresh_token")
+            .formParam("refresh_token", "some_refresh_token")
+            .formParam("client_id", CLIENT_ID)
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("unsupported_grant_type"))
+            .body("error_description", containsString("not yet implemented"));
+    }
+
+    @Test
+    public void testTokenEndpointWithNullGrantType() {
+        given()
+            .formParam("code", "some_code")
+            .formParam("client_id", CLIENT_ID)
+            .formParam("redirect_uri", REDIRECT_URI)
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("unsupported_grant_type"));
+    }
+
+    @Test
+    public void testTokenEndpointWithBlankGrantType() {
+        given()
+            .formParam("grant_type", "   ")
+            .formParam("code", "some_code")
+            .formParam("client_id", CLIENT_ID)
+            .formParam("redirect_uri", REDIRECT_URI)
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("unsupported_grant_type"));
+    }
+
+    @Test
+    public void testTokenEndpointWithCodeVerifierButNoChallenge() {
+        // Testing with invalid code - in real scenario would need valid code without challenge
+        given()
+            .formParam("grant_type", "authorization_code")
+            .formParam("code", "some_code_without_pkce")
+            .formParam("client_id", CLIENT_ID)
+            .formParam("redirect_uri", REDIRECT_URI)
+            .formParam("code_verifier", "unnecessary_verifier")
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", anyOf(equalTo("invalid_grant"), equalTo("invalid_request")));
+    }
+
+    @Test
+    public void testTokenEndpointErrorResponseFormat() {
+        given()
+            .formParam("grant_type", "invalid_grant_type")
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .contentType(containsString("application/json"))
+            .body("error", notNullValue())
+            .body("error_description", notNullValue());
+    }
+
+    @Test
+    public void testTokenEndpointWithAllParametersMissing() {
+        given()
+            .contentType("application/x-www-form-urlencoded")
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("unsupported_grant_type"));
+    }
 }

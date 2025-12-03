@@ -42,6 +42,10 @@ To execute unit tests with the [Karma](https://karma-runner.github.io) test runn
 
 ```bash
 ng test
+
+# or 
+
+ng test --code-coverage --watch=false
 ```
 
 ## Running end-to-end tests

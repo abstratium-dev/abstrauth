@@ -142,7 +142,6 @@ For development, you can run tests manually:
 
 ### Now
 
-- measure coverage with jacoco, and for angular tests and see what tests are missing
 - build native image and check it works
 - native sign in: once scopes are accepted for the client_id, don't keep asking until they change
 - add ability to add and manage applications and their roles using a UI and rest endpoints
