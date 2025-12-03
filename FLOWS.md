@@ -198,6 +198,14 @@ code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 
 ## Flow 2: Authorization Code Flow (for Backend Servers)
 
+**⚠️ IMPLEMENTATION STATUS: NOT YET IMPLEMENTED**
+
+This flow is documented for future implementation but is not currently supported by the authorization server. The following features are missing:
+- `client_secret` field in `T_oauth_clients` table
+- `client_secret` validation in token endpoint
+- Client authentication via HTTP Basic Auth or POST body
+- Proper handling of confidential vs public client types
+
 **Use Case:** Confidential clients like backend servers, server-side web applications
 
 **Security:** Uses client secret for authentication, PKCE is optional but recommended

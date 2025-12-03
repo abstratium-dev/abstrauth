@@ -143,15 +143,13 @@ For development, you can run tests manually:
 ### Now
 
 - build native image and check it works
-- native sign in: once scopes are accepted for the client_id, don't keep asking until they change
 - add ability to add and manage applications and their roles using a UI and rest endpoints
 - handle http errors using interceptor
-- add / update all angular tests
-- do security scan using claude
-  - double check that pkce is properly implemented, especially storing the code challenge in session storage
+- implement security audit
 
 ### Later
 
+- native sign in: once scopes are accepted for the client_id, don't keep asking until they change
 - what is the point of having a username in native account? delete it, since email suffices. discord doesn't have email - how would that work? it'd be ok, because you just click the sign in with discord link
 - support for other databases like postgresql
 - account linking
