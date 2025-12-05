@@ -30,6 +30,9 @@ public class OAuthClient {
     @Column(name = "require_pkce")
     private Boolean requirePkce = true;
 
+    @Column(name = "client_secret_hash")
+    private String clientSecretHash;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -98,6 +101,14 @@ public class OAuthClient {
 
     public void setRequirePkce(Boolean requirePkce) {
         this.requirePkce = requirePkce;
+    }
+
+    public String getClientSecretHash() {
+        return clientSecretHash;
+    }
+
+    public void setClientSecretHash(String clientSecretHash) {
+        this.clientSecretHash = clientSecretHash;
     }
 
     public LocalDateTime getCreatedAt() {

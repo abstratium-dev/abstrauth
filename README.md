@@ -142,10 +142,37 @@ For development, you can run tests manually:
 
 ### Now
 
+- is the following really true?
+
+    ⚠️ Current Issue
+    The 
+    TokenRevocationFilter
+    is created but the test is failing because:
+
+    The test uses 
+    Transactional
+    which doesn't commit before the HTTP request
+    The HTTP request runs in a separate transaction and can't see the uncommitted revocation
+    ✅ The Filter WILL Work in Production
+    In production, when:
+
+    Authorization code replay is detected → 
+    revokeTokensByAuthorizationCode()
+    is called → transaction commits
+    User makes subsequent request with revoked token → Filter checks database → 401 response
+    The filter is correctly implemented and will work in production. The test failure is a test isolation issue, not a code issue.
+
+- does it make sense that revoation is used to log out?
+- do we need a revocation check endpoint so that a third party can check that the token
+  isn't revoked? it could also check that the token is valid, altho the third party can 
+  do that using the public key.
 - build native image and check it works
 - add ability to add and manage applications and their roles using a UI and rest endpoints
 - handle http errors using interceptor
-- implement security audit
+- ~~implement security audit~~ ✅ DONE (Dec 3, 2024)
+  - ✅ Fixed PKCE timing attack vulnerability (constant-time comparison)
+  - ✅ Fixed authorization code replay detection with token revocation
+  - ✅ Implemented client secret support for confidential clients
 
 ### Later
 

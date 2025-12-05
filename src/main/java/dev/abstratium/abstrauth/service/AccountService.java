@@ -146,7 +146,7 @@ public class AccountService {
             WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
             PasswordFactory passwordFactory = PasswordFactory.getInstance(BCryptPassword.ALGORITHM_BCRYPT, provider);
             
-            int iterationCount = 10;
+            int iterationCount = 12; // OWASP recommendation for BCrypt
             IteratedSaltedPasswordAlgorithmSpec iteratedAlgorithmSpec = new IteratedSaltedPasswordAlgorithmSpec(iterationCount, generateSalt());
             EncryptablePasswordSpec encryptableSpec = new EncryptablePasswordSpec(password.toCharArray(), iteratedAlgorithmSpec);
             

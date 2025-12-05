@@ -166,37 +166,37 @@ public class WellKnownResource {
 
     @Schema(description = "OAuth 2.0 Authorization Server Metadata")
     public static class ServerMetadata {
-        @Schema(description = "Authorization server issuer identifier", example = "https://auth.example.com")
+        @Schema(description = "Authorization server issuer identifier", examples = "https://auth.example.com")
         public String issuer;
 
-        @Schema(description = "Authorization endpoint URL", example = "https://auth.example.com/oauth2/authorize")
+        @Schema(description = "Authorization endpoint URL", examples = "https://auth.example.com/oauth2/authorize")
         public String authorization_endpoint;
 
-        @Schema(description = "Token endpoint URL", example = "https://auth.example.com/oauth2/token")
+        @Schema(description = "Token endpoint URL", examples = "https://auth.example.com/oauth2/token")
         public String token_endpoint;
 
-        @Schema(description = "Token introspection endpoint URL", example = "https://auth.example.com/oauth2/introspect")
+        @Schema(description = "Token introspection endpoint URL", examples = "https://auth.example.com/oauth2/introspect")
         public String introspection_endpoint;
 
-        @Schema(description = "Token revocation endpoint URL", example = "https://auth.example.com/oauth2/revoke")
+        @Schema(description = "Token revocation endpoint URL", examples = "https://auth.example.com/oauth2/revoke")
         public String revocation_endpoint;
 
-        @Schema(description = "JWKS URI", example = "https://auth.example.com/.well-known/jwks.json")
+        @Schema(description = "JWKS URI", examples = "https://auth.example.com/.well-known/jwks.json")
         public String jwks_uri;
 
-        @Schema(description = "Supported response types", example = "[\"code\"]")
+        @Schema(description = "Supported response types", examples = "[\"code\"]")
         public String[] response_types_supported;
 
-        @Schema(description = "Supported grant types", example = "[\"authorization_code\", \"refresh_token\"]")
+        @Schema(description = "Supported grant types", examples = "[\"authorization_code\", \"refresh_token\"]")
         public String[] grant_types_supported;
 
-        @Schema(description = "Supported PKCE code challenge methods", example = "[\"S256\", \"plain\"]")
+        @Schema(description = "Supported PKCE code challenge methods", examples = "[\"S256\", \"plain\"]")
         public String[] code_challenge_methods_supported;
 
-        @Schema(description = "Supported scopes", example = "[\"openid\", \"profile\", \"email\"]")
+        @Schema(description = "Supported scopes", examples = "[\"openid\", \"profile\", \"email\"]")
         public String[] scopes_supported;
 
-        @Schema(description = "Supported token endpoint authentication methods", example = "[\"client_secret_post\", \"client_secret_basic\"]")
+        @Schema(description = "Supported token endpoint authentication methods", examples = "[\"client_secret_post\", \"client_secret_basic\"]")
         public String[] token_endpoint_auth_methods_supported;
     }
 
@@ -208,16 +208,16 @@ public class WellKnownResource {
 
     @Schema(description = "JSON Web Key")
     public static class JwkKey {
-        @Schema(description = "Key type", example = "RSA")
+        @Schema(description = "Key type", examples = "RSA")
         public String kty;
 
-        @Schema(description = "Key use", example = "sig")
+        @Schema(description = "Key use", examples = "sig")
         public String use;
 
-        @Schema(description = "Key ID", example = "key-2024-01")
+        @Schema(description = "Key ID", examples = "key-2024-01")
         public String kid;
 
-        @Schema(description = "Algorithm", example = "RS256")
+        @Schema(description = "Algorithm", examples = "RS256")
         public String alg;
 
         @Schema(description = "RSA modulus")

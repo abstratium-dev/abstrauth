@@ -7,6 +7,7 @@ import java.util.Base64;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -21,11 +22,18 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
+import dev.abstratium.abstrauth.service.TokenRevocationService;
 import io.smallrye.jwt.build.Jwt;
+import org.wildfly.security.password.Password;
+import org.wildfly.security.password.PasswordFactory;
+import org.wildfly.security.password.WildFlyElytronPasswordProvider;
+import org.wildfly.security.password.interfaces.BCryptPassword;
+import org.wildfly.security.password.util.ModularCrypt;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.FormParam;
@@ -55,6 +63,9 @@ public class TokenResource {
 
     @Inject
     AccountRoleService accountRoleService;
+
+    @Inject
+    TokenRevocationService tokenRevocationService;
 
     @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
@@ -209,6 +220,19 @@ public class TokenResource {
                     "client_id is required");
         }
 
+        // Authenticate confidential clients
+        Optional<OAuthClient> clientOpt = clientService.findByClientId(clientId);
+        if (clientOpt.isPresent()) {
+            OAuthClient client = clientOpt.get();
+            if ("confidential".equals(client.getClientType())) {
+                // Confidential clients MUST authenticate with client_secret
+                if (!authenticateClient(client, clientSecret)) {
+                    return buildErrorResponse(Response.Status.UNAUTHORIZED, "invalid_client",
+                            "Client authentication failed");
+                }
+            }
+        }
+
         // Find authorization code
         Optional<AuthorizationCode> authCodeOpt = authorizationService.findAuthorizationCode(code);
         if (authCodeOpt.isEmpty()) {
@@ -220,6 +244,15 @@ public class TokenResource {
 
         // Check if code has been used
         if (authCode.getUsed()) {
+            // SECURITY: Authorization code replay attack detected!
+            // RFC 6749 Section 10.5: "If an authorization code is used more than once,
+            // the authorization server MUST deny the request and SHOULD revoke all tokens
+            // previously issued based on that authorization code."
+            tokenRevocationService.revokeTokensByAuthorizationCode(
+                authCode.getId(), 
+                "authorization_code_replay_detected"
+            );
+            
             return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
                     "Authorization code has already been used");
         }
@@ -293,7 +326,12 @@ public class TokenResource {
                 return false;
             }
 
-            return computedChallenge.equals(codeChallenge);
+            // SECURITY FIX: Use constant-time comparison to prevent timing attacks
+            // This prevents attackers from using timing differences to brute-force the code_verifier
+            return MessageDigest.isEqual(
+                computedChallenge.getBytes(StandardCharsets.UTF_8),
+                codeChallenge.getBytes(StandardCharsets.UTF_8)
+            );
         } catch (Exception e) {
             return false;
         }
@@ -302,6 +340,9 @@ public class TokenResource {
     private String generateAccessToken(Account account, String scope, String clientId, String authMethod) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(3600); // 1 hour
+
+        // Generate unique JTI (JWT ID) for token revocation support
+        String jti = UUID.randomUUID().toString();
 
         // Get roles (groups) for this account and client from the database
         // Roles are stored as just the role name, so we need to prefix with clientId
@@ -316,6 +357,7 @@ public class TokenResource {
         addDefaultRoles(groups, clientId);
         
         return Jwt.issuer(issuer)
+                .claim("jti", jti)  // Add JWT ID for token revocation
                 .upn(account.getEmail())
                 .subject(account.getId())
                 .groups(groups)
@@ -366,6 +408,44 @@ public class TokenResource {
                 // If no underscore, add it as it is, for all clients
                 groups.add(clientId + "_" + roleSpec);
             }
+        }
+    }
+
+    /**
+     * Authenticate a confidential client using its client_secret.
+     * Uses BCrypt to verify the secret against the stored hash.
+     *
+     * @param client The OAuth client
+     * @param clientSecret The client secret provided in the request
+     * @return true if authentication succeeds, false otherwise
+     */
+    private boolean authenticateClient(OAuthClient client, String clientSecret) {
+        if (clientSecret == null || clientSecret.isBlank()) {
+            return false;
+        }
+
+        // Public clients don't have secrets
+        if ("public".equals(client.getClientType())) {
+            return false;
+        }
+
+        // Confidential clients must have a secret hash
+        if (client.getClientSecretHash() == null || client.getClientSecretHash().isBlank()) {
+            return false;
+        }
+
+        // Verify secret using BCrypt
+        try {
+            WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
+            PasswordFactory passwordFactory = PasswordFactory.getInstance(
+                BCryptPassword.ALGORITHM_BCRYPT, provider
+            );
+            Password restored = passwordFactory.translate(
+                ModularCrypt.decode(client.getClientSecretHash())
+            );
+            return passwordFactory.verify(restored, clientSecret.toCharArray());
+        } catch (Exception e) {
+            return false;
         }
     }
 

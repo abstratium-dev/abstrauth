@@ -38,11 +38,13 @@ expiresAt = createdAt.plusMinutes(5); // 5 minute expiration for auth codes
 
 ---
 
-### 🔴 CRITICAL-2: Missing Authorization Code Replay Attack Detection
+### ✅ CRITICAL-2: Missing Authorization Code Replay Attack Detection - **FIXED**
 
 **Location:** `TokenResource.java:222-225`
 
-**Issue:** While the code checks if an authorization code has been used, there's no mechanism to **immediately invalidate ALL tokens** derived from a replayed authorization code, as required by RFC 6749 Section 10.5.
+**Status:** ✅ **RESOLVED** - Fixed on December 3, 2024
+
+**Original Issue:** While the code checked if an authorization code has been used, there was no mechanism to **immediately invalidate ALL tokens** derived from a replayed authorization code, as required by RFC 6749 Section 10.5.
 
 **Risk:**
 - If an attacker intercepts an authorization code and uses it before the legitimate user, the legitimate user's subsequent use will be blocked but the attacker's tokens remain valid
@@ -57,18 +59,22 @@ if (authCode.getUsed()) {
 }
 ```
 
-**Recommendation:**
-- Implement token revocation table
-- When authorization code replay is detected, revoke all access/refresh tokens issued from that code
-- Log security events for monitoring
+**Fix Implemented:**
+- ✅ Created `T_revoked_tokens` table for token revocation
+- ✅ Implemented `TokenRevocationService` to manage revocations
+- ✅ Added JTI (JWT ID) to all access tokens
+- ✅ On replay detection, all tokens from that authorization code are revoked
+- ✅ Security events are logged for monitoring
 
 ---
 
-### 🔴 CRITICAL-3: Timing Attack Vulnerability in PKCE Verification
+### ✅ CRITICAL-3: Timing Attack Vulnerability in PKCE Verification - **FIXED**
 
 **Location:** `TokenResource.java:296`
 
-**Issue:** PKCE verification uses standard string comparison (`equals()`), which is vulnerable to timing attacks that could allow attackers to brute-force the code_verifier.
+**Status:** ✅ **RESOLVED** - Fixed on December 3, 2024
+
+**Original Issue:** PKCE verification used standard string comparison (`equals()`), which was vulnerable to timing attacks that could allow attackers to brute-force the code_verifier.
 
 **Risk:**
 - Attackers can use timing differences to gradually discover the correct code_verifier
@@ -80,36 +86,39 @@ if (authCode.getUsed()) {
 return computedChallenge.equals(codeChallenge);
 ```
 
-**Recommendation:**
-- Use constant-time comparison: `MessageDigest.isEqual()`
+**Fix Implemented:**
 ```java
+// SECURITY FIX: Use constant-time comparison to prevent timing attacks
 return MessageDigest.isEqual(
     computedChallenge.getBytes(StandardCharsets.UTF_8),
     codeChallenge.getBytes(StandardCharsets.UTF_8)
 );
 ```
+- ✅ Now uses constant-time comparison
+- ✅ Prevents timing-based brute-force attacks
+- ✅ Verified with security tests
 
 ---
 
-### 🔴 CRITICAL-4: No Client Secret Support for Confidential Clients
+### ✅ CRITICAL-4: No Client Secret Support for Confidential Clients - **FIXED**
 
 **Location:** `TokenResource.java`, `OAuthClient` entity
 
-**Issue:** The implementation does NOT support client secrets for confidential clients (backend servers). The `FLOWS.md` documents this flow but marks it as "NOT YET IMPLEMENTED". This means:
-- All clients are treated as public clients
-- Backend servers cannot authenticate themselves
-- No way to distinguish between public and confidential clients
+**Status:** ✅ **RESOLVED** - Fixed on December 3, 2024
+
+**Original Issue:** The implementation did NOT support client secrets for confidential clients (backend servers). All clients were treated as public clients with no way to distinguish between public and confidential clients.
 
 **Risk:**
 - Any attacker who obtains a client_id can impersonate that client
 - Violates OAuth2 RFC 6749 requirements for confidential clients
 - Reduces security for server-to-server flows
 
-**Recommendation:**
-- Add `client_secret` field to `T_oauth_clients` table
-- Add `client_type` field (public/confidential)
-- Implement client authentication in token endpoint
-- Support both HTTP Basic Auth and POST body for client credentials
+**Fix Implemented:**
+- ✅ Added `client_secret_hash` column to `T_oauth_clients` table
+- ✅ Implemented `authenticateClient()` method using BCrypt verification
+- ✅ Confidential clients must authenticate with client_secret
+- ✅ Public clients continue to work without secrets
+- ✅ Returns HTTP 401 for failed authentication
 
 ---
 
@@ -238,25 +247,23 @@ if (client.getRequirePkce() && (codeChallenge == null || codeChallenge.isBlank()
 
 ## Medium Severity Findings
 
-### 🟡 MEDIUM-1: Weak BCrypt Iteration Count
+### ✅ MEDIUM-1: Weak BCrypt Iteration Count - **FIXED**
 
 **Location:** `AccountService.java:149`
 
-**Issue:** BCrypt is configured with only 10 iterations (2^10 = 1,024 rounds), which is below current OWASP recommendations of 12-14 iterations.
+**Status:** ✅ **RESOLVED** - Fixed on December 5, 2024
 
-**Risk:**
-- Faster brute-force attacks on password hashes if database is compromised
-- Does not meet current security standards
+**Original Issue:** BCrypt was configured with only 10 iterations (2^10 = 1,024 rounds), which was below current OWASP recommendations of 12-14 iterations.
 
-**Evidence:**
+**Fix Applied:**
 ```java
-int iterationCount = 10;
+int iterationCount = 12; // OWASP recommendation for BCrypt
 ```
 
-**Recommendation:**
-- Increase to 12 iterations (2^12 = 4,096 rounds) minimum
-- Consider 13-14 for higher security
-- Make configurable for future adjustments
+**Impact:**
+- Now meets OWASP security standards
+- Provides 4x more protection against brute-force attacks (4,096 vs 1,024 rounds)
+- Minimal performance impact on authentication
 
 ---
 

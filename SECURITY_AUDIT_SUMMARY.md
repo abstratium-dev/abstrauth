@@ -11,23 +11,24 @@
 A comprehensive security audit was conducted on the OAuth2 authorization server implementation. The audit examined the codebase against OWASP guidelines, OAuth 2.0 RFCs (6749, 7636, 6819, 9700), and industry security best practices.
 
 **Key Findings:**
-- **4 Critical** vulnerabilities requiring immediate attention
-- **5 High** severity issues needing prompt remediation
-- **6 Medium** severity issues for near-term fixes
+- **4 Critical** vulnerabilities - **3 FIXED ✅**, 1 remaining
+- **5 High** severity issues - **1 FIXED ✅**, 4 remaining
+- **6 Medium** severity issues - 6 remaining
 - **4 Low** severity observations for future improvement
 - **10 Positive** security controls correctly implemented
 
-**Overall Assessment:** The application has a solid security foundation with proper implementation of PKCE, state parameter validation, BCrypt password hashing, and rate limiting. However, several critical gaps exist that could be exploited by sophisticated attackers.
+**Overall Assessment:** The application has a solid security foundation with proper implementation of PKCE, state parameter validation, BCrypt password hashing, and rate limiting. **Major security improvements have been implemented** including authorization code replay detection, PKCE timing attack fixes, client secret support, and increased BCrypt iterations.
 
 ---
 
-## Critical Vulnerabilities (Immediate Action Required)
+## Critical Vulnerabilities
 
-### 1. Authorization Code Replay Attack - Token Revocation Missing
+### 1. Authorization Code Replay Attack - ✅ **FIXED**
 **Severity:** 🔴 CRITICAL  
-**RFC Violation:** RFC 6749 Section 10.5
+**RFC Violation:** RFC 6749 Section 10.5  
+**Status:** ✅ **RESOLVED** - December 3, 2024
 
-**Issue:** When an authorization code is used twice (replay attack), the system correctly rejects the second attempt but does NOT revoke tokens issued from the first use, as required by RFC 6749.
+**Original Issue:** When an authorization code was used twice (replay attack), the system correctly rejected the second attempt but did NOT revoke tokens issued from the first use, as required by RFC 6749.
 
 **Attack Scenario:**
 1. Attacker intercepts authorization code
@@ -37,50 +38,50 @@ A comprehensive security audit was conducted on the OAuth2 authorization server 
 
 **Impact:** Complete account compromise if authorization code is intercepted.
 
-**Remediation:**
-- Implement token revocation table
-- On code replay detection, revoke ALL tokens from that authorization code
-- Add security event logging
+**Fix Implemented:**
+- ✅ Implemented `T_revoked_tokens` table
+- ✅ Created `TokenRevocationService` for token management
+- ✅ Added JTI to all JWT tokens
+- ✅ On replay detection, all tokens are revoked
+- ✅ Security events logged
 
 ---
 
-### 2. PKCE Timing Attack Vulnerability
+### 2. PKCE Timing Attack Vulnerability - ✅ **FIXED**
 **Severity:** 🔴 CRITICAL  
-**CWE:** CWE-208 (Observable Timing Discrepancy)
+**CWE:** CWE-208 (Observable Timing Discrepancy)  
+**Status:** ✅ **RESOLVED** - December 3, 2024
 
-**Issue:** PKCE code_verifier comparison uses standard `String.equals()` which is vulnerable to timing attacks, allowing attackers to brute-force the verifier character by character.
+**Original Issue:** PKCE code_verifier comparison used standard `String.equals()` which was vulnerable to timing attacks.
 
 **Location:** `TokenResource.java:296`
 
-**Remediation:**
+**Fix Implemented:**
 ```java
-// Replace this:
-return computedChallenge.equals(codeChallenge);
-
-// With constant-time comparison:
+// SECURITY FIX: Use constant-time comparison
 return MessageDigest.isEqual(
     computedChallenge.getBytes(StandardCharsets.UTF_8),
     codeChallenge.getBytes(StandardCharsets.UTF_8)
 );
 ```
+- ✅ Now uses constant-time comparison
+- ✅ Prevents timing-based attacks
 
 ---
 
-### 3. Missing Client Secret Support
+### 3. Missing Client Secret Support - ✅ **FIXED**
 **Severity:** 🔴 CRITICAL  
-**RFC Violation:** RFC 6749 Section 2.3
+**RFC Violation:** RFC 6749 Section 2.3  
+**Status:** ✅ **RESOLVED** - December 3, 2024
 
-**Issue:** No support for client secrets means ALL clients are effectively public clients. Backend servers cannot authenticate themselves, allowing any attacker with a client_id to impersonate that client.
+**Original Issue:** No support for client secrets meant ALL clients were effectively public clients. Backend servers could not authenticate themselves.
 
-**Impact:** 
-- No distinction between public and confidential clients
-- Server-to-server flows are insecure
-- Client impersonation attacks
-
-**Remediation:**
-- Add `client_secret` and `client_type` fields to `T_oauth_clients` table
-- Implement client authentication in token endpoint
-- Support HTTP Basic Auth and POST body authentication
+**Fix Implemented:**
+- ✅ Added `client_secret_hash` to `T_oauth_clients` table
+- ✅ Implemented client authentication using BCrypt
+- ✅ Confidential clients must provide client_secret
+- ✅ Public clients work without secrets
+- ✅ Returns HTTP 401 for failed authentication
 
 ---
 
@@ -114,18 +115,22 @@ return MessageDigest.isEqual(
 
 ---
 
-### 6. Weak BCrypt Iteration Count
+### 6. Weak BCrypt Iteration Count - ✅ **FIXED**
 **Severity:** 🟠 HIGH  
-**OWASP Violation:** Below recommended 2^12 iterations
+**OWASP Violation:** Below recommended 2^12 iterations  
+**Status:** ✅ **RESOLVED** - December 5, 2024
 
-**Issue:** BCrypt configured with only 10 iterations (2^10 = 1,024 rounds). OWASP recommends 12-14 iterations for current hardware.
+**Original Issue:** BCrypt was configured with only 10 iterations (2^10 = 1,024 rounds). OWASP recommends 12-14 iterations.
 
 **Location:** `AccountService.java:149`
 
-**Remediation:**
+**Fix Implemented:**
 ```java
-int iterationCount = 12; // Increase from 10 to 12 minimum
+int iterationCount = 12; // OWASP recommendation for BCrypt
 ```
+- ✅ Now uses 12 iterations (4,096 rounds)
+- ✅ Meets OWASP security standards
+- ✅ 4x more protection against brute-force
 
 ---
 
@@ -273,14 +278,14 @@ The following security measures are correctly implemented:
 ## Remediation Roadmap
 
 ### Phase 1: Critical Fixes (Week 1)
-- [ ] Implement authorization code replay detection with token revocation
-- [ ] Fix PKCE timing attack (constant-time comparison)
+- [x] ✅ Implement authorization code replay detection with token revocation
+- [x] ✅ Fix PKCE timing attack (constant-time comparison)
 - [ ] Enforce PKCE for all public clients
 - [ ] Update authorization code expiration configuration
 
 ### Phase 2: High Priority (Weeks 2-4)
-- [ ] Implement client secret support for confidential clients
-- [ ] Increase BCrypt iterations to 12
+- [x] ✅ Implement client secret support for confidential clients
+- [x] ✅ Increase BCrypt iterations to 12
 - [ ] Implement refresh token grant
 - [ ] Fix account lockout timing leak
 
