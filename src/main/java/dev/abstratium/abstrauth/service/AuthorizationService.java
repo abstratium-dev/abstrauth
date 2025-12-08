@@ -18,7 +18,7 @@ public class AuthorizationService {
     @Inject
     EntityManager em;
 
-    private static final SecureRandom secureRandom = new SecureRandom();
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
     public AuthorizationRequest createAuthorizationRequest(

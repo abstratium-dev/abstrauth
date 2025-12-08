@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.boundary.api;
 
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.OAuthClientService;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -44,6 +45,7 @@ public class ClientsResource {
         );
     }
 
+    @RegisterForReflection
     public static class ClientResponse {
         public String id;
         public String clientId;

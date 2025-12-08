@@ -288,17 +288,12 @@ private boolean authenticateClient(String clientId, String clientSecret) {
         return false;
     }
     
-    // Verify secret using BCrypt
+    // Verify secret using BCrypt (Spring Security implementation)
     try {
-        WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(
-            BCryptPassword.ALGORITHM_BCRYPT, provider
-        );
-        Password restored = passwordFactory.translate(
-            ModularCrypt.decode(client.getClientSecretHash())
-        );
-        return passwordFactory.verify(restored, clientSecret.toCharArray());
-    } catch (Exception e) {
+        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        return passwordEncoder.matches(clientSecret, client.getClientSecretHash());
+    } catch (IllegalArgumentException e) {
+        // Invalid hash format
         return false;
     }
 }
@@ -372,16 +367,8 @@ Then inject and use:
 int bcryptIterations;
 
 private String hashPassword(String password) {
-    try {
-        WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(
-            BCryptPassword.ALGORITHM_BCRYPT, provider
-        );
-        
-        IteratedSaltedPasswordAlgorithmSpec iteratedAlgorithmSpec = 
-            new IteratedSaltedPasswordAlgorithmSpec(bcryptIterations, generateSalt());
-        // ... rest of method
-    }
+    // Apply pepper (application-wide secret) before hashing
+    return passwordEncoder.encode(pepper + password);
 }
 ```
 
@@ -442,15 +429,11 @@ public Optional<@NonNull Account> authenticate(String username, String password)
 
 private void performDummyPasswordVerification(String password) {
     // Perform a dummy BCrypt verification to maintain constant time
+    // This prevents timing attacks that could enumerate valid usernames
     try {
-        WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(
-            BCryptPassword.ALGORITHM_BCRYPT, provider
-        );
-        // Use a pre-computed dummy hash
-        String dummyHash = "$2a$10$abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuv.abcdefghijk";
-        Password restored = passwordFactory.translate(ModularCrypt.decode(dummyHash));
-        passwordFactory.verify(restored, password.toCharArray());
+        // Use a pre-computed dummy hash to verify against
+        String dummyHash = "$2a$12$abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuv.abcdefghijk";
+        passwordEncoder.matches(pepper + password, dummyHash);
     } catch (Exception e) {
         // Ignore errors in dummy verification
     }

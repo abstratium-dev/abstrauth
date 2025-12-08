@@ -1,5 +1,6 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -73,6 +74,7 @@ public class SignupResource {
         }
     }
 
+    @RegisterForReflection
     public static class SignupResponse {
         public String id;
         public String email;
@@ -85,6 +87,7 @@ public class SignupResource {
         }
     }
 
+    @RegisterForReflection
     public static class ErrorResponse {
         public String error;
         public String error_description;

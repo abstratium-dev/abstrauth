@@ -169,17 +169,12 @@ private boolean authenticateClient(OAuthClient client, String clientSecret) {
         return false;
     }
 
-    // Verify secret using BCrypt
+    // Verify secret using BCrypt (Spring Security implementation)
     try {
-        WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(
-            BCryptPassword.ALGORITHM_BCRYPT, provider
-        );
-        Password restored = passwordFactory.translate(
-            ModularCrypt.decode(client.getClientSecretHash())
-        );
-        return passwordFactory.verify(restored, clientSecret.toCharArray());
-    } catch (Exception e) {
+        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        return passwordEncoder.matches(clientSecret, client.getClientSecretHash());
+    } catch (IllegalArgumentException e) {
+        // Invalid hash format
         return false;
     }
 }

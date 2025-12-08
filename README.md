@@ -10,11 +10,18 @@ This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
 It was generated using `quarkus create app --maven --package-name=dev.abstratium.abstrauth --java=21 --name abstrauth dev.abstratium:abstrauth`
 
+## Security
+
+🔒 **Found a security vulnerability?** Please read our [Security Policy](SECURITY_POLICY.md) for responsible disclosure guidelines.
+
+For information about the security implementation and features, see [SECURITY.md](SECURITY.md).
+
 ## Documentation
 
 - [OAuth 2.0 Authorization Flows](FLOWS.md)
 - [Federated Login](FEDERATED_LOGIN.md)
 - [Database](DATABASE.md)
+- [Native Image Build](NATIVE_IMAGE_BUILD.md)
 
 ## Development
 
@@ -162,20 +169,17 @@ For development, you can run tests manually:
     User makes subsequent request with revoked token → Filter checks database → 401 response
     The filter is correctly implemented and will work in production. The test failure is a test isolation issue, not a code issue.
 
-- does it make sense that revoation is used to log out?
+- does it make sense that revocation is used to log out?
 - do we need a revocation check endpoint so that a third party can check that the token
   isn't revoked? it could also check that the token is valid, altho the third party can 
   do that using the public key.
-- build native image and check it works
 - add ability to add and manage applications and their roles using a UI and rest endpoints
 - handle http errors using interceptor
-- ~~implement security audit~~ ✅ DONE (Dec 3, 2024)
-  - ✅ Fixed PKCE timing attack vulnerability (constant-time comparison)
-  - ✅ Fixed authorization code replay detection with token revocation
-  - ✅ Implemented client secret support for confidential clients
+
 
 ### Later
 
+- test client secret support for confidential clients
 - native sign in: once scopes are accepted for the client_id, don't keep asking until they change
 - what is the point of having a username in native account? delete it, since email suffices. discord doesn't have email - how would that work? it'd be ok, because you just click the sign in with discord link
 - support for other databases like postgresql

@@ -7,17 +7,9 @@ import org.eclipse.jdt.annotation.NonNull;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.inject.Inject;
-import org.wildfly.security.password.Password;
-import org.wildfly.security.password.PasswordFactory;
-import org.wildfly.security.password.WildFlyElytronPasswordProvider;
-import org.wildfly.security.password.interfaces.BCryptPassword;
-import org.wildfly.security.password.spec.EncryptablePasswordSpec;
-import org.wildfly.security.password.spec.IteratedSaltedPasswordAlgorithmSpec;
-import org.wildfly.security.password.util.ModularCrypt;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Optional;
 
 @ApplicationScoped
@@ -25,6 +17,12 @@ public class AccountService {
 
     @Inject
     EntityManager em;
+
+    @ConfigProperty(name = "password.pepper")
+    String pepper;
+
+    // BCrypt with strength 12 (2^12 rounds, OWASP recommendation)
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
 
     public Optional<@NonNull Account> findByEmail(String email) {
         var query = em.createQuery("SELECT a FROM Account a WHERE a.email = :email", Account.class);
@@ -142,36 +140,17 @@ public class AccountService {
     }
 
     private String hashPassword(String password) {
-        try {
-            WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
-            PasswordFactory passwordFactory = PasswordFactory.getInstance(BCryptPassword.ALGORITHM_BCRYPT, provider);
-            
-            int iterationCount = 12; // OWASP recommendation for BCrypt
-            IteratedSaltedPasswordAlgorithmSpec iteratedAlgorithmSpec = new IteratedSaltedPasswordAlgorithmSpec(iterationCount, generateSalt());
-            EncryptablePasswordSpec encryptableSpec = new EncryptablePasswordSpec(password.toCharArray(), iteratedAlgorithmSpec);
-            
-            BCryptPassword original = (BCryptPassword) passwordFactory.generatePassword(encryptableSpec);
-            return ModularCrypt.encodeAsString(original);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new RuntimeException("Failed to hash password", e);
-        }
+        // Apply pepper (application-wide secret) before hashing for defense-in-depth
+        return passwordEncoder.encode(pepper + password);
     }
 
     private boolean verifyPassword(String plainPassword, String hashedPassword) {
         try {
-            WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
-            PasswordFactory passwordFactory = PasswordFactory.getInstance(BCryptPassword.ALGORITHM_BCRYPT, provider);
-            
-            Password restored = passwordFactory.translate(ModularCrypt.decode(hashedPassword));
-            return passwordFactory.verify(restored, plainPassword.toCharArray());
-        } catch (InvalidKeyException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+            // Apply pepper before verification
+            return passwordEncoder.matches(pepper + plainPassword, hashedPassword);
+        } catch (IllegalArgumentException e) {
+            // Invalid hash format
             return false;
         }
-    }
-
-    private byte[] generateSalt() {
-        byte[] salt = new byte[BCryptPassword.BCRYPT_SALT_SIZE];
-        new java.security.SecureRandom().nextBytes(salt);
-        return salt;
     }
 }

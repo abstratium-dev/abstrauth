@@ -29,11 +29,7 @@ import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import io.smallrye.jwt.build.Jwt;
-import org.wildfly.security.password.Password;
-import org.wildfly.security.password.PasswordFactory;
-import org.wildfly.security.password.WildFlyElytronPasswordProvider;
-import org.wildfly.security.password.interfaces.BCryptPassword;
-import org.wildfly.security.password.util.ModularCrypt;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.FormParam;
@@ -436,15 +432,10 @@ public class TokenResource {
 
         // Verify secret using BCrypt
         try {
-            WildFlyElytronPasswordProvider provider = new WildFlyElytronPasswordProvider();
-            PasswordFactory passwordFactory = PasswordFactory.getInstance(
-                BCryptPassword.ALGORITHM_BCRYPT, provider
-            );
-            Password restored = passwordFactory.translate(
-                ModularCrypt.decode(client.getClientSecretHash())
-            );
-            return passwordFactory.verify(restored, clientSecret.toCharArray());
-        } catch (Exception e) {
+            BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+            return passwordEncoder.matches(clientSecret, client.getClientSecretHash());
+        } catch (IllegalArgumentException e) {
+            // Invalid hash format
             return false;
         }
     }
