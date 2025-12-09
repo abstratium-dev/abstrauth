@@ -6,6 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -17,6 +18,12 @@ public class AuthorizationService {
 
     @Inject
     EntityManager em;
+
+    @Inject
+    AccountService accountService;
+
+    @ConfigProperty(name = "allow.signup", defaultValue = "false")
+    boolean allowSignup;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -115,5 +122,22 @@ public class AuthorizationService {
         byte[] randomBytes = new byte[32];
         secureRandom.nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    }
+
+    /**
+     * Check if signup is allowed.
+     * Signup is allowed if:
+     * 1. The allow.signup config property is true, OR
+     * 2. There are no accounts in the database (first user setup)
+     * 
+     * @return true if signup is allowed, false otherwise
+     */
+    public boolean isSignupAllowed() {
+        // Always allow signup if there are no accounts (first user)
+        if (accountService.countAccounts() == 0) {
+            return true;
+        }
+        // Otherwise, check the config property
+        return allowSignup;
     }
 }

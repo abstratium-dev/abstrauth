@@ -50,6 +50,26 @@ All authenticated users receive default roles configured per environment:
 
 ## Configuration
 
+### Signup Control
+
+The `allow.signup` configuration property controls whether new user registration is allowed:
+
+```properties
+%dev.allow.signup=true
+%test.allow.signup=true
+%prod.allow.signup=false
+```
+
+**Important**: Regardless of this setting, signup is **always enabled** when there are no accounts in the database. This ensures the first user (administrator) can always be created during initial setup.
+
+**Security Rationale**:
+- In production, signup should typically be disabled (`allow.signup=false`)
+- The first user to register receives the `abstratium-abstrauth_admin` role
+- After initial registration, the user should check the accounts list to verify no other accounts were created simultaneously
+- After the first account is created, only administrators should be able to add new users (via future admin APIs)
+- This prevents unauthorized account creation on publicly accessible instances
+- The automatic first-user exception ensures the system is always accessible for initial setup
+
 ### Key Management
 
 The application uses a single RSA key pair for signing and verification:
@@ -112,7 +132,14 @@ smallrye.jwt.claims.groups=groups
 
 **Behavior**:
 - Publicly accessible (no authentication required)
-- Subject to `allow.signup` configuration property
+- Signup authorization is managed by `AuthorizationService.isSignupAllowed()`
+- Signup is **always allowed** when there are no accounts in the database (first user setup)
+- After the first account exists, signup is controlled by the `allow.signup` configuration property
+
+**First User Admin Role**:
+- The first account created (via native signup or federated login) automatically receives the `abstratium-abstrauth_admin` role
+- This admin role enables access to administrative APIs (to be implemented)
+- After registration, users should navigate to the accounts list page to verify no other accounts were created simultaneously during initial setup
 
 ## Angular HTTP Interceptor
 

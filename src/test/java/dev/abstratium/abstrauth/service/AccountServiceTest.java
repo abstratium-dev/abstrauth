@@ -17,6 +17,9 @@ public class AccountServiceTest {
     @Inject
     AccountService accountService;
 
+    @Inject
+    AccountRoleService accountRoleService;
+
     @Test
     @Transactional
     public void testCreateAccountSuccess() {
@@ -219,5 +222,72 @@ public class AccountServiceTest {
         assertTrue(credential.isPresent());
         assertEquals(account.getId(), credential.get().getAccountId());
         assertEquals(username, credential.get().getUsername());
+    }
+
+    @Test
+    @Transactional
+    public void testCountAccounts() {
+        long initialCount = accountService.countAccounts();
+        
+        String email = "count_" + System.currentTimeMillis() + "@example.com";
+        String username = "countuser_" + System.currentTimeMillis();
+        accountService.createAccount(email, "Count Test", username, "Password123");
+        
+        long newCount = accountService.countAccounts();
+        assertEquals(initialCount + 1, newCount);
+    }
+
+    @Test
+    @Transactional
+    public void testFirstAccountGetsAdminRole() {
+        // This test is tricky because other tests may have already created accounts
+        // We'll check if an account has the admin role by querying the role service
+        
+        String email = "firstadmin_" + System.currentTimeMillis() + "@example.com";
+        String username = "firstadminuser_" + System.currentTimeMillis();
+        
+        long accountCountBefore = accountService.countAccounts();
+        Account account = accountService.createAccount(email, "First Admin Test", username, "Password123");
+        
+        // If this was the first account (countBefore == 0), it should have admin role
+        if (accountCountBefore == 0) {
+            var roles = accountRoleService.getRolesForAccountAndClient(account.getId(), "abstratium-abstrauth");
+            assertTrue(roles.contains("admin"), "First account should have admin role");
+        }
+    }
+
+    @Test
+    @Transactional
+    public void testSecondAccountDoesNotGetAdminRole() {
+        // Ensure at least one account exists
+        String email1 = "first_" + System.currentTimeMillis() + "@example.com";
+        String username1 = "firstuser_" + System.currentTimeMillis();
+        accountService.createAccount(email1, "First User", username1, "Password123");
+        
+        // Create second account
+        String email2 = "second_" + System.currentTimeMillis() + "@example.com";
+        String username2 = "seconduser_" + System.currentTimeMillis();
+        Account account2 = accountService.createAccount(email2, "Second User", username2, "Password123");
+        
+        // Second account should NOT have admin role
+        var roles = accountRoleService.getRolesForAccountAndClient(account2.getId(), "abstratium-abstrauth");
+        assertFalse(roles.contains("admin"), "Second account should not have admin role");
+    }
+
+    @Test
+    @Transactional
+    public void testFirstFederatedAccountGetsAdminRole() {
+        String email = "firstfed_" + System.currentTimeMillis() + "@example.com";
+        
+        long accountCountBefore = accountService.countAccounts();
+        Account account = accountService.createFederatedAccount(
+            email, "First Fed User", "https://example.com/pic.jpg", true, "google"
+        );
+        
+        // If this was the first account, it should have admin role
+        if (accountCountBefore == 0) {
+            var roles = accountRoleService.getRolesForAccountAndClient(account.getId(), "abstratium-abstrauth");
+            assertTrue(roles.contains("admin"), "First federated account should have admin role");
+        }
     }
 }

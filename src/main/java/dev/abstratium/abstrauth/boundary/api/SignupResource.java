@@ -1,12 +1,12 @@
 package dev.abstratium.abstrauth.boundary.api;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.AuthorizationService;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -25,8 +25,8 @@ public class SignupResource {
     @Inject
     AccountService accountService;
 
-    @ConfigProperty(name = "allow.signup", defaultValue = "false")
-    boolean allowSignup;
+    @Inject
+    AuthorizationService authorizationService;
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -38,7 +38,7 @@ public class SignupResource {
             @FormParam("username") String username,
             @FormParam("password") String password) {
 
-        if (!allowSignup) {
+        if (!authorizationService.isSignupAllowed()) {
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(new ErrorResponse("forbidden", "Signup is disabled"))
                     .build();

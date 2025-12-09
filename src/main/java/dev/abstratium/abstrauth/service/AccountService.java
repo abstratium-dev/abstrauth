@@ -15,8 +15,13 @@ import java.util.Optional;
 @ApplicationScoped
 public class AccountService {
 
+    private static final String ADMIN = "admin";
+
     @Inject
     EntityManager em;
+
+    @Inject
+    AccountRoleService accountRoleService;
 
     @ConfigProperty(name = "password.pepper")
     String pepper;
@@ -46,6 +51,9 @@ public class AccountService {
             throw new IllegalArgumentException("Username already exists");
         }
 
+        // Check if this is the first account
+        boolean isFirstAccount = countAccounts() == 0;
+
         // Create account
         Account account = new Account();
         account.setEmail(email);
@@ -61,6 +69,11 @@ public class AccountService {
         credential.setPasswordHash(hashPassword(password));
         em.persist(credential);
 
+        // Assign admin role to first account
+        if (isFirstAccount) {
+            accountRoleService.addRole(account.getId(), "abstratium-abstrauth", ADMIN);
+        }
+
         return account;
     }
 
@@ -72,6 +85,9 @@ public class AccountService {
             throw new IllegalArgumentException("Email already exists");
         }
 
+        // Check if this is the first account
+        boolean isFirstAccount = countAccounts() == 0;
+
         // Create account
         Account account = new Account();
         account.setEmail(email);
@@ -80,6 +96,11 @@ public class AccountService {
         account.setEmailVerified(emailVerified != null ? emailVerified : false);
         account.setAuthProvider(authProvider);
         em.persist(account);
+
+        // Assign admin role to first account
+        if (isFirstAccount) {
+            accountRoleService.addRole(account.getId(), "abstratium-abstrauth", ADMIN);
+        }
 
         return account;
     }
@@ -152,5 +173,14 @@ public class AccountService {
             // Invalid hash format
             return false;
         }
+    }
+
+    /**
+     * Count the total number of accounts in the database
+     * @return The number of accounts
+     */
+    public long countAccounts() {
+        var query = em.createQuery("SELECT COUNT(a) FROM Account a", Long.class);
+        return query.getSingleResult();
     }
 }

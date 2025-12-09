@@ -26,6 +26,9 @@ public class GoogleOAuthService {
     @Inject
     FederatedIdentityService federatedIdentityService;
 
+    @Inject
+    AuthorizationService authorizationService;
+
     @ConfigProperty(name = "oauth.google.client-id")
     String clientId;
 
@@ -95,6 +98,11 @@ public class GoogleOAuthService {
             }
             accountService.updateAccount(account);
         } else {
+            // Check if signup is allowed before creating a new account
+            if (!authorizationService.isSignupAllowed()) {
+                throw new IllegalStateException("Signup is disabled");
+            }
+            
             // Create a new account for this Google user
             account = accountService.createFederatedAccount(
                     userInfo.getEmail(),
