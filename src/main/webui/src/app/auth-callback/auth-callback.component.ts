@@ -95,8 +95,13 @@ export class AuthCallbackComponent implements OnInit {
 
                 this.authService.setAccessToken(response.access_token);
 
-                const routeBeforeSignIn = this.authService.getRouteBeforeSignIn();
-                this.router.navigate([routeBeforeSignIn])
+                // Check if user is admin and redirect accordingly
+                if (this.authService.isAdmin()) {
+                    this.router.navigate(['/accounts']);
+                } else {
+                    const routeBeforeSignIn = this.authService.getRouteBeforeSignIn();
+                    this.router.navigate([routeBeforeSignIn]);
+                }
             }
         );
     }

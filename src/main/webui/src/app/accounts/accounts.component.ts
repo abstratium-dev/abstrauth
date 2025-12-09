@@ -2,6 +2,7 @@ import { Component, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Account, ModelService } from '../model.service';
 import { Controller } from '../controller';
+import { ROLE_ADMIN } from '../auth.service';
 
 @Component({
   selector: 'app-accounts',
@@ -53,5 +54,11 @@ export class AccountsComponent implements OnInit {
       default:
         return '';
     }
+  }
+
+  getAdminCount(): number {
+    return this.accounts.filter(account => 
+      account.roles && account.roles.some(role => role.role === ROLE_ADMIN)
+    ).length;
   }
 }

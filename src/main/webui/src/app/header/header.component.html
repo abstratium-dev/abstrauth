@@ -6,10 +6,6 @@
 
     <div class="header-right">
         <a href="https://abstratium.dev/docs/legal">Legal</a>
-        @if(!isSignedIn && showSignup) {
-            &nbsp;|&nbsp;
-            <a id="signup-link" routerLink="/signup" routerLinkActive="inactive-link">Sign up</a>
-        }
         @if(isSignedIn) {
             &nbsp;|&nbsp;
             <a id="clients-link" routerLink="/clients" routerLinkActive="inactive-link">Clients</a>

@@ -91,7 +91,7 @@ public class GoogleOAuthService {
                 account.setName(userInfo.getName());
             }
             if (account.getPicture() == null || account.getPicture().isBlank()) {
-                account.setPicture(userInfo.getPicture());
+                account.setPicture(convertToProxyUrl(userInfo.getPicture()));
             }
             if (Boolean.FALSE.equals(account.getEmailVerified()) && Boolean.TRUE.equals(userInfo.getEmailVerified())) {
                 account.setEmailVerified(true);
@@ -107,7 +107,7 @@ public class GoogleOAuthService {
             account = accountService.createFederatedAccount(
                     userInfo.getEmail(),
                     userInfo.getName(),
-                    userInfo.getPicture(),
+                    convertToProxyUrl(userInfo.getPicture()),
                     userInfo.getEmailVerified(),
                     "google"
             );
@@ -122,6 +122,29 @@ public class GoogleOAuthService {
         );
 
         return account;
+    }
+
+    /**
+     * Convert Google profile picture URL to use our proxy to avoid rate limiting
+     */
+    private String convertToProxyUrl(String googlePictureUrl) {
+        if (googlePictureUrl == null || googlePictureUrl.isBlank()) {
+            return null;
+        }
+        
+        // Extract the image ID from Google's URL
+        // Format: https://lh3.googleusercontent.com/a/ACg8ocKy8J07hRZZLnri1836Ze4_wd96YdPHERLsBiAJsbeYXm8WOA=s96-c
+        if (googlePictureUrl.contains("googleusercontent.com/")) {
+            int startIndex = googlePictureUrl.indexOf("googleusercontent.com/") + "googleusercontent.com/".length();
+            String imageId = googlePictureUrl.substring(startIndex);
+            // Remove size parameter if present (e.g., =s96-c)
+            if (imageId.contains("=")) {
+                imageId = imageId.substring(0, imageId.indexOf("="));
+            }
+            return "/api/profile-picture/google/" + imageId;
+        }
+        
+        return googlePictureUrl;
     }
 
     /**

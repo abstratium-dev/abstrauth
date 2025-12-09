@@ -33,6 +33,10 @@ public class AccountsResource {
     }
 
     private AccountResponse toAccountResponse(Account account) {
+        List<RoleInfo> roles = account.getRoles().stream()
+                .map(role -> new RoleInfo(role.getClientId(), role.getRole()))
+                .collect(Collectors.toList());
+        
         return new AccountResponse(
                 account.getId(),
                 account.getEmail(),
@@ -40,7 +44,8 @@ public class AccountsResource {
                 account.getEmailVerified(),
                 account.getAuthProvider(),
                 account.getPicture(),
-                account.getCreatedAt() != null ? account.getCreatedAt().toString() : null
+                account.getCreatedAt() != null ? account.getCreatedAt().toString() : null,
+                roles
         );
     }
 
@@ -53,9 +58,10 @@ public class AccountsResource {
         public String authProvider;
         public String picture;
         public String createdAt;
+        public List<RoleInfo> roles;
 
         public AccountResponse(String id, String email, String name, Boolean emailVerified,
-                             String authProvider, String picture, String createdAt) {
+                             String authProvider, String picture, String createdAt, List<RoleInfo> roles) {
             this.id = id;
             this.email = email;
             this.name = name;
@@ -63,6 +69,18 @@ public class AccountsResource {
             this.authProvider = authProvider;
             this.picture = picture;
             this.createdAt = createdAt;
+            this.roles = roles;
+        }
+    }
+
+    @RegisterForReflection
+    public static class RoleInfo {
+        public String clientId;
+        public String role;
+
+        public RoleInfo(String clientId, String role) {
+            this.clientId = clientId;
+            this.role = role;
         }
     }
 }

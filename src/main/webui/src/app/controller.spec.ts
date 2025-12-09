@@ -292,7 +292,7 @@ describe('Controller', () => {
   describe('loadAccounts', () => {
     it('should load accounts and update model service', () => {
       const mockAccounts = [
-        { id: '1', email: 'test@example.com', name: 'Test User', emailVerified: true, authProvider: 'native', createdAt: '2024-01-01' }
+        { id: '1', email: 'test@example.com', name: 'Test User', emailVerified: true, authProvider: 'native', createdAt: '2024-01-01', roles: [] }
       ];
 
       controller.loadAccounts();

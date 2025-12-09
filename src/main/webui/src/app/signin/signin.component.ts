@@ -1,5 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -37,6 +37,7 @@ export class SigninComponent implements OnInit {
     signinForm: FormGroup;
     isSubmitting = false;
     name = "";
+    showSignup = false;
 
     constructor(
     ) {
@@ -46,6 +47,10 @@ export class SigninComponent implements OnInit {
         this.signinForm = this.fb.group({
             username: [username, Validators.required],
             password: [password, Validators.required]
+        });
+
+        effect(() => {
+            this.showSignup = this.modelService.signupAllowed$();
         });
     }
 

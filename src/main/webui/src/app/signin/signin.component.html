@@ -27,9 +27,11 @@
                 <button id="signin-button" type='submit' [disabled]="isSubmitting">{{ isSubmitting ? 'Signing in...' : 'Sign in' }}</button>
             </form>
             
-            <p style='text-align:center;margin-top:20px;'>
-                Don't have an account? <a id="signup-link" routerLink='/signup'>Sign up</a>
-            </p>
+            @if(showSignup){
+                <p style='text-align:center;margin-top:20px;'>
+                    Don't have an account? <a id="signup-link" routerLink='/signup'>Sign up</a>
+                </p>
+            }
 
             <div class="divider">
                 <span>OR</span>

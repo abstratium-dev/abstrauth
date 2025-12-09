@@ -15,13 +15,13 @@
   </div>
 
   <div *ngIf="!loading && !error && accounts.length > 0">
-    <div class="notice-box" [ngClass]="accounts.length === 1 ? 'notice-success' : 'notice-warning'">
+    <div class="notice-box" [ngClass]="getAdminCount() === 1 ? 'notice-success' : 'notice-warning'">
       <p><strong>Total accounts: {{ accounts.length }}</strong></p>
-      <p *ngIf="accounts.length === 1">
-        ✓ You are the first and only user (admin)
+      <p *ngIf="getAdminCount() === 1">
+        ✓ You are the first and only admin
       </p>
-      <p *ngIf="accounts.length > 1">
-        ⚠ Multiple accounts detected. Please verify this is expected.
+      <p *ngIf="getAdminCount() > 1">
+        ⚠ Multiple admin accounts detected ({{ getAdminCount() }} admins)
       </p>
     </div>
 
@@ -31,6 +31,7 @@
           <th>Name</th>
           <th>Email</th>
           <th>Provider</th>
+          <th>Roles</th>
           <th>Email Verified</th>
           <th>Created At</th>
         </tr>
@@ -48,6 +49,15 @@
             <span class="badge" [ngClass]="getProviderBadgeClass(account.authProvider)">
               {{ account.authProvider }}
             </span>
+          </td>
+          <td>
+            <div *ngIf="account.roles && account.roles.length > 0">
+              <div *ngFor="let role of account.roles" style="margin-bottom: 4px;">
+                <span class="badge badge-role">{{ role.role }}</span>
+                <span style="font-size: 0.85em; color: #666;"> ({{ role.clientId }})</span>
+              </div>
+            </div>
+            <span *ngIf="!account.roles || account.roles.length === 0" style="color: #999;">No roles</span>
           </td>
           <td>
             <span [ngClass]="account.emailVerified ? 'badge-verified' : 'badge-unverified'">

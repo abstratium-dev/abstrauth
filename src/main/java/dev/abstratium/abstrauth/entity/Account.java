@@ -2,6 +2,8 @@ package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -27,6 +29,10 @@ public class Account {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private List<AccountRole> roles = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
@@ -93,5 +99,13 @@ public class Account {
 
     public void setAuthProvider(String authProvider) {
         this.authProvider = authProvider;
+    }
+
+    public List<AccountRole> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(List<AccountRole> roles) {
+        this.roles = roles;
     }
 }

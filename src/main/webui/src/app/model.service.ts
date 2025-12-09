@@ -1,5 +1,10 @@
 import { Injectable, signal, Signal } from '@angular/core';
 
+export interface RoleInfo {
+  clientId: string;
+  role: string;
+}
+
 export interface Account {
   id: string;
   email: string;
@@ -8,6 +13,7 @@ export interface Account {
   authProvider: string;
   picture?: string;
   createdAt: string;
+  roles: RoleInfo[];
 }
 
 export interface OAuthClient {

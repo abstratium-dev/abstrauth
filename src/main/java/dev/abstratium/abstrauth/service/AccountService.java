@@ -177,11 +177,11 @@ public class AccountService {
     }
 
     /**
-     * Find all accounts
+     * Find all accounts with roles eagerly loaded
      * @return List of all accounts
      */
     public List<Account> findAll() {
-        var query = em.createQuery("SELECT a FROM Account a ORDER BY a.createdAt DESC", Account.class);
+        var query = em.createQuery("SELECT a FROM Account a LEFT JOIN FETCH a.roles ORDER BY a.createdAt DESC", Account.class);
         return query.getResultList();
     }
 

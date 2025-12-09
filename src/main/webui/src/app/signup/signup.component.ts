@@ -61,45 +61,21 @@ export class SignupComponent {
     this.http.post<any>('/api/signup', formData.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     }).subscribe({
-      next: (data) => {
-        this.controller.setSignUpUsername(this.signupForm.value.username);
-        this.controller.setSignUpPassword(this.signupForm.value.password);
-
+      next: (response) => {
         this.messageType = 'success';
-        this.message = `Account created successfully! ID: ${data.id}`;
-        this.signupForm.reset();
+        this.message = `Account created successfully! Your account ID is: ${response.id}`;
         this.isSubmitting = false;
-
-        // Auto-signin and check if user is admin
+        
+        // Store username and password for signin page
         const username = this.signupForm.value.username;
         const password = this.signupForm.value.password;
+        this.modelService.setSignUpUsername(username);
+        this.modelService.setSignUpPassword(password);
         
-        this.http.post<any>('/oauth2/token', 
-          new URLSearchParams({
-            grant_type: 'password',
-            username: username,
-            password: password,
-            client_id: 'abstratium-abstrauth'
-          }).toString(),
-          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-        ).subscribe({
-          next: (tokenResponse) => {
-            this.authService.setAccessToken(tokenResponse.access_token);
-            
-            // Check if user has admin role
-            if (this.authService.isAdmin()) {
-              // Redirect to accounts page for admins
-              this.router.navigate(['/accounts']);
-            } else {
-              // Regular users go to signin page
-              this.router.navigate(['/signin', this.requestId]);
-            }
-          },
-          error: () => {
-            // If auto-signin fails, just go to signin page
-            this.router.navigate(['/signin', this.requestId]);
-          }
-        });
+        this.signupForm.reset();
+        
+        // Redirect to signin page
+        this.router.navigate(['/signin', this.requestId]);
       },
       error: (error) => {
         this.messageType = 'error';
