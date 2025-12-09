@@ -1,0 +1,62 @@
+<div class="container">
+  <h1>User Accounts</h1>
+  
+  <div *ngIf="loading" class="loading">
+    <p>Loading accounts...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+    <button (click)="loadAccounts()">Retry</button>
+  </div>
+
+  <div *ngIf="!loading && !error && accounts.length === 0" class="info-message">
+    <p>No accounts found.</p>
+  </div>
+
+  <div *ngIf="!loading && !error && accounts.length > 0">
+    <div class="notice-box" [ngClass]="accounts.length === 1 ? 'notice-success' : 'notice-warning'">
+      <p><strong>Total accounts: {{ accounts.length }}</strong></p>
+      <p *ngIf="accounts.length === 1">
+        ✓ You are the first and only user (admin)
+      </p>
+      <p *ngIf="accounts.length > 1">
+        ⚠ Multiple accounts detected. Please verify this is expected.
+      </p>
+    </div>
+
+    <table class="standard-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Provider</th>
+          <th>Email Verified</th>
+          <th>Created At</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let account of accounts">
+          <td>
+            <div class="table-cell-flex">
+              <img *ngIf="account.picture" [src]="account.picture" [alt]="account.name" class="account-picture">
+              <span>{{ account.name }}</span>
+            </div>
+          </td>
+          <td>{{ account.email }}</td>
+          <td>
+            <span class="badge" [ngClass]="getProviderBadgeClass(account.authProvider)">
+              {{ account.authProvider }}
+            </span>
+          </td>
+          <td>
+            <span [ngClass]="account.emailVerified ? 'badge-verified' : 'badge-unverified'">
+              {{ account.emailVerified ? '✓ Verified' : '✗ Not Verified' }}
+            </span>
+          </td>
+          <td>{{ account.createdAt | date:'short' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

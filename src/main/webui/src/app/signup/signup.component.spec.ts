@@ -4,6 +4,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { SignupComponent } from './signup.component';
 
+// Helper to create a mock JWT token
+function createMockJWT(payload: any): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = btoa(JSON.stringify(payload));
+  const signature = 'mock-signature';
+  return `${header}.${body}.${signature}`;
+}
+
 describe('SignupComponent', () => {
   let component: SignupComponent;
   let fixture: ComponentFixture<SignupComponent>;
@@ -148,6 +156,11 @@ describe('SignupComponent', () => {
       expect(component.message).toContain('Account created successfully');
       expect(component.message).toContain('123');
       expect(component.isSubmitting).toBe(false);
+
+      // Handle the auto-signin token request
+      const tokenReq = httpMock.expectOne('/oauth2/token');
+      const mockToken = createMockJWT({ sub: '123', groups: [], email: 'test@example.com', exp: Date.now() / 1000 + 3600 });
+      tokenReq.flush({ access_token: mockToken, token_type: 'Bearer' });
     });
 
     it('should store username and password in model service', () => {
@@ -158,6 +171,11 @@ describe('SignupComponent', () => {
 
       expect(component['modelService'].signUpUsername$()).toBe('testuser');
       expect(component['modelService'].signUpPassword$()).toBe('password123');
+
+      // Handle the auto-signin token request
+      const tokenReq = httpMock.expectOne('/oauth2/token');
+      const mockToken = createMockJWT({ sub: '123', groups: [], email: 'test@example.com', exp: Date.now() / 1000 + 3600 });
+      tokenReq.flush({ access_token: mockToken, token_type: 'Bearer' });
     });
 
     it('should navigate to signin page with requestId', () => {
@@ -167,6 +185,11 @@ describe('SignupComponent', () => {
       const req = httpMock.expectOne('/api/signup');
       req.flush({ id: '123' });
 
+      // Handle the auto-signin token request
+      const tokenReq = httpMock.expectOne('/oauth2/token');
+      const mockToken = createMockJWT({ sub: '123', groups: [], email: 'test@example.com', exp: Date.now() / 1000 + 3600 });
+      tokenReq.flush({ access_token: mockToken, token_type: 'Bearer' });
+
       expect(mockRouter.navigate).toHaveBeenCalledWith(['/signin', 'test-request-123']);
     });
 
@@ -175,6 +198,11 @@ describe('SignupComponent', () => {
 
       const req = httpMock.expectOne('/api/signup');
       req.flush({ id: '123' });
+
+      // Handle the auto-signin token request
+      const tokenReq = httpMock.expectOne('/oauth2/token');
+      const mockToken = createMockJWT({ sub: '123', groups: [], email: 'test@example.com', exp: Date.now() / 1000 + 3600 });
+      tokenReq.flush({ access_token: mockToken, token_type: 'Bearer' });
 
       expect(component.signupForm.value).toEqual({
         email: null,
@@ -196,6 +224,11 @@ describe('SignupComponent', () => {
       // Clean up the pending request
       const req = httpMock.expectOne('/api/signup');
       req.flush({ id: '123' });
+
+      // Handle the auto-signin token request
+      const tokenReq = httpMock.expectOne('/oauth2/token');
+      const mockToken = createMockJWT({ sub: '123', groups: [], email: 'test@example.com', exp: Date.now() / 1000 + 3600 });
+      tokenReq.flush({ access_token: mockToken, token_type: 'Bearer' });
     });
   });
 
@@ -296,6 +329,11 @@ describe('SignupComponent', () => {
       
       req.flush({ id: '456' });
       expect(component.messageType).toBe('success');
+
+      // Handle the auto-signin token request
+      const tokenReq = httpMock.expectOne('/oauth2/token');
+      const mockToken = createMockJWT({ sub: '123', groups: [], email: 'test@example.com', exp: Date.now() / 1000 + 3600 });
+      tokenReq.flush({ access_token: mockToken, token_type: 'Bearer' });
     });
 
     it('should handle special characters in form fields', () => {
@@ -312,6 +350,11 @@ describe('SignupComponent', () => {
       req.flush({ id: '789' });
       
       expect(component.messageType).toBe('success');
+
+      // Handle the auto-signin token request
+      const tokenReq = httpMock.expectOne('/oauth2/token');
+      const mockToken = createMockJWT({ sub: '123', groups: [], email: 'test@example.com', exp: Date.now() / 1000 + 3600 });
+      tokenReq.flush({ access_token: mockToken, token_type: 'Bearer' });
     });
   });
 });

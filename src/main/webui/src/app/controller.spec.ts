@@ -1,24 +1,32 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
 import { Controller } from './controller';
 import { ModelService } from './model.service';
 
 describe('Controller', () => {
   let controller: Controller;
   let modelService: ModelService;
+  let httpMock: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
+    });
     controller = TestBed.inject(Controller);
     modelService = TestBed.inject(ModelService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
   });
 
   it('should be created', () => {
     expect(controller).toBeTruthy();
-  });
-
-  it('should have modelService injected', () => {
-    expect(controller.modelService).toBeDefined();
-    expect(controller.modelService).toBeInstanceOf(ModelService);
   });
 
   describe('SignUp Username Delegation', () => {
@@ -271,14 +279,102 @@ describe('Controller', () => {
       controller.setSignUpUsername('testuser');
       
       expect(directModelService.signUpUsername$()).toBe('testuser');
-      expect(controller.modelService).toBe(directModelService);
     });
 
     it('should reflect changes made directly to ModelService', () => {
       modelService.setSignUpUsername('directuser');
       
       // Controller should see the change through the shared service
-      expect(controller.modelService.signUpUsername$()).toBe('directuser');
+      expect(modelService.signUpUsername$()).toBe('directuser');
+    });
+  });
+
+  describe('loadAccounts', () => {
+    it('should load accounts and update model service', () => {
+      const mockAccounts = [
+        { id: '1', email: 'test@example.com', name: 'Test User', emailVerified: true, authProvider: 'native', createdAt: '2024-01-01' }
+      ];
+
+      controller.loadAccounts();
+
+      const req = httpMock.expectOne('/api/accounts');
+      expect(req.request.method).toBe('GET');
+      req.flush(mockAccounts);
+
+      expect(modelService.accounts$()).toEqual(mockAccounts);
+    });
+
+    it('should handle error when loading accounts', () => {
+      controller.loadAccounts();
+
+      const req = httpMock.expectOne('/api/accounts');
+      req.error(new ProgressEvent('error'));
+
+      expect(modelService.accounts$()).toEqual([]);
+    });
+  });
+
+  describe('loadClients', () => {
+    it('should load clients and update model service', () => {
+      const mockClients = [
+        { id: '1', clientId: 'test-client', clientName: 'Test Client', clientType: 'confidential', redirectUris: '[]', allowedScopes: '[]', requirePkce: true, createdAt: '2024-01-01' }
+      ];
+
+      controller.loadClients();
+
+      expect(modelService.clientsLoading$()).toBe(true);
+      expect(modelService.clientsError$()).toBeNull();
+
+      const req = httpMock.expectOne('/api/clients');
+      expect(req.request.method).toBe('GET');
+      req.flush(mockClients);
+
+      expect(modelService.clients$()).toEqual(mockClients);
+      expect(modelService.clientsLoading$()).toBe(false);
+      expect(modelService.clientsError$()).toBeNull();
+    });
+
+    it('should handle error when loading clients', () => {
+      controller.loadClients();
+
+      expect(modelService.clientsLoading$()).toBe(true);
+
+      const req = httpMock.expectOne('/api/clients');
+      req.error(new ProgressEvent('error'));
+
+      expect(modelService.clients$()).toEqual([]);
+      expect(modelService.clientsLoading$()).toBe(false);
+      expect(modelService.clientsError$()).toBe('Failed to load clients');
+    });
+  });
+
+  describe('loadSignupAllowed', () => {
+    it('should load signup allowed flag and update model service', () => {
+      controller.loadSignupAllowed();
+
+      const req = httpMock.expectOne('/api/signup/allowed');
+      expect(req.request.method).toBe('GET');
+      req.flush({ allowed: true });
+
+      expect(modelService.signupAllowed$()).toBe(true);
+    });
+
+    it('should handle false signup allowed', () => {
+      controller.loadSignupAllowed();
+
+      const req = httpMock.expectOne('/api/signup/allowed');
+      req.flush({ allowed: false });
+
+      expect(modelService.signupAllowed$()).toBe(false);
+    });
+
+    it('should handle error when loading signup allowed', () => {
+      controller.loadSignupAllowed();
+
+      const req = httpMock.expectOne('/api/signup/allowed');
+      req.error(new ProgressEvent('error'));
+
+      expect(modelService.signupAllowed$()).toBe(false);
     });
   });
 });

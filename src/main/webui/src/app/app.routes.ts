@@ -8,6 +8,7 @@ import { AuthCallbackComponent } from './auth-callback/auth-callback.component';
 import { SignupComponent } from './signup/signup.component';
 import { AuthorizeComponent } from './authorize/authorize.component';
 import { ClientsComponent } from './clients/clients.component';
+import { AccountsComponent } from './accounts/accounts.component';
 import { authGuard } from './auth.guard';
 
 export const routes: Routes = [
@@ -18,6 +19,7 @@ export const routes: Routes = [
   { path: 'signup',   component: SignupComponent },
   { path: 'auth-callback',   component: AuthCallbackComponent },
   { path: 'clients',  component: ClientsComponent, canActivate: [authGuard] },
+  { path: 'accounts', component: AccountsComponent, canActivate: [authGuard] },
   { path: 'user/:id', component: UserComponent, canActivate: [authGuard] },
   { path: '**',       component: NotFoundComponent }
 ];

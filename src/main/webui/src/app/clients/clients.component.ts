@@ -1,17 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, inject } from '@angular/core';
-
-interface OAuthClient {
-  id: string;
-  clientId: string;
-  clientName: string;
-  clientType: string;
-  redirectUris: string;
-  allowedScopes: string;
-  requirePkce: boolean;
-  createdAt: string;
-}
+import { Component, effect, inject, OnInit } from '@angular/core';
+import { Controller } from '../controller';
+import { ModelService, OAuthClient } from '../model.service';
 
 @Component({
   selector: 'clients',
@@ -20,32 +10,27 @@ interface OAuthClient {
   styleUrl: './clients.component.scss',
 })
 export class ClientsComponent implements OnInit {
-  private http = inject(HttpClient);
+  private controller = inject(Controller);
+  private modelService = inject(ModelService);
   
   clients: OAuthClient[] = [];
   loading = true;
   error: string | null = null;
+
+  constructor() {
+    effect(() => {
+      this.clients = this.modelService.clients$();
+      this.loading = this.modelService.clientsLoading$();
+      this.error = this.modelService.clientsError$();
+    });
+  }
 
   ngOnInit(): void {
     this.loadClients();
   }
 
   loadClients(): void {
-    this.loading = true;
-    this.error = null;
-    
-    this.http.get<OAuthClient[]>('/api/clients')
-      .subscribe({
-        next: (data) => {
-          this.clients = data;
-          this.loading = false;
-        },
-        error: (err) => {
-          this.error = 'Failed to load clients';
-          this.loading = false;
-          console.error('Error loading clients:', err);
-        }
-      });
+    this.controller.loadClients();
   }
 
   parseJsonArray(jsonString: string): string[] {

@@ -7,7 +7,7 @@ use `nvm use v24.11.1` to set the correct version of node and npm, when running 
 
 The general design pattern used here is that components write data to the model by using the `Controller` component and they subscribe to changes in the `Model` using its signals.
 
-It is the controller which should generally make backend calls. Exceptions to that are the AuthService.
+It is the controller which should generally make backend calls. Exceptions to that are the AuthService. It should never expose / return Observable objects, rather store the results of an http request in the ModelService which should expose the model parts using signals which the interested components can subscribe to in order to read data out of the model.
 
 Whenever making changes, remember to make sure that tests are updated and test them using `ng test`.
 

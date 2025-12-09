@@ -1,7 +1,10 @@
 import { Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { CLIENT_ID } from './authorize/authorize.component';
 
 export const ISSUER = 'https://abstrauth.abstratium.dev';
+export const ROLE_ADMIN = 'abstratium-abstrauth_admin';
+export const ROLE_MANAGE_CLIENTS = 'abstratium-abstrauth_manage-clients';
 
 export interface Token {
     iss: string;
@@ -47,6 +50,8 @@ export class AuthService {
     private token = ANONYMOUS;
     private jwt = '';
     private routeBeforeSignIn = '/';
+
+    constructor(private http: HttpClient) {}
 
     setRouteBeforeSignIn(route: string) {
         this.routeBeforeSignIn = route;
@@ -136,5 +141,13 @@ export class AuthService {
         this.token = ANONYMOUS;
         this.token.isAuthenticated = false;
         this.token$.set(this.token);
+    }
+
+    hasRole(role: string): boolean {
+        return this.token.groups.includes(role);
+    }
+
+    isAdmin(): boolean {
+        return this.hasRole(ROLE_ADMIN);
     }
 }

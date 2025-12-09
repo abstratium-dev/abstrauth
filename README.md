@@ -169,6 +169,8 @@ For development, you can run tests manually:
     User makes subsequent request with revoked token → Filter checks database → 401 response
     The filter is correctly implemented and will work in production. The test failure is a test isolation issue, not a code issue.
 
+- refactor http error handling in angular code
+- angular should always use inject and not constructor
 - does it make sense that revocation is used to log out?
 - do we need a revocation check endpoint so that a third party can check that the token
   isn't revoked? it could also check that the token is valid, altho the third party can 

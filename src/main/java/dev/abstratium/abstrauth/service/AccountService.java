@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
 
 @ApplicationScoped
@@ -173,6 +174,15 @@ public class AccountService {
             // Invalid hash format
             return false;
         }
+    }
+
+    /**
+     * Find all accounts
+     * @return List of all accounts
+     */
+    public List<Account> findAll() {
+        var query = em.createQuery("SELECT a FROM Account a ORDER BY a.createdAt DESC", Account.class);
+        return query.getResultList();
     }
 
     /**

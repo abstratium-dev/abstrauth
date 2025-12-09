@@ -372,6 +372,121 @@ h2 {
   }
 }
 
+/* ===== BUTTONS ===== */
+button {
+  padding: 0.5rem 1rem;
+  background: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+
+  &:hover {
+    background: #3367d6;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+/* ===== ACCOUNT PICTURE ===== */
+.account-picture {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* ===== NOTICE MESSAGES ===== */
+.notice-box {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+
+  p {
+    margin: 0.5rem 0;
+  }
+}
+
+.notice-success {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.notice-warning {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+/* ===== STANDARD TABLE ===== */
+.standard-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+
+  thead {
+    background: #f8f9fa;
+    
+    th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 2px solid #dee2e6;
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid #dee2e6;
+
+      &:hover {
+        background: #f8f9fa;
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    td {
+      padding: 1rem;
+      color: #212529;
+    }
+  }
+}
+
+.table-cell-flex {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ===== BADGE VARIANTS ===== */
+.badge-google {
+  background: #4285f4;
+  color: white;
+}
+
+.badge-native {
+  background: #6c757d;
+  color: white;
+}
+
+.badge-verified {
+  color: #28a745;
+}
+
+.badge-unverified {
+  color: #dc3545;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .table-row {
@@ -382,5 +497,19 @@ h2 {
     border-right: none;
     border-bottom: 1px solid #e0e0e0;
     background-color: #f9f9f9;
+  }
+
+  .standard-table {
+    font-size: 0.875rem;
+
+    thead th,
+    tbody td {
+      padding: 0.75rem 0.5rem;
+    }
+  }
+
+  .account-picture {
+    width: 24px;
+    height: 24px;
   }
 }

@@ -11,6 +11,7 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -27,6 +28,15 @@ public class SignupResource {
 
     @Inject
     AuthorizationService authorizationService;
+
+    @GET
+    @Path("/allowed")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Check if signup is allowed", description = "Returns whether signup is currently allowed")
+    public Response isSignupAllowed() {
+        boolean allowed = authorizationService.isSignupAllowed();
+        return Response.ok(new SignupAllowedResponse(allowed)).build();
+    }
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -95,6 +105,15 @@ public class SignupResource {
         public ErrorResponse(String error, String errorDescription) {
             this.error = error;
             this.error_description = errorDescription;
+        }
+    }
+
+    @RegisterForReflection
+    public static class SignupAllowedResponse {
+        public boolean allowed;
+
+        public SignupAllowedResponse(boolean allowed) {
+            this.allowed = allowed;
         }
     }
 }

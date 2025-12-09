@@ -81,6 +81,7 @@ describe('ClientsComponent', () => {
       const req = httpMock.expectOne('/api/clients');
       expect(req.request.method).toBe('GET');
       req.flush(mockClients);
+      fixture.detectChanges();
 
       expect(component.clients).toEqual(mockClients);
       expect(component.loading).toBe(false);
@@ -209,6 +210,7 @@ describe('ClientsComponent', () => {
 
       const req = httpMock.expectOne('/api/clients');
       req.flush('Error loading clients', { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
 
       expect(component.error).toBe('Failed to load clients');
       expect(component.loading).toBe(false);
@@ -234,6 +236,7 @@ describe('ClientsComponent', () => {
 
       const req = httpMock.expectOne('/api/clients');
       req.flush('Not found', { status: 404, statusText: 'Not Found' });
+      fixture.detectChanges();
 
       expect(component.error).toBe('Failed to load clients');
       expect(component.loading).toBe(false);
@@ -244,6 +247,7 @@ describe('ClientsComponent', () => {
 
       const req = httpMock.expectOne('/api/clients');
       req.error(new ProgressEvent('error'));
+      fixture.detectChanges();
 
       expect(component.error).toBe('Failed to load clients');
       expect(component.loading).toBe(false);
