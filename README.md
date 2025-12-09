@@ -169,18 +169,28 @@ For development, you can run tests manually:
     User makes subsequent request with revoked token → Filter checks database → 401 response
     The filter is correctly implemented and will work in production. The test failure is a test isolation issue, not a code issue.
 
-- refactor http error handling in angular code
+- accounts page
+  - get rid of number of accounts
+  - use tiles not table
+  - roles need to be in sub-tiles so that client_id and role name are visible as a unit
+  - add user by creating a link which you send to them manually. it precreates their account which is confirmed during login
+  - add filter so that you can jump from clients page to see all the accounts belonging to a client
+  - ability to add new roles
+    - how exactly are roles stored - does it strip the client_id from the name automatically?
+- clients page
+  - add ability to create a new client
+- refactor http error handling in angular code, potentially using an interceptor
 - angular should always use inject and not constructor
 - does it make sense that revocation is used to log out?
 - do we need a revocation check endpoint so that a third party can check that the token
   isn't revoked? it could also check that the token is valid, altho the third party can 
   do that using the public key.
-- add ability to add and manage applications and their roles using a UI and rest endpoints
-- handle http errors using interceptor
-
+- install in prod and use for hledger
+- do another security audit
 
 ### Later
 
+- multi-tenancy so that a user with only user management role can only see their own clients and only the users in those clients.
 - test client secret support for confidential clients
 - native sign in: once scopes are accepted for the client_id, don't keep asking until they change
 - what is the point of having a username in native account? delete it, since email suffices. discord doesn't have email - how would that work? it'd be ok, because you just click the sign in with discord link
@@ -199,7 +209,6 @@ For development, you can run tests manually:
 - make /q/... stuff run on a management port, separated from actual application
 - what are these for?
   - mp.jwt.verify.issuer=https://quarkus.io/issuer
-  - mp.jwt.verify.publickey=NONE
   - smallrye.jwt.new-token.issuer=https://quarkus.io/issuer
 - add microsoft login
 - add github login
