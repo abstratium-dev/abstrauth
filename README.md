@@ -170,14 +170,12 @@ For development, you can run tests manually:
     The filter is correctly implemented and will work in production. The test failure is a test isolation issue, not a code issue.
 
 - accounts page
-  - get rid of number of accounts
-  - use tiles not table
-  - roles need to be in sub-tiles so that client_id and role name are visible as a unit
   - add user by creating a link which you send to them manually. it precreates their account which is confirmed during login
   - add filter so that you can jump from clients page to see all the accounts belonging to a client
   - ability to add new roles
     - how exactly are roles stored - does it strip the client_id from the name automatically?
 - clients page
+  - add filter and make filter a reusable component
   - add ability to create a new client
 - refactor http error handling in angular code, potentially using an interceptor
 - angular should always use inject and not constructor
@@ -186,7 +184,10 @@ For development, you can run tests manually:
   isn't revoked? it could also check that the token is valid, altho the third party can 
   do that using the public key.
 - install in prod and use for hledger
+- complete other open points from first security audit
 - do another security audit
+- add description of how to deploy to production
+- upload docker image to dockerhub or quay.io?
 
 ### Later
 

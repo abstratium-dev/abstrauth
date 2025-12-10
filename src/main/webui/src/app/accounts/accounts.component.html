@@ -15,8 +15,7 @@
   </div>
 
   <div *ngIf="!loading && !error && accounts.length > 0">
-    <div class="notice-box" [ngClass]="getAdminCount() === 1 ? 'notice-success' : 'notice-warning'">
-      <p><strong>Total accounts: {{ accounts.length }}</strong></p>
+    <div class="notice-box" [ngClass]="getAdminCount() === 1 ? 'notice-success' : ''">
       <p *ngIf="getAdminCount() === 1">
         ✓ You are the first and only admin
       </p>
@@ -25,48 +24,76 @@
       </p>
     </div>
 
-    <table class="standard-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Provider</th>
-          <th>Roles</th>
-          <th>Email Verified</th>
-          <th>Created At</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let account of accounts">
-          <td>
-            <div class="table-cell-flex">
-              <img *ngIf="account.picture" [src]="account.picture" [alt]="account.name" class="account-picture">
-              <span>{{ account.name }}</span>
+    <!-- Filter Section -->
+    <div class="filter-section">
+      <div class="filter-input-wrapper">
+        <input 
+          type="text" 
+          [(ngModel)]="filterText" 
+          (input)="onFilterChange()"
+          placeholder="Filter by name, email, role, or provider..."
+          class="filter-input"
+        />
+        <button 
+          *ngIf="filterText" 
+          (click)="clearFilter()" 
+          class="filter-clear-button"
+          type="button"
+          aria-label="Clear filter"
+        >×</button>
+      </div>
+      <div class="filter-info">
+        <span>Showing {{ filteredAccounts.length }} of {{ accounts.length }} accounts</span>
+      </div>
+    </div>
+
+    <!-- No Results Message -->
+    <div *ngIf="filteredAccounts.length === 0" class="info-message">
+      <p>No accounts match your filter criteria.</p>
+    </div>
+
+    <!-- Account Tiles -->
+    <div class="tile-grid" *ngIf="filteredAccounts.length > 0">
+      <div class="tile" *ngFor="let account of filteredAccounts">
+        <div class="tile-header">
+          <div class="tile-identity">
+            <img *ngIf="account.picture" [src]="account.picture" [alt]="account.name" class="tile-picture">
+            <div class="tile-info">
+              <h3 class="tile-title">{{ account.name }}</h3>
+              <p class="tile-subtitle">{{ account.email }}</p>
             </div>
-          </td>
-          <td>{{ account.email }}</td>
-          <td>
+          </div>
+          <div class="tile-badges">
             <span class="badge" [ngClass]="getProviderBadgeClass(account.authProvider)">
               {{ account.authProvider }}
             </span>
-          </td>
-          <td>
-            <div *ngIf="account.roles && account.roles.length > 0">
-              <div *ngFor="let role of account.roles" style="margin-bottom: 4px;">
-                <span class="badge badge-role">{{ role.role }}</span>
-                <span style="font-size: 0.85em; color: #666;"> ({{ role.clientId }})</span>
-              </div>
-            </div>
-            <span *ngIf="!account.roles || account.roles.length === 0" style="color: #999;">No roles</span>
-          </td>
-          <td>
-            <span [ngClass]="account.emailVerified ? 'badge-verified' : 'badge-unverified'">
+            <span class="badge" [ngClass]="account.emailVerified ? 'badge-verified' : 'badge-unverified'">
               {{ account.emailVerified ? '✓ Verified' : '✗ Not Verified' }}
             </span>
-          </td>
-          <td>{{ account.createdAt | date:'short' }}</td>
-        </tr>
-      </tbody>
-    </table>
+          </div>
+        </div>
+
+        <div class="tile-details">
+          <div class="tile-detail-item">
+            <span class="label">Created:</span>
+            <span class="value">{{ account.createdAt | date:'medium' }}</span>
+          </div>
+        </div>
+
+        <!-- Roles Section -->
+        <div class="sub-tiles-section">
+          <h4 class="sub-tiles-title">Roles</h4>
+          <div *ngIf="account.roles && account.roles.length > 0" class="sub-tiles">
+            <div class="sub-tile" *ngFor="let role of account.roles">
+              <div class="sub-tile-title">{{ role.role }}</div>
+              <div class="sub-tile-content">Client: {{ role.clientId }}</div>
+            </div>
+          </div>
+          <div *ngIf="!account.roles || account.roles.length === 0" class="sub-tiles-empty">
+            No roles assigned
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
