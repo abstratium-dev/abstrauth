@@ -123,7 +123,7 @@ public class GoogleCallbackResource {
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("<html><body><h1>Error</h1><p>Failed to process Google authentication: " + 
-                            e.getMessage() + "</p></body></html>")
+                            e.getMessage() + "</p><a href='/'>Try again</a></body></html>")
                     .build();
         }
     }

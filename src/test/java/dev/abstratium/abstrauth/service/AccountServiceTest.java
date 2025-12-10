@@ -290,4 +290,145 @@ public class AccountServiceTest {
             assertTrue(roles.contains("admin"), "First federated account should have admin role");
         }
     }
+
+    @Test
+    @Transactional
+    public void testFindAccountsByUserClientRoles_SharedClients() {
+        // Create three accounts
+        String email1 = "shared1_" + System.currentTimeMillis() + "@example.com";
+        String email2 = "shared2_" + System.currentTimeMillis() + "@example.com";
+        String email3 = "shared3_" + System.currentTimeMillis() + "@example.com";
+        
+        Account account1 = accountService.createAccount(email1, "User 1", "user1_" + System.currentTimeMillis(), "Pass123");
+        Account account2 = accountService.createAccount(email2, "User 2", "user2_" + System.currentTimeMillis(), "Pass123");
+        Account account3 = accountService.createAccount(email3, "User 3", "user3_" + System.currentTimeMillis(), "Pass123");
+        
+        // Give account1 roles for client-a and client-b
+        accountRoleService.addRole(account1.getId(), "client-a", "user");
+        accountRoleService.addRole(account1.getId(), "client-b", "user");
+        
+        // Give account2 roles for client-a (shared with account1)
+        accountRoleService.addRole(account2.getId(), "client-a", "admin");
+        
+        // Give account3 roles for client-c (not shared with account1)
+        accountRoleService.addRole(account3.getId(), "client-c", "user");
+        
+        // Find accounts by account1's client roles
+        var accounts = accountService.findAccountsByUserClientRoles(account1.getId());
+        
+        // Should return account1 and account2 (both have client-a), but not account3
+        assertTrue(accounts.size() >= 2, "Should have at least 2 accounts");
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account1.getId())), "Should include account1");
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account2.getId())), "Should include account2");
+        assertFalse(accounts.stream().anyMatch(a -> a.getId().equals(account3.getId())), "Should not include account3");
+    }
+
+    @Test
+    @Transactional
+    public void testFindAccountsByUserClientRoles_NoSharedClients() {
+        // Create two accounts with different clients
+        String email1 = "noshared1_" + System.currentTimeMillis() + "@example.com";
+        String email2 = "noshared2_" + System.currentTimeMillis() + "@example.com";
+        
+        Account account1 = accountService.createAccount(email1, "User 1", "noshared1_" + System.currentTimeMillis(), "Pass123");
+        Account account2 = accountService.createAccount(email2, "User 2", "noshared2_" + System.currentTimeMillis(), "Pass123");
+        
+        // Give account1 role for client-x
+        accountRoleService.addRole(account1.getId(), "client-x", "user");
+        
+        // Give account2 role for client-y (different client)
+        accountRoleService.addRole(account2.getId(), "client-y", "user");
+        
+        // Find accounts by account1's client roles
+        var accounts = accountService.findAccountsByUserClientRoles(account1.getId());
+        
+        // Should return only account1 (no shared clients with others)
+        assertEquals(1, accounts.size());
+        assertEquals(account1.getId(), accounts.get(0).getId());
+    }
+
+    @Test
+    @Transactional
+    public void testFindAccountsByUserClientRoles_UserWithNoRoles() {
+        // Create an account with no roles
+        String email = "noroles_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "No Roles User", "noroles_" + System.currentTimeMillis(), "Pass123");
+        
+        // Don't add any roles to this account
+        
+        // Find accounts by this user's client roles
+        var accounts = accountService.findAccountsByUserClientRoles(account.getId());
+        
+        // Should return only the user's own account
+        assertEquals(1, accounts.size());
+        assertEquals(account.getId(), accounts.get(0).getId());
+    }
+
+    @Test
+    @Transactional
+    public void testFindAccountsByUserClientRoles_MultipleSharedClients() {
+        // Create four accounts
+        String email1 = "multi1_" + System.currentTimeMillis() + "@example.com";
+        String email2 = "multi2_" + System.currentTimeMillis() + "@example.com";
+        String email3 = "multi3_" + System.currentTimeMillis() + "@example.com";
+        String email4 = "multi4_" + System.currentTimeMillis() + "@example.com";
+        
+        Account account1 = accountService.createAccount(email1, "User 1", "multi1_" + System.currentTimeMillis(), "Pass123");
+        Account account2 = accountService.createAccount(email2, "User 2", "multi2_" + System.currentTimeMillis(), "Pass123");
+        Account account3 = accountService.createAccount(email3, "User 3", "multi3_" + System.currentTimeMillis(), "Pass123");
+        Account account4 = accountService.createAccount(email4, "User 4", "multi4_" + System.currentTimeMillis(), "Pass123");
+        
+        // account1 has roles for client-a, client-b, client-c
+        accountRoleService.addRole(account1.getId(), "client-a", "user");
+        accountRoleService.addRole(account1.getId(), "client-b", "user");
+        accountRoleService.addRole(account1.getId(), "client-c", "user");
+        
+        // account2 shares client-a with account1
+        accountRoleService.addRole(account2.getId(), "client-a", "admin");
+        
+        // account3 shares client-b with account1
+        accountRoleService.addRole(account3.getId(), "client-b", "user");
+        
+        // account4 shares client-c with account1
+        accountRoleService.addRole(account4.getId(), "client-c", "manager");
+        
+        // Find accounts by account1's client roles
+        var accounts = accountService.findAccountsByUserClientRoles(account1.getId());
+        
+        // Should return all four accounts (all share at least one client with account1)
+        assertEquals(4, accounts.size());
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account1.getId())));
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account2.getId())));
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account3.getId())));
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account4.getId())));
+    }
+
+    @Test
+    @Transactional
+    public void testFindAccountsByUserClientRoles_RolesEagerlyLoaded() {
+        // Create account with roles
+        String email = "eager_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "Eager User", "eager_" + System.currentTimeMillis(), "Pass123");
+        String accountId = account.getId();
+        
+        accountRoleService.addRole(accountId, "client-test", "user");
+        accountRoleService.addRole(accountId, "client-test", "admin");
+        
+        // Find accounts - this should eagerly load roles
+        var accounts = accountService.findAccountsByUserClientRoles(accountId);
+        
+        // Verify we got at least one account
+        assertFalse(accounts.isEmpty(), "Should return at least one account");
+        
+        // Find our specific account
+        var ourAccount = accounts.stream()
+            .filter(a -> a.getId().equals(accountId))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Our account should be in the results"));
+        
+        // Verify roles collection is not null (meaning it was eagerly loaded, not lazy)
+        // The collection might be empty or have roles depending on transaction state,
+        // but it should not be null which would indicate lazy loading
+        assertNotNull(ourAccount.getRoles(), "Roles collection should not be null (eagerly loaded)");
+    }
 }

@@ -95,12 +95,11 @@ export class AuthCallbackComponent implements OnInit {
 
                 this.authService.setAccessToken(response.access_token);
 
-                // Check if user is admin and redirect accordingly
-                if (this.authService.isAdmin()) {
-                    this.router.navigate(['/accounts']);
-                } else {
-                    const routeBeforeSignIn = this.authService.getRouteBeforeSignIn();
+                const routeBeforeSignIn = this.authService.getRouteBeforeSignIn();
+                if(routeBeforeSignIn) {
                     this.router.navigate([routeBeforeSignIn]);
+                } else {
+                    this.router.navigate(['/accounts']);
                 }
             }
         );

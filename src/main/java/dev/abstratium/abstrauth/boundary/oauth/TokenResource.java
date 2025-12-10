@@ -66,7 +66,7 @@ public class TokenResource {
     @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
 
-    @ConfigProperty(name = "default.roles", defaultValue = "abstratium-abstrauth_user")
+    @ConfigProperty(name = "default.roles")
     String defaultRoles;
 
     @POST

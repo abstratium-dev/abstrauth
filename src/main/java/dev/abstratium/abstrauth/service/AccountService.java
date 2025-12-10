@@ -16,8 +16,6 @@ import java.util.Optional;
 @ApplicationScoped
 public class AccountService {
 
-    private static final String ADMIN = "admin";
-
     @Inject
     EntityManager em;
 
@@ -72,7 +70,7 @@ public class AccountService {
 
         // Assign admin role to first account
         if (isFirstAccount) {
-            accountRoleService.addRole(account.getId(), "abstratium-abstrauth", ADMIN);
+            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         }
 
         return account;
@@ -100,7 +98,7 @@ public class AccountService {
 
         // Assign admin role to first account
         if (isFirstAccount) {
-            accountRoleService.addRole(account.getId(), "abstratium-abstrauth", ADMIN);
+            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         }
 
         return account;
@@ -183,6 +181,48 @@ public class AccountService {
     public List<Account> findAll() {
         var query = em.createQuery("SELECT a FROM Account a LEFT JOIN FETCH a.roles ORDER BY a.createdAt DESC", Account.class);
         return query.getResultList();
+    }
+
+    /**
+     * Find accounts filtered by the user's client roles.
+     * Returns accounts that have roles for any of the same clients as the given user.
+     * @param accountId The ID of the users account whose client roles to use for filtering
+     * @return List of accounts that share client roles with the user
+     */
+    public List<Account> findAccountsByUserClientRoles(String accountId) {
+        // First, get all unique client IDs from the user's roles
+        var clientIdsQuery = em.createQuery(
+            "SELECT DISTINCT ar.clientId FROM AccountRole ar WHERE ar.accountId = :accountId", 
+            String.class
+        );
+        clientIdsQuery.setParameter("accountId", accountId);
+        List<String> userClientIds = clientIdsQuery.getResultList();
+        
+        // If user has no roles, return only the account belonging to them
+        if (userClientIds.isEmpty()) {
+            return List.of(findById(accountId).get());
+        }
+        
+        // Then, find all account IDs that have roles for any of those client IDs
+        var accountIdsQuery = em.createQuery(
+            "SELECT DISTINCT ar.accountId FROM AccountRole ar WHERE ar.clientId IN :clientIds",
+            String.class
+        );
+        accountIdsQuery.setParameter("clientIds", userClientIds);
+        List<String> accountIds = accountIdsQuery.getResultList();
+        
+        // If no accounts found, return only the account belonging to them
+        if (accountIds.isEmpty()) {
+            return List.of(findById(accountId).get());
+        }
+        
+        // Finally, fetch the full accounts with roles eagerly loaded
+        var accountsQuery = em.createQuery(
+            "SELECT DISTINCT a FROM Account a LEFT JOIN FETCH a.roles WHERE a.id IN :accountIds ORDER BY a.createdAt DESC",
+            Account.class
+        );
+        accountsQuery.setParameter("accountIds", accountIds);
+        return accountsQuery.getResultList();
     }
 
     /**

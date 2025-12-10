@@ -18,13 +18,11 @@ export class HeaderComponent implements OnInit {
 
     token!: Token;
     isSignedIn = false;
-    isAdmin = false;
 
     constructor() {
         effect(() => {
             this.token = this.authService.token$();
             this.isSignedIn = this.token.isAuthenticated;
-            this.isAdmin = this.authService.isAdmin();
             console.info("header isSignedIn", this.isSignedIn);
             console.info("header roles: ", this.token.groups);
         });

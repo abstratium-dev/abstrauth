@@ -1,28 +1,27 @@
 import { Component, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Account, ModelService } from '../model.service';
 import { Controller } from '../controller';
-import { ROLE_ADMIN } from '../auth.service';
+import { AuthService, ROLE_ADMIN } from '../auth.service';
+import { UrlFilterComponent } from '../shared/url-filter/url-filter.component';
 
 @Component({
   selector: 'app-accounts',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, RouterLink, UrlFilterComponent],
   templateUrl: './accounts.component.html',
   styleUrl: './accounts.component.scss'
 })
 export class AccountsComponent implements OnInit {
   private modelService = inject(ModelService);
   private controller = inject(Controller);
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
+  private authService = inject(AuthService);
 
   accounts: Account[] = [];
   filteredAccounts: Account[] = [];
   loading = true;
   error: string | null = null;
-  filterText = '';
+  private currentFilter: string = '';
 
   constructor() {
     effect(() => {
@@ -30,29 +29,16 @@ export class AccountsComponent implements OnInit {
       if (this.accounts.length > 0 || this.error) {
         this.loading = false;
       }
-      this.applyFilter();
+      // Reapply the current filter when accounts change
+      if (this.currentFilter) {
+        this.onFilterChange(this.currentFilter);
+      } else {
+        this.applyFilter();
+      }
     });
   }
 
   ngOnInit(): void {
-    // Read filter from URL query parameter (protected against XSS by Angular)
-    this.route.queryParams.subscribe(params => {
-      const filterParam = params['filter'];
-      // Angular's queryParams automatically sanitizes the value
-      // Only accept string values, reject any objects or arrays.
-      // The filter implementation protects against XSS (Cross-Site Scripting) attacks by:
-      // - Validating that URL filter parameters are strings only
-      // - Rejecting objects, arrays, or other complex types
-      // - Using Angular's built-in query parameter sanitization
-      // - Never executing or evaluating filter content as code
-      if (filterParam && typeof filterParam === 'string') {
-        this.filterText = filterParam;
-      } else {
-        this.filterText = '';
-      }
-      this.applyFilter();
-    });
-    
     this.loadAccounts();
   }
 
@@ -83,17 +69,30 @@ export class AccountsComponent implements OnInit {
 
   getAdminCount(): number {
     return this.accounts.filter(account => 
-      account.roles && account.roles.some(role => role.role === ROLE_ADMIN)
+      account.roles && account.roles.some(role => role.clientId + "_" + role.role === ROLE_ADMIN)
     ).length;
   }
 
-  applyFilter(): void {
-    if (!this.filterText || this.filterText.trim() === '') {
+  hasAdminRole(): boolean {
+    return this.authService.hasRole(ROLE_ADMIN);
+  }
+
+  isCurrentUser(accountId: string): boolean {
+    const token = this.authService.token$();
+    return token.sub === accountId;
+  }
+
+  onFilterChange(filterText: string): void {
+    // Store the current filter so it can be reapplied when accounts change
+    this.currentFilter = filterText;
+    
+    const searchTerm = filterText.toLowerCase().trim();
+    
+    if (!searchTerm) {
       this.filteredAccounts = this.accounts;
       return;
     }
 
-    const searchTerm = this.filterText.toLowerCase().trim();
     this.filteredAccounts = this.accounts.filter(account => {
       // Search in email
       if (account.email.toLowerCase().includes(searchTerm)) {
@@ -118,18 +117,8 @@ export class AccountsComponent implements OnInit {
     });
   }
 
-  onFilterChange(): void {
-    // Update URL with filter parameter
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { filter: this.filterText || null },
-      queryParamsHandling: 'merge'
-    });
-    this.applyFilter();
-  }
-
-  clearFilter(): void {
-    this.filterText = '';
-    this.onFilterChange();
+  private applyFilter(): void {
+    // Called from effect when accounts change
+    this.filteredAccounts = this.accounts;
   }
 }

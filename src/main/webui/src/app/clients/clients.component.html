@@ -10,12 +10,27 @@
       {{ error }}
     </div>
     
-    <div *ngIf="!loading && !error" class="card-list">
-      <div *ngIf="clients.length === 0" class="info-message">
-        No OAuth clients found.
+    <div *ngIf="!loading && !error && clients.length === 0" class="info-message">
+      No OAuth clients found.
+    </div>
+    
+    <div *ngIf="!loading && !error && clients.length > 0">
+      <!-- Filter Section -->
+      <url-filter
+        [placeholder]="'Filter by name, client ID, type, URI, or scope...'"
+        [itemCount]="filteredClients.length"
+        [totalCount]="clients.length"
+        [itemLabel]="'clients'"
+        (filterChange)="onFilterChange($event)">
+      </url-filter>
+
+      <!-- No Results Message -->
+      <div *ngIf="filteredClients.length === 0" class="info-message">
+        <p>No clients match your filter criteria.</p>
       </div>
-      
-      <div *ngFor="let client of clients" class="card" [attr.data-client-id]="client.clientId">
+
+      <div *ngIf="filteredClients.length > 0" class="card-list">
+        <div *ngFor="let client of filteredClients" class="card" [attr.data-client-id]="client.clientId">
         <div class="card-header">
           <h2>{{ client.clientName }}</h2>
           <span class="badge" [class.badge-primary]="client.clientType === 'public'" 
@@ -55,7 +70,17 @@
             <span class="label">Created:</span>
             <span class="value">{{ client.createdAt }}</span>
           </div>
+          
+          <div class="detail-row">
+            <span class="label">Accounts:</span>
+            <span class="value">
+              <a [routerLink]="['/accounts']" [queryParams]="{filter: client.clientId}" class="client-link">
+                View accounts with roles for this client
+              </a>
+            </span>
+          </div>
         </div>
+      </div>
       </div>
     </div>
   </div>

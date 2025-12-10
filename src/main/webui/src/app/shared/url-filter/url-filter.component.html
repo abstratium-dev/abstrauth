@@ -1,0 +1,21 @@
+<div class="filter-section">
+  <div class="filter-input-wrapper">
+    <input 
+      type="text" 
+      [(ngModel)]="filterText" 
+      (input)="onFilterChange()"
+      [placeholder]="placeholder"
+      class="filter-input"
+    />
+    <button 
+      *ngIf="filterText" 
+      (click)="clearFilter()" 
+      class="filter-clear-button"
+      type="button"
+      aria-label="Clear filter"
+    >×</button>
+  </div>
+  <div class="filter-info">
+    <span>Showing {{ itemCount }} of {{ totalCount }} {{ itemLabel }}</span>
+  </div>
+</div>

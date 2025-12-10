@@ -9,10 +9,8 @@
         @if(isSignedIn) {
             &nbsp;|&nbsp;
             <a id="clients-link" routerLink="/clients" routerLinkActive="inactive-link">Clients</a>
-            @if(isAdmin) {
-                &nbsp;|&nbsp;
-                <a id="accounts-link" routerLink="/accounts" routerLinkActive="inactive-link">Accounts</a>
-            }
+            &nbsp;|&nbsp;
+            <a id="accounts-link" routerLink="/accounts" routerLinkActive="inactive-link">Accounts</a>
             &nbsp;|&nbsp;
             🥷 <a id="user-link" routerLink="/user/{{ token.sub }}" routerLinkActive="inactive-link">{{ token.email }}</a>
             &nbsp;|&nbsp;

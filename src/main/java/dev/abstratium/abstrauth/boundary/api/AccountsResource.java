@@ -2,7 +2,9 @@ package dev.abstratium.abstrauth.boundary.api;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -14,20 +16,39 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 @Path("/api/accounts")
 @Tag(name = "Accounts", description = "Account management endpoints")
-@RolesAllowed("abstratium-abstrauth_admin")
 public class AccountsResource {
-
+    
     @Inject
     AccountService accountService;
-
+    
+    @Inject
+    SecurityIdentity securityIdentity;
+    
+    @Inject
+    JsonWebToken accessToken;    
+    
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "List all accounts", description = "Returns a list of all registered accounts (admin only)")
+    @Operation(summary = "List accounts", description = "Returns accounts based on user permissions")
+    @RolesAllowed({Roles.ADMIN, Roles.MANAGE_ACCOUNTS})
     public List<AccountResponse> listAccounts() {
-        return accountService.findAll().stream()
+        // Get the current user's ID from the JWT token (sub claim)
+        // String currentUserId = securityIdentity.getPrincipal().getName();
+        String accountId = accessToken.getSubject();
+
+        // If user is admin, return all accounts
+        if (securityIdentity.hasRole(Roles.ADMIN)) {
+            return accountService.findAll().stream()
+                    .map(this::toAccountResponse)
+                    .collect(Collectors.toList());
+        }
+        
+        // Otherwise, return accounts filtered by user's client roles
+        return accountService.findAccountsByUserClientRoles(accountId).stream()
                 .map(this::toAccountResponse)
                 .collect(Collectors.toList());
     }

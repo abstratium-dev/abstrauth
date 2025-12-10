@@ -1,12 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
+import { ActivatedRoute, Router } from '@angular/router';
+import { BehaviorSubject, EMPTY } from 'rxjs';
 import { ClientsComponent } from './clients.component';
 
 describe('ClientsComponent', () => {
   let component: ClientsComponent;
   let fixture: ComponentFixture<ClientsComponent>;
   let httpMock: HttpTestingController;
+  let queryParamsSubject: BehaviorSubject<any>;
 
   const mockClients = [
     {
@@ -32,11 +35,25 @@ describe('ClientsComponent', () => {
   ];
 
   beforeEach(async () => {
+    queryParamsSubject = new BehaviorSubject({});
+    
+    const routerSpy = jasmine.createSpyObj('Router', ['navigate', 'createUrlTree', 'serializeUrl']);
+    routerSpy.createUrlTree.and.returnValue({});
+    routerSpy.serializeUrl.and.returnValue('');
+    routerSpy.events = EMPTY;
+    
     await TestBed.configureTestingModule({
       imports: [ClientsComponent],
       providers: [
         provideHttpClient(),
-        provideHttpClientTesting()
+        provideHttpClientTesting(),
+        { provide: Router, useValue: routerSpy },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            queryParams: queryParamsSubject.asObservable()
+          }
+        }
       ]
     })
     .compileComponents();

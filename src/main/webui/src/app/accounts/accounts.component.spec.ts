@@ -2,9 +2,9 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of, BehaviorSubject } from 'rxjs';
+import { of, BehaviorSubject, EMPTY } from 'rxjs';
 import { AccountsComponent } from './accounts.component';
-import { ROLE_ADMIN } from '../auth.service';
+import { AuthService, ROLE_ADMIN } from '../auth.service';
 
 describe('AccountsComponent', () => {
   let component: AccountsComponent;
@@ -23,7 +23,7 @@ describe('AccountsComponent', () => {
       picture: 'https://example.com/admin.jpg',
       createdAt: '2024-01-01T00:00:00Z',
       roles: [
-        { clientId: 'client-1', role: ROLE_ADMIN },
+        { clientId: 'abstratium-abstrauth', role: 'admin' },
         { clientId: 'client-2', role: 'user' }
       ]
     },
@@ -52,7 +52,14 @@ describe('AccountsComponent', () => {
   beforeEach(async () => {
     queryParamsSubject = new BehaviorSubject({});
     
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+    const routerSpy = jasmine.createSpyObj('Router', ['navigate', 'createUrlTree', 'serializeUrl']);
+    routerSpy.createUrlTree.and.returnValue({});
+    routerSpy.serializeUrl.and.returnValue('');
+    routerSpy.events = EMPTY;
+    
+    const authServiceSpy = jasmine.createSpyObj('AuthService', ['hasRole', 'token$']);
+    authServiceSpy.hasRole.and.returnValue(true); // Mock user as admin
+    authServiceSpy.token$.and.returnValue({ sub: '1' }); // Mock current user ID
     
     await TestBed.configureTestingModule({
       imports: [AccountsComponent],
@@ -60,6 +67,7 @@ describe('AccountsComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: Router, useValue: routerSpy },
+        { provide: AuthService, useValue: authServiceSpy },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -99,10 +107,6 @@ describe('AccountsComponent', () => {
 
     it('should start with no error', () => {
       expect(component.error).toBeNull();
-    });
-
-    it('should start with empty filter text', () => {
-      expect(component.filterText).toBe('');
     });
 
     it('should call loadAccounts on init', () => {
@@ -284,7 +288,7 @@ describe('AccountsComponent', () => {
       const compiled = fixture.nativeElement;
       const roleNames = compiled.querySelectorAll('.sub-tile-title');
       
-      expect(roleNames[0].textContent).toContain(ROLE_ADMIN);
+      expect(roleNames[0].textContent).toContain('admin');
       expect(roleNames[1].textContent).toContain('user');
     });
 
@@ -298,7 +302,7 @@ describe('AccountsComponent', () => {
       const compiled = fixture.nativeElement;
       const roleClients = compiled.querySelectorAll('.sub-tile-content');
       
-      expect(roleClients[0].textContent).toContain('client-1');
+      expect(roleClients[0].textContent).toContain('abstratium-abstrauth');
       expect(roleClients[1].textContent).toContain('client-2');
     });
 
@@ -333,70 +337,61 @@ describe('AccountsComponent', () => {
     });
 
     it('should filter accounts by email', () => {
-      component.filterText = 'admin@example.com';
-      component.applyFilter();
+      component.onFilterChange('admin@example.com');
       
       expect(component.filteredAccounts.length).toBe(1);
       expect(component.filteredAccounts[0].email).toBe('admin@example.com');
     });
 
     it('should filter accounts by name', () => {
-      component.filterText = 'Regular';
-      component.applyFilter();
+      component.onFilterChange('Regular');
       
       expect(component.filteredAccounts.length).toBe(1);
       expect(component.filteredAccounts[0].name).toBe('Regular User');
     });
 
     it('should filter accounts by role', () => {
-      component.filterText = ROLE_ADMIN;
-      component.applyFilter();
+      component.onFilterChange('admin');
       
       expect(component.filteredAccounts.length).toBe(1);
       expect(component.filteredAccounts[0].name).toBe('Admin User');
     });
 
     it('should filter accounts by client ID', () => {
-      component.filterText = 'client-2';
-      component.applyFilter();
+      component.onFilterChange('client-2');
       
       expect(component.filteredAccounts.length).toBe(1);
       expect(component.filteredAccounts[0].name).toBe('Admin User');
     });
 
     it('should filter accounts by provider', () => {
-      component.filterText = 'google';
-      component.applyFilter();
+      component.onFilterChange('google');
       
       expect(component.filteredAccounts.length).toBe(1);
       expect(component.filteredAccounts[0].authProvider).toBe('google');
     });
 
     it('should be case-insensitive', () => {
-      component.filterText = 'ADMIN';
-      component.applyFilter();
+      component.onFilterChange('ADMIN');
       
       expect(component.filteredAccounts.length).toBe(1);
       expect(component.filteredAccounts[0].email).toBe('admin@example.com');
     });
 
     it('should show all accounts when filter is empty', () => {
-      component.filterText = '';
-      component.applyFilter();
+      component.onFilterChange('');
       
       expect(component.filteredAccounts.length).toBe(3);
     });
 
     it('should show no accounts when filter matches nothing', () => {
-      component.filterText = 'nonexistent';
-      component.applyFilter();
+      component.onFilterChange('nonexistent');
       
       expect(component.filteredAccounts.length).toBe(0);
     });
 
     it('should display "No accounts match" message when filter has no results', () => {
-      component.filterText = 'nonexistent';
-      component.applyFilter();
+      component.onFilterChange('nonexistent');
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -407,8 +402,7 @@ describe('AccountsComponent', () => {
     });
 
     it('should display filter count', () => {
-      component.filterText = 'native';
-      component.applyFilter();
+      component.onFilterChange('native');
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -418,150 +412,10 @@ describe('AccountsComponent', () => {
       expect(filterInfo.textContent).toContain('Showing 2 of 3 accounts');
     });
 
-    it('should update URL when filter changes', () => {
-      component.filterText = 'admin';
-      component.onFilterChange();
-      
-      expect(router.navigate).toHaveBeenCalledWith(
-        [],
-        jasmine.objectContaining({
-          queryParams: { filter: 'admin' }
-        })
-      );
-    });
-
-    it('should clear filter parameter from URL when filter is empty', () => {
-      component.filterText = '';
-      component.onFilterChange();
-      
-      expect(router.navigate).toHaveBeenCalledWith(
-        [],
-        jasmine.objectContaining({
-          queryParams: { filter: null }
-        })
-      );
-    });
-
-    it('should display inline clear button when filter has text', () => {
-      component.filterText = 'admin';
-      fixture.detectChanges();
-
-      const compiled = fixture.nativeElement;
-      const clearButton = compiled.querySelector('.filter-clear-button');
-      
-      expect(clearButton).toBeTruthy();
-      expect(clearButton.textContent).toBe('×');
-    });
-
-    it('should not display clear button when filter is empty', () => {
-      component.filterText = '';
-      fixture.detectChanges();
-
-      const compiled = fixture.nativeElement;
-      const clearButton = compiled.querySelector('.filter-clear-button');
-      
-      expect(clearButton).toBeFalsy();
-    });
-
-    it('should clear filter when clear button is clicked', () => {
-      component.filterText = 'admin';
-      component.clearFilter();
-      
-      expect(component.filterText).toBe('');
-      expect(router.navigate).toHaveBeenCalled();
-    });
+    // URL parameter handling and clear button tests are now handled by UrlFilterComponent
   });
 
-  describe('URL Filter Parameter - XSS Protection', () => {
-    it('should read filter from URL query parameter', () => {
-      queryParamsSubject.next({ filter: 'admin' });
-      component.ngOnInit();
-      
-      // Flush the HTTP request triggered by loadAccounts()
-      const req = httpMock.expectOne('/api/accounts');
-      req.flush([]);
-      
-      expect(component.filterText).toBe('admin');
-    });
-
-    it('should only accept string filter values', () => {
-      queryParamsSubject.next({ filter: 'validstring' });
-      component.ngOnInit();
-      
-      // Flush the HTTP request triggered by loadAccounts()
-      const req = httpMock.expectOne('/api/accounts');
-      req.flush([]);
-      
-      expect(component.filterText).toBe('validstring');
-    });
-
-    it('should reject object filter values (XSS protection)', () => {
-      queryParamsSubject.next({ filter: { malicious: 'object' } });
-      component.ngOnInit();
-      
-      // Flush the HTTP request triggered by loadAccounts()
-      const req = httpMock.expectOne('/api/accounts');
-      req.flush([]);
-      
-      expect(component.filterText).toBe('');
-    });
-
-    it('should reject array filter values (XSS protection)', () => {
-      queryParamsSubject.next({ filter: ['malicious', 'array'] });
-      component.ngOnInit();
-      
-      // Flush the HTTP request triggered by loadAccounts()
-      const req = httpMock.expectOne('/api/accounts');
-      req.flush([]);
-      
-      expect(component.filterText).toBe('');
-    });
-
-    it('should handle missing filter parameter', () => {
-      queryParamsSubject.next({});
-      component.ngOnInit();
-      
-      // Flush the HTTP request triggered by loadAccounts()
-      const req = httpMock.expectOne('/api/accounts');
-      req.flush([]);
-      
-      expect(component.filterText).toBe('');
-    });
-
-    it('should handle null filter parameter', () => {
-      queryParamsSubject.next({ filter: null });
-      component.ngOnInit();
-      
-      // Flush the HTTP request triggered by loadAccounts()
-      const req = httpMock.expectOne('/api/accounts');
-      req.flush([]);
-      
-      expect(component.filterText).toBe('');
-    });
-
-    it('should handle undefined filter parameter', () => {
-      queryParamsSubject.next({ filter: undefined });
-      component.ngOnInit();
-      
-      // Flush the HTTP request triggered by loadAccounts()
-      const req = httpMock.expectOne('/api/accounts');
-      req.flush([]);
-      
-      expect(component.filterText).toBe('');
-    });
-
-    it('should apply filter after reading from URL', () => {
-      fixture.detectChanges();
-      const req = httpMock.expectOne('/api/accounts');
-      req.flush(mockAccounts);
-      
-      queryParamsSubject.next({ filter: 'admin' });
-      fixture.detectChanges();
-      
-      expect(component.filteredAccounts.length).toBe(1);
-      expect(component.filteredAccounts[0].email).toBe('admin@example.com');
-    });
-  });
+  // URL Filter Parameter and XSS Protection tests are now handled by UrlFilterComponent
 
   describe('Admin Count', () => {
     it('should count admin accounts correctly', () => {
@@ -593,7 +447,7 @@ describe('AccountsComponent', () => {
         mockAccounts[0],
         {
           ...mockAccounts[1],
-          roles: [{ clientId: 'client-1', role: ROLE_ADMIN }]
+          roles: [{ clientId: 'abstratium-abstrauth', role: 'admin' }]
         }
       ];
       

@@ -147,7 +147,7 @@ For development, you can run tests manually:
 
 ## TODO
 
-### Now
+### Today
 
 - is the following really true?
 
@@ -169,14 +169,14 @@ For development, you can run tests manually:
     User makes subsequent request with revoked token → Filter checks database → 401 response
     The filter is correctly implemented and will work in production. The test failure is a test isolation issue, not a code issue.
 
-- accounts page
-  - add user by creating a link which you send to them manually. it precreates their account which is confirmed during login
-  - add filter so that you can jump from clients page to see all the accounts belonging to a client
-  - ability to add new roles
-    - how exactly are roles stored - does it strip the client_id from the name automatically?
 - clients page
-  - add filter and make filter a reusable component
   - add ability to create a new client
+- accounts page
+  - ability to add new roles
+  - add user by creating a link which you send to them manually. it precreates their account which is confirmed during login
+
+### Tomorrow
+
 - refactor http error handling in angular code, potentially using an interceptor
 - angular should always use inject and not constructor
 - does it make sense that revocation is used to log out?

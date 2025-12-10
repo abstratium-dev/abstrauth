@@ -15,37 +15,23 @@
   </div>
 
   <div *ngIf="!loading && !error && accounts.length > 0">
-    <div class="notice-box" [ngClass]="getAdminCount() === 1 ? 'notice-success' : ''">
-      <p *ngIf="getAdminCount() === 1">
+    <div *ngIf="getAdminCount() > 0" class="notice-box" [ngClass]="getAdminCount() === 1 ? 'notice-success' : 'notice-info'">
+      <p *ngIf="getAdminCount() === 1 && hasAdminRole()">
         ✓ You are the first and only admin
       </p>
-      <p *ngIf="getAdminCount() > 1">
+      <p *ngIf="getAdminCount() > 1 && hasAdminRole()">
         ⚠ Multiple admin accounts detected ({{ getAdminCount() }} admins)
       </p>
     </div>
 
     <!-- Filter Section -->
-    <div class="filter-section">
-      <div class="filter-input-wrapper">
-        <input 
-          type="text" 
-          [(ngModel)]="filterText" 
-          (input)="onFilterChange()"
-          placeholder="Filter by name, email, role, or provider..."
-          class="filter-input"
-        />
-        <button 
-          *ngIf="filterText" 
-          (click)="clearFilter()" 
-          class="filter-clear-button"
-          type="button"
-          aria-label="Clear filter"
-        >×</button>
-      </div>
-      <div class="filter-info">
-        <span>Showing {{ filteredAccounts.length }} of {{ accounts.length }} accounts</span>
-      </div>
-    </div>
+    <url-filter
+      [placeholder]="'Filter by name, email, role, or provider...'"
+      [itemCount]="filteredAccounts.length"
+      [totalCount]="accounts.length"
+      [itemLabel]="'accounts'"
+      (filterChange)="onFilterChange($event)">
+    </url-filter>
 
     <!-- No Results Message -->
     <div *ngIf="filteredAccounts.length === 0" class="info-message">
@@ -54,7 +40,7 @@
 
     <!-- Account Tiles -->
     <div class="tile-grid" *ngIf="filteredAccounts.length > 0">
-      <div class="tile" *ngFor="let account of filteredAccounts">
+      <div class="tile" [class.highlighted-tile]="isCurrentUser(account.id)" *ngFor="let account of filteredAccounts">
         <div class="tile-header">
           <div class="tile-identity">
             <img *ngIf="account.picture" [src]="account.picture" [alt]="account.name" class="tile-picture">
@@ -86,7 +72,9 @@
           <div *ngIf="account.roles && account.roles.length > 0" class="sub-tiles">
             <div class="sub-tile" *ngFor="let role of account.roles">
               <div class="sub-tile-title">{{ role.role }}</div>
-              <div class="sub-tile-content">Client: {{ role.clientId }}</div>
+              <div class="sub-tile-content">
+                Client: <a [routerLink]="['/clients']" [queryParams]="{filter: role.clientId}" class="client-link">{{ role.clientId }}</a>
+              </div>
             </div>
           </div>
           <div *ngIf="!account.roles || account.roles.length === 0" class="sub-tiles-empty">
