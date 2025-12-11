@@ -198,13 +198,15 @@ public class SecurityAuditTest {
             correctTimes[i] = System.nanoTime() - startCorrect;
 
             // Test with incorrect verifier
+            // Use the same codeChallenge but provide wrong verifier
             String authRequestId2 = initiateAuthorizationFlow(codeChallenge);
             authenticateAndApprove(authRequestId2);
             String authCode2 = getAuthorizationCode(authRequestId2);
             
+            // Create a wrong verifier that will not match the challenge
             String wrongVerifier = "A" + codeVerifier.substring(1);
             long startWrong = System.nanoTime();
-            given()
+            var response = given()
                 .contentType(ContentType.URLENC)
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", authCode2)
@@ -212,9 +214,10 @@ public class SecurityAuditTest {
                 .formParam("client_id", testClient.getClientId())
                 .formParam("code_verifier", wrongVerifier)
             .when()
-                .post("/oauth2/token")
-            .then()
-                .statusCode(400);
+                .post("/oauth2/token");
+            
+            // Verify it fails with 400
+            response.then().statusCode(400);
             wrongTimes[i] = System.nanoTime() - startWrong;
         }
         

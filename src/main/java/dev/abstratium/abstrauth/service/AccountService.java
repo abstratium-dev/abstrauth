@@ -200,7 +200,9 @@ public class AccountService {
         
         // If user has no roles, return only the account belonging to them
         if (userClientIds.isEmpty()) {
-            return List.of(findById(accountId).get());
+            return findById(accountId)
+                .map(List::of)
+                .orElse(List.of());
         }
         
         // Then, find all account IDs that have roles for any of those client IDs
@@ -213,7 +215,9 @@ public class AccountService {
         
         // If no accounts found, return only the account belonging to them
         if (accountIds.isEmpty()) {
-            return List.of(findById(accountId).get());
+            return findById(accountId)
+                .map(List::of)
+                .orElse(List.of());
         }
         
         // Finally, fetch the full accounts with roles eagerly loaded

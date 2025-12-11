@@ -4,10 +4,10 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.TestTransaction;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
@@ -21,6 +21,12 @@ public class AccountsResourceTest {
 
     @Inject
     AccountRoleService accountRoleService;
+    
+    @Inject
+    jakarta.persistence.EntityManager em;
+    
+    @Inject
+    jakarta.transaction.UserTransaction userTransaction;
 
     private String generateAdminToken(String accountId) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
@@ -53,7 +59,7 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @Transactional
+    @TestTransaction
     public void testListAccountsAsAdmin() {
         // Create a test admin account
         String email = "testadmin_" + System.currentTimeMillis() + "@example.com";
@@ -71,12 +77,13 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @Transactional
-    public void testListAccountsAsManagerWithSharedClients() {
+    public void testListAccountsAsManagerWithSharedClients() throws Exception {
         // Create manager account
+        userTransaction.begin();
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123");
-        accountRoleService.addRole(manager.getId(), "client-a", "manager");
+        String managerId = manager.getId();
+        accountRoleService.addRole(managerId, "client-a", "manager");
         
         // Create another account with same client
         String userEmail = "shareduser_" + System.currentTimeMillis() + "@example.com";
@@ -87,10 +94,11 @@ public class AccountsResourceTest {
         String otherEmail = "otheruser_" + System.currentTimeMillis() + "@example.com";
         Account other = accountService.createAccount(otherEmail, "Other User", "otheruser_" + System.currentTimeMillis(), "Pass123");
         accountRoleService.addRole(other.getId(), "client-b", "user");
+        userTransaction.commit();
         
         // Manager should see manager and shared user, but not other user
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .when()
             .get("/api/accounts")
             .then()
@@ -102,21 +110,23 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @Transactional
-    public void testListAccountsAsManagerWithNoSharedClients() {
+    public void testListAccountsAsManagerWithNoSharedClients() throws Exception {
         // Create manager account with unique client
+        userTransaction.begin();
         String managerEmail = "uniquemanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Unique Manager", "uniquemanager_" + System.currentTimeMillis(), "Pass123");
-        accountRoleService.addRole(manager.getId(), "client-unique", "manager");
+        String managerId = manager.getId();
+        accountRoleService.addRole(managerId, "client-unique", "manager");
         
         // Create other accounts with different clients
         String otherEmail = "differentuser_" + System.currentTimeMillis() + "@example.com";
         Account other = accountService.createAccount(otherEmail, "Different User", "differentuser_" + System.currentTimeMillis(), "Pass123");
         accountRoleService.addRole(other.getId(), "client-different", "user");
+        userTransaction.commit();
         
         // Manager should only see their own account
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .when()
             .get("/api/accounts")
             .then()
@@ -128,17 +138,19 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @Transactional
-    public void testListAccountsAsManagerWithNoRoles() {
+    public void testListAccountsAsManagerWithNoRoles() throws Exception {
         // Create manager account with no roles
+        userTransaction.begin();
         String managerEmail = "norolemanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "No Role Manager", "norolemanager_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        userTransaction.commit();
         
         // Don't add any roles
         
         // Manager should only see their own account
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .when()
             .get("/api/accounts")
             .then()
@@ -149,7 +161,7 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @Transactional
+    @TestTransaction
     public void testListAccountsAsNonManagerNonAdmin() {
         // Create regular user account
         String userEmail = "regularuser_" + System.currentTimeMillis() + "@example.com";
@@ -175,13 +187,14 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @Transactional
-    public void testListAccountsAsManagerWithMultipleSharedClients() {
+    public void testListAccountsAsManagerWithMultipleSharedClients() throws Exception {
         // Create manager with multiple clients
+        userTransaction.begin();
         String managerEmail = "multimanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Multi Manager", "multimanager_" + System.currentTimeMillis(), "Pass123");
-        accountRoleService.addRole(manager.getId(), "client-x", "manager");
-        accountRoleService.addRole(manager.getId(), "client-y", "manager");
+        String managerId = manager.getId();
+        accountRoleService.addRole(managerId, "client-x", "manager");
+        accountRoleService.addRole(managerId, "client-y", "manager");
         
         // Create user1 sharing client-x
         String user1Email = "user1_" + System.currentTimeMillis() + "@example.com";
@@ -197,10 +210,11 @@ public class AccountsResourceTest {
         String user3Email = "user3_" + System.currentTimeMillis() + "@example.com";
         Account user3 = accountService.createAccount(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123");
         accountRoleService.addRole(user3.getId(), "client-z", "user");
+        userTransaction.commit();
         
         // Manager should see manager, user1, and user2, but not user3
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .when()
             .get("/api/accounts")
             .then()

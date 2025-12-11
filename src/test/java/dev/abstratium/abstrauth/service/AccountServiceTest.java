@@ -327,24 +327,27 @@ public class AccountServiceTest {
     @Transactional
     public void testFindAccountsByUserClientRoles_NoSharedClients() {
         // Create two accounts with different clients
-        String email1 = "noshared1_" + System.currentTimeMillis() + "@example.com";
-        String email2 = "noshared2_" + System.currentTimeMillis() + "@example.com";
+        long timestamp = System.currentTimeMillis();
+        String email1 = "noshared1_" + timestamp + "@example.com";
+        String email2 = "noshared2_" + timestamp + "@example.com";
+        String clientX = "client-x-" + timestamp;
+        String clientY = "client-y-" + timestamp;
         
-        Account account1 = accountService.createAccount(email1, "User 1", "noshared1_" + System.currentTimeMillis(), "Pass123");
-        Account account2 = accountService.createAccount(email2, "User 2", "noshared2_" + System.currentTimeMillis(), "Pass123");
+        Account account1 = accountService.createAccount(email1, "User 1", "noshared1_" + timestamp, "Pass123");
+        Account account2 = accountService.createAccount(email2, "User 2", "noshared2_" + timestamp, "Pass123");
         
-        // Give account1 role for client-x
-        accountRoleService.addRole(account1.getId(), "client-x", "user");
+        // Give account1 role for unique client-x
+        accountRoleService.addRole(account1.getId(), clientX, "user");
         
-        // Give account2 role for client-y (different client)
-        accountRoleService.addRole(account2.getId(), "client-y", "user");
+        // Give account2 role for unique client-y (different client)
+        accountRoleService.addRole(account2.getId(), clientY, "user");
         
         // Find accounts by account1's client roles
         var accounts = accountService.findAccountsByUserClientRoles(account1.getId());
         
-        // Should return only account1 (no shared clients with others)
-        assertEquals(1, accounts.size());
-        assertEquals(account1.getId(), accounts.get(0).getId());
+        // Should return only account1 (no shared clients with account2)
+        assertEquals(1, accounts.size(), "Should return exactly 1 account");
+        assertEquals(account1.getId(), accounts.get(0).getId(), "Should be account1");
     }
 
     @Test
@@ -367,40 +370,48 @@ public class AccountServiceTest {
     @Test
     @Transactional
     public void testFindAccountsByUserClientRoles_MultipleSharedClients() {
-        // Create four accounts
-        String email1 = "multi1_" + System.currentTimeMillis() + "@example.com";
-        String email2 = "multi2_" + System.currentTimeMillis() + "@example.com";
-        String email3 = "multi3_" + System.currentTimeMillis() + "@example.com";
-        String email4 = "multi4_" + System.currentTimeMillis() + "@example.com";
+        // Create four accounts with unique client IDs to isolate from other tests
+        long timestamp = System.currentTimeMillis();
+        String email1 = "multi1_" + timestamp + "@example.com";
+        String email2 = "multi2_" + timestamp + "@example.com";
+        String email3 = "multi3_" + timestamp + "@example.com";
+        String email4 = "multi4_" + timestamp + "@example.com";
+        String clientA = "client-a-" + timestamp;
+        String clientB = "client-b-" + timestamp;
+        String clientC = "client-c-" + timestamp;
         
-        Account account1 = accountService.createAccount(email1, "User 1", "multi1_" + System.currentTimeMillis(), "Pass123");
-        Account account2 = accountService.createAccount(email2, "User 2", "multi2_" + System.currentTimeMillis(), "Pass123");
-        Account account3 = accountService.createAccount(email3, "User 3", "multi3_" + System.currentTimeMillis(), "Pass123");
-        Account account4 = accountService.createAccount(email4, "User 4", "multi4_" + System.currentTimeMillis(), "Pass123");
+        Account account1 = accountService.createAccount(email1, "User 1", "multi1_" + timestamp, "Pass123");
+        Account account2 = accountService.createAccount(email2, "User 2", "multi2_" + timestamp, "Pass123");
+        Account account3 = accountService.createAccount(email3, "User 3", "multi3_" + timestamp, "Pass123");
+        Account account4 = accountService.createAccount(email4, "User 4", "multi4_" + timestamp, "Pass123");
         
-        // account1 has roles for client-a, client-b, client-c
-        accountRoleService.addRole(account1.getId(), "client-a", "user");
-        accountRoleService.addRole(account1.getId(), "client-b", "user");
-        accountRoleService.addRole(account1.getId(), "client-c", "user");
+        // account1 has roles for unique client-a, client-b, client-c
+        accountRoleService.addRole(account1.getId(), clientA, "user");
+        accountRoleService.addRole(account1.getId(), clientB, "user");
+        accountRoleService.addRole(account1.getId(), clientC, "user");
         
         // account2 shares client-a with account1
-        accountRoleService.addRole(account2.getId(), "client-a", "admin");
+        accountRoleService.addRole(account2.getId(), clientA, "admin");
         
         // account3 shares client-b with account1
-        accountRoleService.addRole(account3.getId(), "client-b", "user");
+        accountRoleService.addRole(account3.getId(), clientB, "user");
         
         // account4 shares client-c with account1
-        accountRoleService.addRole(account4.getId(), "client-c", "manager");
+        accountRoleService.addRole(account4.getId(), clientC, "manager");
         
         // Find accounts by account1's client roles
         var accounts = accountService.findAccountsByUserClientRoles(account1.getId());
         
-        // Should return all four accounts (all share at least one client with account1)
-        assertEquals(4, accounts.size());
-        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account1.getId())));
-        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account2.getId())));
-        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account3.getId())));
-        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account4.getId())));
+        // Should return exactly all four accounts (all share at least one client with account1)
+        assertEquals(4, accounts.size(), "Should return exactly 4 accounts");
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account1.getId())), 
+            "Should include account1");
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account2.getId())), 
+            "Should include account2 (shares client-a)");
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account3.getId())), 
+            "Should include account3 (shares client-b)");
+        assertTrue(accounts.stream().anyMatch(a -> a.getId().equals(account4.getId())), 
+            "Should include account4 (shares client-c)");
     }
 
     @Test
