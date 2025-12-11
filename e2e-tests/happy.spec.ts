@@ -111,15 +111,18 @@ test('sign up and in', async ({ page }) => {
   const accountsFilter = page.locator('.filter-input');
   await expect(accountsFilter).toHaveValue('abstratium-abstrauth');
   
+  // The account should have roles for this client, so it should be visible
+  // Wait for the account tile to be visible (this ensures roles are loaded)
+  const accountTile = page.locator('.tile').first();
+  await expect(accountTile).toBeVisible({ timeout: 10000 });
+  await expect(accountTile).toContainText(email);
+  
   // Verify filtered results show our account
-  await expect(page.locator('.filter-info')).toContainText('Showing 0 of 1 accounts');
-  await expect(page.locator('.info-message')).toContainText('No accounts match your filter criteria.');
+  await expect(page.locator('.filter-info')).toContainText('Showing 1 of 1 accounts');
 
   // Clear filter
   await page.locator('.filter-clear-button').click();
   await expect(page.locator('.filter-input')).toHaveValue('');
-  const accountTile = page.locator('.tile').first();
   await expect(accountTile).toBeVisible();
-  await expect(accountTile).toContainText(email);
   
 });

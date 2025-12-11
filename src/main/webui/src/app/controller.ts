@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { Account, ModelService, OAuthClient } from './model.service';
 
 @Injectable({
@@ -62,5 +63,90 @@ export class Controller {
         this.modelService.setSignupAllowed(false);
       }
     });
+  }
+
+  async createClient(clientData: {
+    clientId: string;
+    clientName: string;
+    clientType: string;
+    redirectUris: string;
+    allowedScopes: string;
+    requirePkce: boolean;
+  }): Promise<OAuthClient> {
+    try {
+      const response = await firstValueFrom(
+        this.http.post<OAuthClient>('/api/clients', clientData)
+      );
+      // Reload clients list after successful creation
+      this.loadClients();
+      return response;
+    } catch (error) {
+      console.error('Error creating client:', error);
+      throw error;
+    }
+  }
+
+  async updateClient(clientId: string, clientData: any): Promise<any> {
+    try {
+      const response = await firstValueFrom(
+        this.http.put<any>(`/api/clients/${clientId}`, clientData)
+      );
+      // Reload clients list after successful update
+      this.loadClients();
+      return response;
+    } catch (error) {
+      console.error('Error updating client:', error);
+      throw error;
+    }
+  }
+
+  async deleteClient(clientId: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(`/api/clients/${clientId}`)
+      );
+      // Reload clients list after successful deletion
+      this.loadClients();
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      throw error;
+    }
+  }
+
+  async addAccountRole(accountId: string, clientId: string, role: string): Promise<any> {
+    try {
+      const response = await firstValueFrom(
+        this.http.post<any>('/api/accounts/role', {
+          accountId,
+          clientId,
+          role
+        })
+      );
+      // Reload accounts list after successful role addition
+      this.loadAccounts();
+      return response;
+    } catch (error) {
+      console.error('Error adding account role:', error);
+      throw error;
+    }
+  }
+
+  async removeAccountRole(accountId: string, clientId: string, role: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.request('delete', '/api/accounts/role', {
+          body: {
+            accountId,
+            clientId,
+            role
+          }
+        })
+      );
+      // Reload accounts list after successful role removal
+      this.loadAccounts();
+    } catch (error) {
+      console.error('Error removing account role:', error);
+      throw error;
+    }
   }
 }

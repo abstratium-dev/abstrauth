@@ -348,4 +348,498 @@ describe('ClientsComponent', () => {
       expect(card).toBeTruthy();
     });
   });
+
+  describe('Form Management', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('/api/clients');
+      req.flush(mockClients);
+      fixture.detectChanges();
+    });
+
+    it('should start with form hidden', () => {
+      expect(component.showForm).toBe(false);
+    });
+
+    it('should toggle form visibility', () => {
+      expect(component.showForm).toBe(false);
+      component.toggleForm();
+      expect(component.showForm).toBe(true);
+      component.toggleForm();
+      expect(component.showForm).toBe(false);
+    });
+
+    it('should reset form when showing', () => {
+      component.formData.clientId = 'test';
+      component.formError = 'Some error';
+      component.toggleForm();
+      expect(component.formData.clientId).toBe('');
+      expect(component.formError).toBeNull();
+    });
+
+    it('should initialize form with default values', () => {
+      component.resetForm();
+      expect(component.formData.clientId).toBe('');
+      expect(component.formData.clientName).toBe('');
+      expect(component.formData.clientType).toBe('public');
+      expect(component.formData.redirectUris).toBe('');
+      expect(component.formData.allowedScopes).toBe('');
+      expect(component.formData.requirePkce).toBe(true);
+      expect(component.formError).toBeNull();
+    });
+  });
+
+  describe('Client Creation', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('/api/clients');
+      req.flush(mockClients);
+      fixture.detectChanges();
+    });
+
+    it('should create client successfully', async () => {
+      component.formData = {
+        clientId: 'new-client',
+        clientName: 'New Client',
+        clientType: 'public',
+        redirectUris: 'http://localhost:3000/callback',
+        allowedScopes: 'openid profile',
+        requirePkce: true
+      };
+
+      const submitPromise = component.onSubmit();
+
+      const createReq = httpMock.expectOne('/api/clients');
+      expect(createReq.request.method).toBe('POST');
+      expect(createReq.request.body.clientId).toBe('new-client');
+      expect(createReq.request.body.redirectUris).toBe('["http://localhost:3000/callback"]');
+      expect(createReq.request.body.allowedScopes).toBe('["openid","profile"]');
+      
+      createReq.flush({
+        id: '3',
+        clientId: 'new-client',
+        clientName: 'New Client',
+        clientType: 'public',
+        redirectUris: '["http://localhost:3000/callback"]',
+        allowedScopes: '["openid", "profile"]',
+        requirePkce: true,
+        createdAt: '2024-01-03T00:00:00Z'
+      });
+
+      // Wait a microtask for loadClients() to be called
+      await Promise.resolve();
+
+      // Expect reload of clients list
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([...mockClients]);
+
+      await submitPromise;
+
+      expect(component.showForm).toBe(false);
+      expect(component.formError).toBeNull();
+    });
+
+    it('should handle multiple redirect URIs', async () => {
+      component.formData = {
+        clientId: 'multi-uri-client',
+        clientName: 'Multi URI Client',
+        clientType: 'public',
+        redirectUris: 'http://localhost:3000/callback\nhttp://localhost:4000/callback',
+        allowedScopes: 'openid',
+        requirePkce: true
+      };
+
+      const submitPromise = component.onSubmit();
+
+      const createReq = httpMock.expectOne('/api/clients');
+      expect(createReq.request.body.redirectUris).toBe('["http://localhost:3000/callback","http://localhost:4000/callback"]');
+      
+      createReq.flush({ id: '3', ...component.formData });
+      
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([]);
+
+      await submitPromise;
+    });
+
+    it('should handle comma-separated scopes', async () => {
+      component.formData = {
+        clientId: 'comma-scopes-client',
+        clientName: 'Comma Scopes Client',
+        clientType: 'public',
+        redirectUris: 'http://localhost:3000/callback',
+        allowedScopes: 'openid, profile, email',
+        requirePkce: true
+      };
+
+      const submitPromise = component.onSubmit();
+
+      const createReq = httpMock.expectOne('/api/clients');
+      expect(createReq.request.body.allowedScopes).toBe('["openid","profile","email"]');
+      
+      createReq.flush({ id: '3', ...component.formData });
+      
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([]);
+
+      await submitPromise;
+    });
+
+    it('should validate redirect URIs are not empty', async () => {
+      component.formData = {
+        clientId: 'test-client',
+        clientName: 'Test Client',
+        clientType: 'public',
+        redirectUris: '',
+        allowedScopes: 'openid',
+        requirePkce: true
+      };
+
+      await component.onSubmit();
+
+      expect(component.formError).toBe('At least one redirect URI is required');
+      expect(component.formSubmitting).toBe(false);
+    });
+
+    it('should validate scopes are not empty', async () => {
+      component.formData = {
+        clientId: 'test-client',
+        clientName: 'Test Client',
+        clientType: 'public',
+        redirectUris: 'http://localhost:3000/callback',
+        allowedScopes: '',
+        requirePkce: true
+      };
+
+      await component.onSubmit();
+
+      expect(component.formError).toBe('At least one scope is required');
+      expect(component.formSubmitting).toBe(false);
+    });
+
+    it('should handle duplicate client ID error', async () => {
+      component.showForm = true;
+      component.formData = {
+        clientId: 'existing-client',
+        clientName: 'Existing Client',
+        clientType: 'public',
+        redirectUris: 'http://localhost:3000/callback',
+        allowedScopes: 'openid',
+        requirePkce: true
+      };
+
+      const submitPromise = component.onSubmit();
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush({ error: 'Client ID already exists' }, { status: 409, statusText: 'Conflict' });
+
+      await submitPromise;
+
+      expect(component.formError).toBe('Client ID already exists');
+      expect(component.showForm).toBe(true);
+    });
+
+    it('should handle permission error', async () => {
+      component.formData = {
+        clientId: 'test-client',
+        clientName: 'Test Client',
+        clientType: 'public',
+        redirectUris: 'http://localhost:3000/callback',
+        allowedScopes: 'openid',
+        requirePkce: true
+      };
+
+      const submitPromise = component.onSubmit();
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush({}, { status: 403, statusText: 'Forbidden' });
+
+      await submitPromise;
+
+      expect(component.formError).toBe('You do not have permission to create clients');
+    });
+
+    it('should handle generic error', async () => {
+      component.formData = {
+        clientId: 'test-client',
+        clientName: 'Test Client',
+        clientType: 'public',
+        redirectUris: 'http://localhost:3000/callback',
+        allowedScopes: 'openid',
+        requirePkce: true
+      };
+
+      const submitPromise = component.onSubmit();
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush({}, { status: 500, statusText: 'Server Error' });
+
+      await submitPromise;
+
+      expect(component.formError).toBe('Failed to create client. Please try again.');
+    });
+
+    it('should set formSubmitting during submission', async () => {
+      component.formData = {
+        clientId: 'test-client',
+        clientName: 'Test Client',
+        clientType: 'public',
+        redirectUris: 'http://localhost:3000/callback',
+        allowedScopes: 'openid',
+        requirePkce: true
+      };
+
+      expect(component.formSubmitting).toBe(false);
+      
+      const submitPromise = component.onSubmit();
+      
+      // Should be true during submission
+      expect(component.formSubmitting).toBe(true);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush({ id: '3', ...component.formData });
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([]);
+
+      await submitPromise;
+
+      expect(component.formSubmitting).toBe(false);
+    });
+  });
+
+  describe('Role-based Access', () => {
+    it('should check for manage clients role', () => {
+      // This test verifies the method exists and returns a boolean
+      const result = component.hasManageClientsRole();
+      expect(typeof result).toBe('boolean');
+    });
+  });
+
+  describe('Client Editing', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('/api/clients');
+      req.flush(mockClients);
+      fixture.detectChanges();
+    });
+
+    it('should start edit mode for a client', () => {
+      expect(component.editingClientId).toBeNull();
+      
+      component.startEdit(mockClients[0]);
+      
+      expect(component.editingClientId).toBe('1');
+      expect(component.showForm).toBe(false);
+      expect(component.formData.clientId).toBe('test-client-1');
+      expect(component.formData.clientName).toBe('Test Client 1');
+      expect(component.formData.clientType).toBe('public');
+      expect(component.formData.redirectUris).toBe('http://localhost:3000/callback');
+      expect(component.formData.allowedScopes).toBe('openid profile email');
+      expect(component.formData.requirePkce).toBe(true);
+    });
+
+    it('should cancel edit mode', () => {
+      component.startEdit(mockClients[0]);
+      expect(component.editingClientId).toBe('1');
+      
+      component.cancelEdit();
+      
+      expect(component.editingClientId).toBeNull();
+      expect(component.formData.clientId).toBe('');
+    });
+
+    it('should update client successfully', async () => {
+      component.startEdit(mockClients[0]);
+      component.formData.clientName = 'Updated Client Name';
+      component.formData.clientType = 'confidential';
+
+      const submitPromise = component.onSubmit();
+
+      const updateReq = httpMock.expectOne('/api/clients/1');
+      expect(updateReq.request.method).toBe('PUT');
+      expect(updateReq.request.body.clientName).toBe('Updated Client Name');
+      expect(updateReq.request.body.clientType).toBe('confidential');
+      
+      updateReq.flush({
+        ...mockClients[0],
+        clientName: 'Updated Client Name',
+        clientType: 'confidential'
+      });
+
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([...mockClients]);
+
+      await submitPromise;
+
+      expect(component.editingClientId).toBeNull();
+      expect(component.formError).toBeNull();
+    });
+
+    it('should handle update error', async () => {
+      component.startEdit(mockClients[0]);
+
+      const submitPromise = component.onSubmit();
+
+      const updateReq = httpMock.expectOne('/api/clients/1');
+      updateReq.flush({ error: 'Client not found' }, { status: 404, statusText: 'Not Found' });
+
+      await submitPromise;
+
+      expect(component.formError).toBeTruthy();
+      expect(component.editingClientId).toBe('1');
+    });
+
+    it('should parse JSON arrays correctly when starting edit', () => {
+      const client = {
+        ...mockClients[1],
+        redirectUris: '["http://localhost:4000/callback", "http://localhost:4000/auth"]',
+        allowedScopes: '["openid", "admin"]'
+      };
+
+      component.startEdit(client);
+
+      expect(component.formData.redirectUris).toBe('http://localhost:4000/callback\nhttp://localhost:4000/auth');
+      expect(component.formData.allowedScopes).toBe('openid admin');
+    });
+
+    it('should set formSubmitting during update', async () => {
+      component.startEdit(mockClients[0]);
+      
+      expect(component.formSubmitting).toBe(false);
+      
+      const submitPromise = component.onSubmit();
+      
+      expect(component.formSubmitting).toBe(true);
+
+      const updateReq = httpMock.expectOne('/api/clients/1');
+      updateReq.flush(mockClients[0]);
+      
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([]);
+
+      await submitPromise;
+
+      expect(component.formSubmitting).toBe(false);
+    });
+
+    it('should not include clientId in update request', async () => {
+      component.startEdit(mockClients[0]);
+
+      const submitPromise = component.onSubmit();
+
+      const updateReq = httpMock.expectOne('/api/clients/1');
+      expect(updateReq.request.body.clientId).toBeUndefined();
+      expect(updateReq.request.body.clientName).toBeDefined();
+      
+      updateReq.flush(mockClients[0]);
+      
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([]);
+
+      await submitPromise;
+    });
+  });
+
+  describe('Client Deletion', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('/api/clients');
+      req.flush(mockClients);
+      fixture.detectChanges();
+    });
+
+    it('should delete client successfully after confirmation', async () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+
+      const deletePromise = component.deleteClient(mockClients[0]);
+
+      const deleteReq = httpMock.expectOne('/api/clients/1');
+      expect(deleteReq.request.method).toBe('DELETE');
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' });
+
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([mockClients[1]]);
+
+      await deletePromise;
+
+      expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete "Test Client 1"? This action cannot be undone.');
+    });
+
+    it('should not delete client if user cancels confirmation', async () => {
+      spyOn(window, 'confirm').and.returnValue(false);
+
+      await component.deleteClient(mockClients[0]);
+
+      httpMock.expectNone('/api/clients/1');
+      expect(window.confirm).toHaveBeenCalled();
+    });
+
+    it('should cancel edit mode if deleting the client being edited', async () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      component.startEdit(mockClients[0]);
+      expect(component.editingClientId).toBe('1');
+
+      const deletePromise = component.deleteClient(mockClients[0]);
+
+      const deleteReq = httpMock.expectOne('/api/clients/1');
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' });
+      
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([]);
+
+      await deletePromise;
+
+      expect(component.editingClientId).toBeNull();
+    });
+
+    it('should handle 404 error when deleting', async () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      spyOn(window, 'alert');
+
+      const deletePromise = component.deleteClient(mockClients[0]);
+
+      const deleteReq = httpMock.expectOne('/api/clients/1');
+      deleteReq.flush({ error: 'Client not found' }, { status: 404, statusText: 'Not Found' });
+
+      await deletePromise;
+
+      expect(window.alert).toHaveBeenCalledWith('Client not found. It may have already been deleted.');
+    });
+
+    it('should handle 403 permission error when deleting', async () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      spyOn(window, 'alert');
+
+      const deletePromise = component.deleteClient(mockClients[0]);
+
+      const deleteReq = httpMock.expectOne('/api/clients/1');
+      deleteReq.flush({}, { status: 403, statusText: 'Forbidden' });
+
+      await deletePromise;
+
+      expect(window.alert).toHaveBeenCalledWith('You do not have permission to delete clients.');
+    });
+
+    it('should handle generic error when deleting', async () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      spyOn(window, 'alert');
+
+      const deletePromise = component.deleteClient(mockClients[0]);
+
+      const deleteReq = httpMock.expectOne('/api/clients/1');
+      deleteReq.flush({}, { status: 500, statusText: 'Internal Server Error' });
+
+      await deletePromise;
+
+      expect(window.alert).toHaveBeenCalledWith('Failed to delete client. Please try again.');
+    });
+  });
 });

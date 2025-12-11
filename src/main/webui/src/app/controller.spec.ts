@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { Controller } from './controller';
-import { ModelService } from './model.service';
+import { ModelService, OAuthClient } from './model.service';
 
 describe('Controller', () => {
   let controller: Controller;
@@ -375,6 +375,558 @@ describe('Controller', () => {
       req.error(new ProgressEvent('error'));
 
       expect(modelService.signupAllowed$()).toBe(false);
+    });
+  });
+
+  describe('createClient', () => {
+    const mockClientData = {
+      clientId: 'new-client',
+      clientName: 'New Client',
+      clientType: 'public',
+      redirectUris: '["http://localhost:3000/callback"]',
+      allowedScopes: '["openid", "profile"]',
+      requirePkce: true
+    };
+
+    const mockCreatedClient = {
+      id: '123',
+      ...mockClientData,
+      createdAt: '2024-01-01T00:00:00Z'
+    };
+
+    it('should create client and return the created client', async () => {
+      const promise = controller.createClient(mockClientData);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      expect(createReq.request.method).toBe('POST');
+      expect(createReq.request.body).toEqual(mockClientData);
+      createReq.flush(mockCreatedClient);
+
+      await Promise.resolve();
+      // Should trigger loadClients
+      const loadReq = httpMock.expectOne('/api/clients');
+      expect(loadReq.request.method).toBe('GET');
+      loadReq.flush([mockCreatedClient]);
+
+      const result = await promise;
+      expect(result).toEqual(mockCreatedClient);
+    });
+
+    it('should reload clients list after successful creation', async () => {
+      const promise = controller.createClient(mockClientData);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush(mockCreatedClient);
+
+      await Promise.resolve();
+      const loadReq = httpMock.expectOne('/api/clients');
+      loadReq.flush([mockCreatedClient]);
+
+      await promise;
+
+      expect(modelService.clients$()).toEqual([mockCreatedClient]);
+    });
+
+    it('should handle error when creating client', async () => {
+      const promise = controller.createClient(mockClientData);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush({ error: 'Client ID already exists' }, { status: 409, statusText: 'Conflict' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(409);
+        expect(err.error.error).toBe('Client ID already exists');
+      }
+    });
+
+    it('should handle validation error', async () => {
+      const promise = controller.createClient(mockClientData);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush({ error: 'Client ID is required' }, { status: 400, statusText: 'Bad Request' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(400);
+      }
+    });
+
+    it('should handle permission error', async () => {
+      const promise = controller.createClient(mockClientData);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush({}, { status: 403, statusText: 'Forbidden' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(403);
+      }
+    });
+
+    it('should handle network error', async () => {
+      const promise = controller.createClient(mockClientData);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.error(new ProgressEvent('error'));
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
+    });
+
+    it('should send correct data format', async () => {
+      const clientData = {
+        clientId: 'test-client',
+        clientName: 'Test Client',
+        clientType: 'confidential',
+        redirectUris: '["https://example.com/callback"]',
+        allowedScopes: '["openid", "email", "profile"]',
+        requirePkce: false
+      };
+
+      const promise = controller.createClient(clientData);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      expect(createReq.request.body.clientId).toBe('test-client');
+      expect(createReq.request.body.clientName).toBe('Test Client');
+      expect(createReq.request.body.clientType).toBe('confidential');
+      expect(createReq.request.body.redirectUris).toBe('["https://example.com/callback"]');
+      expect(createReq.request.body.allowedScopes).toBe('["openid", "email", "profile"]');
+      expect(createReq.request.body.requirePkce).toBe(false);
+      
+      createReq.flush({ id: '456', ...clientData, createdAt: '2024-01-01' });
+      
+      await Promise.resolve();
+      const loadReq = httpMock.expectOne('/api/clients');
+      loadReq.flush([]);
+
+      await promise;
+    });
+
+    it('should handle server error', async () => {
+      const promise = controller.createClient(mockClientData);
+
+      const createReq = httpMock.expectOne('/api/clients');
+      createReq.flush({}, { status: 500, statusText: 'Internal Server Error' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(500);
+      }
+    });
+  });
+
+  describe('updateClient', () => {
+    const mockClientId = '123';
+    const mockUpdateData = {
+      clientName: 'Updated Client',
+      clientType: 'confidential',
+      redirectUris: '["http://localhost:4000/callback"]',
+      allowedScopes: '["openid", "email"]',
+      requirePkce: false
+    };
+
+    const mockUpdatedClient = {
+      id: mockClientId,
+      clientId: 'test-client',
+      ...mockUpdateData,
+      createdAt: '2024-01-01T00:00:00Z'
+    };
+
+    it('should update client and return the updated client', async () => {
+      const promise = controller.updateClient(mockClientId, mockUpdateData);
+
+      const updateReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      expect(updateReq.request.method).toBe('PUT');
+      expect(updateReq.request.body).toEqual(mockUpdateData);
+      updateReq.flush(mockUpdatedClient);
+
+      await Promise.resolve();
+      // Should trigger loadClients
+      const loadReq = httpMock.expectOne('/api/clients');
+      expect(loadReq.request.method).toBe('GET');
+      loadReq.flush([mockUpdatedClient]);
+
+      const result = await promise;
+      expect(result).toEqual(mockUpdatedClient);
+    });
+
+    it('should reload clients list after successful update', async () => {
+      const promise = controller.updateClient(mockClientId, mockUpdateData);
+
+      const updateReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      updateReq.flush(mockUpdatedClient);
+
+      await Promise.resolve();
+      const loadReq = httpMock.expectOne('/api/clients');
+      loadReq.flush([mockUpdatedClient]);
+
+      await promise;
+
+      expect(modelService.clients$()).toEqual([mockUpdatedClient]);
+    });
+
+    it('should handle error when updating client', async () => {
+      const promise = controller.updateClient(mockClientId, mockUpdateData);
+
+      const updateReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      updateReq.flush({ error: 'Client not found' }, { status: 404, statusText: 'Not Found' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(404);
+        expect(err.error.error).toBe('Client not found');
+      }
+    });
+
+    it('should handle validation error', async () => {
+      const promise = controller.updateClient(mockClientId, mockUpdateData);
+
+      const updateReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      updateReq.flush({ error: 'Client name is required' }, { status: 400, statusText: 'Bad Request' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(400);
+      }
+    });
+
+    it('should handle permission error', async () => {
+      const promise = controller.updateClient(mockClientId, mockUpdateData);
+
+      const updateReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      updateReq.flush({}, { status: 403, statusText: 'Forbidden' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(403);
+      }
+    });
+
+    it('should handle network error', async () => {
+      const promise = controller.updateClient(mockClientId, mockUpdateData);
+
+      const updateReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      updateReq.error(new ProgressEvent('error'));
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
+    });
+
+    it('should send correct data format', async () => {
+      const updateData = {
+        clientName: 'New Name',
+        clientType: 'public',
+        redirectUris: '["https://example.com/callback"]',
+        allowedScopes: '["openid"]',
+        requirePkce: true
+      };
+
+      const promise = controller.updateClient(mockClientId, updateData);
+
+      const updateReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      expect(updateReq.request.body.clientName).toBe('New Name');
+      expect(updateReq.request.body.clientType).toBe('public');
+      expect(updateReq.request.body.redirectUris).toBe('["https://example.com/callback"]');
+      expect(updateReq.request.body.allowedScopes).toBe('["openid"]');
+      expect(updateReq.request.body.requirePkce).toBe(true);
+      
+      updateReq.flush({ id: mockClientId, ...updateData, createdAt: '2024-01-01' });
+      
+      await Promise.resolve();
+      const loadReq = httpMock.expectOne('/api/clients');
+      loadReq.flush([]);
+
+      await promise;
+    });
+  });
+
+  describe('deleteClient', () => {
+    const mockClientId = '123';
+
+    it('should delete client successfully', async () => {
+      const promise = controller.deleteClient(mockClientId);
+
+      const deleteReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      expect(deleteReq.request.method).toBe('DELETE');
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' });
+
+      await Promise.resolve();
+      // Should trigger loadClients
+      const loadReq = httpMock.expectOne('/api/clients');
+      expect(loadReq.request.method).toBe('GET');
+      loadReq.flush([]);
+
+      await promise;
+    });
+
+    it('should reload clients list after successful deletion', async () => {
+      const mockClients: OAuthClient[] = [
+        {
+          id: '456',
+          clientId: 'remaining-client',
+          clientName: 'Remaining Client',
+          clientType: 'public',
+          redirectUris: '["http://localhost:3000/callback"]',
+          allowedScopes: '["openid"]',
+          requirePkce: true,
+          createdAt: '2024-01-01T00:00:00Z'
+        }
+      ];
+
+      const promise = controller.deleteClient(mockClientId);
+
+      const deleteReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' });
+
+      await Promise.resolve();
+      const loadReq = httpMock.expectOne('/api/clients');
+      loadReq.flush(mockClients);
+
+      await promise;
+
+      expect(modelService.clients$()).toEqual(mockClients);
+    });
+
+    it('should handle error when client not found', async () => {
+      const promise = controller.deleteClient(mockClientId);
+
+      const deleteReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      deleteReq.flush({ error: 'Client not found' }, { status: 404, statusText: 'Not Found' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(404);
+        expect(err.error.error).toBe('Client not found');
+      }
+    });
+
+    it('should handle permission error', async () => {
+      const promise = controller.deleteClient(mockClientId);
+
+      const deleteReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      deleteReq.flush({}, { status: 403, statusText: 'Forbidden' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(403);
+      }
+    });
+
+    it('should handle network error', async () => {
+      const promise = controller.deleteClient(mockClientId);
+
+      const deleteReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
+      deleteReq.error(new ProgressEvent('error'));
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
+    });
+  });
+
+  describe('addAccountRole', () => {
+    const mockAccountId = 'account-123';
+    const mockClientId = 'client-456';
+    const mockRole = 'admin';
+    const mockResponse = { clientId: mockClientId, role: mockRole };
+
+    it('should add account role successfully', async () => {
+      const promise = controller.addAccountRole(mockAccountId, mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({
+        accountId: mockAccountId,
+        clientId: mockClientId,
+        role: mockRole
+      });
+      req.flush(mockResponse);
+
+      await Promise.resolve();
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush([]);
+
+      const result = await promise;
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should reload accounts after adding role', async () => {
+      const promise = controller.addAccountRole(mockAccountId, mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.flush(mockResponse);
+
+      await Promise.resolve();
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush([]);
+
+      await promise;
+    });
+
+    it('should handle 400 validation error', async () => {
+      const promise = controller.addAccountRole(mockAccountId, mockClientId, 'invalid@role');
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.flush({ error: 'Invalid role format' }, { status: 400, statusText: 'Bad Request' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(400);
+      }
+    });
+
+    it('should handle 403 permission error', async () => {
+      const promise = controller.addAccountRole(mockAccountId, mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(403);
+      }
+    });
+
+    it('should handle 404 account not found error', async () => {
+      const promise = controller.addAccountRole('non-existent', mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.flush({ error: 'Account not found' }, { status: 404, statusText: 'Not Found' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(404);
+      }
+    });
+
+    it('should handle network error', async () => {
+      const promise = controller.addAccountRole(mockAccountId, mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.error(new ProgressEvent('error'));
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
+    });
+  });
+
+  describe('removeAccountRole', () => {
+    const mockAccountId = 'account-123';
+    const mockClientId = 'client-456';
+    const mockRole = 'admin';
+
+    it('should remove account role successfully', async () => {
+      const promise = controller.removeAccountRole(mockAccountId, mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      expect(req.request.method).toBe('DELETE');
+      expect(req.request.body).toEqual({
+        accountId: mockAccountId,
+        clientId: mockClientId,
+        role: mockRole
+      });
+      req.flush(null, { status: 204, statusText: 'No Content' });
+
+      await Promise.resolve();
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush([]);
+
+      await promise;
+    });
+
+    it('should reload accounts after removing role', async () => {
+      const promise = controller.removeAccountRole(mockAccountId, mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.flush(null, { status: 204, statusText: 'No Content' });
+
+      await Promise.resolve();
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush([]);
+
+      await promise;
+    });
+
+    it('should handle 403 permission error', async () => {
+      const promise = controller.removeAccountRole(mockAccountId, mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(403);
+      }
+    });
+
+    it('should handle 404 account not found error', async () => {
+      const promise = controller.removeAccountRole('non-existent', mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.flush({ error: 'Account not found' }, { status: 404, statusText: 'Not Found' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(404);
+      }
+    });
+
+    it('should handle network error', async () => {
+      const promise = controller.removeAccountRole(mockAccountId, mockClientId, mockRole);
+
+      const req = httpMock.expectOne('/api/accounts/role');
+      req.error(new ProgressEvent('error'));
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
     });
   });
 });

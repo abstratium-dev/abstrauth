@@ -1,16 +1,20 @@
 package dev.abstratium.abstrauth.boundary.api;
 
 import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AccountRole;
+import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
@@ -24,6 +28,9 @@ public class AccountsResource {
     
     @Inject
     AccountService accountService;
+    
+    @Inject
+    AccountRoleService accountRoleService;
     
     @Inject
     SecurityIdentity securityIdentity;
@@ -51,6 +58,50 @@ public class AccountsResource {
         return accountService.findAccountsByUserClientRoles(accountId).stream()
                 .map(this::toAccountResponse)
                 .collect(Collectors.toList());
+    }
+
+    @POST
+    @Path("/role")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Add role to account", description = "Adds a role to an account for a specific client")
+    @RolesAllowed(Roles.MANAGE_ACCOUNTS)
+    public Response addAccountRole(@Valid AddAccountRoleRequest request) {
+        String accountId = request.accountId;
+        // Verify account exists
+        if (accountService.findById(accountId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Account not found"))
+                    .build();
+        }
+
+        // Add the role
+        AccountRole accountRole = accountRoleService.addRole(accountId, request.clientId, request.role);
+        
+        // Return the created role
+        RoleInfo roleInfo = new RoleInfo(accountRole.getClientId(), accountRole.getRole());
+        return Response.status(Response.Status.CREATED).entity(roleInfo).build();
+    }
+
+    @DELETE
+    @Path("/role")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Remove role from account", description = "Removes a role from an account for a specific client")
+    @RolesAllowed(Roles.MANAGE_ACCOUNTS)
+    public Response removeAccountRole(@Valid RemoveRoleRequest request) {
+        String accountId = request.accountId;
+        // Verify account exists
+        if (accountService.findById(accountId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Account not found"))
+                    .build();
+        }
+
+        // Remove the role
+        accountRoleService.removeRole(accountId, request.clientId, request.role);
+        
+        return Response.noContent().build();
     }
 
     private AccountResponse toAccountResponse(Account account) {
@@ -102,6 +153,41 @@ public class AccountsResource {
         public RoleInfo(String clientId, String role) {
             this.clientId = clientId;
             this.role = role;
+        }
+    }
+
+    @RegisterForReflection
+    public static class AddAccountRoleRequest {
+        @NotBlank(message = "Account ID is required")
+        public String accountId;
+        
+        @NotBlank(message = "Client ID is required")
+        public String clientId;
+        
+        @NotBlank(message = "Role is required")
+        @Pattern(regexp = "[a-zA-Z0-9\\-]+", message = "Role must contain only alphanumeric characters and hyphens")
+        public String role;
+    }
+
+    @RegisterForReflection
+    public static class RemoveRoleRequest {
+        @NotBlank(message = "Account ID is required")
+        public String accountId;
+        
+        @NotBlank(message = "Client ID is required")
+        public String clientId;
+        
+        @NotBlank(message = "Role is required")
+        @Pattern(regexp = "[a-zA-Z0-9\\-]+", message = "Role must contain only alphanumeric characters and hyphens")
+        public String role;
+    }
+
+    @RegisterForReflection
+    public static class ErrorResponse {
+        public String error;
+
+        public ErrorResponse(String error) {
+            this.error = error;
         }
     }
 }

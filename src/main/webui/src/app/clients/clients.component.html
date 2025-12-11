@@ -1,26 +1,101 @@
 <div>
   <div class="container">
-    <h1>OAuth Clients</h1>
-    
+    <div class="page-header">
+      <h1>OAuth Clients</h1>
+      <button *ngIf="hasManageClientsRole() && !loading" class="btn-add" (click)="toggleForm()"
+        [disabled]="formSubmitting">
+        {{ showForm ? 'Cancel' : '+ Add Client' }}
+      </button>
+    </div>
+
     <div *ngIf="loading" class="loading">
       Loading clients...
     </div>
-    
+
     <div *ngIf="error" class="error-box">
       {{ error }}
     </div>
-    
+
+    <!-- Add Client Form -->
+    <div *ngIf="showForm && hasManageClientsRole()" class="form-container">
+      <h2>Create New OAuth Client</h2>
+
+      <form (ngSubmit)="onSubmit()">
+        <div *ngIf="formError" class="error-box">
+          {{ formError }}
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="clientId">Client ID *</label>
+            <input type="text" id="clientId" name="clientId" [(ngModel)]="formData.clientId" required
+              placeholder="e.g., my-app-client" [disabled]="formSubmitting">
+            <small class="form-hint">Unique identifier for this client</small>
+          </div>
+
+          <div class="form-group">
+            <label for="clientName">Client Name *</label>
+            <input type="text" id="clientName" name="clientName" [(ngModel)]="formData.clientName" required
+              placeholder="e.g., My Application" [disabled]="formSubmitting">
+            <small class="form-hint">Human-readable name for this client</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="clientType">Client Type *</label>
+            <select id="clientType" name="clientType" [(ngModel)]="formData.clientType" required
+              [disabled]="formSubmitting">
+              <option value="public">Public</option>
+              <option value="confidential">Confidential</option>
+            </select>
+            <small class="form-hint">Public for SPAs/mobile apps, Confidential for server-side apps</small>
+          </div>
+
+          <div class="form-group">
+            <label for="requirePkce">
+              <input type="checkbox" id="requirePkce" name="requirePkce" [(ngModel)]="formData.requirePkce"
+                [disabled]="formSubmitting">
+              Require PKCE
+            </label>
+            <small class="form-hint">Recommended for public clients</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="redirectUris">Redirect URIs * (one per line)</label>
+          <textarea id="redirectUris" name="redirectUris" [(ngModel)]="formData.redirectUris" required rows="3"
+            placeholder="http://localhost:3000/callback&#10;https://myapp.com/auth/callback"
+            [disabled]="formSubmitting"></textarea>
+          <small class="form-hint">Valid redirect URIs for this client (one per line)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="allowedScopes">Allowed Scopes * (space or comma separated)</label>
+          <input type="text" id="allowedScopes" name="allowedScopes" [(ngModel)]="formData.allowedScopes" required
+            placeholder="openid profile email" [disabled]="formSubmitting">
+          <small class="form-hint">OAuth scopes this client can request</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="formSubmitting">
+            {{ formSubmitting ? 'Creating...' : 'Create Client' }}
+          </button>
+          <button type="button" class="btn-secondary" (click)="toggleForm()" [disabled]="formSubmitting">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+
     <div *ngIf="!loading && !error && clients.length === 0" class="info-message">
       No OAuth clients found.
     </div>
-    
+
     <div *ngIf="!loading && !error && clients.length > 0">
       <!-- Filter Section -->
-      <url-filter
-        [placeholder]="'Filter by name, client ID, type, URI, or scope...'"
-        [itemCount]="filteredClients.length"
-        [totalCount]="clients.length"
-        [itemLabel]="'clients'"
+      <url-filter [placeholder]="'Filter by name, client ID, type, URI, or scope...'"
+        [itemCount]="filteredClients.length" [totalCount]="clients.length" [itemLabel]="'clients'"
         (filterChange)="onFilterChange($event)">
       </url-filter>
 
@@ -31,56 +106,129 @@
 
       <div *ngIf="filteredClients.length > 0" class="card-list">
         <div *ngFor="let client of filteredClients" class="card" [attr.data-client-id]="client.clientId">
-        <div class="card-header">
-          <h2>{{ client.clientName }}</h2>
-          <span class="badge" [class.badge-primary]="client.clientType === 'public'" 
+          <div class="card-header">
+            <div>
+              <h2>{{ client.clientName }}</h2>
+              <span class="badge" [class.badge-primary]="client.clientType === 'public'"
                 [class.badge-secondary]="client.clientType === 'confidential'">
-            {{ client.clientType }}
-          </span>
-        </div>
-        
-        <div class="detail-section">
-          <div class="detail-row">
-            <span class="label">Client ID:</span>
-            <span class="value">{{ client.clientId }}</span>
+                {{ client.clientType }}
+              </span>
+            </div>
+            <div *ngIf="hasManageClientsRole() && editingClientId !== client.id" class="card-actions">
+              <button class="btn-icon" (click)="startEdit(client)" title="Edit client"
+                [disabled]="editingClientId !== null">
+                ✏️
+              </button>
+              <button class="btn-icon btn-icon-danger" (click)="deleteClient(client)" title="Delete client"
+                [disabled]="editingClientId !== null">
+                🗑️
+              </button>
+            </div>
           </div>
-          
-          <div class="detail-row">
-            <span class="label">Redirect URIs:</span>
-            <ul class="simple-list">
-              <li *ngFor="let uri of parseJsonArray(client.redirectUris)">{{ uri }}</li>
-            </ul>
+
+          <!-- Edit Form -->
+          <div *ngIf="editingClientId === client.id" class="form-container" style="margin-top: 1rem;">
+            <h3>Edit Client</h3>
+
+            <form (ngSubmit)="onSubmit()">
+              <div *ngIf="formError" class="error-box">
+                {{ formError }}
+              </div>
+
+              <div class="form-group">
+                <label for="edit-clientId">Client ID</label>
+                <input type="text" id="edit-clientId" name="clientId" [(ngModel)]="formData.clientId" disabled>
+                <small class="form-hint">Client ID cannot be changed</small>
+              </div>
+
+              <div class="form-group">
+                <label for="edit-clientName">Client Name *</label>
+                <input type="text" id="edit-clientName" name="clientName" [(ngModel)]="formData.clientName" required
+                  [disabled]="formSubmitting">
+              </div>
+
+              <div class="form-group">
+                <label for="edit-clientType">Client Type *</label>
+                <select id="edit-clientType" name="clientType" [(ngModel)]="formData.clientType" required
+                  [disabled]="formSubmitting">
+                  <option value="public">Public</option>
+                  <option value="confidential">Confidential</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="edit-requirePkce">
+                  <input type="checkbox" id="edit-requirePkce" name="requirePkce" [(ngModel)]="formData.requirePkce"
+                    [disabled]="formSubmitting">
+                  Require PKCE
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label for="edit-redirectUris">Redirect URIs * (one per line)</label>
+                <textarea id="edit-redirectUris" name="redirectUris" [(ngModel)]="formData.redirectUris" required
+                  rows="3" [disabled]="formSubmitting"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="edit-allowedScopes">Allowed Scopes * (space or comma separated)</label>
+                <input type="text" id="edit-allowedScopes" name="allowedScopes" [(ngModel)]="formData.allowedScopes"
+                  required [disabled]="formSubmitting">
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-primary" [disabled]="formSubmitting">
+                  {{ formSubmitting ? 'Updating...' : 'Update Client' }}
+                </button>
+                <button type="button" class="btn-secondary" (click)="cancelEdit()" [disabled]="formSubmitting">
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
-          
-          <div class="detail-row">
-            <span class="label">Allowed Scopes:</span>
-            <div class="badge-list">
-              <span *ngFor="let scope of parseJsonArray(client.allowedScopes)" class="badge badge-success">
-                {{ scope }}
+
+          <div *ngIf="editingClientId !== client.id" class="detail-section">
+            <div class="detail-row">
+              <span class="label">Client ID:</span>
+              <span class="value">{{ client.clientId }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Redirect URIs:</span>
+              <ul class="simple-list">
+                <li *ngFor="let uri of parseJsonArray(client.redirectUris)">{{ uri }}</li>
+              </ul>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Allowed Scopes:</span>
+              <div class="badge-list">
+                <span *ngFor="let scope of parseJsonArray(client.allowedScopes)" class="badge badge-success">
+                  {{ scope }}
+                </span>
+              </div>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Requires PKCE:</span>
+              <span class="value">{{ client.requirePkce ? 'Yes' : 'No' }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Created:</span>
+              <span class="value">{{ client.createdAt }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Accounts:</span>
+              <span class="value">
+                <a [routerLink]="['/accounts']" [queryParams]="{filter: client.clientId}" class="client-link">
+                  View accounts with roles for this client
+                </a>
               </span>
             </div>
           </div>
-          
-          <div class="detail-row">
-            <span class="label">Requires PKCE:</span>
-            <span class="value">{{ client.requirePkce ? 'Yes' : 'No' }}</span>
-          </div>
-          
-          <div class="detail-row">
-            <span class="label">Created:</span>
-            <span class="value">{{ client.createdAt }}</span>
-          </div>
-          
-          <div class="detail-row">
-            <span class="label">Accounts:</span>
-            <span class="value">
-              <a [routerLink]="['/accounts']" [queryParams]="{filter: client.clientId}" class="client-link">
-                View accounts with roles for this client
-              </a>
-            </span>
-          </div>
         </div>
-      </div>
       </div>
     </div>
   </div>

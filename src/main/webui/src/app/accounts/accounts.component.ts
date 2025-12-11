@@ -1,14 +1,15 @@
 import { Component, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import { Account, ModelService } from '../model.service';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Account, ModelService, OAuthClient } from '../model.service';
 import { Controller } from '../controller';
-import { AuthService, ROLE_ADMIN } from '../auth.service';
+import { AuthService, ROLE_ADMIN, ROLE_MANAGE_ACCOUNTS } from '../auth.service';
 import { UrlFilterComponent } from '../shared/url-filter/url-filter.component';
 
 @Component({
   selector: 'app-accounts',
-  imports: [CommonModule, RouterLink, UrlFilterComponent],
+  imports: [CommonModule, FormsModule, RouterLink, UrlFilterComponent],
   templateUrl: './accounts.component.html',
   styleUrl: './accounts.component.scss'
 })
@@ -16,12 +17,24 @@ export class AccountsComponent implements OnInit {
   private modelService = inject(ModelService);
   private controller = inject(Controller);
   private authService = inject(AuthService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   accounts: Account[] = [];
   filteredAccounts: Account[] = [];
+  clients: OAuthClient[] = [];
   loading = true;
   error: string | null = null;
   private currentFilter: string = '';
+
+  // Form state
+  addingRoleForAccountId: string | null = null;
+  roleFormData = {
+    clientId: '',
+    role: ''
+  };
+  roleFormSubmitting = false;
+  roleFormError: string | null = null;
 
   constructor() {
     effect(() => {
@@ -36,10 +49,15 @@ export class AccountsComponent implements OnInit {
         this.applyFilter();
       }
     });
+
+    effect(() => {
+      this.clients = this.modelService.clients$();
+    });
   }
 
   ngOnInit(): void {
     this.loadAccounts();
+    this.controller.loadClients();
   }
 
   loadAccounts(): void {
@@ -82,43 +100,111 @@ export class AccountsComponent implements OnInit {
     return token.sub === accountId;
   }
 
-  onFilterChange(filterText: string): void {
-    // Store the current filter so it can be reapplied when accounts change
-    this.currentFilter = filterText;
-    
-    const searchTerm = filterText.toLowerCase().trim();
-    
-    if (!searchTerm) {
-      this.filteredAccounts = this.accounts;
-      return;
-    }
+  onFilterChange(filter: string): void {
+    this.currentFilter = filter;
+    this.applyFilter();
+  }
 
-    this.filteredAccounts = this.accounts.filter(account => {
-      // Search in email
-      if (account.email.toLowerCase().includes(searchTerm)) {
-        return true;
-      }
-      // Search in name
-      if (account.name.toLowerCase().includes(searchTerm)) {
-        return true;
-      }
-      // Search in roles
-      if (account.roles && account.roles.some(role => 
-        role.role.toLowerCase().includes(searchTerm) ||
-        role.clientId.toLowerCase().includes(searchTerm)
-      )) {
-        return true;
-      }
-      // Search in auth provider
-      if (account.authProvider.toLowerCase().includes(searchTerm)) {
-        return true;
-      }
-      return false;
+  filterByRole(roleName: string): void {
+    // Update URL query parameter which will trigger the filter via url-filter component
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { filter: roleName },
+      queryParamsHandling: 'merge'
     });
   }
 
   private applyFilter(): void {
-    // Called from effect when accounts change
-    this.filteredAccounts = this.accounts;
+    if (!this.currentFilter) {
+      this.filteredAccounts = this.accounts;
+      return;
+    }
+
+    const lowerFilter = this.currentFilter.toLowerCase();
+    this.filteredAccounts = this.accounts.filter(account => {
+      // Check basic account fields
+      if (account.name.toLowerCase().includes(lowerFilter) ||
+          account.email.toLowerCase().includes(lowerFilter) ||
+          account.authProvider.toLowerCase().includes(lowerFilter)) {
+        return true;
+      }
+
+      // Check roles
+      if (account.roles && account.roles.length > 0) {
+        return account.roles.some(role => 
+          role.role.toLowerCase().includes(lowerFilter) ||
+          role.clientId.toLowerCase().includes(lowerFilter)
+        );
+      }
+
+      return false;
+    });
+  }
+
+  hasManageAccountsRole(): boolean {
+    return this.authService.hasRole(ROLE_MANAGE_ACCOUNTS);
+  }
+
+  startAddRole(accountId: string): void {
+    this.addingRoleForAccountId = accountId;
+    this.roleFormData = {
+      clientId: '',
+      role: ''
+    };
+    this.roleFormError = null;
+  }
+
+  cancelAddRole(): void {
+    this.addingRoleForAccountId = null;
+    this.roleFormData = {
+      clientId: '',
+      role: ''
+    };
+    this.roleFormError = null;
+  }
+
+  async onSubmitRole(accountId: string): Promise<void> {
+    this.roleFormSubmitting = true;
+    this.roleFormError = null;
+
+    try {
+      await this.controller.addAccountRole(
+        accountId,
+        this.roleFormData.clientId,
+        this.roleFormData.role
+      );
+      // Success - reset form
+      this.cancelAddRole();
+    } catch (err: any) {
+      if (err.status === 400) {
+        this.roleFormError = 'Invalid input. Please check your entries.';
+      } else if (err.status === 403) {
+        this.roleFormError = 'You do not have permission to add roles.';
+      } else if (err.status === 404) {
+        this.roleFormError = 'Account not found.';
+      } else {
+        this.roleFormError = 'Failed to add role. Please try again.';
+      }
+    } finally {
+      this.roleFormSubmitting = false;
+    }
+  }
+
+  async deleteRole(accountId: string, clientId: string, role: string): Promise<void> {
+    if (!confirm(`Are you sure you want to remove the role "${role}" for client "${clientId}"?`)) {
+      return;
+    }
+
+    try {
+      await this.controller.removeAccountRole(accountId, clientId, role);
+    } catch (err: any) {
+      if (err.status === 403) {
+        alert('You do not have permission to remove roles.');
+      } else if (err.status === 404) {
+        alert('Account or role not found.');
+      } else {
+        alert('Failed to remove role. Please try again.');
+      }
+    }
   }
 }

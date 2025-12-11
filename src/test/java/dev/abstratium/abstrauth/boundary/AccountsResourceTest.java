@@ -225,4 +225,291 @@ public class AccountsResourceTest {
             .body("email", not(hasItem(user3Email)));
     }
 
+    @Test
+    public void testAddAccountRoleSuccessfully() throws Exception {
+        // Create account
+        userTransaction.begin();
+        String email = "roletest_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123");
+        String accountId = account.getId();
+        
+        // Create manager account
+        String managerEmail = "rolemanager_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Role Manager", "rolemanager_" + System.currentTimeMillis(), "Pass123");
+        userTransaction.commit();
+        
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "test-client",
+                "role": "admin"
+            }
+            """, accountId);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(201)
+            .body("clientId", equalTo("test-client"))
+            .body("role", equalTo("admin"));
+    }
+
+    @Test
+    @TestTransaction
+    public void testAddAccountRoleWithoutToken() {
+        String requestBody = """
+            {
+                "accountId": "some-id",
+                "clientId": "test-client",
+                "role": "admin"
+            }
+            """;
+        
+        given()
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(401);
+    }
+
+    @Test
+    @TestTransaction
+    public void testAddAccountRoleWithoutRole() {
+        // Create manager account
+        String managerEmail = "rolemanager2_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 2", "rolemanager2_" + System.currentTimeMillis(), "Pass123");
+        
+        String requestBody = """
+            {
+                "accountId": "some-id",
+                "clientId": "test-client",
+                "role": "admin"
+            }
+            """;
+        
+        given()
+            .auth().oauth2(generateUserToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(403);
+    }
+
+    @Test
+    @TestTransaction
+    public void testAddAccountRoleToNonExistentAccount() {
+        // Create manager account
+        String managerEmail = "rolemanager3_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 3", "rolemanager3_" + System.currentTimeMillis(), "Pass123");
+        
+        String requestBody = """
+            {
+                "accountId": "non-existent-id",
+                "clientId": "test-client",
+                "role": "admin"
+            }
+            """;
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(404)
+            .body("error", equalTo("Account not found"));
+    }
+
+    @Test
+    @TestTransaction
+    public void testAddAccountRoleWithMissingClientId() {
+        // Create account and manager
+        String email = "roletest2_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "Role Test 2", "roletest2_" + System.currentTimeMillis(), "Pass123");
+        
+        String managerEmail = "rolemanager4_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 4", "rolemanager4_" + System.currentTimeMillis(), "Pass123");
+        
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "role": "admin"
+            }
+            """, account.getId());
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(400);
+    }
+
+    @Test
+    @TestTransaction
+    public void testAddAccountRoleWithMissingRole() {
+        // Create account and manager
+        String email = "roletest3_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "Role Test 3", "roletest3_" + System.currentTimeMillis(), "Pass123");
+        
+        String managerEmail = "rolemanager5_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 5", "rolemanager5_" + System.currentTimeMillis(), "Pass123");
+        
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "test-client"
+            }
+            """, account.getId());
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(400);
+    }
+
+    @Test
+    @TestTransaction
+    public void testAddAccountRoleWithInvalidRoleFormat() {
+        // Create account and manager
+        String email = "roletest4_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "Role Test 4", "roletest4_" + System.currentTimeMillis(), "Pass123");
+        
+        String managerEmail = "rolemanager6_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 6", "rolemanager6_" + System.currentTimeMillis(), "Pass123");
+        
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "test-client",
+                "role": "admin@invalid"
+            }
+            """, account.getId());
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(400);
+    }
+
+    @Test
+    public void testRemoveAccountRoleSuccessfully() throws Exception {
+        // Create account with a role
+        userTransaction.begin();
+        String email = "roledelete_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "Role Delete Test", "roledelete_" + System.currentTimeMillis(), "Pass123");
+        String accountId = account.getId();
+        accountRoleService.addRole(accountId, "test-client", "admin");
+        
+        // Create manager account
+        String managerEmail = "deletemanager_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Delete Manager", "deletemanager_" + System.currentTimeMillis(), "Pass123");
+        userTransaction.commit();
+        
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "test-client",
+                "role": "admin"
+            }
+            """, accountId);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .delete("/api/accounts/role")
+            .then()
+            .statusCode(204);
+    }
+
+    @Test
+    @TestTransaction
+    public void testRemoveAccountRoleWithoutToken() {
+        String requestBody = """
+            {
+                "accountId": "some-id",
+                "clientId": "test-client",
+                "role": "admin"
+            }
+            """;
+        
+        given()
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .delete("/api/accounts/role")
+            .then()
+            .statusCode(401);
+    }
+
+    @Test
+    @TestTransaction
+    public void testRemoveAccountRoleWithoutPermission() {
+        String managerEmail = "deletemanager2_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Delete Manager 2", "deletemanager2_" + System.currentTimeMillis(), "Pass123");
+        
+        String requestBody = """
+            {
+                "accountId": "some-id",
+                "clientId": "test-client",
+                "role": "admin"
+            }
+            """;
+        
+        given()
+            .auth().oauth2(generateUserToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .delete("/api/accounts/role")
+            .then()
+            .statusCode(403);
+    }
+
+    @Test
+    @TestTransaction
+    public void testRemoveAccountRoleFromNonExistentAccount() {
+        String managerEmail = "deletemanager3_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Delete Manager 3", "deletemanager3_" + System.currentTimeMillis(), "Pass123");
+        
+        String requestBody = """
+            {
+                "accountId": "non-existent-id",
+                "clientId": "test-client",
+                "role": "admin"
+            }
+            """;
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .delete("/api/accounts/role")
+            .then()
+            .statusCode(404)
+            .body("error", equalTo("Account not found"));
+    }
+
 }

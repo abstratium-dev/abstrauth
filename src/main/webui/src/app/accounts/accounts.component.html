@@ -68,16 +68,80 @@
 
         <!-- Roles Section -->
         <div class="sub-tiles-section">
-          <h4 class="sub-tiles-title">Roles</h4>
+          <div class="sub-tiles-header">
+            <h4 class="sub-tiles-title">Roles</h4>
+            <button *ngIf="hasManageAccountsRole() && addingRoleForAccountId !== account.id"
+                    class="btn-add-small"
+                    (click)="startAddRole(account.id)"
+                    [disabled]="addingRoleForAccountId !== null">
+              + Add Role
+            </button>
+          </div>
+
+          <!-- Add Role Form -->
+          <div *ngIf="addingRoleForAccountId === account.id" class="form-container" style="margin-bottom: 1rem;">
+            <form (ngSubmit)="onSubmitRole(account.id)">
+              <div *ngIf="roleFormError" class="error-box">
+                {{ roleFormError }}
+              </div>
+
+              <div class="form-group">
+                <label for="clientId-{{account.id}}">Client *</label>
+                <select id="clientId-{{account.id}}"
+                        name="clientId"
+                        [(ngModel)]="roleFormData.clientId"
+                        required
+                        [disabled]="roleFormSubmitting">
+                  <option value="">Select a client</option>
+                  <option *ngFor="let client of clients" [value]="client.clientId">
+                    {{ client.clientName }} ({{ client.clientId }})
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="role-{{account.id}}">Role * (alphanumeric and hyphens only)</label>
+                <input type="text"
+                       id="role-{{account.id}}"
+                       name="role"
+                       [(ngModel)]="roleFormData.role"
+                       required
+                       pattern="[a-zA-Z0-9\-]+"
+                       placeholder="e.g., admin, user, manager"
+                       [disabled]="roleFormSubmitting">
+                <small class="form-hint">Role name for this account on the selected client</small>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-primary" [disabled]="roleFormSubmitting">
+                  {{ roleFormSubmitting ? 'Adding...' : 'Add Role' }}
+                </button>
+                <button type="button" class="btn-secondary" (click)="cancelAddRole()" [disabled]="roleFormSubmitting">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+
           <div *ngIf="account.roles && account.roles.length > 0" class="sub-tiles">
             <div class="sub-tile" *ngFor="let role of account.roles">
-              <div class="sub-tile-title">{{ role.role }}</div>
+              <div class="sub-tile-header">
+                <div class="sub-tile-title">
+                  <a (click)="filterByRole(role.role)" class="role-link">{{ role.role }}</a>
+                </div>
+                <button *ngIf="hasManageAccountsRole()"
+                        class="btn-icon btn-icon-danger"
+                        (click)="deleteRole(account.id, role.clientId, role.role)"
+                        title="Delete role">
+                  🗑️
+                </button>
+              </div>
               <div class="sub-tile-content">
                 Client: <a [routerLink]="['/clients']" [queryParams]="{filter: role.clientId}" class="client-link">{{ role.clientId }}</a>
               </div>
             </div>
           </div>
-          <div *ngIf="!account.roles || account.roles.length === 0" class="sub-tiles-empty">
+          <div *ngIf="(!account.roles || account.roles.length === 0) && addingRoleForAccountId !== account.id" class="sub-tiles-empty">
             No roles assigned
           </div>
         </div>

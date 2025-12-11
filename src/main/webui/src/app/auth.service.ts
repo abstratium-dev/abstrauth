@@ -5,6 +5,7 @@ import { CLIENT_ID } from './authorize/authorize.component';
 export const ISSUER = 'https://abstrauth.abstratium.dev';
 export const ROLE_ADMIN = 'abstratium-abstrauth_admin';
 export const ROLE_MANAGE_CLIENTS = 'abstratium-abstrauth_manage-clients';
+export const ROLE_MANAGE_ACCOUNTS = 'abstratium-abstrauth_manage-accounts';
 
 export interface Token {
     iss: string;

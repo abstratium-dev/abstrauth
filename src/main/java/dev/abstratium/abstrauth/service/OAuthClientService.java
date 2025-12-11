@@ -6,6 +6,7 @@ import dev.abstratium.abstrauth.entity.OAuthClient;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,5 +60,21 @@ public class OAuthClientService {
         } catch (JsonProcessingException e) {
             return false;
         }
+    }
+
+    @Transactional
+    public OAuthClient create(OAuthClient client) {
+        em.persist(client);
+        return client;
+    }
+
+    @Transactional
+    public OAuthClient update(OAuthClient client) {
+        return em.merge(client);
+    }
+
+    @Transactional
+    public void delete(OAuthClient client) {
+        em.remove(em.contains(client) ? client : em.merge(client));
     }
 }

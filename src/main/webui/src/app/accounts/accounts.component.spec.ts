@@ -1,10 +1,11 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of, BehaviorSubject, EMPTY } from 'rxjs';
+import { BehaviorSubject, EMPTY } from 'rxjs';
+import { AuthService, ROLE_MANAGE_ACCOUNTS } from '../auth.service';
+import { Controller } from '../controller';
 import { AccountsComponent } from './accounts.component';
-import { AuthService, ROLE_ADMIN } from '../auth.service';
 
 describe('AccountsComponent', () => {
   let component: AccountsComponent;
@@ -88,6 +89,12 @@ describe('AccountsComponent', () => {
     httpMock.verify();
   });
 
+  // Helper function to flush the clients request that happens on init
+  function flushClientsRequest() {
+    const clientsReq = httpMock.expectOne('/api/clients');
+    clientsReq.flush([]);
+  }
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -111,8 +118,11 @@ describe('AccountsComponent', () => {
 
     it('should call loadAccounts on init', () => {
       spyOn(component, 'loadAccounts');
+      const controller = TestBed.inject(Controller);
+      spyOn(controller, 'loadClients');
       component.ngOnInit();
       expect(component.loadAccounts).toHaveBeenCalled();
+      expect(controller.loadClients).toHaveBeenCalled();
     });
   });
 
@@ -123,6 +133,7 @@ describe('AccountsComponent', () => {
       const req = httpMock.expectOne('/api/accounts');
       expect(req.request.method).toBe('GET');
       req.flush(mockAccounts);
+      flushClientsRequest();
       fixture.detectChanges();
 
       expect(component.accounts).toEqual(mockAccounts);
@@ -141,6 +152,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([]);
+      flushClientsRequest();
     });
 
     it('should display accounts in tiles after successful load', () => {
@@ -148,6 +160,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush(mockAccounts);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -164,6 +177,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[0]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -178,6 +192,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[0]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -192,6 +207,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[0]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -206,6 +222,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[1]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -220,6 +237,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[0]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -234,6 +252,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[1]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -248,6 +267,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       // Wait for the 5-second timeout that sets error when accounts is empty
@@ -270,6 +290,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[0]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -283,6 +304,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[0]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -297,6 +319,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[0]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -311,6 +334,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[2]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -326,6 +350,7 @@ describe('AccountsComponent', () => {
       fixture.detectChanges();
       const req = httpMock.expectOne('/api/accounts');
       req.flush(mockAccounts);
+      flushClientsRequest();
       fixture.detectChanges();
     });
 
@@ -423,6 +448,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush(mockAccounts);
+      flushClientsRequest();
       fixture.detectChanges();
 
       expect(component.getAdminCount()).toBe(1);
@@ -433,6 +459,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush([mockAccounts[0]]);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -455,6 +482,7 @@ describe('AccountsComponent', () => {
       
       const req = httpMock.expectOne('/api/accounts');
       req.flush(multipleAdmins);
+      flushClientsRequest();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -472,6 +500,7 @@ describe('AccountsComponent', () => {
 
       const req = httpMock.expectOne('/api/accounts');
       req.flush('Error loading accounts', { status: 500, statusText: 'Server Error' });
+      flushClientsRequest();
       fixture.detectChanges();
 
       // Wait for the 5-second timeout to trigger error handling
@@ -488,6 +517,7 @@ describe('AccountsComponent', () => {
 
       const req = httpMock.expectOne('/api/accounts');
       req.flush('Error', { status: 500, statusText: 'Server Error' });
+      flushClientsRequest();
       fixture.detectChanges();
 
       // Wait for the 5-second timeout to trigger error handling
@@ -506,6 +536,7 @@ describe('AccountsComponent', () => {
 
       const req = httpMock.expectOne('/api/accounts');
       req.flush('Error', { status: 500, statusText: 'Server Error' });
+      flushClientsRequest();
       fixture.detectChanges();
 
       // Wait for the 5-second timeout to trigger error handling
@@ -532,5 +563,352 @@ describe('AccountsComponent', () => {
     it('should return empty string for unknown provider', () => {
       expect(component.getProviderBadgeClass('unknown')).toBe('');
     });
+  });
+
+  describe('Add Role Functionality', () => {
+    const mockClients = [
+      { 
+        id: '1',
+        clientId: 'client-1', 
+        clientName: 'Client 1', 
+        clientType: 'confidential',
+        redirectUris: 'http://localhost', 
+        allowedScopes: 'openid profile',
+        requirePkce: false,
+        createdAt: '2024-01-01T00:00:00Z'
+      },
+      { 
+        id: '2',
+        clientId: 'client-2', 
+        clientName: 'Client 2', 
+        clientType: 'public',
+        redirectUris: 'http://localhost', 
+        allowedScopes: 'openid',
+        requirePkce: true,
+        createdAt: '2024-01-02T00:00:00Z'
+      }
+    ];
+
+    it('should check if user has manage accounts role', () => {
+      const authService = TestBed.inject(AuthService);
+      (authService.hasRole as jasmine.Spy).and.returnValue(true);
+      
+      expect(component.hasManageAccountsRole()).toBe(true);
+      expect(authService.hasRole).toHaveBeenCalledWith(ROLE_MANAGE_ACCOUNTS);
+    });
+
+    it('should start add role form for an account', () => {
+      component.startAddRole('account-123');
+      
+      expect(component.addingRoleForAccountId).toBe('account-123');
+      expect(component.roleFormData).toEqual({ clientId: '', role: '' });
+      expect(component.roleFormError).toBeNull();
+    });
+
+    it('should cancel add role form', () => {
+      component.addingRoleForAccountId = 'account-123';
+      component.roleFormData = { clientId: 'client-1', role: 'admin' };
+      component.roleFormError = 'Some error';
+      
+      component.cancelAddRole();
+      
+      expect(component.addingRoleForAccountId).toBeNull();
+      expect(component.roleFormData).toEqual({ clientId: '', role: '' });
+      expect(component.roleFormError).toBeNull();
+    });
+
+    it('should submit role successfully', fakeAsync(async () => {
+      fixture.detectChanges();
+      
+      // Load accounts first
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      // Load clients
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.roleFormData = { clientId: 'client-1', role: 'admin' };
+      const promise = component.onSubmitRole('account-123');
+
+      const roleReq = httpMock.expectOne('/api/accounts/role');
+      expect(roleReq.request.method).toBe('POST');
+      expect(roleReq.request.body).toEqual({
+        accountId: 'account-123',
+        clientId: 'client-1',
+        role: 'admin'
+      });
+      roleReq.flush({ clientId: 'client-1', role: 'admin' });
+      tick();
+
+      // Expect accounts to be reloaded
+      const reloadReq = httpMock.expectOne('/api/accounts');
+      reloadReq.flush(mockAccounts);
+      tick();
+
+      await promise;
+      expect(component.addingRoleForAccountId).toBeNull();
+      expect(component.roleFormError).toBeNull();
+    }));
+
+    it('should handle 400 validation error when submitting role', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.roleFormData = { clientId: 'client-1', role: 'invalid@role' };
+      const promise = component.onSubmitRole('account-123');
+
+      const roleReq = httpMock.expectOne('/api/accounts/role');
+      roleReq.flush({ error: 'Invalid role format' }, { status: 400, statusText: 'Bad Request' });
+
+      tick();
+      promise.then(() => {
+        expect(component.roleFormError).toBe('Invalid input. Please check your entries.');
+        expect(component.roleFormSubmitting).toBe(false);
+      });
+    }));
+
+    it('should handle 403 permission error when submitting role', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.roleFormData = { clientId: 'client-1', role: 'admin' };
+      const promise = component.onSubmitRole('account-123');
+
+      const roleReq = httpMock.expectOne('/api/accounts/role');
+      roleReq.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+      tick();
+      promise.then(() => {
+        expect(component.roleFormError).toBe('You do not have permission to add roles.');
+        expect(component.roleFormSubmitting).toBe(false);
+      });
+    }));
+
+    it('should handle 404 account not found error when submitting role', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.roleFormData = { clientId: 'client-1', role: 'admin' };
+      const promise = component.onSubmitRole('non-existent');
+
+      const roleReq = httpMock.expectOne('/api/accounts/role');
+      roleReq.flush({ error: 'Account not found' }, { status: 404, statusText: 'Not Found' });
+
+      tick();
+      promise.then(() => {
+        expect(component.roleFormError).toBe('Account not found.');
+        expect(component.roleFormSubmitting).toBe(false);
+      });
+    }));
+
+    it('should handle generic error when submitting role', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.roleFormData = { clientId: 'client-1', role: 'admin' };
+      const promise = component.onSubmitRole('account-123');
+
+      const roleReq = httpMock.expectOne('/api/accounts/role');
+      roleReq.error(new ProgressEvent('error'));
+
+      tick();
+      promise.then(() => {
+        expect(component.roleFormError).toBe('Failed to add role. Please try again.');
+        expect(component.roleFormSubmitting).toBe(false);
+      });
+    }));
+
+    it('should load clients on init', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+      
+      expect(component.clients.length).toBe(2);
+      expect(component.clients).toEqual(mockClients);
+    }));
+  });
+
+  describe('Delete Role Functionality', () => {
+    const mockClients = [
+      { 
+        id: '1',
+        clientId: 'client-1', 
+        clientName: 'Client 1', 
+        clientType: 'confidential',
+        redirectUris: 'http://localhost', 
+        allowedScopes: 'openid profile',
+        requirePkce: false,
+        createdAt: '2024-01-01T00:00:00Z'
+      }
+    ];
+
+    it('should delete role successfully', fakeAsync(() => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      const promise = component.deleteRole('account-123', 'client-1', 'admin');
+
+      const deleteReq = httpMock.expectOne('/api/accounts/role');
+      expect(deleteReq.request.method).toBe('DELETE');
+      expect(deleteReq.request.body).toEqual({
+        accountId: 'account-123',
+        clientId: 'client-1',
+        role: 'admin'
+      });
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' });
+      tick();
+
+      // Expect accounts to be reloaded
+      const reloadReq = httpMock.expectOne('/api/accounts');
+      reloadReq.flush(mockAccounts);
+
+      tick();
+      promise.then(() => {
+        expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to remove the role "admin" for client "client-1"?');
+      });
+    }));
+
+    it('should not delete role if user cancels confirmation', fakeAsync(() => {
+      spyOn(window, 'confirm').and.returnValue(false);
+      
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.deleteRole('account-123', 'client-1', 'admin');
+
+      tick();
+      
+      httpMock.expectNone('/api/accounts/role');
+      expect(window.confirm).toHaveBeenCalled();
+    }));
+
+    it('should handle 403 permission error when deleting role', fakeAsync(() => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      spyOn(window, 'alert');
+      
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      const promise = component.deleteRole('account-123', 'client-1', 'admin');
+
+      const deleteReq = httpMock.expectOne('/api/accounts/role');
+      deleteReq.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+      tick();
+      promise.then(() => {
+        expect(window.alert).toHaveBeenCalledWith('You do not have permission to remove roles.');
+      });
+    }));
+
+    it('should handle 404 error when deleting role', fakeAsync(() => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      spyOn(window, 'alert');
+      
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      const promise = component.deleteRole('non-existent', 'client-1', 'admin');
+
+      const deleteReq = httpMock.expectOne('/api/accounts/role');
+      deleteReq.flush({ error: 'Not found' }, { status: 404, statusText: 'Not Found' });
+
+      tick();
+      promise.then(() => {
+        expect(window.alert).toHaveBeenCalledWith('Account or role not found.');
+      });
+    }));
+
+    it('should handle generic error when deleting role', fakeAsync(() => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      spyOn(window, 'alert');
+      
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      const promise = component.deleteRole('account-123', 'client-1', 'admin');
+
+      const deleteReq = httpMock.expectOne('/api/accounts/role');
+      deleteReq.error(new ProgressEvent('error'));
+
+      tick();
+      promise.then(() => {
+        expect(window.alert).toHaveBeenCalledWith('Failed to remove role. Please try again.');
+      });
+    }));
   });
 });

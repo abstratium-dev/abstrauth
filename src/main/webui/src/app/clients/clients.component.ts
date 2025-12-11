@@ -1,24 +1,41 @@
 import { CommonModule } from '@angular/common';
 import { Component, effect, inject, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
 import { Controller } from '../controller';
 import { ModelService, OAuthClient } from '../model.service';
 import { UrlFilterComponent } from '../shared/url-filter/url-filter.component';
 
 @Component({
   selector: 'clients',
-  imports: [CommonModule, RouterLink, UrlFilterComponent],
+  imports: [CommonModule, RouterLink, UrlFilterComponent, FormsModule],
   templateUrl: './clients.component.html',
   styleUrl: './clients.component.scss',
 })
 export class ClientsComponent implements OnInit {
   private controller = inject(Controller);
   private modelService = inject(ModelService);
+  private authService = inject(AuthService);
   
   clients: OAuthClient[] = [];
   filteredClients: OAuthClient[] = [];
   loading = true;
   error: string | null = null;
+  
+  // Form state
+  showForm = false;
+  editingClientId: string | null = null;
+  formData = {
+    clientId: '',
+    clientName: '',
+    clientType: 'public',
+    redirectUris: '',
+    allowedScopes: '',
+    requirePkce: true
+  };
+  formError: string | null = null;
+  formSubmitting = false;
 
   constructor() {
     effect(() => {
@@ -83,5 +100,139 @@ export class ClientsComponent implements OnInit {
   private applyFilter(): void {
     // Called from effect when clients change
     this.filteredClients = this.clients;
+  }
+
+  hasManageClientsRole(): boolean {
+    return this.authService.hasRole(ROLE_MANAGE_CLIENTS);
+  }
+
+  toggleForm(): void {
+    this.showForm = !this.showForm;
+    if (this.showForm) {
+      this.resetForm();
+    }
+  }
+
+  startEdit(client: OAuthClient): void {
+    this.editingClientId = client.id;
+    this.showForm = false;
+    this.formData = {
+      clientId: client.clientId,
+      clientName: client.clientName,
+      clientType: client.clientType,
+      redirectUris: this.parseJsonArray(client.redirectUris).join('\n'),
+      allowedScopes: this.parseJsonArray(client.allowedScopes).join(' '),
+      requirePkce: client.requirePkce
+    };
+    this.formError = null;
+  }
+
+  cancelEdit(): void {
+    this.editingClientId = null;
+    this.resetForm();
+  }
+
+  async deleteClient(client: OAuthClient): Promise<void> {
+    if (!confirm(`Are you sure you want to delete "${client.clientName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await this.controller.deleteClient(client.id);
+      // If we were editing this client, cancel edit mode
+      if (this.editingClientId === client.id) {
+        this.cancelEdit();
+      }
+    } catch (err: any) {
+      if (err.status === 404) {
+        alert('Client not found. It may have already been deleted.');
+      } else if (err.status === 403) {
+        alert('You do not have permission to delete clients.');
+      } else {
+        alert('Failed to delete client. Please try again.');
+      }
+    }
+  }
+
+  resetForm(): void {
+    this.editingClientId = null;
+    this.formData = {
+      clientId: '',
+      clientName: '',
+      clientType: 'public',
+      redirectUris: '',
+      allowedScopes: '',
+      requirePkce: true
+    };
+    this.formError = null;
+  }
+
+  async onSubmit(): Promise<void> {
+    this.formError = null;
+    this.formSubmitting = true;
+
+    try {
+      // Convert redirect URIs and scopes to JSON arrays
+      const redirectUrisArray = this.formData.redirectUris
+        .split('\n')
+        .map(uri => uri.trim())
+        .filter(uri => uri.length > 0);
+      
+      const allowedScopesArray = this.formData.allowedScopes
+        .split(/[,\s]+/)
+        .map(scope => scope.trim())
+        .filter(scope => scope.length > 0);
+
+      if (redirectUrisArray.length === 0) {
+        this.formError = 'At least one redirect URI is required';
+        this.formSubmitting = false;
+        return;
+      }
+
+      if (allowedScopesArray.length === 0) {
+        this.formError = 'At least one scope is required';
+        this.formSubmitting = false;
+        return;
+      }
+
+      const clientData = {
+        clientId: this.formData.clientId,
+        clientName: this.formData.clientName,
+        clientType: this.formData.clientType,
+        redirectUris: JSON.stringify(redirectUrisArray),
+        allowedScopes: JSON.stringify(allowedScopesArray),
+        requirePkce: this.formData.requirePkce
+      };
+
+      if (this.editingClientId) {
+        // Update existing client
+        const updateData = {
+          clientName: this.formData.clientName,
+          clientType: this.formData.clientType,
+          redirectUris: JSON.stringify(redirectUrisArray),
+          allowedScopes: JSON.stringify(allowedScopesArray),
+          requirePkce: this.formData.requirePkce
+        };
+        await this.controller.updateClient(this.editingClientId, updateData);
+        this.cancelEdit();
+      } else {
+        // Create new client
+        await this.controller.createClient(clientData);
+        this.showForm = false;
+        this.resetForm();
+      }
+    } catch (err: any) {
+      if (err.error && err.error.error) {
+        this.formError = err.error.error;
+      } else if (err.status === 409) {
+        this.formError = 'Client ID already exists';
+      } else if (err.status === 403) {
+        this.formError = 'You do not have permission to create clients';
+      } else {
+        this.formError = 'Failed to create client. Please try again.';
+      }
+    } finally {
+      this.formSubmitting = false;
+    }
   }
 }
