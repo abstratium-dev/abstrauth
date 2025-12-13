@@ -911,4 +911,278 @@ describe('AccountsComponent', () => {
       });
     }));
   });
+
+  describe('Add Account Functionality', () => {
+    const mockClients = [
+      { 
+        id: '1',
+        clientId: 'client-1', 
+        clientName: 'Client 1', 
+        clientType: 'confidential',
+        redirectUris: 'http://localhost', 
+        allowedScopes: 'openid profile',
+        requirePkce: false,
+        createdAt: '2024-01-01T00:00:00Z'
+      }
+    ];
+
+    it('should toggle add account form', () => {
+      expect(component.showAddAccountForm).toBe(false);
+      
+      component.toggleAddAccountForm();
+      expect(component.showAddAccountForm).toBe(true);
+      expect(component.accountFormData).toEqual({ email: '', authProvider: '' });
+      expect(component.formError).toBeNull();
+      
+      component.toggleAddAccountForm();
+      expect(component.showAddAccountForm).toBe(false);
+    });
+
+    it('should reset form when opening add account form', () => {
+      component.accountFormData = { email: 'test@example.com', authProvider: 'google' };
+      component.formError = 'Some error';
+      
+      component.toggleAddAccountForm();
+      
+      expect(component.accountFormData).toEqual({ email: '', authProvider: '' });
+      expect(component.formError).toBeNull();
+    });
+
+    it('should create account successfully', fakeAsync(async () => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.accountFormData = { email: 'newuser@example.com', authProvider: 'google' };
+      const promise = component.onSubmitAddAccount();
+
+      const createReq = httpMock.expectOne('/api/accounts');
+      expect(createReq.request.method).toBe('POST');
+      expect(createReq.request.body).toEqual({
+        email: 'newuser@example.com',
+        authProvider: 'google'
+      });
+      
+      const newAccount = {
+        id: '4',
+        email: 'newuser@example.com',
+        name: 'NOT YET SIGNED IN',
+        emailVerified: false,
+        authProvider: 'google',
+        picture: null,
+        createdAt: '2024-01-04T00:00:00Z',
+        roles: []
+      };
+      createReq.flush(newAccount);
+      tick();
+
+      // Expect accounts to be reloaded
+      const reloadReq = httpMock.expectOne('/api/accounts');
+      reloadReq.flush([...mockAccounts, newAccount]);
+      tick();
+
+      await promise;
+      expect(component.showAddAccountForm).toBe(false);
+      expect(component.accountFormData).toEqual({ email: '', authProvider: '' });
+      expect(component.formError).toBeNull();
+    }));
+
+    it('should handle 400 validation error with violations array', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.accountFormData = { email: 'invalid', authProvider: 'invalid' };
+      const promise = component.onSubmitAddAccount();
+
+      const createReq = httpMock.expectOne('/api/accounts');
+      createReq.flush({
+        title: 'Constraint Violation',
+        status: 400,
+        violations: [
+          { field: 'createAccount.request.email', message: 'Email must be valid' },
+          { field: 'createAccount.request.authProvider', message: 'Auth provider must be either \'google\' or \'microsoft\'' }
+        ]
+      }, { status: 400, statusText: 'Bad Request' });
+
+      tick();
+      promise.then(() => {
+        expect(component.formError).toBe('Email must be valid; Auth provider must be either \'google\' or \'microsoft\'');
+        expect(component.formSubmitting).toBe(false);
+      });
+    }));
+
+    it('should handle 400 error without violations array', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.accountFormData = { email: 'test@example.com', authProvider: 'google' };
+      const promise = component.onSubmitAddAccount();
+
+      const createReq = httpMock.expectOne('/api/accounts');
+      createReq.flush({ error: 'Bad request' }, { status: 400, statusText: 'Bad Request' });
+
+      tick();
+      promise.then(() => {
+        expect(component.formError).toBe('Invalid input. Please check your entries.');
+        expect(component.formSubmitting).toBe(false);
+      });
+    }));
+
+    it('should handle 403 permission error', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.accountFormData = { email: 'test@example.com', authProvider: 'google' };
+      const promise = component.onSubmitAddAccount();
+
+      const createReq = httpMock.expectOne('/api/accounts');
+      createReq.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+      tick();
+      promise.then(() => {
+        expect(component.formError).toBe('You do not have permission to create accounts.');
+        expect(component.formSubmitting).toBe(false);
+      });
+    }));
+
+    it('should handle 409 duplicate email error', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.accountFormData = { email: 'admin@example.com', authProvider: 'google' };
+      const promise = component.onSubmitAddAccount();
+
+      const createReq = httpMock.expectOne('/api/accounts');
+      createReq.flush({ error: 'Email already exists' }, { status: 409, statusText: 'Conflict' });
+
+      tick();
+      promise.then(() => {
+        expect(component.formError).toBe('An account with this email already exists.');
+        expect(component.formSubmitting).toBe(false);
+      });
+    }));
+
+    it('should handle generic error', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.accountFormData = { email: 'test@example.com', authProvider: 'google' };
+      const promise = component.onSubmitAddAccount();
+
+      const createReq = httpMock.expectOne('/api/accounts');
+      createReq.error(new ProgressEvent('error'));
+
+      tick();
+      promise.then(() => {
+        expect(component.formError).toBe('Failed to create account. Please try again.');
+        expect(component.formSubmitting).toBe(false);
+      });
+    }));
+  });
+
+  describe('Delete Account Functionality', () => {
+    const mockClients = [
+      { 
+        id: '1',
+        clientId: 'client-1', 
+        clientName: 'Client 1', 
+        clientType: 'confidential',
+        redirectUris: 'http://localhost', 
+        allowedScopes: 'openid profile',
+        requirePkce: false,
+        createdAt: '2024-01-01T00:00:00Z'
+      }
+    ];
+
+    it('should delete account when confirmed', fakeAsync(async () => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      const accountToDelete = mockAccounts[0];
+      const promise = component.deleteAccount(accountToDelete);
+
+      // Simulate user confirming the dialog
+      tick();
+      
+      const deleteReq = httpMock.expectOne(`/api/accounts/${accountToDelete.id}`);
+      expect(deleteReq.request.method).toBe('DELETE');
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' });
+      tick();
+
+      // Expect accounts to be reloaded
+      const reloadReq = httpMock.expectOne('/api/accounts');
+      reloadReq.flush(mockAccounts.slice(1));
+      tick();
+
+      await promise;
+    }));
+
+    it('should not delete account when cancelled', fakeAsync(async () => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      const accountToDelete = mockAccounts[0];
+      component.deleteAccount(accountToDelete);
+
+      tick();
+      
+      // No DELETE request should be made if user cancels
+      httpMock.expectNone(`/api/accounts/${accountToDelete.id}`);
+    }));
+  });
 });

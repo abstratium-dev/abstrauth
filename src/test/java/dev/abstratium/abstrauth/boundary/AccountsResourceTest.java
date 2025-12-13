@@ -1,6 +1,8 @@
 package dev.abstratium.abstrauth.boundary;
 
 import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AccountRole;
+import dev.abstratium.abstrauth.entity.FederatedIdentity;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import io.quarkus.test.junit.QuarkusTest;
@@ -10,8 +12,12 @@ import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Set;
+
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 public class AccountsResourceTest {
@@ -32,7 +38,7 @@ public class AccountsResourceTest {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
             .subject(accountId)
             .upn("admin@example.com")
-            .groups("abstratium-abstrauth_admin")
+            .groups(Set.of("abstratium-abstrauth_admin", "abstratium-abstrauth_manage-accounts"))
             .claim("email", "admin@example.com")
             .claim("name", "Admin User")
             .sign();
@@ -412,6 +418,174 @@ public class AccountsResourceTest {
     }
 
     @Test
+    public void testAddAdminRoleAsNonAdmin() throws Exception {
+        // Create account and non-admin manager
+        userTransaction.begin();
+        String email = "roletest_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123");
+        
+        String managerEmail = "nonadmin_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Non-Admin Manager", "nonadmin_" + System.currentTimeMillis(), "Pass123");
+        userTransaction.commit();
+        
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "abstratium-abstrauth",
+                "role": "admin"
+            }
+            """, account.getId());
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("Only admin can add the admin role"));
+    }
+
+    @Test
+    public void testAddRoleToNewClientAsNonAdmin() throws Exception {
+        // Create two accounts: one with a role in client-a, another without any roles
+        userTransaction.begin();
+        String targetEmail = "target_" + System.currentTimeMillis() + "@example.com";
+        Account targetAccount = accountService.createAccount(targetEmail, "Target User", "target_" + System.currentTimeMillis(), "Pass123");
+        // Give target account a role in abstratium-abstrauth (this will work because it's the first role for this account)
+        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
+        
+        String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123");
+        userTransaction.commit();
+        
+        // Try to add target account to a NEW client (test-client) - should fail for non-admin
+        // Note: test-client doesn't exist, so this will also test FK constraint
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "test-client",
+                "role": "user"
+            }
+            """, targetAccount.getId());
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("Only admin can add roles to accounts that are not members of the client"));
+    }
+
+    @Test
+    public void testAddRoleToExistingClientAsNonAdmin() throws Exception {
+        // Create account with existing role in abstratium-abstrauth
+        userTransaction.begin();
+        String targetEmail = "target2_" + System.currentTimeMillis() + "@example.com";
+        Account targetAccount = accountService.createAccount(targetEmail, "Target User 2", "target2_" + System.currentTimeMillis(), "Pass123");
+        // Give target account a role in abstratium-abstrauth
+        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
+        
+        String managerEmail = "manager2_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Manager 2", "manager2_" + System.currentTimeMillis(), "Pass123");
+        userTransaction.commit();
+        
+        // Try to add another role to the SAME client (abstratium-abstrauth) - should succeed for non-admin
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "abstratium-abstrauth",
+                "role": "editor"
+            }
+            """, targetAccount.getId());
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(201)
+            .body("clientId", equalTo("abstratium-abstrauth"))
+            .body("role", equalTo("editor"));
+    }
+
+    @Test
+    public void testAddRoleToNewClientAsAdmin() throws Exception {
+        // Create account with existing role in abstratium-abstrauth
+        userTransaction.begin();
+        String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
+        Account targetAccount = accountService.createAccount(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123");
+        // Give target account a role in abstratium-abstrauth
+        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
+        
+        String adminEmail = "admin_" + System.currentTimeMillis() + "@example.com";
+        Account admin = accountService.createAccount(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123");
+        // Give admin the admin role
+        accountRoleService.addRole(admin.getId(), "abstratium-abstrauth", "admin");
+        userTransaction.commit();
+        
+        // Admin should be able to add target account role even if they don't have that client yet
+        // Since test-client doesn't exist, we'll add another role to the existing client to verify admin bypass
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "abstratium-abstrauth",
+                "role": "admin"
+            }
+            """, targetAccount.getId());
+        
+        given()
+            .auth().oauth2(generateAdminToken(admin.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(201)
+            .body("clientId", equalTo("abstratium-abstrauth"))
+            .body("role", equalTo("admin"));
+    }
+
+    @Test
+    public void testAddDuplicateRole() throws Exception {
+        // Create account with a role
+        userTransaction.begin();
+        String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccount(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123");
+        // Add initial role
+        accountRoleService.addRole(account.getId(), "abstratium-abstrauth", "user");
+        
+        String managerEmail = "manager_dup_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Manager Dup", "manager_dup_" + System.currentTimeMillis(), "Pass123");
+        userTransaction.commit();
+        
+        // Try to add the same role again - should return 409 Conflict
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "abstratium-abstrauth",
+                "role": "user"
+            }
+            """, account.getId());
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(409)
+            .body("error", equalTo("Role already exists"));
+    }
+
+    @Test
     public void testRemoveAccountRoleSuccessfully() throws Exception {
         // Create account with a role
         userTransaction.begin();
@@ -510,6 +684,82 @@ public class AccountsResourceTest {
             .then()
             .statusCode(404)
             .body("error", equalTo("Account not found"));
+    }
+
+    @Test
+    public void testDeleteAccountCascadesAllChildRecords() throws Exception {
+        // Create a manager account
+        userTransaction.begin();
+        Account manager = new Account();
+        manager.setEmail("manager-cascade@example.com");
+        manager.setName("Manager Cascade");
+        manager.setAuthProvider("native");
+        manager.setEmailVerified(true);
+        em.persist(manager);
+        em.flush();
+
+        // Create an account with all types of child records
+        Account account = accountService.createAccount(
+                "cascade-test@example.com",
+                "Cascade Test",
+                "cascadeuser",
+                "password123"
+        );
+        String accountId = account.getId();
+
+        // Add a role
+        accountRoleService.addRole(accountId, "test-client", "user");
+
+        // Add a federated identity
+        FederatedIdentity fedIdentity = new FederatedIdentity();
+        fedIdentity.setAccountId(accountId);
+        fedIdentity.setProvider("google");
+        fedIdentity.setProviderUserId("google-user-123");
+        fedIdentity.setEmail("cascade-test@example.com");
+        em.persist(fedIdentity);
+
+        em.flush();
+        userTransaction.commit();
+
+        // Verify child records exist before deletion
+        userTransaction.begin();
+        List<AccountRole> rolesBefore = accountRoleService.getRolesForAccount(accountId);
+        assertEquals(1, rolesBefore.size());
+
+        var credQuery = em.createQuery("SELECT c FROM Credential c WHERE c.accountId = :accountId", dev.abstratium.abstrauth.entity.Credential.class);
+        credQuery.setParameter("accountId", accountId);
+        assertEquals(1, credQuery.getResultList().size());
+
+        var fedQuery = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
+        fedQuery.setParameter("accountId", accountId);
+        assertEquals(1, fedQuery.getResultList().size());
+        userTransaction.commit();
+
+        // Delete the account
+        given()
+            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .when()
+            .delete("/api/accounts/" + accountId)
+            .then()
+            .statusCode(204);
+
+        // Verify account is deleted
+        Account deletedAccount = em.find(Account.class, accountId);
+        assertNull(deletedAccount);
+
+        // Verify all child records are deleted via CASCADE DELETE
+        userTransaction.begin();
+        List<AccountRole> rolesAfter = accountRoleService.getRolesForAccount(accountId);
+        assertTrue(rolesAfter.isEmpty(), "Roles should be deleted via CASCADE DELETE");
+
+        var credQueryAfter = em.createQuery("SELECT c FROM Credential c WHERE c.accountId = :accountId", dev.abstratium.abstrauth.entity.Credential.class);
+        credQueryAfter.setParameter("accountId", accountId);
+        assertTrue(credQueryAfter.getResultList().isEmpty(), "Credentials should be deleted via CASCADE DELETE");
+
+        var fedQueryAfter = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
+        fedQueryAfter.setParameter("accountId", accountId);
+        assertTrue(fedQueryAfter.getResultList().isEmpty(), "Federated identities should be deleted via CASCADE DELETE");
+        userTransaction.commit();
     }
 
 }

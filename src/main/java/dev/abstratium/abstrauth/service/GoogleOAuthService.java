@@ -59,23 +59,15 @@ public class GoogleOAuthService {
         // Get user info from Google
         GoogleUserInfo userInfo = googleClient.getUserInfo("Bearer " + tokenResponse.getAccessToken());
 
+        // Extract email_verified from ID token (more reliable than userinfo endpoint)
+        Boolean emailVerifiedFromToken = parseEmailVerifiedFromIdToken(tokenResponse.getIdToken());
+
         // Validate required fields from Google
         if (userInfo.getSub() == null || userInfo.getSub().isBlank()) {
             throw new IllegalStateException("Google user ID (sub) is missing from userinfo response");
         }
         if (userInfo.getEmail() == null || userInfo.getEmail().isBlank()) {
             throw new IllegalStateException("Email is missing from Google userinfo response");
-        }
-
-        // Check if this Google account is already linked
-        Optional<FederatedIdentity> existingIdentity = 
-                federatedIdentityService.findByProviderAndUserId("google", userInfo.getSub());
-
-        if (existingIdentity.isPresent()) {
-            // User already exists, return the linked account
-            String accountId = existingIdentity.get().getAccountId();
-            return accountService.findById(accountId)
-                    .orElseThrow(() -> new IllegalStateException("Linked account not found"));
         }
 
         // Check if an account with this email already exists
@@ -86,14 +78,12 @@ public class GoogleOAuthService {
             // Link the Google identity to the existing account
             account = existingAccount.get();
             
-            // Update account info from Google if not set
-            if (account.getName() == null || account.getName().isBlank()) {
-                account.setName(userInfo.getName());
-            }
-            if (account.getPicture() == null || account.getPicture().isBlank()) {
-                account.setPicture(convertToProxyUrl(userInfo.getPicture()));
-            }
-            if (Boolean.FALSE.equals(account.getEmailVerified()) && Boolean.TRUE.equals(userInfo.getEmailVerified())) {
+            // Update account info from Google, in all cases
+            account.setName(userInfo.getName());
+            account.setPicture(convertToProxyUrl(userInfo.getPicture()));
+            // Use email_verified from ID token if available, otherwise fall back to userinfo
+            Boolean emailVerified = emailVerifiedFromToken != null ? emailVerifiedFromToken : userInfo.getEmailVerified();
+            if (Boolean.FALSE.equals(account.getEmailVerified()) && Boolean.TRUE.equals(emailVerified)) {
                 account.setEmailVerified(true);
             }
             accountService.updateAccount(account);
@@ -103,23 +93,32 @@ public class GoogleOAuthService {
                 throw new IllegalStateException("Signup is disabled");
             }
             
+            // Use email_verified from ID token if available, otherwise fall back to userinfo
+            Boolean emailVerified = emailVerifiedFromToken != null ? emailVerifiedFromToken : userInfo.getEmailVerified();
+            
             // Create a new account for this Google user
             account = accountService.createFederatedAccount(
                     userInfo.getEmail(),
                     userInfo.getName(),
                     convertToProxyUrl(userInfo.getPicture()),
-                    userInfo.getEmailVerified(),
+                    emailVerified != null ? emailVerified : false,
                     "google"
             );
         }
 
-        // Create the federated identity link
-        federatedIdentityService.createFederatedIdentity(
-                account.getId(),
-                "google",
-                userInfo.getSub(),
-                userInfo.getEmail()
-        );
+        // Check if this Google account is already linked
+        Optional<FederatedIdentity> existingIdentity = 
+                federatedIdentityService.findByProviderAndUserId("google", userInfo.getSub());
+
+        if (!existingIdentity.isPresent()) {
+            // Create the federated identity link
+            federatedIdentityService.createFederatedIdentity(
+                    account.getId(),
+                    "google",
+                    userInfo.getSub(),
+                    userInfo.getEmail()
+            );
+        }
 
         return account;
     }
@@ -145,6 +144,50 @@ public class GoogleOAuthService {
         }
         
         return googlePictureUrl;
+    }
+
+    /**
+     * Parse the ID token to extract claims
+     * Google ID tokens are JWTs that contain user information
+     * 
+     * @param idToken The ID token from Google
+     * @return Boolean value of email_verified claim, or null if not present
+     */
+    private Boolean parseEmailVerifiedFromIdToken(String idToken) {
+        if (idToken == null || idToken.isBlank()) {
+            return null;
+        }
+        
+        try {
+            // ID token is a JWT with 3 parts: header.payload.signature
+            // We only need the payload (middle part)
+            String[] parts = idToken.split("\\.");
+            if (parts.length != 3) {
+                return null;
+            }
+            
+            // Decode the payload (base64url encoded)
+            String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+            
+            // Parse JSON to extract email_verified claim
+            // Simple parsing since we only need one field
+            if (payload.contains("\"email_verified\"")) {
+                int startIndex = payload.indexOf("\"email_verified\"");
+                int colonIndex = payload.indexOf(":", startIndex);
+                int commaIndex = payload.indexOf(",", colonIndex);
+                int braceIndex = payload.indexOf("}", colonIndex);
+                
+                int endIndex = commaIndex > 0 && commaIndex < braceIndex ? commaIndex : braceIndex;
+                String value = payload.substring(colonIndex + 1, endIndex).trim();
+                
+                return Boolean.parseBoolean(value);
+            }
+            
+            return null;
+        } catch (Exception e) {
+            // If parsing fails, return null
+            return null;
+        }
     }
 
     /**

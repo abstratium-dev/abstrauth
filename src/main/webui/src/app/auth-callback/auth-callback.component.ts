@@ -97,7 +97,7 @@ export class AuthCallbackComponent implements OnInit {
 
                 const routeBeforeSignIn = this.authService.getRouteBeforeSignIn();
                 if(routeBeforeSignIn) {
-                    this.router.navigate([routeBeforeSignIn]);
+                    this.router.navigateByUrl(routeBeforeSignIn);
                 } else {
                     this.router.navigate(['/accounts']);
                 }

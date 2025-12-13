@@ -18,9 +18,6 @@ export const authGuard: CanActivateFn = (route, state) => {
     return true;
   }
 
-  // Store the attempted URL for redirecting after login
-  authService.setRouteBeforeSignIn(state.url);
-  
   // Redirect to authorize page (which will redirect to signin)
   router.navigate(['/authorize']);
   return false;

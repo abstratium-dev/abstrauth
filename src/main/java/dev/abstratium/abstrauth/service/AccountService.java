@@ -237,4 +237,33 @@ public class AccountService {
         var query = em.createQuery("SELECT COUNT(a) FROM Account a", Long.class);
         return query.getSingleResult();
     }
+
+    /**
+     * Delete an account and all associated data
+     * 
+     * Note: Most child records are deleted automatically via CASCADE DELETE constraints:
+     * - T_account_roles (FK_account_roles_account)
+     * - T_credentials (FK_credentials_account_id)
+     * - T_federated_identities (FK_federated_account)
+     * - T_authorization_codes (FK_authorization_codes_account_id)
+     * 
+     * However, T_authorization_requests has no foreign key constraint, so we delete it manually.
+     * 
+     * @param accountId The ID of the account to delete
+     */
+    @Transactional
+    public void deleteAccount(String accountId) {
+        Account account = em.find(Account.class, accountId);
+        if (account == null) {
+            throw new IllegalArgumentException("Account not found");
+        }
+
+        // Delete authorization requests (no CASCADE DELETE constraint in database)
+        var authReqQuery = em.createQuery("DELETE FROM AuthorizationRequest ar WHERE ar.accountId = :accountId");
+        authReqQuery.setParameter("accountId", accountId);
+        authReqQuery.executeUpdate();
+
+        // Delete the account (CASCADE DELETE will handle roles, credentials, federated identities, and auth codes)
+        em.remove(account);
+    }
 }

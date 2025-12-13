@@ -22,34 +22,33 @@
     User makes subsequent request with revoked token → Filter checks database → 401 response
     The filter is correctly implemented and will work in production. The test failure is a test isolation issue, not a code issue.
 
-- accounts page
-  - add user by creating a link which you send to them manually. it precreates their account which is confirmed during login
-  - remove user
 - e2e tests for
   - CUD roles
   - CUD clients
   - CUD accounts
+- complete other open points from first security audit
 - security audit for CRUD operations on clients and accounts "using any trick in the book" for accessing the server via its web API (no direct access of the database, no access to the file system) - try to CRUD accounts, clients and roles!
 
 
 ## Tomorrow
 
-- refactor http error handling in angular code, potentially using an interceptor
+- does using testtransaction really make sense - is it a good practice?
 - controller should never return Promises
 - angular should always use inject and not constructor
 - do we need a revocation check endpoint so that a third party can check that the token
   isn't revoked? it could also check that the token is valid, altho the third party can 
   do that using the public key.
 - install in prod and use for hledger
-- complete other open points from first security audit
-- do another security audit
 - add description of how to deploy to production
 - upload docker image to dockerhub or quay.io?
 - does it make sense that revocation is used to log out? in fact, implement log out
 - make backend tests nested - account resource and client resource 
+- refactor http error handling in angular code, potentially using an interceptor
 
 ## Later (not yet necessary for initial release)
 
+- TLS for web endpoints
+- TLS for DB connections
 - auditing of CUD operations on clients and accounts
 - lock and unlock user
 - multi-tenancy so that a user with only user management role can only see their own clients and only the users in those clients.
@@ -76,6 +75,7 @@
 - add github login
 - add using refresh tokens
 - add a nonce (number used once) to the authorization request
+- add "realms" which are used to create multitenancy in a single instance of abstrauth
 - make issuer depend on redirect url?
 - split redirect urls into own table or just up to 5 cols?
 - check db columns and add functionality for them / check that they are used properly

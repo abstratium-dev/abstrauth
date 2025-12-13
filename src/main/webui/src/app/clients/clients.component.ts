@@ -6,6 +6,8 @@ import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
 import { Controller } from '../controller';
 import { ModelService, OAuthClient } from '../model.service';
 import { UrlFilterComponent } from '../shared/url-filter/url-filter.component';
+import { ToastService } from '../shared/toast/toast.service';
+import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'clients',
@@ -17,6 +19,8 @@ export class ClientsComponent implements OnInit {
   private controller = inject(Controller);
   private modelService = inject(ModelService);
   private authService = inject(AuthService);
+  private toastService = inject(ToastService);
+  private confirmService = inject(ConfirmDialogService);
   
   clients: OAuthClient[] = [];
   filteredClients: OAuthClient[] = [];
@@ -133,7 +137,15 @@ export class ClientsComponent implements OnInit {
   }
 
   async deleteClient(client: OAuthClient): Promise<void> {
-    if (!confirm(`Are you sure you want to delete "${client.clientName}"? This action cannot be undone.`)) {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Delete Client',
+      message: `Are you sure you want to delete the client "${client.clientName}"? This action cannot be undone.`,
+      confirmText: 'Delete Client',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -214,16 +226,28 @@ export class ClientsComponent implements OnInit {
           requirePkce: this.formData.requirePkce
         };
         await this.controller.updateClient(this.editingClientId, updateData);
+        const clientName = this.formData.clientName;
         this.cancelEdit();
+        this.toastService.success(`Client "${clientName}" updated successfully`);
       } else {
         // Create new client
         await this.controller.createClient(clientData);
+        const clientName = this.formData.clientName;
         this.showForm = false;
         this.resetForm();
+        this.toastService.success(`Client "${clientName}" created successfully`);
       }
     } catch (err: any) {
-      if (err.error && err.error.error) {
-        this.formError = err.error.error;
+      if (err.status === 400) {
+        // Check for validation error structure
+        if (err.error?.violations && Array.isArray(err.error.violations)) {
+          const messages = err.error.violations.map((v: any) => v.message).join('; ');
+          this.formError = messages;
+        } else if (err.error && err.error.error) {
+          this.formError = err.error.error;
+        } else {
+          this.formError = 'Invalid input. Please check your entries.';
+        }
       } else if (err.status === 409) {
         this.formError = 'Client ID already exists';
       } else if (err.status === 403) {

@@ -3,7 +3,6 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService, Token } from '../auth.service';
 import { CommonModule } from '@angular/common';
 import { Controller } from '../controller';
-import { ModelService } from '../model.service';
 
 @Component({
     selector: 'header',
@@ -14,7 +13,6 @@ import { ModelService } from '../model.service';
 export class HeaderComponent implements OnInit {
     private authService = inject(AuthService);
     private controller = inject(Controller);
-    private modelService = inject(ModelService);
 
     token!: Token;
     isSignedIn = false;

@@ -10,6 +10,7 @@ import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.ws.rs.*;
@@ -18,7 +19,9 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
@@ -61,6 +64,43 @@ public class AccountsResource {
     }
 
     @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Create account", description = "Creates a new account manually. Designed to be used when registration is disabled, so that an admin can add new accounts.")
+    @RolesAllowed(Roles.MANAGE_ACCOUNTS)
+    public Response createAccount(@Valid CreateAccountRequest request) {
+        // Validate authProvider
+        if (!request.authProvider.equals("google") && !request.authProvider.equals("microsoft")) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("authProvider must be either 'google' or 'microsoft'"))
+                    .build();
+        }
+
+        // Check if email already exists
+        if (accountService.findByEmail(request.email).isPresent()) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(new ErrorResponse("Email already exists"))
+                    .build();
+        }
+
+        // Create account
+        Account account = new Account();
+        account.setId(UUID.randomUUID().toString());
+        account.setEmail(request.email);
+        account.setAuthProvider(request.authProvider);
+        account.setName("NOT YET SIGNED IN");
+        account.setEmailVerified(false);
+        account.setPicture(null);
+        account.setCreatedAt(LocalDateTime.now());
+
+        Account savedAccount = accountService.updateAccount(account);
+        
+        return Response.status(Response.Status.CREATED)
+                .entity(toAccountResponse(savedAccount))
+                .build();
+    }
+
+    @POST
     @Path("/role")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
@@ -75,7 +115,8 @@ public class AccountsResource {
                     .build();
         }
 
-        // Add the role
+        // Add the role (validation happens inside)
+        // IllegalArgumentException will be caught by IllegalArgumentExceptionMapper and returned as 400
         AccountRole accountRole = accountRoleService.addRole(accountId, request.clientId, request.role);
         
         // Return the created role
@@ -100,6 +141,25 @@ public class AccountsResource {
 
         // Remove the role
         accountRoleService.removeRole(accountId, request.clientId, request.role);
+        
+        return Response.noContent().build();
+    }
+
+    @DELETE
+    @Path("/{accountId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Delete account", description = "Deletes an account and all associated data")
+    @RolesAllowed(Roles.MANAGE_ACCOUNTS)
+    public Response deleteAccount(@PathParam("accountId") String accountId) {
+        // Verify account exists
+        if (accountService.findById(accountId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Account not found"))
+                    .build();
+        }
+
+        // Delete the account
+        accountService.deleteAccount(accountId);
         
         return Response.noContent().build();
     }
@@ -189,5 +249,16 @@ public class AccountsResource {
         public ErrorResponse(String error) {
             this.error = error;
         }
+    }
+
+    @RegisterForReflection
+    public static class CreateAccountRequest {
+        @NotBlank(message = "Email is required")
+        @Email(message = "Email must be valid")
+        public String email;
+        
+        @NotBlank(message = "Auth provider is required")
+        @Pattern(regexp = "google|microsoft", message = "Auth provider must be either 'google' or 'microsoft'")
+        public String authProvider;
     }
 }

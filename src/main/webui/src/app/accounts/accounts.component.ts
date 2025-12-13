@@ -6,6 +6,8 @@ import { Account, ModelService, OAuthClient } from '../model.service';
 import { Controller } from '../controller';
 import { AuthService, ROLE_ADMIN, ROLE_MANAGE_ACCOUNTS } from '../auth.service';
 import { UrlFilterComponent } from '../shared/url-filter/url-filter.component';
+import { ToastService } from '../shared/toast/toast.service';
+import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-accounts',
@@ -19,6 +21,8 @@ export class AccountsComponent implements OnInit {
   private authService = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private toastService = inject(ToastService);
+  private confirmService = inject(ConfirmDialogService);
 
   accounts: Account[] = [];
   filteredAccounts: Account[] = [];
@@ -27,7 +31,16 @@ export class AccountsComponent implements OnInit {
   error: string | null = null;
   private currentFilter: string = '';
 
-  // Form state
+  // Add Account Form state
+  showAddAccountForm = false;
+  accountFormData = {
+    email: '',
+    authProvider: ''
+  };
+  formSubmitting = false;
+  formError: string | null = null;
+
+  // Role Form state
   addingRoleForAccountId: string | null = null;
   roleFormData = {
     clientId: '',
@@ -145,6 +158,56 @@ export class AccountsComponent implements OnInit {
     return this.authService.hasRole(ROLE_MANAGE_ACCOUNTS);
   }
 
+  toggleAddAccountForm(): void {
+    this.showAddAccountForm = !this.showAddAccountForm;
+    if (this.showAddAccountForm) {
+      // Reset form when opening
+      this.accountFormData = {
+        email: '',
+        authProvider: ''
+      };
+      this.formError = null;
+    }
+  }
+
+  async onSubmitAddAccount(): Promise<void> {
+    this.formSubmitting = true;
+    this.formError = null;
+
+    try {
+      await this.controller.createAccount(
+        this.accountFormData.email,
+        this.accountFormData.authProvider
+      );
+      // Success - close form and show toast
+      this.showAddAccountForm = false;
+      const email = this.accountFormData.email;
+      this.accountFormData = {
+        email: '',
+        authProvider: ''
+      };
+      this.toastService.success(`Account created successfully for ${email}`);
+    } catch (err: any) {
+      if (err.status === 400) {
+        // Check for validation error structure
+        if (err.error?.violations && Array.isArray(err.error.violations)) {
+          const messages = err.error.violations.map((v: any) => v.message).join('; ');
+          this.formError = messages;
+        } else {
+          this.formError = 'Invalid input. Please check your entries.';
+        }
+      } else if (err.status === 403) {
+        this.formError = 'You do not have permission to create accounts.';
+      } else if (err.status === 409) {
+        this.formError = 'An account with this email already exists.';
+      } else {
+        this.formError = 'Failed to create account. Please try again.';
+      }
+    } finally {
+      this.formSubmitting = false;
+    }
+  }
+
   startAddRole(accountId: string): void {
     this.addingRoleForAccountId = accountId;
     this.roleFormData = {
@@ -173,15 +236,29 @@ export class AccountsComponent implements OnInit {
         this.roleFormData.clientId,
         this.roleFormData.role
       );
-      // Success - reset form
+      // Success - reset form and show toast
+      const role = this.roleFormData.role;
+      const clientId = this.roleFormData.clientId;
       this.cancelAddRole();
+      this.toastService.success(`Role "${role}" added successfully for client "${clientId}"`);
     } catch (err: any) {
       if (err.status === 400) {
-        this.roleFormError = 'Invalid input. Please check your entries.';
+        // Check for validation error structure (Hibernate Validator)
+        if (err.error?.violations && Array.isArray(err.error.violations)) {
+          const messages = err.error.violations.map((v: any) => v.message).join('; ');
+          this.roleFormError = messages;
+        } else if (err.error?.error && typeof err.error.error === 'string') {
+          // Simple error message from IllegalArgumentExceptionMapper
+          this.roleFormError = err.error.error;
+        } else {
+          this.roleFormError = 'Invalid input. Please check your entries.';
+        }
       } else if (err.status === 403) {
         this.roleFormError = 'You do not have permission to add roles.';
       } else if (err.status === 404) {
         this.roleFormError = 'Account not found.';
+      } else if (err.status === 409) {
+        this.roleFormError = 'Role already exists.';
       } else {
         this.roleFormError = 'Failed to add role. Please try again.';
       }
@@ -191,7 +268,15 @@ export class AccountsComponent implements OnInit {
   }
 
   async deleteRole(accountId: string, clientId: string, role: string): Promise<void> {
-    if (!confirm(`Are you sure you want to remove the role "${role}" for client "${clientId}"?`)) {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Delete Role',
+      message: `Are you sure you want to delete the role "${role}"? This action cannot be undone.`,
+      confirmText: 'Delete Role',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -204,6 +289,33 @@ export class AccountsComponent implements OnInit {
         alert('Account or role not found.');
       } else {
         alert('Failed to remove role. Please try again.');
+      }
+    }
+  }
+
+  async deleteAccount(account: Account): Promise<void> {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Delete Account',
+      message: `Are you sure you want to delete the account for "${account.email}"? This action cannot be undone and will remove all associated data including roles, credentials, and authorization codes.`,
+      confirmText: 'Delete Account',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await this.controller.deleteAccount(account.id);
+      this.toastService.success(`Account for ${account.email} deleted successfully`);
+    } catch (err: any) {
+      if (err.status === 403) {
+        this.toastService.error('You do not have permission to delete accounts.');
+      } else if (err.status === 404) {
+        this.toastService.error('Account not found.');
+      } else {
+        this.toastService.error('Failed to delete account. Please try again.');
       }
     }
   }

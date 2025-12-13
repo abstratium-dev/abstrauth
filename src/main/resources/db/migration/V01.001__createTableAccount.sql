@@ -4,5 +4,7 @@ CREATE TABLE T_accounts (
     email_verified BOOLEAN DEFAULT FALSE,
     name VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    picture VARCHAR(500),
+    auth_provider VARCHAR(50) DEFAULT 'native',
     CONSTRAINT I_accounts_email UNIQUE (email)
 );

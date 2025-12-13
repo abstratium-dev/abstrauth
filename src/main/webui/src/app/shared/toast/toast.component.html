@@ -1,0 +1,17 @@
+<div class="toast-container">
+  <div *ngFor="let toast of toasts()" 
+       class="toast" 
+       [ngClass]="'toast-' + toast.type"
+       [@animate.enter]="{ duration: 300, easing: 'ease-out', from: { transform: 'translateX(100%)', opacity: 0 }, to: { transform: 'translateX(0)', opacity: 1 } }"
+       [@animate.leave]="{ duration: 200, easing: 'ease-in', to: { transform: 'translateX(100%)', opacity: 0 } }">
+    <div class="toast-content">
+      <span class="toast-icon">
+        <span *ngIf="toast.type === 'success'">✓</span>
+        <span *ngIf="toast.type === 'error'">✗</span>
+        <span *ngIf="toast.type === 'info'">ℹ</span>
+      </span>
+      <span class="toast-message">{{ toast.message }}</span>
+    </div>
+    <button class="toast-close" (click)="close(toast.id)" aria-label="Close">×</button>
+  </div>
+</div>

@@ -12,8 +12,15 @@ CREATE TABLE T_authorization_codes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
     CONSTRAINT FK_authorization_codes_authorization_request_id FOREIGN KEY (authorization_request_id) REFERENCES T_authorization_requests(id) ON DELETE CASCADE,
-    CONSTRAINT FK_authorization_codes_account_id FOREIGN KEY (account_id) REFERENCES T_accounts(id) ON DELETE CASCADE
+    CONSTRAINT FK_authorization_codes_account_id FOREIGN KEY (account_id) REFERENCES T_accounts(id) ON DELETE CASCADE,
+    CONSTRAINT FK_authorization_codes_client_id FOREIGN KEY (client_id) REFERENCES T_oauth_clients(client_id) ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX I_authorization_codes_code ON T_authorization_codes(code);
-CREATE INDEX I_authorization_codes_expires_at ON T_authorization_codes(expires_at);
+-- FK indexes
+CREATE INDEX I_authorization_codes_authorization_request_id ON T_authorization_codes(authorization_request_id);
+CREATE INDEX I_authorization_codes_client_id ON T_authorization_codes(client_id);
+CREATE INDEX I_authorization_codes_account_id ON T_authorization_codes(account_id);
+
+-- other indexes
+CREATE UNIQUE INDEX I_authorization_codes_code ON T_authorization_codes(code); -- for search
+CREATE INDEX I_authorization_codes_expires_at ON T_authorization_codes(expires_at); -- for deletion

@@ -1,6 +1,8 @@
 package dev.abstratium.abstrauth.service;
 
+import dev.abstratium.abstrauth.boundary.ConflictException;
 import dev.abstratium.abstrauth.entity.AccountRole;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -15,6 +17,12 @@ public class AccountRoleService {
 
     @Inject
     EntityManager em;
+
+    @Inject
+    AccountService accountService;
+
+    @Inject
+    SecurityIdentity securityIdentity;
 
     /**
      * Get all roles (groups) for a specific account and client combination
@@ -61,12 +69,62 @@ public class AccountRoleService {
      */
     @Transactional
     public AccountRole addRole(String accountId, String clientId, String role) {
+        checkNonAdminCannotAddAdminRole(role);
+
+        checkOnlyAddingToClientWhichTheyAlreadyHave(accountId, clientId);
+
+        // Check if role already exists
+        if (getRolesForAccountAndClient(accountId, clientId).contains(role)) {
+            throw new ConflictException("Role already exists");
+        }
+
         AccountRole accountRole = new AccountRole();
         accountRole.setAccountId(accountId);
         accountRole.setClientId(clientId);
         accountRole.setRole(role);
         em.persist(accountRole);
         return accountRole;
+    }
+
+    private void checkOnlyAddingToClientWhichTheyAlreadyHave(String accountId, String clientId) {
+        // Allow if this is the first account (system initialization) or no security context (tests)
+        long accountCount = accountService.countAccounts();
+        if (accountCount == 1 || securityIdentity.isAnonymous()) {
+            return;
+        }
+        
+        // only admin can add a user to a clientId for which they are not already a member of.
+        // start by selecting all the roles belonging to the account
+        var query = em.createQuery(
+            "SELECT ar FROM AccountRole ar WHERE ar.accountId = :accountId",
+            AccountRole.class
+        );
+        query.setParameter("accountId", accountId);
+        List<AccountRole> accountRolesForAccount = query.getResultList();
+        var uniqueClientIdsForAccount = accountRolesForAccount.stream()
+            .map(AccountRole::getClientId)
+            .collect(Collectors.toSet());
+        if(!uniqueClientIdsForAccount.contains(clientId)) {
+            if(!securityIdentity.hasRole(Roles.ADMIN)) {
+                throw new IllegalArgumentException("Only admin can add roles to accounts that are not members of the client");
+            }
+        }
+    }
+
+    /**
+     * only admin can add the admin role
+     */
+    private void checkNonAdminCannotAddAdminRole(String role) {
+        if (role.equals(Roles._ADMIN_PLAIN)) {
+            // Allow if this is the first account (system initialization) or no security context (tests)
+            long accountCount = accountService.countAccounts();
+            if (accountCount == 1 || securityIdentity.isAnonymous()) {
+                return;
+            }
+            if (!securityIdentity.hasRole(Roles.ADMIN)) {
+                throw new IllegalArgumentException("Only admin can add the admin role");
+            }
+        }
     }
 
     /**

@@ -44,6 +44,12 @@ The application uses Quarkus. Run it with either `./mvnw quarkus:dev` or `quarku
 
 Open the jacoco report from `target/jacoco-report/index.html`.
 
+### Trouble Shooting
+
+Use `ng serve` and accept the port it offers, in order to see the actual error messages that are occuring during the build, if you see the following error in Quarkus, and it shows a Quarkus page with the error message `Error restarting Quarkus` and `io.vertx.core.impl.NoStackTraceException`
+
+    Error in Quinoa while running package manager 
+
 
 ### Database
 

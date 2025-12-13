@@ -1,11 +1,16 @@
-import { Injectable, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { CLIENT_ID } from './authorize/authorize.component';
 
 export const ISSUER = 'https://abstrauth.abstratium.dev';
 export const ROLE_ADMIN = 'abstratium-abstrauth_admin';
 export const ROLE_MANAGE_CLIENTS = 'abstratium-abstrauth_manage-clients';
 export const ROLE_MANAGE_ACCOUNTS = 'abstratium-abstrauth_manage-accounts';
+
+const LOCALSTORAGE_KEY_ROUTE_BEFORE_SIGN_IN = 'routeBeforeSignIn';
+const defaultRoute = '/accounts';
+const ignoredRoutes = ['/signout', '/signin', '/signup', '/auth-callback', '/authorize'];
 
 export interface Token {
     iss: string;
@@ -41,21 +46,35 @@ export const ANONYMOUS: Token = {
     auth_method: 'none',
 };
 
-
 @Injectable({
     providedIn: 'root',
 })
 export class AuthService {
+    private router = inject(Router);
 
     token$ = signal<Token>(ANONYMOUS);
     private token = ANONYMOUS;
     private jwt = '';
-    private routeBeforeSignIn = '/';
+    private routeBeforeSignIn = defaultRoute;
+    private currentUrl: string = defaultRoute;
 
-    constructor(private http: HttpClient) {}
+    constructor() {
+        this.routeBeforeSignIn = localStorage.getItem(LOCALSTORAGE_KEY_ROUTE_BEFORE_SIGN_IN) || defaultRoute;
+        
+        // Listen to route changes to track previous URL
+        this.router.events.pipe(
+            filter((event): event is NavigationEnd => event instanceof NavigationEnd)
+        ).subscribe((event) => {
+            if (ignoredRoutes.some(route => event.urlAfterRedirects.startsWith(route))) {
+                return;
+            }
+            this.currentUrl = event.urlAfterRedirects;
+        });
+    }
 
     setRouteBeforeSignIn(route: string) {
         this.routeBeforeSignIn = route;
+        localStorage.setItem(LOCALSTORAGE_KEY_ROUTE_BEFORE_SIGN_IN, route);
     }
 
     getRouteBeforeSignIn() {
@@ -138,10 +157,19 @@ export class AuthService {
     }
 
     signout() {
-        // TODO call back end
-        this.token = ANONYMOUS;
-        this.token.isAuthenticated = false;
-        this.token$.set(this.token);
+        this.setRouteBeforeSignIn(this.currentUrl);
+
+        // TODO call back end, except... it's stateless so there is no point
+
+        // Defer token update to avoid ExpressionChangedAfterItHasBeenCheckedError
+        // This ensures the signal update happens after the current change detection cycle
+        setTimeout(() => {
+            this.token = ANONYMOUS;
+            this.token.isAuthenticated = false;
+            this.token$.set(this.token);
+
+            this.router.navigate(['/']);
+        }, 0);
     }
 
     hasRole(role: string): boolean {

@@ -149,4 +149,34 @@ export class Controller {
       throw error;
     }
   }
+
+  async createAccount(email: string, authProvider: string): Promise<Account> {
+    try {
+      const response = await firstValueFrom(
+        this.http.post<Account>('/api/accounts', {
+          email,
+          authProvider
+        })
+      );
+      // Reload accounts list after successful creation
+      this.loadAccounts();
+      return response;
+    } catch (error) {
+      console.error('Error creating account:', error);
+      throw error;
+    }
+  }
+
+  async deleteAccount(accountId: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete(`/api/accounts/${accountId}`)
+      );
+      // Reload accounts list after successful deletion
+      this.loadAccounts();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      throw error;
+    }
+  }
 }

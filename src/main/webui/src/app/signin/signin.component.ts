@@ -38,6 +38,7 @@ export class SigninComponent implements OnInit {
     isSubmitting = false;
     name = "";
     showSignup = false;
+    signinIsExpired = false;
 
     constructor(
     ) {
@@ -69,6 +70,12 @@ export class SigninComponent implements OnInit {
                     this.errorMessage = error.message;
                 }
             });
+
+        // set a timeout for just under 10 minutes time, since the server will expire
+        // the request then
+        setTimeout(() => {
+            this.signinIsExpired = true;
+        }, (10 * 60 * 1000) - (30 * 1000));
     }
 
     signin() {

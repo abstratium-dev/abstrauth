@@ -1,5 +1,11 @@
 <div class="container">
-  <h1>User Accounts</h1>
+  <div class="page-header">
+    <h1>User Accounts</h1>
+    <button *ngIf="hasManageAccountsRole() && !loading" class="btn-add" (click)="toggleAddAccountForm()"
+      [disabled]="formSubmitting">
+      {{ showAddAccountForm ? 'Cancel' : '+ Add Account' }}
+    </button>
+  </div>
   
   <div *ngIf="loading" class="loading">
     <p>Loading accounts...</p>
@@ -10,12 +16,50 @@
     <button (click)="loadAccounts()">Retry</button>
   </div>
 
+  <!-- Add Account Form -->
+  <div *ngIf="showAddAccountForm && hasManageAccountsRole()" class="form-container">
+    <h2>Create New Account</h2>
+
+    <form (ngSubmit)="onSubmitAddAccount()">
+      <div *ngIf="formError" class="error-box">
+        {{ formError }}
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email *</label>
+        <input type="email" id="email" name="email" [(ngModel)]="accountFormData.email" required
+          placeholder="user@example.com" [disabled]="formSubmitting">
+        <small class="form-hint">Email address for the new account</small>
+      </div>
+
+      <div class="form-group">
+        <label for="authProvider">Auth Provider *</label>
+        <select id="authProvider" name="authProvider" [(ngModel)]="accountFormData.authProvider" required
+          [disabled]="formSubmitting">
+          <option value="">Select a provider</option>
+          <option value="google">Google</option>
+          <option value="microsoft">Microsoft</option>
+        </select>
+        <small class="form-hint">Authentication provider for this account</small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary" [disabled]="formSubmitting">
+          {{ formSubmitting ? 'Creating...' : 'Create Account' }}
+        </button>
+        <button type="button" class="btn-secondary" (click)="toggleAddAccountForm()" [disabled]="formSubmitting">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+
   <div *ngIf="!loading && !error && accounts.length === 0" class="info-message">
     <p>No accounts found.</p>
   </div>
 
   <div *ngIf="!loading && !error && accounts.length > 0">
-    <div *ngIf="getAdminCount() > 0" class="notice-box" [ngClass]="getAdminCount() === 1 ? 'notice-success' : 'notice-info'">
+    <div *ngIf="getAdminCount() > 0 && hasAdminRole()" class="notice-box" [ngClass]="getAdminCount() === 1 ? 'notice-success' : 'notice-info'">
       <p *ngIf="getAdminCount() === 1 && hasAdminRole()">
         ✓ You are the first and only admin
       </p>
@@ -49,13 +93,21 @@
               <p class="tile-subtitle">{{ account.email }}</p>
             </div>
           </div>
-          <div class="tile-badges">
-            <span class="badge" [ngClass]="getProviderBadgeClass(account.authProvider)">
-              {{ account.authProvider }}
-            </span>
-            <span class="badge" [ngClass]="account.emailVerified ? 'badge-verified' : 'badge-unverified'">
-              {{ account.emailVerified ? '✓ Verified' : '✗ Not Verified' }}
-            </span>
+          <div class="tile-header-actions">
+            <div class="tile-badges">
+              <span class="badge" [ngClass]="getProviderBadgeClass(account.authProvider)">
+                {{ account.authProvider }}
+              </span>
+              <span class="badge" [ngClass]="account.emailVerified ? 'badge-verified' : 'badge-unverified'">
+                {{ account.emailVerified ? '✓ Verified' : '✗ Not Verified' }}
+              </span>
+            </div>
+            <button *ngIf="hasManageAccountsRole()" 
+                    class="btn-icon btn-icon-danger" 
+                    (click)="deleteAccount(account)" 
+                    title="Delete account">
+              🗑️
+            </button>
           </div>
         </div>
 

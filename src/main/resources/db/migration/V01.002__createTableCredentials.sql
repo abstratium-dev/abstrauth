@@ -9,4 +9,8 @@ CREATE TABLE T_credentials (
     CONSTRAINT FK_credentials_account_id FOREIGN KEY (account_id) REFERENCES T_accounts(id) ON DELETE CASCADE
 );
 
+-- FK indexes
+CREATE UNIQUE INDEX I_credentials_account_id ON T_credentials(account_id);
+
+-- other indexes
 CREATE UNIQUE INDEX I_credentials_username ON T_credentials(username);
