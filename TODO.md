@@ -8,7 +8,12 @@
 - disallow deleting last admin account
 - make it impossible to delete the client abstratium-abstrauth
 - improve branch coverage of ui
+- use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
+ in a test somewhere
+- `auth-callback.component.ts` should fetch the http only cookie from the server, since it cannot set it to http only itself. see `document.cookie` => actually simply make `POST /oauth2/token` return the cookie as http only and secure if prod
 - if native sign in is disabled, don't add the option to create an account with native sign in
+- make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_MANUAL.md](USER_MANUAL.md). once this has been supressed, describe it in the manual.
+  - actually make it only possible once they have changed their password, if native.
 - allow to disable sign in with native - needs a test
 - e2e
   - add scripts for clearing database

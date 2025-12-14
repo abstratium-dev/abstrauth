@@ -313,4 +313,9 @@ public class AccountService {
         em.merge(credential);
         return true;
     }
+
+    @Transactional
+    public void deleteAll() {
+        em.createQuery("DELETE FROM Account").executeUpdate();
+    }
 }

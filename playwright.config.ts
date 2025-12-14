@@ -15,7 +15,7 @@ console.log("BASE_URL: ", process.env.BASE_URL);
  * 
  * Usage:
  * - Manual testing: Run `mvn quarkus:dev` then `npx playwright test`
- *   Tests will use http://localhost:4200 (Quinoa Angular dev server)
+ *   Tests will use http://localhost:8080 (Quinoa Angular dev server)
  * 
  * - Maven integration: Run `mvn verify -Pe2e`
  *   Tests will use http://localhost:8080 (built Quarkus jar with H2 and static Angular files)
@@ -38,7 +38,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
-    baseURL: process.env.BASE_URL || 'http://localhost:4200',
+    baseURL: process.env.BASE_URL || 'http://localhost:8080',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',

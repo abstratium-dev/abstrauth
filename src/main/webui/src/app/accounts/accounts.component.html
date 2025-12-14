@@ -1,7 +1,7 @@
 <div class="container">
   <div class="page-header">
     <h1>User Accounts</h1>
-    <button *ngIf="hasManageAccountsRole() && !loading" class="btn-add" (click)="toggleAddAccountForm()"
+    <button *ngIf="hasManageAccountsRole() && !loading" id="add-account-button" class="btn-add" (click)="toggleAddAccountForm()"
       [disabled]="formSubmitting">
       {{ showAddAccountForm ? 'Cancel' : '+ Add Account' }}
     </button>
@@ -52,10 +52,10 @@
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="btn-primary" [disabled]="formSubmitting">
+          <button type="submit" id="create-account-button" class="btn-primary" [disabled]="formSubmitting">
             {{ formSubmitting ? 'Creating...' : 'Create Account' }}
           </button>
-          <button type="button" class="btn-secondary" (click)="toggleAddAccountForm()" [disabled]="formSubmitting">
+          <button type="button" id="cancel-account-button" class="btn-secondary" (click)="toggleAddAccountForm()" [disabled]="formSubmitting">
             Cancel
           </button>
         </div>
@@ -71,7 +71,7 @@
       </div>
       <p>Share this invite link with the user:</p>
       <div class="invite-link-box">
-        <input type="text" [value]="inviteLink" readonly class="invite-link-input">
+        <input type="text" [value]="inviteLink" readonly id="invite-link-input" class="invite-link-input">
         <button type="button" class="btn-primary" (click)="copyInviteLink()">
           📋 Copy Link
         </button>
