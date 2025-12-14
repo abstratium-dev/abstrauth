@@ -1,12 +1,7 @@
 <div class="container">
   <h1>User Profile</h1>
   
-  <div *ngIf="errorMessage" class="error-message">
-    <h2>⚠️ Access Denied</h2>
-    <p>{{ errorMessage }}</p>
-  </div>
-  
-  <div *ngIf="!errorMessage" class="card">
+  <div class="card">
     <h2>Token Claims</h2>
     <p class="description">All claims contained in your JWT access token:</p>
     

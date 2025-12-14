@@ -264,6 +264,7 @@ public class SignupResourceTest {
             .then()
             .statusCode(200)
             .contentType(containsString("application/json"))
-            .body("allowed", notNullValue());
+            .body("allowed", notNullValue())
+            .body("allowNativeSignin", notNullValue());
     }
 }

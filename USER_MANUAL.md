@@ -29,3 +29,10 @@ The idea here is that users can only see other accounts for clients that they ha
 
 To manage clients, the user needs the role `abstratium-abstrauth_manage-clients`.
 Users with an account with this role can see all the clients which the user is mapped to.
+
+## Adding New Accounts Manually
+
+Use the "create account" link (available to users with the role `manage-accounts`). This is only really designed for setups where signing up has been disabled.
+
+IT IS NOT RECOMMENDED to add roles to an account before the user tells you that they were able to sign in. Imagine adding the `admin` role to their account but a threat actor intercepting your invitation and using that role to remove you and other administrators!
+

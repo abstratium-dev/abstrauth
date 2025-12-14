@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './auth.interceptor';
@@ -94,17 +94,18 @@ describe('authInterceptor', () => {
       req.flush([]);
     });
 
-    it('should not add Authorization header after signout', () => {
+    it('should not add Authorization header after signout', fakeAsync(() => {
       // Set token then sign out
       authService.setAccessToken(mockJwt);
       authService.signout();
+      tick(); // Process setTimeout in signout
 
       httpClient.get('/api/clients').subscribe();
 
       const req = httpMock.expectOne('/api/clients');
       expect(req.request.headers.has('Authorization')).toBe(false);
       req.flush([]);
-    });
+    }));
   });
 
   describe('Non-API requests', () => {

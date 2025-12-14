@@ -10,6 +10,10 @@
   justify-content: center;
   z-index: 10000;
   animation: fadeIn 0.2s ease-out;
+
+  [data-theme="dark"] & {
+    background-color: rgba(0, 0, 0, 0.75);
+  }
 }
 
 @keyframes fadeIn {
@@ -22,7 +26,7 @@
 }
 
 .dialog-container {
-  background: white;
+  background: var(--color-bg-secondary);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   min-width: 400px;
@@ -30,6 +34,12 @@
   max-height: 80vh;
   overflow: auto;
   animation: slideIn 0.3s ease-out;
+  border: 1px solid var(--color-info);
+
+  [data-theme="dark"] & {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--color-border-secondary);
+  }
 }
 
 @keyframes slideIn {
@@ -45,14 +55,14 @@
 
 .dialog-header {
   padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border-primary);
 }
 
 .dialog-header h2 {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .dialog-body {
@@ -62,13 +72,13 @@
 .dialog-body p {
   font-size: 1.1rem;
   margin: 0;
-  color: #666;
+  color: var(--color-text-secondary);
   line-height: 1.6;
 }
 
 .dialog-actions {
   padding: 1rem 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--color-border-primary);
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;

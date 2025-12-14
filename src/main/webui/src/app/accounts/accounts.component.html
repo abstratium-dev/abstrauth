@@ -25,33 +25,69 @@
         {{ formError }}
       </div>
 
-      <div class="form-group">
-        <label for="email">Email *</label>
-        <input type="email" id="email" name="email" [(ngModel)]="accountFormData.email" required
-          placeholder="user@example.com" [disabled]="formSubmitting">
-        <small class="form-hint">Email address for the new account</small>
-      </div>
+      <div *ngIf="!showInviteLink">
+        <div class="form-group">
+          <label for="email">Email *</label>
+          <input type="email" id="email" name="email" [(ngModel)]="accountFormData.email" required
+            placeholder="user@example.com" [disabled]="formSubmitting">
+          <small class="form-hint">Email address for the new account</small>
+        </div>
 
-      <div class="form-group">
-        <label for="authProvider">Auth Provider *</label>
-        <select id="authProvider" name="authProvider" [(ngModel)]="accountFormData.authProvider" required
-          [disabled]="formSubmitting">
-          <option value="">Select a provider</option>
-          <option value="google">Google</option>
-          <option value="microsoft">Microsoft</option>
-        </select>
-        <small class="form-hint">Authentication provider for this account</small>
-      </div>
+        <div class="form-group" *ngIf="accountFormData.authProvider === 'native'">
+          <label for="name">Full Name *</label>
+          <input type="text" id="name" name="name" [(ngModel)]="accountFormData.name" required
+            placeholder="John Doe" [disabled]="formSubmitting">
+          <small class="form-hint">Full name of the user</small>
+        </div>
 
-      <div class="form-actions">
-        <button type="submit" class="btn-primary" [disabled]="formSubmitting">
-          {{ formSubmitting ? 'Creating...' : 'Create Account' }}
-        </button>
-        <button type="button" class="btn-secondary" (click)="toggleAddAccountForm()" [disabled]="formSubmitting">
-          Cancel
-        </button>
+        <div class="form-group">
+          <label for="authProvider">Authorisation Provider *</label>
+          <select id="authProvider" name="authProvider" [(ngModel)]="accountFormData.authProvider" required
+            [disabled]="formSubmitting">
+            <option value="">Select a provider</option>
+            <option value="native">Native (Username/Password)</option>
+            <option value="google">Google</option>
+          </select>
+          <small class="form-hint">Authentication provider for this account</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="formSubmitting">
+            {{ formSubmitting ? 'Creating...' : 'Create Account' }}
+          </button>
+          <button type="button" class="btn-secondary" (click)="toggleAddAccountForm()" [disabled]="formSubmitting">
+            Cancel
+          </button>
+        </div>
       </div>
     </form>
+
+    <!-- Invite Link Display -->
+    <div *ngIf="showInviteLink" class="invite-link-container">
+      <h3>Account Created Successfully!</h3>
+      <div class="account-details">
+        <p><strong>Email:</strong> {{ accountFormData.email }}</p>
+        <p><strong>Authorisation Provider:</strong> {{ accountFormData.authProvider === 'native' ? 'Native (Username/Password)' : accountFormData.authProvider === 'google' ? 'Google' : accountFormData.authProvider }}</p>
+      </div>
+      <p>Share this invite link with the user:</p>
+      <div class="invite-link-box">
+        <input type="text" [value]="inviteLink" readonly class="invite-link-input">
+        <button type="button" class="btn-primary" (click)="copyInviteLink()">
+          📋 Copy Link
+        </button>
+      </div>
+      <p class="invite-hint">
+        <strong>Important:</strong> This link contains the initial credentials. 
+        <span *ngIf="accountFormData.authProvider === 'native'">
+          The user will be required to change their password on first sign-in.
+        </span>
+      </p>
+      <div class="form-actions">
+        <button type="button" class="btn-primary" (click)="closeInviteLink()">
+          Done
+        </button>
+      </div>
+    </div>
   </div>
 
   <div *ngIf="!loading && !error && accounts.length === 0" class="info-message">

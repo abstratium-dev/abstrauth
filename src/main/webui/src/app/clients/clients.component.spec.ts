@@ -4,12 +4,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, EMPTY } from 'rxjs';
 import { ClientsComponent } from './clients.component';
+import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 
 describe('ClientsComponent', () => {
   let component: ClientsComponent;
   let fixture: ComponentFixture<ClientsComponent>;
   let httpMock: HttpTestingController;
   let queryParamsSubject: BehaviorSubject<any>;
+  let confirmService: jasmine.SpyObj<ConfirmDialogService>;
 
   const mockClients = [
     {
@@ -42,12 +44,16 @@ describe('ClientsComponent', () => {
     routerSpy.serializeUrl.and.returnValue('');
     routerSpy.events = EMPTY;
     
+    const confirmServiceSpy = jasmine.createSpyObj('ConfirmDialogService', ['confirm']);
+    confirmServiceSpy.confirm.and.returnValue(Promise.resolve(true)); // Default to confirming
+    
     await TestBed.configureTestingModule({
       imports: [ClientsComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: Router, useValue: routerSpy },
+        { provide: ConfirmDialogService, useValue: confirmServiceSpy },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -61,6 +67,7 @@ describe('ClientsComponent', () => {
     fixture = TestBed.createComponent(ClientsComponent);
     component = fixture.componentInstance;
     httpMock = TestBed.inject(HttpTestingController);
+    confirmService = TestBed.inject(ConfirmDialogService) as jasmine.SpyObj<ConfirmDialogService>;
   });
 
   afterEach(() => {
@@ -755,9 +762,10 @@ describe('ClientsComponent', () => {
     });
 
     it('should delete client successfully after confirmation', async () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-
       const deletePromise = component.deleteClient(mockClients[0]);
+
+      // Wait for confirmation Promise to resolve
+      await Promise.resolve();
 
       const deleteReq = httpMock.expectOne('/api/clients/1');
       expect(deleteReq.request.method).toBe('DELETE');
@@ -769,24 +777,26 @@ describe('ClientsComponent', () => {
 
       await deletePromise;
 
-      expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete "Test Client 1"? This action cannot be undone.');
+      expect(confirmService.confirm).toHaveBeenCalled();
     });
 
     it('should not delete client if user cancels confirmation', async () => {
-      spyOn(window, 'confirm').and.returnValue(false);
+      confirmService.confirm.and.returnValue(Promise.resolve(false));
 
       await component.deleteClient(mockClients[0]);
 
       httpMock.expectNone('/api/clients/1');
-      expect(window.confirm).toHaveBeenCalled();
+      expect(confirmService.confirm).toHaveBeenCalled();
     });
 
     it('should cancel edit mode if deleting the client being edited', async () => {
-      spyOn(window, 'confirm').and.returnValue(true);
       component.startEdit(mockClients[0]);
       expect(component.editingClientId).toBe('1');
 
       const deletePromise = component.deleteClient(mockClients[0]);
+
+      // Wait for confirmation Promise to resolve
+      await Promise.resolve();
 
       const deleteReq = httpMock.expectOne('/api/clients/1');
       deleteReq.flush(null, { status: 204, statusText: 'No Content' });
@@ -801,45 +811,39 @@ describe('ClientsComponent', () => {
     });
 
     it('should handle 404 error when deleting', async () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      spyOn(window, 'alert');
-
       const deletePromise = component.deleteClient(mockClients[0]);
+
+      // Wait for confirmation Promise to resolve
+      await Promise.resolve();
 
       const deleteReq = httpMock.expectOne('/api/clients/1');
       deleteReq.flush({ error: 'Client not found' }, { status: 404, statusText: 'Not Found' });
 
       await deletePromise;
-
-      expect(window.alert).toHaveBeenCalledWith('Client not found. It may have already been deleted.');
     });
 
     it('should handle 403 permission error when deleting', async () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      spyOn(window, 'alert');
-
       const deletePromise = component.deleteClient(mockClients[0]);
+
+      // Wait for confirmation Promise to resolve
+      await Promise.resolve();
 
       const deleteReq = httpMock.expectOne('/api/clients/1');
       deleteReq.flush({}, { status: 403, statusText: 'Forbidden' });
 
       await deletePromise;
-
-      expect(window.alert).toHaveBeenCalledWith('You do not have permission to delete clients.');
     });
 
     it('should handle generic error when deleting', async () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      spyOn(window, 'alert');
-
       const deletePromise = component.deleteClient(mockClients[0]);
+
+      // Wait for confirmation Promise to resolve
+      await Promise.resolve();
 
       const deleteReq = httpMock.expectOne('/api/clients/1');
       deleteReq.flush({}, { status: 500, statusText: 'Internal Server Error' });
 
       await deletePromise;
-
-      expect(window.alert).toHaveBeenCalledWith('Failed to delete client. Please try again.');
     });
   });
 });

@@ -1,21 +1,23 @@
 package dev.abstratium.abstrauth.service;
 
-import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.entity.AuthorizationCode;
-import dev.abstratium.abstrauth.entity.AuthorizationRequest;
-import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.entity.RevokedToken;
-import io.quarkus.test.junit.QuarkusTest;
-import jakarta.inject.Inject;
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AuthorizationCode;
+import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.entity.RevokedToken;
+import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 
 /**
  * Tests for TokenRevocationService.
@@ -30,17 +32,37 @@ class TokenRevocationServiceTest {
 
     @Inject
     EntityManager em;
+    
+    @Inject
+    jakarta.transaction.UserTransaction userTransaction;
 
     private String testAuthCodeId;
     private String testJti;
 
     @BeforeEach
-    @Transactional
-    public void setup() {
+    public void setup() throws Exception {
+        userTransaction.begin();
+        
+        // Ensure test-client exists
+        var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = 'test-client'", dev.abstratium.abstrauth.entity.OAuthClient.class);
+        if (clientQuery.getResultList().isEmpty()) {
+            dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
+            client.setClientId("test-client");
+            client.setClientName("Test Client");
+            client.setClientType("confidential");
+            client.setRedirectUris("[\"http://localhost:8080/callback\"]");
+            client.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+            client.setRequirePkce(false);
+            client.setClientSecretHash("$2a$10$dummyhash");
+            em.persist(client);
+        }
+        
         // Clean up any existing test data
         em.createQuery("DELETE FROM RevokedToken").executeUpdate();
         em.createQuery("DELETE FROM AuthorizationCode").executeUpdate();
         em.createQuery("DELETE FROM AuthorizationRequest").executeUpdate();
+        // Delete AccountRoles first to avoid foreign key constraint violations
+        em.createQuery("DELETE FROM AccountRole ar WHERE ar.accountId IN (SELECT a.id FROM Account a WHERE a.email = 'test-revocation@example.com')").executeUpdate();
         em.createQuery("DELETE FROM Account WHERE email = 'test-revocation@example.com'").executeUpdate();
         
         // Create a test authorization code
@@ -87,6 +109,7 @@ class TokenRevocationServiceTest {
         em.persist(authCode);
         
         em.flush();
+        userTransaction.commit();
     }
 
     @Test

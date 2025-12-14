@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Account, ModelService, OAuthClient } from './model.service';
+import { Account, CreateAccountResponse, ModelService, OAuthClient } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -54,13 +54,15 @@ export class Controller {
   }
 
   loadSignupAllowed() {
-    this.http.get<{ allowed: boolean }>('/api/signup/allowed').subscribe({
+    this.http.get<{ allowed: boolean, allowNativeSignin: boolean }>('/api/signup/allowed').subscribe({
       next: (response) => {
         this.modelService.setSignupAllowed(response.allowed);
+        this.modelService.setAllowNativeSignin(response.allowNativeSignin);
       },
       error: (err) => {
         console.error('Error loading signup allowed flag:', err);
         this.modelService.setSignupAllowed(false);
+        this.modelService.setAllowNativeSignin(false);
       }
     });
   }
@@ -150,11 +152,12 @@ export class Controller {
     }
   }
 
-  async createAccount(email: string, authProvider: string): Promise<Account> {
+  async createAccount(email: string, name: string, authProvider: string): Promise<CreateAccountResponse> {
     try {
       const response = await firstValueFrom(
-        this.http.post<Account>('/api/accounts', {
+        this.http.post<CreateAccountResponse>('/api/accounts', {
           email,
+          name,
           authProvider
         })
       );
@@ -163,6 +166,20 @@ export class Controller {
       return response;
     } catch (error) {
       console.error('Error creating account:', error);
+      throw error;
+    }
+  }
+
+  async resetPassword(oldPassword: string, newPassword: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.post('/api/accounts/reset-password', {
+          oldPassword,
+          newPassword
+        })
+      );
+    } catch (error) {
+      console.error('Error resetting password:', error);
       throw error;
     }
   }

@@ -20,10 +20,12 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.eclipse.microprofile.jwt.JsonWebToken;
+import java.security.SecureRandom;
 
 @Path("/api/accounts")
 @Tag(name = "Accounts", description = "Account management endpoints")
@@ -70,9 +72,9 @@ public class AccountsResource {
     @RolesAllowed(Roles.MANAGE_ACCOUNTS)
     public Response createAccount(@Valid CreateAccountRequest request) {
         // Validate authProvider
-        if (!request.authProvider.equals("google") && !request.authProvider.equals("microsoft")) {
+        if (!request.authProvider.equals("google") && !request.authProvider.equals("native")) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse("authProvider must be either 'google' or 'microsoft'"))
+                    .entity(new ErrorResponse("authProvider must be either 'google', or 'native'"))
                     .build();
         }
 
@@ -83,21 +85,68 @@ public class AccountsResource {
                     .build();
         }
 
+        String generatedPassword = null;
+        
+        // For native provider, check if username (email) already exists
+        if (request.authProvider.equals("native")) {
+            if (accountService.findCredentialByUsername(request.email).isPresent()) {
+                return Response.status(Response.Status.CONFLICT)
+                        .entity(new ErrorResponse("Username already exists"))
+                        .build();
+            }
+            // Generate a random password for native accounts
+            generatedPassword = generateRandomPassword();
+        }
+
         // Create account
         Account account = new Account();
         account.setId(UUID.randomUUID().toString());
         account.setEmail(request.email);
         account.setAuthProvider(request.authProvider);
-        account.setName("NOT YET SIGNED IN");
+        // For native accounts, use provided name; for federated, it will be updated on first sign-in
+        account.setName(request.authProvider.equals("native") && request.name != null ? request.name : "NOT YET SIGNED IN");
         account.setEmailVerified(false);
         account.setPicture(null);
         account.setCreatedAt(LocalDateTime.now());
 
         Account savedAccount = accountService.updateAccount(account);
         
+        // Create credential for native accounts
+        if (request.authProvider.equals("native")) {
+            accountService.createCredentialForAccount(savedAccount.getId(), request.email, generatedPassword);
+        }
+        
+        // Create invite token
+        String inviteToken = createInviteToken(request.authProvider, request.email, generatedPassword);
+        
         return Response.status(Response.Status.CREATED)
-                .entity(toAccountResponse(savedAccount))
+                .entity(new CreateAccountResponse(toAccountResponse(savedAccount), inviteToken))
                 .build();
+    }
+    
+    private String generateRandomPassword() {
+        // Generate a secure random password (16 characters)
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        SecureRandom random = new SecureRandom();
+        StringBuilder password = new StringBuilder(16);
+        for (int i = 0; i < 16; i++) {
+            password.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return password.toString();
+    }
+    
+    private String createInviteToken(String authProvider, String email, String password) {
+        // Create JSON-like string with invite data
+        StringBuilder tokenData = new StringBuilder();
+        tokenData.append("{\"authProvider\":\"").append(authProvider).append("\"");
+        tokenData.append(",\"email\":\"").append(email).append("\"");
+        if (password != null) {
+            tokenData.append(",\"password\":\"").append(password).append("\"");
+        }
+        tokenData.append("}");
+        
+        // Base64 encode the token
+        return Base64.getEncoder().encodeToString(tokenData.toString().getBytes());
     }
 
     @POST
@@ -162,6 +211,34 @@ public class AccountsResource {
         accountService.deleteAccount(accountId);
         
         return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/reset-password")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Reset password", description = "Resets password for a native account after verifying old password")
+    public Response resetPassword(@Valid ResetPasswordRequest request) {
+        // Get account ID from JWT token
+        String accountId = accessToken.getSubject();
+        
+        // Verify account exists
+        if (accountService.findById(accountId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Account not found"))
+                    .build();
+        }
+
+        // Update password
+        boolean success = accountService.updatePassword(accountId, request.oldPassword, request.newPassword);
+        
+        if (!success) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Old password is incorrect"))
+                    .build();
+        }
+        
+        return Response.ok().entity(new SuccessResponse("Password updated successfully")).build();
     }
 
     private AccountResponse toAccountResponse(Account account) {
@@ -257,8 +334,40 @@ public class AccountsResource {
         @Email(message = "Email must be valid")
         public String email;
         
+        // Name is optional for federated providers, but should be provided for native
+        public String name;
+        
         @NotBlank(message = "Auth provider is required")
-        @Pattern(regexp = "google|microsoft", message = "Auth provider must be either 'google' or 'microsoft'")
+        @Pattern(regexp = "google|native", message = "Auth provider must be either 'google', or 'native'")
         public String authProvider;
+    }
+    
+    @RegisterForReflection
+    public static class CreateAccountResponse {
+        public AccountResponse account;
+        public String inviteToken;
+        
+        public CreateAccountResponse(AccountResponse account, String inviteToken) {
+            this.account = account;
+            this.inviteToken = inviteToken;
+        }
+    }
+    
+    @RegisterForReflection
+    public static class ResetPasswordRequest {
+        @NotBlank(message = "Old password is required")
+        public String oldPassword;
+        
+        @NotBlank(message = "New password is required")
+        public String newPassword;
+    }
+    
+    @RegisterForReflection
+    public static class SuccessResponse {
+        public String message;
+        
+        public SuccessResponse(String message) {
+            this.message = message;
+        }
     }
 }

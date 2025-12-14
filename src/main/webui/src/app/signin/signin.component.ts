@@ -15,6 +15,12 @@ interface AuthenticationResponse {
     name: string;
 }
 
+interface InviteData {
+    authProvider: string;
+    email: string;
+    password?: string;
+}
+
 @Component({
     selector: 'signin',
     imports: [CommonModule, ReactiveFormsModule, RouterLink],
@@ -39,11 +45,30 @@ export class SigninComponent implements OnInit {
     name = "";
     showSignup = false;
     signinIsExpired = false;
+    inviteData: InviteData | null = null;
+    showNativeSignin = true;
+    showGoogleSignin = true;
 
     constructor(
     ) {
-        const username = this.modelService.signUpUsername$();
-        const password = this.modelService.signUpPassword$();
+        // Check for invite data in session storage
+        const inviteDataStr = sessionStorage.getItem('inviteData');
+        if (inviteDataStr) {
+            try {
+                this.inviteData = JSON.parse(inviteDataStr);
+                // Filter sign-in options based on invite data
+                if (this.inviteData?.authProvider === 'native') {
+                    this.showGoogleSignin = false;
+                } else if (this.inviteData?.authProvider === 'google') {
+                    this.showNativeSignin = false;
+                }
+            } catch (err) {
+                console.error('Error parsing invite data:', err);
+            }
+        }
+
+        const username = this.inviteData?.email || this.modelService.signUpUsername$();
+        const password = this.inviteData?.password || this.modelService.signUpPassword$();
 
         this.signinForm = this.fb.group({
             username: [username, Validators.required],
@@ -52,6 +77,7 @@ export class SigninComponent implements OnInit {
 
         effect(() => {
             this.showSignup = this.modelService.signupAllowed$();
+            this.showNativeSignin = this.modelService.allowNativeSignin$();
         });
     }
 
@@ -101,6 +127,12 @@ export class SigninComponent implements OnInit {
                 this.getApproval = true;
                 this.name = authenticationResponse.name;
                 this.isSubmitting = false;
+                
+                // Check if we need to redirect to password change for native invite
+                if (this.inviteData?.authProvider === 'native' && this.inviteData?.password) {
+                    // Mark that password change is needed
+                    sessionStorage.setItem('requirePasswordChange', 'true');
+                }
             },
             error: (error) => {
                 this.errorMessage = error?.error?.details || error.error || error.message || 'Authentication failed';

@@ -25,6 +25,9 @@ public class AuthorizationService {
     @ConfigProperty(name = "allow.signup", defaultValue = "false")
     boolean allowSignup;
 
+    @ConfigProperty(name = "allow.native.signin", defaultValue = "true")
+    boolean allowNativeSignin;
+
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -139,5 +142,9 @@ public class AuthorizationService {
         }
         // Otherwise, check the config property
         return allowSignup;
+    }
+
+    public boolean isNativeSigninAllowed() {
+        return allowNativeSignin;
     }
 }

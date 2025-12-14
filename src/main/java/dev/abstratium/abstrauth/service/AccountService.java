@@ -266,4 +266,51 @@ public class AccountService {
         // Delete the account (CASCADE DELETE will handle roles, credentials, federated identities, and auth codes)
         em.remove(account);
     }
+
+    /**
+     * Create a credential for an existing account
+     * @param accountId The account ID
+     * @param username The username (typically email)
+     * @param password The plain text password
+     */
+    @Transactional
+    public void createCredentialForAccount(String accountId, String username, String password) {
+        // Check if username already exists
+        if (findCredentialByUsername(username).isPresent()) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+
+        Credential credential = new Credential();
+        credential.setAccountId(accountId);
+        credential.setUsername(username);
+        credential.setPasswordHash(hashPassword(password));
+        em.persist(credential);
+    }
+
+    /**
+     * Update password for an existing credential
+     * @param accountId The account ID
+     * @param oldPassword The old password to verify
+     * @param newPassword The new password to set
+     * @return true if password was updated, false if old password didn't match
+     */
+    @Transactional
+    public boolean updatePassword(String accountId, String oldPassword, String newPassword) {
+        Optional<Credential> credentialOpt = findCredentialByAccountId(accountId);
+        if (credentialOpt.isEmpty()) {
+            throw new IllegalArgumentException("No credentials found for this account");
+        }
+
+        Credential credential = credentialOpt.get();
+        
+        // Verify old password
+        if (!verifyPassword(oldPassword, credential.getPasswordHash())) {
+            return false;
+        }
+
+        // Update to new password
+        credential.setPasswordHash(hashPassword(newPassword));
+        em.merge(credential);
+        return true;
+    }
 }

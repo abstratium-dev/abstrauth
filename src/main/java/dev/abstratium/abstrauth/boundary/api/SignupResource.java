@@ -35,7 +35,8 @@ public class SignupResource {
     @Operation(summary = "Check if signup is allowed", description = "Returns whether signup is currently allowed")
     public Response isSignupAllowed() {
         boolean allowed = authorizationService.isSignupAllowed();
-        return Response.ok(new SignupAllowedResponse(allowed)).build();
+        boolean allowNativeSignin = authorizationService.isNativeSigninAllowed();
+        return Response.ok(new SignupAllowedResponse(allowed, allowNativeSignin)).build();
     }
 
     @POST
@@ -111,9 +112,11 @@ public class SignupResource {
     @RegisterForReflection
     public static class SignupAllowedResponse {
         public boolean allowed;
+        public boolean allowNativeSignin;
 
-        public SignupAllowedResponse(boolean allowed) {
+        public SignupAllowedResponse(boolean allowed, boolean allowNativeSignin) {
             this.allowed = allowed;
+            this.allowNativeSignin = allowNativeSignin;
         }
     }
 }

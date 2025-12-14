@@ -1,23 +1,31 @@
 package dev.abstratium.abstrauth.boundary;
 
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Set;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.FederatedIdentity;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.TestTransaction;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Set;
-
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 public class AccountsResourceTest {
@@ -33,6 +41,47 @@ public class AccountsResourceTest {
     
     @Inject
     jakarta.transaction.UserTransaction userTransaction;
+
+    @BeforeEach
+    public void ensureTestClientsExist() throws Exception {
+        // Create test clients if they don't exist
+        beginTransaction();
+        
+        // Helper to create client if it doesn't exist
+        String[] clientIds = {"client-a", "client-b", "test-client", "client-unique", "client-different", 
+                              "client-x", "client-y", "client-z"};
+        
+        for (String clientId : clientIds) {
+            var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", 
+                                      dev.abstratium.abstrauth.entity.OAuthClient.class);
+            query.setParameter("clientId", clientId);
+            if (query.getResultList().isEmpty()) {
+                dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
+                client.setClientId(clientId);
+                client.setClientName("Test " + clientId);
+                client.setClientType("confidential");
+                client.setRedirectUris("[\"http://localhost:8080/callback\"]");
+                client.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+                client.setRequirePkce(false);
+                client.setClientSecretHash("$2a$10$dummyhash");
+                em.persist(client);
+            }
+        }
+        
+        commitTransaction();
+    }
+
+    private void beginTransaction() throws Exception {
+        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_NO_TRANSACTION) {
+            userTransaction.begin();
+        }
+    }
+
+    private void commitTransaction() throws Exception {
+        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_ACTIVE) {
+            userTransaction.commit();
+        }
+    }
 
     private String generateAdminToken(String accountId) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
@@ -65,15 +114,17 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testListAccountsAsAdmin() {
+    public void testListAccountsAsAdmin() throws Exception {
         // Create a test admin account
+        beginTransaction();
         String email = "testadmin_" + System.currentTimeMillis() + "@example.com";
         Account admin = accountService.createAccount(email, "Test Admin", "testadmin_" + System.currentTimeMillis(), "Pass123");
+        String adminId = admin.getId();
+        commitTransaction();
         
         // Admin should be able to access the endpoint and get a JSON array response
         given()
-            .auth().oauth2(generateAdminToken(admin.getId()))
+            .auth().oauth2(generateAdminToken(adminId))
             .when()
             .get("/api/accounts")
             .then()
@@ -85,7 +136,7 @@ public class AccountsResourceTest {
     @Test
     public void testListAccountsAsManagerWithSharedClients() throws Exception {
         // Create manager account
-        userTransaction.begin();
+        beginTransaction();
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123");
         String managerId = manager.getId();
@@ -100,7 +151,7 @@ public class AccountsResourceTest {
         String otherEmail = "otheruser_" + System.currentTimeMillis() + "@example.com";
         Account other = accountService.createAccount(otherEmail, "Other User", "otheruser_" + System.currentTimeMillis(), "Pass123");
         accountRoleService.addRole(other.getId(), "client-b", "user");
-        userTransaction.commit();
+        commitTransaction();
         
         // Manager should see manager and shared user, but not other user
         given()
@@ -118,7 +169,7 @@ public class AccountsResourceTest {
     @Test
     public void testListAccountsAsManagerWithNoSharedClients() throws Exception {
         // Create manager account with unique client
-        userTransaction.begin();
+        beginTransaction();
         String managerEmail = "uniquemanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Unique Manager", "uniquemanager_" + System.currentTimeMillis(), "Pass123");
         String managerId = manager.getId();
@@ -128,7 +179,7 @@ public class AccountsResourceTest {
         String otherEmail = "differentuser_" + System.currentTimeMillis() + "@example.com";
         Account other = accountService.createAccount(otherEmail, "Different User", "differentuser_" + System.currentTimeMillis(), "Pass123");
         accountRoleService.addRole(other.getId(), "client-different", "user");
-        userTransaction.commit();
+        commitTransaction();
         
         // Manager should only see their own account
         given()
@@ -146,11 +197,11 @@ public class AccountsResourceTest {
     @Test
     public void testListAccountsAsManagerWithNoRoles() throws Exception {
         // Create manager account with no roles
-        userTransaction.begin();
+        beginTransaction();
         String managerEmail = "norolemanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "No Role Manager", "norolemanager_" + System.currentTimeMillis(), "Pass123");
         String managerId = manager.getId();
-        userTransaction.commit();
+        commitTransaction();
         
         // Don't add any roles
         
@@ -167,15 +218,17 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testListAccountsAsNonManagerNonAdmin() {
+    public void testListAccountsAsNonManagerNonAdmin() throws Exception {
         // Create regular user account
+        beginTransaction();
         String userEmail = "regularuser_" + System.currentTimeMillis() + "@example.com";
         Account user = accountService.createAccount(userEmail, "Regular User", "regularuser_" + System.currentTimeMillis(), "Pass123");
+        String userId = user.getId();
+        commitTransaction();
         
         // Regular users without manage-accounts role should get 403 Forbidden
         given()
-            .auth().oauth2(generateUserToken(user.getId()))
+            .auth().oauth2(generateUserToken(userId))
             .when()
             .get("/api/accounts")
             .then()
@@ -195,7 +248,7 @@ public class AccountsResourceTest {
     @Test
     public void testListAccountsAsManagerWithMultipleSharedClients() throws Exception {
         // Create manager with multiple clients
-        userTransaction.begin();
+        beginTransaction();
         String managerEmail = "multimanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Multi Manager", "multimanager_" + System.currentTimeMillis(), "Pass123");
         String managerId = manager.getId();
@@ -216,7 +269,7 @@ public class AccountsResourceTest {
         String user3Email = "user3_" + System.currentTimeMillis() + "@example.com";
         Account user3 = accountService.createAccount(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123");
         accountRoleService.addRole(user3.getId(), "client-z", "user");
-        userTransaction.commit();
+        commitTransaction();
         
         // Manager should see manager, user1, and user2, but not user3
         given()
@@ -234,15 +287,16 @@ public class AccountsResourceTest {
     @Test
     public void testAddAccountRoleSuccessfully() throws Exception {
         // Create account
-        userTransaction.begin();
+        beginTransaction();
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123");
         String accountId = account.getId();
         
-        // Create manager account
-        String managerEmail = "rolemanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager", "rolemanager_" + System.currentTimeMillis(), "Pass123");
-        userTransaction.commit();
+        // Create admin account
+        String adminEmail = "roleadmin_" + System.currentTimeMillis() + "@example.com";
+        Account admin = accountService.createAccount(adminEmail, "Role Admin", "roleadmin_" + System.currentTimeMillis(), "Pass123");
+        String adminId = admin.getId();
+        commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -253,7 +307,7 @@ public class AccountsResourceTest {
             """, accountId);
         
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateAdminToken(adminId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -265,7 +319,6 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
     public void testAddAccountRoleWithoutToken() {
         String requestBody = """
             {
@@ -285,11 +338,13 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testAddAccountRoleWithoutRole() {
+    public void testAddAccountRoleWithoutRole() throws Exception {
         // Create manager account
+        beginTransaction();
         String managerEmail = "rolemanager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Role Manager 2", "rolemanager2_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
         
         String requestBody = """
             {
@@ -300,7 +355,7 @@ public class AccountsResourceTest {
             """;
         
         given()
-            .auth().oauth2(generateUserToken(manager.getId()))
+            .auth().oauth2(generateUserToken(managerId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -310,11 +365,13 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testAddAccountRoleToNonExistentAccount() {
+    public void testAddAccountRoleToNonExistentAccount() throws Exception {
         // Create manager account
+        beginTransaction();
         String managerEmail = "rolemanager3_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Role Manager 3", "rolemanager3_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
         
         String requestBody = """
             {
@@ -325,7 +382,7 @@ public class AccountsResourceTest {
             """;
         
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -336,24 +393,27 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testAddAccountRoleWithMissingClientId() {
+    public void testAddAccountRoleWithMissingClientId() throws Exception {
         // Create account and manager
+        beginTransaction();
         String email = "roletest2_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Role Test 2", "roletest2_" + System.currentTimeMillis(), "Pass123");
+        String accountId = account.getId();
         
         String managerEmail = "rolemanager4_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Role Manager 4", "rolemanager4_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
         
         String requestBody = String.format("""
             {
                 "accountId": "%s",
                 "role": "admin"
             }
-            """, account.getId());
+            """, accountId);
         
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -363,24 +423,27 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testAddAccountRoleWithMissingRole() {
+    public void testAddAccountRoleWithMissingRole() throws Exception {
         // Create account and manager
+        beginTransaction();
         String email = "roletest3_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Role Test 3", "roletest3_" + System.currentTimeMillis(), "Pass123");
+        String accountId = account.getId();
         
         String managerEmail = "rolemanager5_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Role Manager 5", "rolemanager5_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
         
         String requestBody = String.format("""
             {
                 "accountId": "%s",
                 "clientId": "test-client"
             }
-            """, account.getId());
+            """, accountId);
         
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -390,14 +453,17 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testAddAccountRoleWithInvalidRoleFormat() {
+    public void testAddAccountRoleWithInvalidRoleFormat() throws Exception {
         // Create account and manager
+        beginTransaction();
         String email = "roletest4_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Role Test 4", "roletest4_" + System.currentTimeMillis(), "Pass123");
+        String accountId = account.getId();
         
         String managerEmail = "rolemanager6_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Role Manager 6", "rolemanager6_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -405,10 +471,10 @@ public class AccountsResourceTest {
                 "clientId": "test-client",
                 "role": "admin@invalid"
             }
-            """, account.getId());
+            """, accountId);
         
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -420,13 +486,13 @@ public class AccountsResourceTest {
     @Test
     public void testAddAdminRoleAsNonAdmin() throws Exception {
         // Create account and non-admin manager
-        userTransaction.begin();
+        beginTransaction();
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123");
         
         String managerEmail = "nonadmin_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Non-Admin Manager", "nonadmin_" + System.currentTimeMillis(), "Pass123");
-        userTransaction.commit();
+        commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -450,7 +516,7 @@ public class AccountsResourceTest {
     @Test
     public void testAddRoleToNewClientAsNonAdmin() throws Exception {
         // Create two accounts: one with a role in client-a, another without any roles
-        userTransaction.begin();
+        beginTransaction();
         String targetEmail = "target_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccount(targetEmail, "Target User", "target_" + System.currentTimeMillis(), "Pass123");
         // Give target account a role in abstratium-abstrauth (this will work because it's the first role for this account)
@@ -458,7 +524,7 @@ public class AccountsResourceTest {
         
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123");
-        userTransaction.commit();
+        commitTransaction();
         
         // Try to add target account to a NEW client (test-client) - should fail for non-admin
         // Note: test-client doesn't exist, so this will also test FK constraint
@@ -484,7 +550,7 @@ public class AccountsResourceTest {
     @Test
     public void testAddRoleToExistingClientAsNonAdmin() throws Exception {
         // Create account with existing role in abstratium-abstrauth
-        userTransaction.begin();
+        beginTransaction();
         String targetEmail = "target2_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccount(targetEmail, "Target User 2", "target2_" + System.currentTimeMillis(), "Pass123");
         // Give target account a role in abstratium-abstrauth
@@ -492,7 +558,7 @@ public class AccountsResourceTest {
         
         String managerEmail = "manager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Manager 2", "manager2_" + System.currentTimeMillis(), "Pass123");
-        userTransaction.commit();
+        commitTransaction();
         
         // Try to add another role to the SAME client (abstratium-abstrauth) - should succeed for non-admin
         String requestBody = String.format("""
@@ -518,7 +584,7 @@ public class AccountsResourceTest {
     @Test
     public void testAddRoleToNewClientAsAdmin() throws Exception {
         // Create account with existing role in abstratium-abstrauth
-        userTransaction.begin();
+        beginTransaction();
         String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccount(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123");
         // Give target account a role in abstratium-abstrauth
@@ -528,7 +594,7 @@ public class AccountsResourceTest {
         Account admin = accountService.createAccount(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123");
         // Give admin the admin role
         accountRoleService.addRole(admin.getId(), "abstratium-abstrauth", "admin");
-        userTransaction.commit();
+        commitTransaction();
         
         // Admin should be able to add target account role even if they don't have that client yet
         // Since test-client doesn't exist, we'll add another role to the existing client to verify admin bypass
@@ -555,7 +621,7 @@ public class AccountsResourceTest {
     @Test
     public void testAddDuplicateRole() throws Exception {
         // Create account with a role
-        userTransaction.begin();
+        beginTransaction();
         String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123");
         // Add initial role
@@ -563,7 +629,7 @@ public class AccountsResourceTest {
         
         String managerEmail = "manager_dup_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Manager Dup", "manager_dup_" + System.currentTimeMillis(), "Pass123");
-        userTransaction.commit();
+        commitTransaction();
         
         // Try to add the same role again - should return 409 Conflict
         String requestBody = String.format("""
@@ -588,7 +654,7 @@ public class AccountsResourceTest {
     @Test
     public void testRemoveAccountRoleSuccessfully() throws Exception {
         // Create account with a role
-        userTransaction.begin();
+        beginTransaction();
         String email = "roledelete_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Role Delete Test", "roledelete_" + System.currentTimeMillis(), "Pass123");
         String accountId = account.getId();
@@ -597,7 +663,7 @@ public class AccountsResourceTest {
         // Create manager account
         String managerEmail = "deletemanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Delete Manager", "deletemanager_" + System.currentTimeMillis(), "Pass123");
-        userTransaction.commit();
+        commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -618,7 +684,6 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
     public void testRemoveAccountRoleWithoutToken() {
         String requestBody = """
             {
@@ -638,10 +703,12 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testRemoveAccountRoleWithoutPermission() {
+    public void testRemoveAccountRoleWithoutPermission() throws Exception {
+        beginTransaction();
         String managerEmail = "deletemanager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Delete Manager 2", "deletemanager2_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
         
         String requestBody = """
             {
@@ -652,7 +719,7 @@ public class AccountsResourceTest {
             """;
         
         given()
-            .auth().oauth2(generateUserToken(manager.getId()))
+            .auth().oauth2(generateUserToken(managerId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -662,10 +729,12 @@ public class AccountsResourceTest {
     }
 
     @Test
-    @TestTransaction
-    public void testRemoveAccountRoleFromNonExistentAccount() {
+    public void testRemoveAccountRoleFromNonExistentAccount() throws Exception {
+        beginTransaction();
         String managerEmail = "deletemanager3_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Delete Manager 3", "deletemanager3_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
         
         String requestBody = """
             {
@@ -676,7 +745,7 @@ public class AccountsResourceTest {
             """;
         
         given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
+            .auth().oauth2(generateManageAccountsToken(managerId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -687,9 +756,160 @@ public class AccountsResourceTest {
     }
 
     @Test
+    public void testCreateAccountWithNativeProvider() throws Exception {
+        // Create manager account
+        beginTransaction();
+        String managerEmail = "createmanager_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Create Manager", "createmanager_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
+        
+        String newEmail = "newaccount_" + System.currentTimeMillis() + "@example.com";
+        String requestBody = String.format("""
+            {
+                "email": "%s",
+                "authProvider": "native"
+            }
+            """, newEmail);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts")
+            .then()
+            .statusCode(201)
+            .body("account.email", equalTo(newEmail))
+            .body("account.authProvider", equalTo("native"))
+            .body("inviteToken", notNullValue());
+    }
+
+    @Test
+    public void testCreateAccountWithGoogleProvider() throws Exception {
+        // Create manager account
+        beginTransaction();
+        String managerEmail = "createmanager2_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Create Manager 2", "createmanager2_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
+        
+        String newEmail = "newgoogleaccount_" + System.currentTimeMillis() + "@example.com";
+        String requestBody = String.format("""
+            {
+                "email": "%s",
+                "authProvider": "google"
+            }
+            """, newEmail);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts")
+            .then()
+            .statusCode(201)
+            .body("account.email", equalTo(newEmail))
+            .body("account.authProvider", equalTo("google"))
+            .body("inviteToken", notNullValue());
+    }
+
+    @Test
+    public void testCreateAccountWithInvalidProvider() throws Exception {
+        // Create manager account
+        beginTransaction();
+        String managerEmail = "createmanager3_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Create Manager 3", "createmanager3_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
+        
+        String newEmail = "newinvalidaccount_" + System.currentTimeMillis() + "@example.com";
+        String requestBody = String.format("""
+            {
+                "email": "%s",
+                "authProvider": "invalid"
+            }
+            """, newEmail);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts")
+            .then()
+            .statusCode(400);
+    }
+
+    @Test
+    public void testCreateAccountWithDuplicateEmail() throws Exception {
+        // Create manager account
+        beginTransaction();
+        String managerEmail = "createmanager4_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Create Manager 4", "createmanager4_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        
+        // Create first account
+        String existingEmail = "existing_" + System.currentTimeMillis() + "@example.com";
+        accountService.createAccount(existingEmail, "Existing User", "existing_" + System.currentTimeMillis(), "Pass123");
+        commitTransaction();
+        
+        // Try to create account with same email
+        String requestBody = String.format("""
+            {
+                "email": "%s",
+                "authProvider": "native"
+            }
+            """, existingEmail);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts")
+            .then()
+            .statusCode(409)
+            .body("error", equalTo("Email already exists"));
+    }
+
+    @Test
+    public void testCreateAccountCreatesCredentialForNative() throws Exception {
+        // Create manager account
+        beginTransaction();
+        String managerEmail = "createmanager5_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Create Manager 5", "createmanager5_" + System.currentTimeMillis(), "Pass123");
+        String managerId = manager.getId();
+        commitTransaction();
+        
+        String newEmail = "newcredaccount_" + System.currentTimeMillis() + "@example.com";
+        String requestBody = String.format("""
+            {
+                "email": "%s",
+                "authProvider": "native"
+            }
+            """, newEmail);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts")
+            .then()
+            .statusCode(201)
+            .extract().asString();
+        
+        // Verify credential was created
+        var credential = accountService.findCredentialByUsername(newEmail);
+        assertTrue(credential.isPresent(), "Credential should be created for native account");
+    }
+
+    @Test
     public void testDeleteAccountCascadesAllChildRecords() throws Exception {
         // Create a manager account
-        userTransaction.begin();
+        beginTransaction();
         Account manager = new Account();
         manager.setEmail("manager-cascade@example.com");
         manager.setName("Manager Cascade");
@@ -719,10 +939,10 @@ public class AccountsResourceTest {
         em.persist(fedIdentity);
 
         em.flush();
-        userTransaction.commit();
+        commitTransaction();
 
         // Verify child records exist before deletion
-        userTransaction.begin();
+        beginTransaction();
         List<AccountRole> rolesBefore = accountRoleService.getRolesForAccount(accountId);
         assertEquals(1, rolesBefore.size());
 
@@ -733,7 +953,7 @@ public class AccountsResourceTest {
         var fedQuery = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
         fedQuery.setParameter("accountId", accountId);
         assertEquals(1, fedQuery.getResultList().size());
-        userTransaction.commit();
+        commitTransaction();
 
         // Delete the account
         given()
@@ -748,7 +968,7 @@ public class AccountsResourceTest {
         assertNull(deletedAccount);
 
         // Verify all child records are deleted via CASCADE DELETE
-        userTransaction.begin();
+        beginTransaction();
         List<AccountRole> rolesAfter = accountRoleService.getRolesForAccount(accountId);
         assertTrue(rolesAfter.isEmpty(), "Roles should be deleted via CASCADE DELETE");
 
@@ -759,7 +979,7 @@ public class AccountsResourceTest {
         var fedQueryAfter = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
         fedQueryAfter.setParameter("accountId", accountId);
         assertTrue(fedQueryAfter.getResultList().isEmpty(), "Federated identities should be deleted via CASCADE DELETE");
-        userTransaction.commit();
+        commitTransaction();
     }
 
 }

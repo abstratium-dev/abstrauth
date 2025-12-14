@@ -4,7 +4,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.Credential;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -19,9 +19,41 @@ public class AccountServiceTest {
 
     @Inject
     AccountRoleService accountRoleService;
+    
+    @Inject
+    jakarta.persistence.EntityManager em;
+    
+    @Inject
+    jakarta.transaction.UserTransaction userTransaction;
+    
+    @BeforeEach
+    public void setup() throws Exception {
+        // Ensure common test clients exist
+        userTransaction.begin();
+        ensureClientExists("client-a");
+        ensureClientExists("client-b");
+        ensureClientExists("client-c");
+        ensureClientExists("client-test");
+        userTransaction.commit();
+    }
+    
+    private void ensureClientExists(String clientId) {
+        var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", dev.abstratium.abstrauth.entity.OAuthClient.class);
+        query.setParameter("clientId", clientId);
+        if (query.getResultList().isEmpty()) {
+            dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
+            client.setClientId(clientId);
+            client.setClientName("Test " + clientId);
+            client.setClientType("confidential");
+            client.setRedirectUris("[\"http://localhost:8080/callback\"]");
+            client.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+            client.setRequirePkce(false);
+            client.setClientSecretHash("$2a$10$dummyhash");
+            em.persist(client);
+        }
+    }
 
     @Test
-    @Transactional
     public void testCreateAccountSuccess() {
         String email = "servicetest_" + System.currentTimeMillis() + "@example.com";
         String username = "servicetest_" + System.currentTimeMillis();
@@ -41,7 +73,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testCreateAccountWithDuplicateEmail() {
         String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
         String username1 = "user1_" + System.currentTimeMillis();
@@ -55,7 +86,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testCreateAccountWithDuplicateUsername() {
         String email1 = "email1_" + System.currentTimeMillis() + "@example.com";
         String email2 = "email2_" + System.currentTimeMillis() + "@example.com";
@@ -69,7 +99,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testAuthenticateSuccess() {
         String email = "auth_" + System.currentTimeMillis() + "@example.com";
         String username = "authuser_" + System.currentTimeMillis();
@@ -85,7 +114,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testAuthenticateWithWrongPassword() {
         String email = "wrongpw_" + System.currentTimeMillis() + "@example.com";
         String username = "wrongpwuser_" + System.currentTimeMillis();
@@ -103,7 +131,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testAuthenticateWithNonExistentUser() {
         Optional<Account> authenticated = accountService.authenticate("nonexistent_user", "password");
         
@@ -111,7 +138,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testAccountLockingAfterFailedAttempts() {
         String email = "locktest_" + System.currentTimeMillis() + "@example.com";
         String username = "lockuser_" + System.currentTimeMillis();
@@ -136,7 +162,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFailedAttemptsResetOnSuccessfulLogin() {
         String email = "resettest_" + System.currentTimeMillis() + "@example.com";
         String username = "resetuser_" + System.currentTimeMillis();
@@ -158,6 +183,9 @@ public class AccountServiceTest {
         Optional<Account> authenticated = accountService.authenticate(username, password);
         assertTrue(authenticated.isPresent());
         
+        // Clear entity manager cache to force fresh read
+        em.clear();
+        
         // Verify failed attempts were reset
         Optional<Credential> credentialAfter = accountService.findCredentialByUsername(username);
         assertTrue(credentialAfter.isPresent());
@@ -166,7 +194,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFindByEmail() {
         String email = "findtest_" + System.currentTimeMillis() + "@example.com";
         String username = "finduser_" + System.currentTimeMillis();
@@ -188,7 +215,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFindById() {
         String email = "findbyid_" + System.currentTimeMillis() + "@example.com";
         String username = "findbyiduser_" + System.currentTimeMillis();
@@ -210,7 +236,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFindCredentialByAccountId() {
         String email = "credtest_" + System.currentTimeMillis() + "@example.com";
         String username = "creduser_" + System.currentTimeMillis();
@@ -225,7 +250,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testCountAccounts() {
         long initialCount = accountService.countAccounts();
         
@@ -238,7 +262,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFirstAccountGetsAdminRole() {
         // This test is tricky because other tests may have already created accounts
         // We'll check if an account has the admin role by querying the role service
@@ -257,7 +280,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testSecondAccountDoesNotGetAdminRole() {
         // Ensure at least one account exists
         String email1 = "first_" + System.currentTimeMillis() + "@example.com";
@@ -275,7 +297,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFirstFederatedAccountGetsAdminRole() {
         String email = "firstfed_" + System.currentTimeMillis() + "@example.com";
         
@@ -292,7 +313,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFindAccountsByUserClientRoles_SharedClients() {
         // Create three accounts
         String email1 = "shared1_" + System.currentTimeMillis() + "@example.com";
@@ -324,14 +344,19 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
-    public void testFindAccountsByUserClientRoles_NoSharedClients() {
+    public void testFindAccountsByUserClientRoles_NoSharedClients() throws Exception {
         // Create two accounts with different clients
         long timestamp = System.currentTimeMillis();
         String email1 = "noshared1_" + timestamp + "@example.com";
         String email2 = "noshared2_" + timestamp + "@example.com";
         String clientX = "client-x-" + timestamp;
         String clientY = "client-y-" + timestamp;
+        
+        // Create the dynamic clients
+        userTransaction.begin();
+        ensureClientExists(clientX);
+        ensureClientExists(clientY);
+        userTransaction.commit();
         
         Account account1 = accountService.createAccount(email1, "User 1", "noshared1_" + timestamp, "Pass123");
         Account account2 = accountService.createAccount(email2, "User 2", "noshared2_" + timestamp, "Pass123");
@@ -351,7 +376,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFindAccountsByUserClientRoles_UserWithNoRoles() {
         // Create an account with no roles
         String email = "noroles_" + System.currentTimeMillis() + "@example.com";
@@ -368,8 +392,7 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
-    public void testFindAccountsByUserClientRoles_MultipleSharedClients() {
+    public void testFindAccountsByUserClientRoles_MultipleSharedClients() throws Exception {
         // Create four accounts with unique client IDs to isolate from other tests
         long timestamp = System.currentTimeMillis();
         String email1 = "multi1_" + timestamp + "@example.com";
@@ -379,6 +402,13 @@ public class AccountServiceTest {
         String clientA = "client-a-" + timestamp;
         String clientB = "client-b-" + timestamp;
         String clientC = "client-c-" + timestamp;
+        
+        // Create the dynamic clients
+        userTransaction.begin();
+        ensureClientExists(clientA);
+        ensureClientExists(clientB);
+        ensureClientExists(clientC);
+        userTransaction.commit();
         
         Account account1 = accountService.createAccount(email1, "User 1", "multi1_" + timestamp, "Pass123");
         Account account2 = accountService.createAccount(email2, "User 2", "multi2_" + timestamp, "Pass123");
@@ -415,7 +445,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testFindAccountsByUserClientRoles_RolesEagerlyLoaded() {
         // Create account with roles
         String email = "eager_" + System.currentTimeMillis() + "@example.com";

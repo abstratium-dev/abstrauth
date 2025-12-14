@@ -6,7 +6,6 @@ import dev.abstratium.abstrauth.service.AccountService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +31,12 @@ public class TokenRolesTest {
 
     @Inject
     AccountRoleService accountRoleService;
+    
+    @Inject
+    jakarta.persistence.EntityManager em;
+    
+    @Inject
+    jakarta.transaction.UserTransaction userTransaction;
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
@@ -42,8 +47,14 @@ public class TokenRolesTest {
     private String testAccountId;
 
     @BeforeEach
-    @Transactional
-    public void setup() {
+    public void setup() throws Exception {
+        // Ensure test clients exist
+        userTransaction.begin();
+        ensureClientExists(CLIENT_ID);
+        ensureClientExists("other_client");
+        userTransaction.commit();
+        
+        userTransaction.begin();
         // Create unique test user
         long timestamp = System.nanoTime();
         testUsername = "rolestest_" + timestamp;
@@ -56,6 +67,23 @@ public class TokenRolesTest {
             testPassword
         );
         testAccountId = account.getId();
+        userTransaction.commit();
+    }
+    
+    private void ensureClientExists(String clientId) {
+        var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", dev.abstratium.abstrauth.entity.OAuthClient.class);
+        query.setParameter("clientId", clientId);
+        if (query.getResultList().isEmpty()) {
+            dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
+            client.setClientId(clientId);
+            client.setClientName("Test " + clientId);
+            client.setClientType("confidential");
+            client.setRedirectUris("[\"http://localhost:8080/callback\"]");
+            client.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+            client.setRequirePkce(false);
+            client.setClientSecretHash("$2a$10$dummyhash");
+            em.persist(client);
+        }
     }
 
     @Test
@@ -257,10 +285,11 @@ public class TokenRolesTest {
         return new String(decodedBytes, StandardCharsets.UTF_8);
     }
 
-    @Transactional
-    void addRolesInTransaction(String clientId, String... roles) {
+    void addRolesInTransaction(String clientId, String... roles) throws Exception {
+        userTransaction.begin();
         for (String role : roles) {
             accountRoleService.addRole(testAccountId, clientId, role);
         }
+        userTransaction.commit();
     }
 }

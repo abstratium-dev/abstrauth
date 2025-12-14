@@ -5,6 +5,17 @@
     </div>
 
     <div class="header-right">
+        <button 
+            class="theme-toggle-btn" 
+            (click)="toggleTheme()" 
+            [attr.aria-label]="themeService.theme$() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
+            [title]="themeService.theme$() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
+            @if(themeService.theme$() === 'light') {
+                🌙
+            } @else {
+                ☀️
+            }
+        </button>
         <a href="https://abstratium.dev/docs/legal">Legal</a>
         @if(isSignedIn) {
             &nbsp;|&nbsp;
@@ -12,7 +23,7 @@
             &nbsp;|&nbsp;
             <a id="accounts-link" routerLink="/accounts" routerLinkActive="inactive-link">Accounts</a>
             &nbsp;|&nbsp;
-            🥷 <a id="user-link" routerLink="/user/{{ token.sub }}" routerLinkActive="inactive-link">{{ token.email }}</a>
+            🥷 <a id="user-link" routerLink="/user" routerLinkActive="inactive-link">{{ token.email }}</a>
             &nbsp;|&nbsp;
             <a id="signout-link" class="alink" routerLink="/signout">Sign out</a>
         }

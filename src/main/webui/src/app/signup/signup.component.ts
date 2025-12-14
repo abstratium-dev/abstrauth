@@ -3,9 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, effect, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Controller } from '../controller';
 import { ModelService } from '../model.service';
-import { AuthService } from '../auth.service';
 
 @Component({
   selector: 'signup',
@@ -18,8 +16,6 @@ export class SignupComponent {
   private http = inject(HttpClient);
   private router = inject(Router);
   private modelService = inject(ModelService);
-  private controller = inject(Controller);
-  private authService = inject(AuthService);
 
   requestId = "";
 
@@ -37,14 +33,20 @@ export class SignupComponent {
     this.signupForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       name: [''],
-      username: ['', Validators.required],
-      password: ['', [Validators.required, Validators.minLength(8)]]
+      password: ['', [Validators.required, Validators.minLength(8)]],
+      password2: ['', [Validators.required, Validators.minLength(8)]],
     });
   }
 
   signup() {
     if (this.signupForm.invalid) {
       this.signupForm.markAllAsTouched();
+      return;
+    }
+
+    if (this.signupForm.value.password !== this.signupForm.value.password2) {
+      this.messageType = 'error';
+      this.message = 'Passwords do not match';
       return;
     }
 
@@ -55,7 +57,7 @@ export class SignupComponent {
     const formData = new URLSearchParams();
     formData.append('email', this.signupForm.value.email);
     formData.append('name', this.signupForm.value.name);
-    formData.append('username', this.signupForm.value.username);
+    formData.append('username', this.signupForm.value.email);
     formData.append('password', this.signupForm.value.password);
 
     this.http.post<any>('/api/signup', formData.toString(), {
@@ -67,11 +69,11 @@ export class SignupComponent {
         this.isSubmitting = false;
         
         // Store username and password for signin page
-        const username = this.signupForm.value.username;
+        const username = this.signupForm.value.email; // username is currently always equal to the email
         const password = this.signupForm.value.password;
         this.modelService.setSignUpUsername(username);
         this.modelService.setSignUpPassword(password);
-        
+
         this.signupForm.reset();
         
         // Redirect to signin page

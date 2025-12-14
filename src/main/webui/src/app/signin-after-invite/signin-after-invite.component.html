@@ -1,0 +1,15 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Processing Invite</h1>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Processing your invite link...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <p>Please contact your administrator for a new invite link.</p>
+  </div>
+</div>

@@ -1,0 +1,63 @@
+.invite-link-container {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background-color: #cbd3d9;
+  border: 1px solid #0ea5e9;
+  border-radius: 8px;
+
+  h3 {
+    margin-top: 0;
+    color: #0369a1;
+  }
+
+  p {
+    margin: 0.5rem 0;
+    color: #374151;
+  }
+}
+
+.account-details {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #f8fafc;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+
+  p {
+    margin: 0.5rem 0;
+    color: #1e293b;
+    font-size: 0.95rem;
+
+    strong {
+      color: #0f172a;
+      display: inline-block;
+      min-width: 180px;
+    }
+  }
+}
+
+.invite-link-box {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.invite-link-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  background-color: white;
+}
+
+.invite-hint {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  border-radius: 4px;
+}

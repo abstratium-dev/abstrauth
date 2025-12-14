@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { AuthService, ANONYMOUS } from './auth.service';
 
 describe('AuthService', () => {
@@ -40,7 +40,7 @@ describe('AuthService', () => {
     });
 
     it('should have default route before sign in', () => {
-      expect(service.getRouteBeforeSignIn()).toBe('/');
+      expect(service.getRouteBeforeSignIn()).toBe('/accounts');
     });
   });
 
@@ -126,11 +126,12 @@ describe('AuthService', () => {
       expect(service.isAuthenticated()).toBe(true);
     });
 
-    it('should return false after signout', () => {
+    it('should return false after signout', fakeAsync(() => {
       service.setAccessToken(validJwt);
       service.signout();
+      tick(); // Process setTimeout
       expect(service.isAuthenticated()).toBe(false);
-    });
+    }));
 
     it('should return false after refresh (current implementation)', () => {
       service.setAccessToken(validJwt);
@@ -215,30 +216,33 @@ describe('AuthService', () => {
   describe('Sign Out', () => {
     const validJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2Fic3RyYXV0aC5hYnN0cmF0aXVtLmRldiIsInN1YiI6InVzZXItMTIzIiwiZ3JvdXBzIjpbImFkbWluIl0sImVtYWlsIjoidGVzdEBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiVGVzdCBVc2VyIiwic2NvcGUiOiJvcGVuaWQiLCJpYXQiOjE2MDk0NTkyMDAsImV4cCI6MTYwOTU0NTYwMCwiY2xpZW50X2lkIjoidGVzdC1jbGllbnQiLCJqdGkiOiJqd3QtaWQtMTIzIiwidXBuIjoidGVzdEBleGFtcGxlLmNvbSJ9.signature';
 
-    it('should reset to anonymous token on signout', () => {
+    it('should reset to anonymous token on signout', fakeAsync(() => {
       service.setAccessToken(validJwt);
       service.signout();
+      tick(); // Process setTimeout
 
       const token = service.getAccessToken();
       expect(token.email).toBe(ANONYMOUS.email);
       expect(token.isAuthenticated).toBe(false);
-    });
+    }));
 
-    it('should update token$ signal on signout', () => {
+    it('should update token$ signal on signout', fakeAsync(() => {
       service.setAccessToken(validJwt);
       service.signout();
+      tick(); // Process setTimeout
 
       const token = service.token$();
       expect(token.email).toBe(ANONYMOUS.email);
       expect(token.isAuthenticated).toBe(false);
-    });
+    }));
 
-    it('should not be authenticated after signout', () => {
+    it('should not be authenticated after signout', fakeAsync(() => {
       service.setAccessToken(validJwt);
       service.signout();
+      tick(); // Process setTimeout
 
       expect(service.isAuthenticated()).toBe(false);
-    });
+    }));
   });
 
   describe('Token Refresh', () => {

@@ -354,18 +354,20 @@ describe('Controller', () => {
 
       const req = httpMock.expectOne('/api/signup/allowed');
       expect(req.request.method).toBe('GET');
-      req.flush({ allowed: true });
+      req.flush({ allowed: true, allowNativeSignin: true });
 
       expect(modelService.signupAllowed$()).toBe(true);
+      expect(modelService.allowNativeSignin$()).toBe(true);
     });
 
     it('should handle false signup allowed', () => {
       controller.loadSignupAllowed();
 
       const req = httpMock.expectOne('/api/signup/allowed');
-      req.flush({ allowed: false });
+      req.flush({ allowed: false, allowNativeSignin: false });
 
       expect(modelService.signupAllowed$()).toBe(false);
+      expect(modelService.allowNativeSignin$()).toBe(false);
     });
 
     it('should handle error when loading signup allowed', () => {
@@ -375,6 +377,7 @@ describe('Controller', () => {
       req.error(new ProgressEvent('error'));
 
       expect(modelService.signupAllowed$()).toBe(false);
+      expect(modelService.allowNativeSignin$()).toBe(false);
     });
   });
 

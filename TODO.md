@@ -2,26 +2,21 @@
 
 ## Today
 
-- is the following really true?
-
-    ⚠️ Current Issue
-    The 
-    TokenRevocationFilter
-    is created but the test is failing because:
-
-    The test uses 
-    Transactional
-    which doesn't commit before the HTTP request
-    The HTTP request runs in a separate transaction and can't see the uncommitted revocation
-    ✅ The Filter WILL Work in Production
-    In production, when:
-
-    Authorization code replay is detected → 
-    revokeTokensByAuthorizationCode()
-    is called → transaction commits
-    User makes subsequent request with revoked token → Filter checks database → 401 response
-    The filter is correctly implemented and will work in production. The test failure is a test isolation issue, not a code issue.
-
+- does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
+- create a better description of the project. is it also openid and also an idp or iam?
+- restructure docs - e.g. add most MD files to the docs folder. the main readme should focus on selling the application as a docker image. other stuff should be in the docs folder.
+- disallow deleting last admin account
+- make it impossible to delete the client abstratium-abstrauth
+- improve branch coverage of ui
+- if native sign in is disabled, don't add the option to create an account with native sign in
+- allow to disable sign in with native - needs a test
+- e2e
+  - add scripts for clearing database
+  - one test for with registration, one for without
+  - function for logging in as admin and normal
+- entire build cycle including native
+- make e2e add an admin user, and use that through out multiple tests in a single file
+- review tests
 - e2e tests for
   - CUD roles
   - CUD clients
@@ -32,7 +27,10 @@
 
 ## Tomorrow
 
+- make fields on create-account-form readonly after creating the account until the user closes the form with the done button. or simply hide them and show the email name and authprovide in the success message.
+- scheduler to clear out old authorization requests and authorization codes
 - does using testtransaction really make sense - is it a good practice?
+  - replace with normal transactional, and make data in each test unique
 - controller should never return Promises
 - angular should always use inject and not constructor
 - do we need a revocation check endpoint so that a third party can check that the token
@@ -44,6 +42,8 @@
 - does it make sense that revocation is used to log out? in fact, implement log out
 - make backend tests nested - account resource and client resource 
 - refactor http error handling in angular code, potentially using an interceptor
+- add role has a drop down list based on all roles that exist for the given client, searched using the backend, if you have the manage-accounts role. but of course you can also add a new role
+- when delete own account, sign straight out
 
 ## Later (not yet necessary for initial release)
 
@@ -71,6 +71,8 @@
 - what are these for?
   - mp.jwt.verify.issuer=https://quarkus.io/issuer
   - smallrye.jwt.new-token.issuer=https://quarkus.io/issuer
+- GDPR - allow user to view all of their data
+- GDPR - allow user to delete all of their data
 - add microsoft login
 - add github login
 - add using refresh tokens

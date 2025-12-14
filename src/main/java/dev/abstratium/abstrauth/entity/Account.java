@@ -25,7 +25,7 @@ public class Account {
     private String picture;
 
     @Column(name = "auth_provider")
-    private String authProvider; // "native", "google", "microsoft", "github"
+    private String authProvider;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

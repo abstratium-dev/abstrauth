@@ -42,8 +42,8 @@ describe('SignupComponent', () => {
       expect(component.signupForm.value).toEqual({
         email: '',
         name: '',
-        username: '',
-        password: ''
+        password: '',
+        password2: ''
       });
     });
 
@@ -59,10 +59,10 @@ describe('SignupComponent', () => {
       expect(emailControl?.hasError('email')).toBe(true);
     });
 
-    it('should have required validator on username field', () => {
-      const usernameControl = component.signupForm.get('username');
-      usernameControl?.setValue('');
-      expect(usernameControl?.hasError('required')).toBe(true);
+    it('should have required validator on password field', () => {
+      const passwordControl = component.signupForm.get('password');
+      passwordControl?.setValue('');
+      expect(passwordControl?.hasError('required')).toBe(true);
     });
 
     it('should have required and minLength validators on password field', () => {
@@ -95,8 +95,8 @@ describe('SignupComponent', () => {
     it('should mark form as valid when all required fields are filled correctly', () => {
       component.signupForm.patchValue({
         email: 'test@example.com',
-        username: 'testuser',
-        password: 'password123'
+        password: 'password123',
+        password2: 'password123'
       });
       expect(component.signupForm.valid).toBe(true);
     });
@@ -112,8 +112,8 @@ describe('SignupComponent', () => {
       component.signup();
       
       expect(component.signupForm.get('email')?.touched).toBe(true);
-      expect(component.signupForm.get('username')?.touched).toBe(true);
       expect(component.signupForm.get('password')?.touched).toBe(true);
+      expect(component.signupForm.get('password2')?.touched).toBe(true);
     });
   });
 
@@ -122,8 +122,8 @@ describe('SignupComponent', () => {
       component.signupForm.patchValue({
         email: 'test@example.com',
         name: 'Test User',
-        username: 'testuser',
-        password: 'password123'
+        password: 'password123',
+        password2: 'password123'
       });
     });
 
@@ -139,7 +139,7 @@ describe('SignupComponent', () => {
       const body = req.request.body as string;
       expect(body).toContain('email=test%40example.com');
       expect(body).toContain('name=Test+User');
-      expect(body).toContain('username=testuser');
+      expect(body).toContain('username=test%40example.com'); // username is the email
       expect(body).toContain('password=password123');
 
       req.flush({ id: '123' });
@@ -156,7 +156,7 @@ describe('SignupComponent', () => {
       const req = httpMock.expectOne('/api/signup');
       req.flush({ id: '123' });
 
-      expect(component['modelService'].signUpUsername$()).toBe('testuser');
+      expect(component['modelService'].signUpUsername$()).toBe('test@example.com'); // username is the email
       expect(component['modelService'].signUpPassword$()).toBe('password123');
     });
 
@@ -179,8 +179,8 @@ describe('SignupComponent', () => {
       expect(component.signupForm.value).toEqual({
         email: null,
         name: null,
-        username: null,
-        password: null
+        password: null,
+        password2: null
       });
     });
 
@@ -203,8 +203,9 @@ describe('SignupComponent', () => {
     beforeEach(() => {
       component.signupForm.patchValue({
         email: 'test@example.com',
-        username: 'testuser',
-        password: 'password123'
+        name: 'Test User',
+        password: 'password123',
+        password2: 'password123'
       });
     });
 
@@ -282,8 +283,8 @@ describe('SignupComponent', () => {
       component.signupForm.patchValue({
         email: 'minimal@example.com',
         name: '',
-        username: 'minimaluser',
-        password: 'password123'
+        password: 'password123',
+        password2: 'password123'
       });
 
       component.signup();
@@ -292,7 +293,7 @@ describe('SignupComponent', () => {
       const body = req.request.body as string;
       expect(body).toContain('email=minimal%40example.com');
       expect(body).toContain('name=');
-      expect(body).toContain('username=minimaluser');
+      expect(body).toContain('username=minimal%40example.com'); // username is the email
       
       req.flush({ id: '456' });
       expect(component.messageType).toBe('success');
@@ -302,8 +303,8 @@ describe('SignupComponent', () => {
       component.signupForm.patchValue({
         email: 'test+tag@example.com',
         name: 'Test O\'Brien',
-        username: 'test_user-123',
-        password: 'P@ssw0rd!'
+        password: 'P@ssw0rd!',
+        password2: 'P@ssw0rd!'
       });
 
       component.signup();

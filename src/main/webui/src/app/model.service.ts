@@ -27,6 +27,11 @@ export interface OAuthClient {
   createdAt: string;
 }
 
+export interface CreateAccountResponse {
+  account: Account;
+  inviteToken: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -38,6 +43,7 @@ export class ModelService {
   private accounts = signal<Account[]>([]);
   private clients = signal<OAuthClient[]>([]);
   private signupAllowed = signal<boolean>(false);
+  private allowNativeSignin = signal<boolean>(false);
   private clientsLoading = signal<boolean>(false);
   private clientsError = signal<string | null>(null);
 
@@ -47,6 +53,7 @@ export class ModelService {
   accounts$: Signal<Account[]> = this.accounts.asReadonly();
   clients$: Signal<OAuthClient[]> = this.clients.asReadonly();
   signupAllowed$: Signal<boolean> = this.signupAllowed.asReadonly();
+  allowNativeSignin$: Signal<boolean> = this.allowNativeSignin.asReadonly();
   clientsLoading$: Signal<boolean> = this.clientsLoading.asReadonly();
   clientsError$: Signal<string | null> = this.clientsError.asReadonly();
 
@@ -80,5 +87,9 @@ export class ModelService {
 
   setSignupAllowed(allowed: boolean) {
     this.signupAllowed.set(allowed);
+  }
+
+  setAllowNativeSignin(allowNativeSignin: boolean) {
+    this.allowNativeSignin.set(allowNativeSignin);
   }
 }

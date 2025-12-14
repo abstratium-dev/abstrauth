@@ -21,8 +21,10 @@ interface TokenResponse {
 })
 export class AuthCallbackComponent implements OnInit {
 
-    result = '';
-    error = '';
+    error: string | null = null;
+    result: string | null = null;
+    emailMismatchWarning: string | null = null;
+    redirecting = false;
 
     constructor(
         private route: ActivatedRoute,
@@ -95,13 +97,51 @@ export class AuthCallbackComponent implements OnInit {
 
                 this.authService.setAccessToken(response.access_token);
 
-                const routeBeforeSignIn = this.authService.getRouteBeforeSignIn();
-                if(routeBeforeSignIn) {
-                    this.router.navigateByUrl(routeBeforeSignIn);
-                } else {
-                    this.router.navigate(['/accounts']);
+                // Check if password change is required (for native invite flow)
+                const requirePasswordChange = sessionStorage.getItem('requirePasswordChange');
+                if (requirePasswordChange) {
+                    this.router.navigate(['/change-password']);
+                    return;
+                }
+
+                // Check for email mismatch with invite
+                const inviteDataStr = sessionStorage.getItem('inviteData');
+                try {
+                    if (inviteDataStr) {
+                        const inviteData = JSON.parse(inviteDataStr);
+                        const tokenEmail = this.authService.getEmail();
+                        
+                        if (tokenEmail && inviteData.email && tokenEmail !== inviteData.email) {
+                            // Email mismatch - show warning and stay on this page
+                            this.emailMismatchWarning = `You signed in with ${tokenEmail}, but the invite was for ${inviteData.email}. The invitation has not been applied.`;
+                            sessionStorage.removeItem('inviteData');
+                            this.redirecting = true;
+                            // Redirect after showing warning for 10 seconds
+                            setTimeout(() => {
+                                this.redirect();
+                            }, 10_000);
+                            return;
+                        }
+                    }
+                    // If no invite data or emails match, redirect immediately
+                    this.redirect();
+                } catch (e) {
+                    console.error('Error parsing invite data:', e);
+                    this.redirect();
+                } finally {
+                    // Clear invite data if present
+                    sessionStorage.removeItem('inviteData');
                 }
             }
         );
+    }
+
+    private redirect(): void {
+        const routeBeforeSignIn = this.authService.getRouteBeforeSignIn();
+        if(routeBeforeSignIn) {
+            this.router.navigateByUrl(routeBeforeSignIn);
+        } else {
+            this.router.navigate(['/accounts']);
+        }
     }
 }

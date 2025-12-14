@@ -36,10 +36,13 @@ export class AccountsComponent implements OnInit {
   showAddAccountForm = false;
   accountFormData = {
     email: '',
+    name: '',
     authProvider: ''
   };
   formSubmitting = false;
   formError: string | null = null;
+  inviteLink: string | null = null;
+  showInviteLink = false;
 
   // Role Form state
   addingRoleForAccountId: string | null = null;
@@ -178,9 +181,12 @@ export class AccountsComponent implements OnInit {
       // Reset form when opening
       this.accountFormData = {
         email: '',
+        name: '',
         authProvider: ''
       };
       this.formError = null;
+      this.showInviteLink = false;
+      this.inviteLink = null;
     }
   }
 
@@ -189,17 +195,16 @@ export class AccountsComponent implements OnInit {
     this.formError = null;
 
     try {
-      await this.controller.createAccount(
+      const response = await this.controller.createAccount(
         this.accountFormData.email,
+        this.accountFormData.name,
         this.accountFormData.authProvider
       );
-      // Success - close form and show toast
-      this.showAddAccountForm = false;
+      // Success - generate invite link and show it
       const email = this.accountFormData.email;
-      this.accountFormData = {
-        email: '',
-        authProvider: ''
-      };
+      const baseUrl = window.location.origin;
+      this.inviteLink = `${baseUrl}/signin-after-invite?token=${encodeURIComponent(response.inviteToken)}`;
+      this.showInviteLink = true;
       this.toastService.success(`Account created successfully for ${email}`);
     } catch (err: any) {
       if (err.status === 400) {
@@ -220,6 +225,27 @@ export class AccountsComponent implements OnInit {
     } finally {
       this.formSubmitting = false;
     }
+  }
+
+  copyInviteLink(): void {
+    if (this.inviteLink) {
+      navigator.clipboard.writeText(this.inviteLink).then(() => {
+        this.toastService.success('Invite link copied to clipboard!');
+      }).catch(() => {
+        this.toastService.error('Failed to copy link to clipboard');
+      });
+    }
+  }
+
+  closeInviteLink(): void {
+    this.showInviteLink = false;
+    this.inviteLink = null;
+    this.showAddAccountForm = false;
+    this.accountFormData = {
+      email: '',
+      name: '',
+      authProvider: ''
+    };
   }
 
   startAddRole(accountId: string): void {
@@ -323,6 +349,10 @@ export class AccountsComponent implements OnInit {
     try {
       await this.controller.deleteAccount(account.id);
       this.toastService.success(`Account for ${account.email} deleted successfully`);
+
+      if(this.authService.getEmail() === account.email) {
+        this.authService.signout();
+      }
     } catch (err: any) {
       if (err.status === 403) {
         this.toastService.error('You do not have permission to delete accounts.');

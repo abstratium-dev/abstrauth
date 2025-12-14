@@ -4,7 +4,6 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,14 +20,37 @@ public class AccountRoleServiceTest {
 
     @Inject
     AccountService accountService;
+    
+    @Inject
+    jakarta.persistence.EntityManager em;
+    
+    @Inject
+    jakarta.transaction.UserTransaction userTransaction;
 
     private String testAccountId;
     private static final String TEST_CLIENT_ID = "test_client_123";
     private static final String TEST_CLIENT_ID_2 = "test_client_456";
 
     @BeforeEach
-    @Transactional
-    public void setup() {
+    public void setup() throws Exception {
+        userTransaction.begin();
+        
+        // Ensure test clients exist
+        for (String clientId : new String[]{TEST_CLIENT_ID, TEST_CLIENT_ID_2}) {
+            var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", dev.abstratium.abstrauth.entity.OAuthClient.class);
+            clientQuery.setParameter("clientId", clientId);
+            if (clientQuery.getResultList().isEmpty()) {
+                dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
+                client.setClientId(clientId);
+                client.setClientName("Test " + clientId);
+                client.setClientType("confidential");
+                client.setRedirectUris("[\"http://localhost:8080/callback\"]");
+                client.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+                client.setRequirePkce(false);
+                client.setClientSecretHash("$2a$10$dummyhash");
+                em.persist(client);
+            }
+        }
         // Create a test account
         String uniqueEmail = "roletest_" + System.nanoTime() + "@example.com";
         String uniqueUsername = "roletest_" + System.nanoTime();
@@ -40,10 +62,11 @@ public class AccountRoleServiceTest {
             "TestPassword123"
         );
         testAccountId = account.getId();
+        
+        userTransaction.commit();
     }
 
     @Test
-    @Transactional
     public void testAddRole() {
         AccountRole role = accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
         
@@ -56,7 +79,6 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    @Transactional
     public void testGetRolesForAccountAndClient() {
         // Add multiple roles
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "user");
@@ -72,7 +94,6 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    @Transactional
     public void testGetRolesForAccountAndClientWithNoRoles() {
         Set<String> roles = accountRoleService.getRolesForAccountAndClient(testAccountId, TEST_CLIENT_ID);
         
@@ -80,7 +101,6 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    @Transactional
     public void testGetRolesForAccountAndClientIsolation() {
         // Add roles for different clients
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
@@ -97,7 +117,6 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    @Transactional
     public void testGetRolesForAccount() {
         // Add roles for multiple clients
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
@@ -110,7 +129,6 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    @Transactional
     public void testRemoveRole() {
         // Add roles
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
@@ -131,7 +149,6 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    @Transactional
     public void testRemoveNonExistentRole() {
         // Should not throw exception when removing non-existent role
         assertDoesNotThrow(() -> {
@@ -140,7 +157,6 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    @Transactional
     public void testMultipleAccountsWithSameRole() {
         // Create another account
         String uniqueEmail2 = "roletest2_" + System.nanoTime() + "@example.com";
