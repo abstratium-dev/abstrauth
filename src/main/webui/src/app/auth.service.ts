@@ -87,8 +87,6 @@ export class AuthService {
 
     setAccessToken(jwt: string) {
 
-        console.info("setAccessToken")
-
         this.jwt = jwt;
 
         // convert jwt to token
@@ -98,7 +96,6 @@ export class AuthService {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         this.token = JSON.parse(jsonPayload);
-        console.log(this.token);
         this.token.isAuthenticated = true;
         this.token$.set(this.token);
 
@@ -111,8 +108,6 @@ export class AuthService {
         setTimeout(() => {
             this.refreshToken();
         }, fiveMinsLessThanMillisUntilExpiry);
-
-        console.info("setAccessToken for ", this.token.email)
     }
 
     getJwt() {

@@ -1,4 +1,4 @@
-import { Component, effect, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -30,6 +30,7 @@ export class AccountsComponent implements OnInit {
   loading = true;
   error: string | null = null;
   private currentFilter: string = '';
+  private isFirstLoad = true;
 
   // Add Account Form state
   showAddAccountForm = false;
@@ -51,15 +52,21 @@ export class AccountsComponent implements OnInit {
 
   constructor() {
     effect(() => {
-      this.accounts = this.modelService.accounts$();
+      const newAccounts = this.modelService.accounts$();
+      this.accounts = newAccounts;
+      
       if (this.accounts.length > 0 || this.error) {
         this.loading = false;
       }
-      // Reapply the current filter when accounts change
-      if (this.currentFilter) {
-        this.onFilterChange(this.currentFilter);
-      } else {
-        this.applyFilter();
+      
+      // Skip filter update on first load to avoid change detection error
+      // The filter will be applied in ngOnInit after the first render
+      if (!this.isFirstLoad) {
+        if (this.currentFilter) {
+          this.onFilterChange(this.currentFilter);
+        } else {
+          this.applyFilter();
+        }
       }
     });
 
@@ -71,6 +78,10 @@ export class AccountsComponent implements OnInit {
   ngOnInit(): void {
     this.loadAccounts();
     this.controller.loadClients();
+    
+    // Apply initial filter after first render
+    this.isFirstLoad = false;
+    this.applyFilter();
   }
 
   loadAccounts(): void {
@@ -115,7 +126,10 @@ export class AccountsComponent implements OnInit {
 
   onFilterChange(filter: string): void {
     this.currentFilter = filter;
-    this.applyFilter();
+    // Defer filter application to avoid change detection errors
+    setTimeout(() => {
+      this.applyFilter();
+    }, 0);
   }
 
   filterByRole(roleName: string): void {

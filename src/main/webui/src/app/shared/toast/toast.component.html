@@ -2,8 +2,8 @@
   <div *ngFor="let toast of toasts()" 
        class="toast" 
        [ngClass]="'toast-' + toast.type"
-       [@animate.enter]="{ duration: 300, easing: 'ease-out', from: { transform: 'translateX(100%)', opacity: 0 }, to: { transform: 'translateX(0)', opacity: 1 } }"
-       [@animate.leave]="{ duration: 200, easing: 'ease-in', to: { transform: 'translateX(100%)', opacity: 0 } }">
+       animate.enter="slide-in"
+       animate.leave="slide-out">
     <div class="toast-content">
       <span class="toast-icon">
         <span *ngIf="toast.type === 'success'">✓</span>

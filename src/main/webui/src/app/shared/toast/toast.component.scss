@@ -18,11 +18,15 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   background: white;
   border-left: 4px solid;
-  animation: slideIn 0.3s ease-out;
   min-width: 300px;
 }
 
-@keyframes slideIn {
+/* Animation class for animate.enter */
+.slide-in {
+  animation: slideInKeyframes 300ms ease-out;
+}
+
+@keyframes slideInKeyframes {
   from {
     transform: translateX(100%);
     opacity: 0;
@@ -30,6 +34,18 @@
   to {
     transform: translateX(0);
     opacity: 1;
+  }
+}
+
+/* Animation class for animate.leave */
+.slide-out {
+  animation: slideOutKeyframes 200ms ease-in;
+}
+
+@keyframes slideOutKeyframes {
+  to {
+    transform: translateX(100%);
+    opacity: 0;
   }
 }
 
