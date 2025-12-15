@@ -68,10 +68,7 @@ public class AccountService {
         credential.setPasswordHash(hashPassword(password));
         em.persist(credential);
 
-        // Assign admin role to first account
-        if (isFirstAccount) {
-            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        }
+        addRolesToFirstAccount(isFirstAccount, account);
 
         return account;
     }
@@ -96,12 +93,18 @@ public class AccountService {
         account.setAuthProvider(authProvider);
         em.persist(account);
 
-        // Assign admin role to first account
-        if (isFirstAccount) {
-            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        }
+        addRolesToFirstAccount(isFirstAccount, account);
 
         return account;
+    }
+
+    private void addRolesToFirstAccount(boolean isFirstAccount, Account account) {
+        // Assign admin and management roles to first account
+        if (isFirstAccount) {
+            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._MANAGE_ACCOUNTS_PLAIN);
+            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._MANAGE_CLIENTS_PLAIN);
+        }
     }
 
     @Transactional

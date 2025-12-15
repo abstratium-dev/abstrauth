@@ -2,6 +2,14 @@
 
 ## Today
 
+when a new user signs in, they only have the "user" role, so they cannot do anything useful with that. we need to change the @accounts.component.ts and @clients.component.ts so that they can deal with such users. first change the @AccountsResource so that only
+the user role is required to load their own account. if they have the "manage-accounts" role, they should be able to load all accounts, according to the existing logic.
+this way new users can at least see their own account and change their password.
+next, hide the client link if the user doesn't have the "manage-clients" role.
+fix all tests related to these changes. fix all backend tests too, after we added the manager-account and manage-clients roles to the first user.   use `mvn verify` to run all tests.
+
+continue with the happy2 e2e test
+
 - does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
 - create a better description of the project. is it also openid and also an idp or iam?
 - restructure docs - e.g. add most MD files to the docs folder. the main readme should focus on selling the application as a docker image. other stuff should be in the docs folder.

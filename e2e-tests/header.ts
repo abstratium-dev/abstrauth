@@ -1,19 +1,36 @@
 import { Page } from '@playwright/test';
 
+// Element accessors
+function _getSignoutLink(page: Page) {
+    return page.locator("#signout-link");
+}
+
+function _getAccountsLink(page: Page) {
+    return page.locator("#accounts-link");
+}
+
+function _getClientsLink(page: Page) {
+    return page.locator("#clients-link");
+}
+
+function _getUserLink(page: Page) {
+    return page.locator("#user-link");
+}
+
+// Exported functions
 export async function signout(page: Page) {
-    await page.locator("#signout-link").click();
+    await _getSignoutLink(page).click();
 }
 
 export async function navigateToAccounts(page: Page) {
-    await page.locator("#accounts-link").click();
+    await _getAccountsLink(page).click();
 }
 
 export async function navigateToClients(page: Page) {
-    await page.locator("#clients-link").click();
+    await _getClientsLink(page).click();
 }
 
 export async function getCurrentUserName(page: Page): Promise<string> {
-    const userLink = page.locator("#user-link");
-    const text = await userLink.textContent();
+    const text = await _getUserLink(page).textContent();
     return text?.trim() || '';
 }

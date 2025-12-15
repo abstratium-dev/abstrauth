@@ -1,5 +1,14 @@
 import { Page } from '@playwright/test';
 
+// Element accessors
+function _getClientCards(page: Page) {
+    return page.locator('.card');
+}
+
+function _getDeleteClientButton(page: Page) {
+    return page.getByRole('button', { name: /Delete Client/i });
+}
+
 /**
  * Deletes all clients except the specified one.
  * Assumes we're already on the clients page.
@@ -8,12 +17,10 @@ export async function deleteClientsExcept(page: Page, keepClientId: string) {
     console.log(`Deleting all clients except: ${keepClientId}`);
     
     // Wait for clients to load
-    await page.waitForSelector('.card', { timeout: 5000 }).catch(() => {
+    const cards = _getClientCards(page);
+    await cards.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {
         console.log("No clients found on page");
     });
-    
-    // Get all client cards
-    const cards = page.locator('.card');
     const count = await cards.count();
     console.log(`Found ${count} client cards`);
     
@@ -38,7 +45,7 @@ export async function deleteClientsExcept(page: Page, keepClientId: string) {
             
             // Click the confirm button in the dialog
             // The dialog should have a button with text like "Delete Client"
-            await page.getByRole('button', { name: /Delete Client/i }).click();
+            await _getDeleteClientButton(page).click();
             
             // Wait for the client to be deleted and DOM to update
             await page.waitForTimeout(1000);

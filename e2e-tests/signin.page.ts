@@ -1,5 +1,48 @@
-import { test, expect, Page } from '@playwright/test';
-import { signout } from './header';
+import { expect, Page } from '@playwright/test';
+
+function _getUsernameInput(page: Page) {
+    return page.locator("#username");
+}
+
+function _getPasswordInput(page: Page) {
+    return page.locator("#password");
+}
+
+function _getSigninButton(page: Page) {
+    return page.locator("#signin-button");
+}
+
+function _getApproveButton(page: Page) {
+    return page.locator("#approve-button");
+}
+
+function _getSignupLink(page: Page) {
+    return page.locator("#signup-link");
+}
+
+function _getEmailInput(page: Page) {
+    return page.locator("#email");
+}
+
+function _getNameInput(page: Page) {
+    return page.locator("#name");
+}
+
+function _getPassword2Input(page: Page) {
+    return page.locator("#password2");
+}
+
+function _getCreateAccountButton(page: Page) {
+    return page.locator("#create-account-button");
+}
+
+function _getUserLink(page: Page) {
+    return page.locator("#user-link");
+}
+
+function _getInvalidCredentialsError(page: Page) {
+    return page.getByText('Invalid username or password');
+}
 
 /**
  * Reusable function to ensure a user is authenticated.
@@ -15,14 +58,14 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
     await page.goto('/');
 
     // Try to sign in first
-    await page.locator("#username").fill(email);
-    await page.locator("#password").fill(password);
-    await page.locator("#signin-button").click();
+    await _getUsernameInput(page).fill(email);
+    await _getPasswordInput(page).fill(password);
+    await _getSigninButton(page).click();
 
     // Wait for either the error message or the approve button to appear
     // This handles the race condition where the error might appear slowly
-    const errorBox = page.getByText('Invalid username or password');
-    const approveButton = page.locator("#approve-button");
+    const errorBox = _getInvalidCredentialsError(page);
+    const approveButton = _getApproveButton(page);
     
     try {
         // Race between error appearing or approve button appearing
@@ -43,17 +86,17 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
     if (isErrorVisible) {
         // Sign in failed, need to sign up
         await page.goto('/');
-        await page.locator("#signup-link").click();
+        await _getSignupLink(page).click();
 
         // Fill signup form
-        await page.locator("#email").fill(email);
-        await page.locator("#name").fill(name);
-        await page.locator("#password").fill(password);
-        await page.locator("#password2").fill(password);
-        await page.locator("#create-account-button").click();
+        await _getEmailInput(page).fill(email);
+        await _getNameInput(page).fill(name);
+        await _getPasswordInput(page).fill(password);
+        await _getPassword2Input(page).fill(password);
+        await _getCreateAccountButton(page).click();
 
         // Now sign in with the new account
-        await page.locator("#signin-button").click();
+        await _getSigninButton(page).click();
         
         // Wait for approve button after successful signup and signin
         await approveButton.waitFor({ state: 'visible', timeout: 5000 });
@@ -63,8 +106,8 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
     await approveButton.click();
 
     // Verify we're authenticated
-    await expect(page.locator("#user-link")).toBeVisible();
-    await expect(page.locator("#user-link")).toContainText(name);
+    await expect(_getUserLink(page)).toBeVisible();
+    await expect(_getUserLink(page)).toContainText(name);
 }
 
 export async function ensureAdminIsAuthenticated(page: Page) {
@@ -72,6 +115,32 @@ export async function ensureAdminIsAuthenticated(page: Page) {
     const password = 'secretLong';
     const name = 'Admin';
     await ensureAuthenticated(page, email, password, name);
+}
+
+/**
+ * Signs in as admin with known credentials.
+ * Assumes admin account already exists.
+ */
+export async function signInAsAdmin(page: Page) {
+    const email = 'admin@abstratium.dev';
+    const password = 'secretLong';
+    
+    console.log("Signing in as admin...");
+    
+    await page.goto('/');
+    await _getUsernameInput(page).fill(email);
+    await _getPasswordInput(page).fill(password);
+    await _getSigninButton(page).click();
+    
+    // Wait for approve button
+    await expect(_getApproveButton(page)).toBeVisible({ timeout: 5000 });
+    await _getApproveButton(page).click();
+    
+    // Verify signed in
+    await expect(_getUserLink(page)).toBeVisible();
+    await expect(_getUserLink(page)).toContainText('Admin');
+    
+    console.log("Signed in as admin successfully");
 }
 
 export async function ensureManagerIsAuthenticated(page: Page) {
@@ -90,12 +159,12 @@ export async function trySignInAsAdmin(page: Page): Promise<boolean> {
     const password = 'secretLong';
     
     await page.goto('/');
-    await page.locator("#username").fill(email);
-    await page.locator("#password").fill(password);
-    await page.locator("#signin-button").click();
+    await _getUsernameInput(page).fill(email);
+    await _getPasswordInput(page).fill(password);
+    await _getSigninButton(page).click();
 
-    const errorBox = page.getByText('Invalid username or password');
-    const approveButton = page.locator("#approve-button");
+    const errorBox = _getInvalidCredentialsError(page);
+    const approveButton = _getApproveButton(page);
     
     try {
         await Promise.race([
@@ -116,7 +185,7 @@ export async function trySignInAsAdmin(page: Page): Promise<boolean> {
     
     // Sign in succeeded, click approve
     await approveButton.click();
-    await expect(page.locator("#user-link")).toBeVisible();
+    await expect(_getUserLink(page)).toBeVisible();
     console.log("Admin sign in succeeded");
     return true;
 }
@@ -129,19 +198,21 @@ export async function signInViaInviteLink(page: Page, inviteLink: string, expect
     console.log("Signing in via invite link...");
     
     // Navigate to invite link
-    await page.goto(inviteLink);
+    // The page will immediately redirect to /authorize, so we use waitUntil: 'commit'
+    // to avoid waiting for the full page load that will be aborted by the redirect
+    await page.goto(inviteLink, { waitUntil: 'commit' });
     
     // The invite link will redirect to /authorize and auto-fill credentials
     // Wait for the signin page to load with pre-filled credentials
-    await expect(page.locator('#signin-button')).toBeVisible({ timeout: 5000 });
+    await expect(_getSigninButton(page)).toBeVisible({ timeout: 5000 });
     
     // Verify the email is pre-filled from invite
-    const usernameValue = await page.locator('#username').inputValue();
+    const usernameValue = await _getUsernameInput(page).inputValue();
     expect(usernameValue).toBe(expectedEmail);
     console.log("Email pre-filled from invite: " + usernameValue);
     
     // Just click sign in - password is already filled from invite token
-    await page.locator('#signin-button').click();
+    await _getSigninButton(page).click();
     
     console.log("Sign in button clicked");
 }
