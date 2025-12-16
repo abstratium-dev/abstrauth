@@ -74,7 +74,7 @@ public class SignupResource {
         }
 
         try {
-            Account account = accountService.createAccount(email, name, username, password);
+            Account account = accountService.createAccount(email, name, username, password, AccountService.NATIVE);
             return Response.status(Response.Status.CREATED)
                     .entity(new SignupResponse(account.getId(), account.getEmail(), account.getName()))
                     .build();

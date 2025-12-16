@@ -9,6 +9,8 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import dev.abstratium.abstrauth.service.AccountService;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -79,12 +81,12 @@ public class ProfilePictureProxyResource {
 
     private String buildImageUrl(String provider, String imageId) {
         switch (provider.toLowerCase()) {
-            case "google":
+            case AccountService.GOOGLE:
                 // Google profile pictures from lh3.googleusercontent.com
                 return "https://lh3.googleusercontent.com/" + imageId;
-            case "github":
+            // case AccountService.GITHUB:
                 // GitHub avatars
-                return "https://avatars.githubusercontent.com/u/" + imageId;
+                // return "https://avatars.githubusercontent.com/u/" + imageId;
             default:
                 return null;
         }

@@ -10,12 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
@@ -118,7 +117,7 @@ public class AccountsResourceTest {
         // Create a test admin account
         beginTransaction();
         String email = "testadmin_" + System.currentTimeMillis() + "@example.com";
-        Account admin = accountService.createAccount(email, "Test Admin", "testadmin_" + System.currentTimeMillis(), "Pass123");
+        Account admin = accountService.createAccount(email, "Test Admin", "testadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String adminId = admin.getId();
         commitTransaction();
         
@@ -138,18 +137,18 @@ public class AccountsResourceTest {
         // Create manager account
         beginTransaction();
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         accountRoleService.addRole(managerId, "client-a", "manager");
         
         // Create another account with same client
         String userEmail = "shareduser_" + System.currentTimeMillis() + "@example.com";
-        Account user = accountService.createAccount(userEmail, "Shared User", "shareduser_" + System.currentTimeMillis(), "Pass123");
+        Account user = accountService.createAccount(userEmail, "Shared User", "shareduser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         accountRoleService.addRole(user.getId(), "client-a", "user");
         
         // Create account with different client
         String otherEmail = "otheruser_" + System.currentTimeMillis() + "@example.com";
-        Account other = accountService.createAccount(otherEmail, "Other User", "otheruser_" + System.currentTimeMillis(), "Pass123");
+        Account other = accountService.createAccount(otherEmail, "Other User", "otheruser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         accountRoleService.addRole(other.getId(), "client-b", "user");
         commitTransaction();
         
@@ -171,13 +170,13 @@ public class AccountsResourceTest {
         // Create manager account with unique client
         beginTransaction();
         String managerEmail = "uniquemanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Unique Manager", "uniquemanager_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Unique Manager", "uniquemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         accountRoleService.addRole(managerId, "client-unique", "manager");
         
         // Create other accounts with different clients
         String otherEmail = "differentuser_" + System.currentTimeMillis() + "@example.com";
-        Account other = accountService.createAccount(otherEmail, "Different User", "differentuser_" + System.currentTimeMillis(), "Pass123");
+        Account other = accountService.createAccount(otherEmail, "Different User", "differentuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         accountRoleService.addRole(other.getId(), "client-different", "user");
         commitTransaction();
         
@@ -199,7 +198,7 @@ public class AccountsResourceTest {
         // Create manager account with no roles
         beginTransaction();
         String managerEmail = "norolemanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "No Role Manager", "norolemanager_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "No Role Manager", "norolemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -222,7 +221,7 @@ public class AccountsResourceTest {
         // Create regular user account
         beginTransaction();
         String userEmail = "regularuser_" + System.currentTimeMillis() + "@example.com";
-        Account user = accountService.createAccount(userEmail, "Regular User", "regularuser_" + System.currentTimeMillis(), "Pass123");
+        Account user = accountService.createAccount(userEmail, "Regular User", "regularuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String userId = user.getId();
         commitTransaction();
         
@@ -250,24 +249,24 @@ public class AccountsResourceTest {
         // Create manager with multiple clients
         beginTransaction();
         String managerEmail = "multimanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Multi Manager", "multimanager_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Multi Manager", "multimanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         accountRoleService.addRole(managerId, "client-x", "manager");
         accountRoleService.addRole(managerId, "client-y", "manager");
         
         // Create user1 sharing client-x
         String user1Email = "user1_" + System.currentTimeMillis() + "@example.com";
-        Account user1 = accountService.createAccount(user1Email, "User 1", "user1_" + System.currentTimeMillis(), "Pass123");
+        Account user1 = accountService.createAccount(user1Email, "User 1", "user1_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         accountRoleService.addRole(user1.getId(), "client-x", "user");
         
         // Create user2 sharing client-y
         String user2Email = "user2_" + System.currentTimeMillis() + "@example.com";
-        Account user2 = accountService.createAccount(user2Email, "User 2", "user2_" + System.currentTimeMillis(), "Pass123");
+        Account user2 = accountService.createAccount(user2Email, "User 2", "user2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         accountRoleService.addRole(user2.getId(), "client-y", "user");
         
         // Create user3 with no shared clients
         String user3Email = "user3_" + System.currentTimeMillis() + "@example.com";
-        Account user3 = accountService.createAccount(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123");
+        Account user3 = accountService.createAccount(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         accountRoleService.addRole(user3.getId(), "client-z", "user");
         commitTransaction();
         
@@ -289,12 +288,12 @@ public class AccountsResourceTest {
         // Create account
         beginTransaction();
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123");
+        Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String accountId = account.getId();
         
         // Create admin account
         String adminEmail = "roleadmin_" + System.currentTimeMillis() + "@example.com";
-        Account admin = accountService.createAccount(adminEmail, "Role Admin", "roleadmin_" + System.currentTimeMillis(), "Pass123");
+        Account admin = accountService.createAccount(adminEmail, "Role Admin", "roleadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String adminId = admin.getId();
         commitTransaction();
         
@@ -342,7 +341,7 @@ public class AccountsResourceTest {
         // Create manager account
         beginTransaction();
         String managerEmail = "rolemanager2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 2", "rolemanager2_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 2", "rolemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -369,7 +368,7 @@ public class AccountsResourceTest {
         // Create manager account
         beginTransaction();
         String managerEmail = "rolemanager3_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 3", "rolemanager3_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 3", "rolemanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -397,11 +396,11 @@ public class AccountsResourceTest {
         // Create account and manager
         beginTransaction();
         String email = "roletest2_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test 2", "roletest2_" + System.currentTimeMillis(), "Pass123");
+        Account account = accountService.createAccount(email, "Role Test 2", "roletest2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String accountId = account.getId();
         
         String managerEmail = "rolemanager4_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 4", "rolemanager4_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 4", "rolemanager4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -427,11 +426,11 @@ public class AccountsResourceTest {
         // Create account and manager
         beginTransaction();
         String email = "roletest3_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test 3", "roletest3_" + System.currentTimeMillis(), "Pass123");
+        Account account = accountService.createAccount(email, "Role Test 3", "roletest3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String accountId = account.getId();
         
         String managerEmail = "rolemanager5_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 5", "rolemanager5_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 5", "rolemanager5_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -457,11 +456,11 @@ public class AccountsResourceTest {
         // Create account and manager
         beginTransaction();
         String email = "roletest4_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test 4", "roletest4_" + System.currentTimeMillis(), "Pass123");
+        Account account = accountService.createAccount(email, "Role Test 4", "roletest4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String accountId = account.getId();
         
         String managerEmail = "rolemanager6_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 6", "rolemanager6_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Role Manager 6", "rolemanager6_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -488,10 +487,10 @@ public class AccountsResourceTest {
         // Create account and non-admin manager
         beginTransaction();
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123");
+        Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         
         String managerEmail = "nonadmin_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Non-Admin Manager", "nonadmin_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Non-Admin Manager", "nonadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         commitTransaction();
         
         String requestBody = String.format("""
@@ -518,12 +517,12 @@ public class AccountsResourceTest {
         // Create two accounts: one with a role in client-a, another without any roles
         beginTransaction();
         String targetEmail = "target_" + System.currentTimeMillis() + "@example.com";
-        Account targetAccount = accountService.createAccount(targetEmail, "Target User", "target_" + System.currentTimeMillis(), "Pass123");
+        Account targetAccount = accountService.createAccount(targetEmail, "Target User", "target_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         // Give target account a role in abstratium-abstrauth (this will work because it's the first role for this account)
         accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
         
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         commitTransaction();
         
         // Try to add target account to a NEW client (test-client) - should fail for non-admin
@@ -552,12 +551,12 @@ public class AccountsResourceTest {
         // Create account with existing role in abstratium-abstrauth
         beginTransaction();
         String targetEmail = "target2_" + System.currentTimeMillis() + "@example.com";
-        Account targetAccount = accountService.createAccount(targetEmail, "Target User 2", "target2_" + System.currentTimeMillis(), "Pass123");
+        Account targetAccount = accountService.createAccount(targetEmail, "Target User 2", "target2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         // Give target account a role in abstratium-abstrauth
         accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
         
         String managerEmail = "manager2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager 2", "manager2_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Manager 2", "manager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         commitTransaction();
         
         // Try to add another role to the SAME client (abstratium-abstrauth) - should succeed for non-admin
@@ -586,12 +585,12 @@ public class AccountsResourceTest {
         // Create account with existing role in abstratium-abstrauth
         beginTransaction();
         String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
-        Account targetAccount = accountService.createAccount(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123");
+        Account targetAccount = accountService.createAccount(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         // Give target account a role in abstratium-abstrauth
         accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
         
         String adminEmail = "admin_" + System.currentTimeMillis() + "@example.com";
-        Account admin = accountService.createAccount(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123");
+        Account admin = accountService.createAccount(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         // Give admin the admin role
         accountRoleService.addRole(admin.getId(), "abstratium-abstrauth", "admin");
         commitTransaction();
@@ -623,12 +622,12 @@ public class AccountsResourceTest {
         // Create account with a role
         beginTransaction();
         String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123");
+        Account account = accountService.createAccount(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         // Add initial role
         accountRoleService.addRole(account.getId(), "abstratium-abstrauth", "user");
         
         String managerEmail = "manager_dup_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager Dup", "manager_dup_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Manager Dup", "manager_dup_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         commitTransaction();
         
         // Try to add the same role again - should return 409 Conflict
@@ -656,13 +655,13 @@ public class AccountsResourceTest {
         // Create account with a role
         beginTransaction();
         String email = "roledelete_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Delete Test", "roledelete_" + System.currentTimeMillis(), "Pass123");
+        Account account = accountService.createAccount(email, "Role Delete Test", "roledelete_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String accountId = account.getId();
         accountRoleService.addRole(accountId, "test-client", "admin");
         
         // Create manager account
         String managerEmail = "deletemanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Delete Manager", "deletemanager_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Delete Manager", "deletemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         commitTransaction();
         
         String requestBody = String.format("""
@@ -706,7 +705,7 @@ public class AccountsResourceTest {
     public void testRemoveAccountRoleWithoutPermission() throws Exception {
         beginTransaction();
         String managerEmail = "deletemanager2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Delete Manager 2", "deletemanager2_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Delete Manager 2", "deletemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -732,7 +731,7 @@ public class AccountsResourceTest {
     public void testRemoveAccountRoleFromNonExistentAccount() throws Exception {
         beginTransaction();
         String managerEmail = "deletemanager3_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Delete Manager 3", "deletemanager3_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Delete Manager 3", "deletemanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -760,7 +759,7 @@ public class AccountsResourceTest {
         // Create manager account
         beginTransaction();
         String managerEmail = "createmanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager", "createmanager_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Create Manager", "createmanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -781,7 +780,7 @@ public class AccountsResourceTest {
             .then()
             .statusCode(201)
             .body("account.email", equalTo(newEmail))
-            .body("account.authProvider", equalTo("native"))
+            .body("account.authProvider", equalTo(AccountService.NATIVE))
             .body("inviteToken", notNullValue());
     }
 
@@ -790,7 +789,7 @@ public class AccountsResourceTest {
         // Create manager account
         beginTransaction();
         String managerEmail = "createmanager2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager 2", "createmanager2_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Create Manager 2", "createmanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -811,7 +810,7 @@ public class AccountsResourceTest {
             .then()
             .statusCode(201)
             .body("account.email", equalTo(newEmail))
-            .body("account.authProvider", equalTo("google"))
+            .body("account.authProvider", equalTo(AccountService.GOOGLE))
             .body("inviteToken", notNullValue());
     }
 
@@ -820,7 +819,7 @@ public class AccountsResourceTest {
         // Create manager account
         beginTransaction();
         String managerEmail = "createmanager3_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager 3", "createmanager3_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Create Manager 3", "createmanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -847,12 +846,12 @@ public class AccountsResourceTest {
         // Create manager account
         beginTransaction();
         String managerEmail = "createmanager4_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager 4", "createmanager4_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Create Manager 4", "createmanager4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         
         // Create first account
         String existingEmail = "existing_" + System.currentTimeMillis() + "@example.com";
-        accountService.createAccount(existingEmail, "Existing User", "existing_" + System.currentTimeMillis(), "Pass123");
+        accountService.createAccount(existingEmail, "Existing User", "existing_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         commitTransaction();
         
         // Try to create account with same email
@@ -879,7 +878,7 @@ public class AccountsResourceTest {
         // Create manager account
         beginTransaction();
         String managerEmail = "createmanager5_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager 5", "createmanager5_" + System.currentTimeMillis(), "Pass123");
+        Account manager = accountService.createAccount(managerEmail, "Create Manager 5", "createmanager5_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         String managerId = manager.getId();
         commitTransaction();
         
@@ -913,7 +912,7 @@ public class AccountsResourceTest {
         Account manager = new Account();
         manager.setEmail("manager-cascade@example.com");
         manager.setName("Manager Cascade");
-        manager.setAuthProvider("native");
+        manager.setAuthProvider(AccountService.NATIVE);
         manager.setEmailVerified(true);
         em.persist(manager);
         em.flush();
@@ -923,7 +922,8 @@ public class AccountsResourceTest {
                 "cascade-test@example.com",
                 "Cascade Test",
                 "cascadeuser",
-                "password123"
+                "password123",
+                AccountService.NATIVE
         );
         String accountId = account.getId();
 
@@ -933,7 +933,7 @@ public class AccountsResourceTest {
         // Add a federated identity
         FederatedIdentity fedIdentity = new FederatedIdentity();
         fedIdentity.setAccountId(accountId);
-        fedIdentity.setProvider("google");
+        fedIdentity.setProvider(AccountService.GOOGLE);
         fedIdentity.setProviderUserId("google-user-123");
         fedIdentity.setEmail("cascade-test@example.com");
         em.persist(fedIdentity);
@@ -943,7 +943,7 @@ public class AccountsResourceTest {
 
         // Verify child records exist before deletion
         beginTransaction();
-        List<AccountRole> rolesBefore = accountRoleService.getRolesForAccount(accountId);
+        List<AccountRole> rolesBefore = accountRoleService.findRolesByAccountId(accountId);
         assertEquals(1, rolesBefore.size());
 
         var credQuery = em.createQuery("SELECT c FROM Credential c WHERE c.accountId = :accountId", dev.abstratium.abstrauth.entity.Credential.class);
@@ -969,7 +969,7 @@ public class AccountsResourceTest {
 
         // Verify all child records are deleted via CASCADE DELETE
         beginTransaction();
-        List<AccountRole> rolesAfter = accountRoleService.getRolesForAccount(accountId);
+        List<AccountRole> rolesAfter = accountRoleService.findRolesByAccountId(accountId);
         assertTrue(rolesAfter.isEmpty(), "Roles should be deleted via CASCADE DELETE");
 
         var credQueryAfter = em.createQuery("SELECT c FROM Credential c WHERE c.accountId = :accountId", dev.abstratium.abstrauth.entity.Credential.class);

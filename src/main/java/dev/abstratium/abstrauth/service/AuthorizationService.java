@@ -1,11 +1,14 @@
 package dev.abstratium.abstrauth.service;
 
+import dev.abstratium.abstrauth.boundary.TimedOutException;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.NotFoundException;
+
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.security.SecureRandom;
@@ -60,13 +63,13 @@ public class AuthorizationService {
     public void approveAuthorizationRequest(String requestId, String accountId, String authMethod) {
         AuthorizationRequest request = em.find(AuthorizationRequest.class, requestId);
         if (request == null) {
-            throw new IllegalArgumentException("Authorization request not found");
+            throw new NotFoundException("Authorization request not found");
         }
 
         if (request.getExpiresAt().isBefore(LocalDateTime.now())) {
             request.setStatus("expired");
             em.merge(request);
-            throw new IllegalStateException("Authorization request has expired");
+            throw new TimedOutException("Authorization request has expired");
         }
 
         request.setAccountId(accountId);

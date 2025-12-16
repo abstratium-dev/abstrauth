@@ -11,12 +11,13 @@ public interface Roles {
     String _ADMIN_PLAIN = "admin";
     String _MANAGE_ACCOUNTS_PLAIN = "manage-accounts";
     String _MANAGE_CLIENTS_PLAIN = "manage-clients";
+    String _USER_PLAIN = "user";
 
     /** The admin (super user) role */
     String ADMIN = CLIENT_ID + "_" + _ADMIN_PLAIN;
 
     /** The user is simply that. Used to ensure that they can only call some APIs if they are also signed in. */
-    String USER = CLIENT_ID + "_user";
+    String USER = CLIENT_ID + "_" + _USER_PLAIN;
 
     /** Required by users who want to manage accounts */
     String MANAGE_ACCOUNTS = CLIENT_ID + "_" + _MANAGE_ACCOUNTS_PLAIN;

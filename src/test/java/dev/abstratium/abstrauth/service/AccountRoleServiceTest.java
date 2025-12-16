@@ -59,7 +59,8 @@ public class AccountRoleServiceTest {
             uniqueEmail,
             "Role Test User",
             uniqueUsername,
-            "TestPassword123"
+            "TestPassword123",
+            AccountService.NATIVE
         );
         testAccountId = account.getId();
         
@@ -79,13 +80,13 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    public void testGetRolesForAccountAndClient() {
+    public void testFindRolesByAccountIdAndClientId() {
         // Add multiple roles
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "user");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "editor");
 
-        Set<String> roles = accountRoleService.getRolesForAccountAndClient(testAccountId, TEST_CLIENT_ID);
+        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
         
         assertEquals(3, roles.size());
         assertTrue(roles.contains("user"));
@@ -94,20 +95,20 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    public void testGetRolesForAccountAndClientWithNoRoles() {
-        Set<String> roles = accountRoleService.getRolesForAccountAndClient(testAccountId, TEST_CLIENT_ID);
+    public void testFindRolesByAccountIdAndClientIdWithNoRoles() {
+        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
         
         assertTrue(roles.isEmpty());
     }
 
     @Test
-    public void testGetRolesForAccountAndClientIsolation() {
+    public void testFindRolesByAccountIdAndClientIdIsolation() {
         // Add roles for different clients
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID_2, "user");
 
-        Set<String> rolesClient1 = accountRoleService.getRolesForAccountAndClient(testAccountId, TEST_CLIENT_ID);
-        Set<String> rolesClient2 = accountRoleService.getRolesForAccountAndClient(testAccountId, TEST_CLIENT_ID_2);
+        Set<String> rolesClient1 = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
+        Set<String> rolesClient2 = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID_2);
         
         assertEquals(1, rolesClient1.size());
         assertTrue(rolesClient1.contains("admin"));
@@ -117,13 +118,13 @@ public class AccountRoleServiceTest {
     }
 
     @Test
-    public void testGetRolesForAccount() {
+    public void testFindRolesByAccountId() {
         // Add roles for multiple clients
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "user");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID_2, "viewer");
 
-        List<AccountRole> roles = accountRoleService.getRolesForAccount(testAccountId);
+        List<AccountRole> roles = accountRoleService.findRolesByAccountId(testAccountId);
         
         assertEquals(3, roles.size());
     }
@@ -135,14 +136,14 @@ public class AccountRoleServiceTest {
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "user");
 
         // Verify roles exist
-        Set<String> rolesBefore = accountRoleService.getRolesForAccountAndClient(testAccountId, TEST_CLIENT_ID);
+        Set<String> rolesBefore = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
         assertEquals(2, rolesBefore.size());
 
         // Remove one role
         accountRoleService.removeRole(testAccountId, TEST_CLIENT_ID, "admin");
 
         // Verify role was removed
-        Set<String> rolesAfter = accountRoleService.getRolesForAccountAndClient(testAccountId, TEST_CLIENT_ID);
+        Set<String> rolesAfter = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
         assertEquals(1, rolesAfter.size());
         assertTrue(rolesAfter.contains("user"));
         assertFalse(rolesAfter.contains("admin"));
@@ -165,7 +166,8 @@ public class AccountRoleServiceTest {
             uniqueEmail2,
             "Role Test User 2",
             uniqueUsername2,
-            "TestPassword123"
+            "TestPassword123",
+            AccountService.NATIVE
         );
 
         // Add same role to both accounts for same client
@@ -173,8 +175,8 @@ public class AccountRoleServiceTest {
         accountRoleService.addRole(account2.getId(), TEST_CLIENT_ID, "admin");
 
         // Verify both accounts have the role
-        Set<String> roles1 = accountRoleService.getRolesForAccountAndClient(testAccountId, TEST_CLIENT_ID);
-        Set<String> roles2 = accountRoleService.getRolesForAccountAndClient(account2.getId(), TEST_CLIENT_ID);
+        Set<String> roles1 = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
+        Set<String> roles2 = accountRoleService.findRolesByAccountIdAndClientId(account2.getId(), TEST_CLIENT_ID);
         
         assertTrue(roles1.contains("admin"));
         assertTrue(roles2.contains("admin"));

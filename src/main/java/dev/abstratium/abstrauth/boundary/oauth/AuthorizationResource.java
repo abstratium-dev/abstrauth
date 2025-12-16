@@ -24,6 +24,8 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.List;
+import java.util.Set;
 
 /**
  * OAuth 2.0 Authorization Endpoint
@@ -352,7 +354,7 @@ public class AuthorizationResource {
         Account account = accountOpt.get();
 
         // Approve the authorization request with native authentication
-        authorizationService.approveAuthorizationRequest(requestId, account.getId(), "native");
+        authorizationService.approveAuthorizationRequest(requestId, account.getId(), AccountService.NATIVE);
 
         // Show consent page
         return Response.ok(new AuthenticationResponse(account.getName())).build();

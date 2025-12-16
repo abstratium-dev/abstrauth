@@ -104,7 +104,8 @@ public class AuthorizationServiceTest {
             "approve_" + System.currentTimeMillis() + "@example.com",
             "Approve Test",
             "approveuser_" + System.currentTimeMillis(),
-            "Password123"
+            "Password123",
+            AccountService.NATIVE
         );
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
@@ -116,7 +117,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), AccountService.NATIVE);
         
         Optional<AuthorizationRequest> approved = authorizationService.findAuthorizationRequest(request.getId());
         assertTrue(approved.isPresent());
@@ -127,7 +128,7 @@ public class AuthorizationServiceTest {
     @Test
     public void testApproveNonExistentRequest() {
         assertThrows(IllegalArgumentException.class, () -> {
-            authorizationService.approveAuthorizationRequest("nonexistent-id", "account-id", "native");
+            authorizationService.approveAuthorizationRequest("nonexistent-id", "account-id", AccountService.NATIVE);
         });
     }
 
@@ -152,7 +153,7 @@ public class AuthorizationServiceTest {
         
         // Should throw IllegalStateException for expired request
         assertThrows(IllegalStateException.class, () -> {
-            authorizationService.approveAuthorizationRequest(request.getId(), "account-id", "native");
+            authorizationService.approveAuthorizationRequest(request.getId(), "account-id", AccountService.NATIVE);
         });
     }
 
@@ -162,7 +163,8 @@ public class AuthorizationServiceTest {
             "gencode_" + System.currentTimeMillis() + "@example.com",
             "GenCode Test",
             "gencodeuser_" + System.currentTimeMillis(),
-            "Password123"
+            "Password123",
+            AccountService.NATIVE
         );
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
@@ -174,7 +176,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), AccountService.NATIVE);
         
         AuthorizationCode authCode = authorizationService.generateAuthorizationCode(request.getId());
         
@@ -223,7 +225,8 @@ public class AuthorizationServiceTest {
             "findcode_" + System.currentTimeMillis() + "@example.com",
             "FindCode Test",
             "findcodeuser_" + System.currentTimeMillis(),
-            "Password123"
+            "Password123",
+            AccountService.NATIVE
         );
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
@@ -235,7 +238,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), AccountService.NATIVE);
         AuthorizationCode authCode = authorizationService.generateAuthorizationCode(request.getId());
         
         Optional<AuthorizationCode> found = authorizationService.findAuthorizationCode(authCode.getCode());
@@ -258,7 +261,8 @@ public class AuthorizationServiceTest {
             "markused_" + System.currentTimeMillis() + "@example.com",
             "MarkUsed Test",
             "markuseduser_" + System.currentTimeMillis(),
-            "Password123"
+            "Password123",
+            AccountService.NATIVE
         );
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
@@ -270,7 +274,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), AccountService.NATIVE);
         AuthorizationCode authCode = authorizationService.generateAuthorizationCode(request.getId());
         
         assertFalse(authCode.getUsed());
@@ -294,7 +298,8 @@ public class AuthorizationServiceTest {
             "markbyid_" + System.currentTimeMillis() + "@example.com",
             "MarkById Test",
             "markbyiduser_" + System.currentTimeMillis(),
-            "Password123"
+            "Password123",
+            AccountService.NATIVE
         );
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
@@ -306,7 +311,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), AccountService.NATIVE);
         AuthorizationCode authCode = authorizationService.generateAuthorizationCode(request.getId());
         
         assertFalse(authCode.getUsed());
@@ -330,7 +335,8 @@ public class AuthorizationServiceTest {
             "secure_" + System.currentTimeMillis() + "@example.com",
             "Secure Test",
             "secureuser_" + System.currentTimeMillis(),
-            "Password123"
+            "Password123",
+            AccountService.NATIVE
         );
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
@@ -342,7 +348,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), "native");
+        authorizationService.approveAuthorizationRequest(request.getId(), account.getId(), AccountService.NATIVE);
         AuthorizationCode authCode1 = authorizationService.generateAuthorizationCode(request.getId());
         
         // Create another request
@@ -355,7 +361,7 @@ public class AuthorizationServiceTest {
             "S256"
         );
         
-        authorizationService.approveAuthorizationRequest(request2.getId(), account.getId(), "native");
+        authorizationService.approveAuthorizationRequest(request2.getId(), account.getId(), AccountService.NATIVE);
         AuthorizationCode authCode2 = authorizationService.generateAuthorizationCode(request2.getId());
         
         // Codes should be different
@@ -390,7 +396,8 @@ public class AuthorizationServiceTest {
             "signup_" + System.currentTimeMillis() + "@example.com",
             "Signup Test",
             "signupuser_" + System.currentTimeMillis(),
-            "Password123"
+            "Password123",
+            AccountService.NATIVE
         );
         
         // In test profile, allow.signup=true

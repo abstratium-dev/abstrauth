@@ -1,5 +1,14 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.service.AccountRoleService;
@@ -13,19 +22,15 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-
-import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import org.eclipse.microprofile.jwt.JsonWebToken;
-import java.security.SecureRandom;
 
 @Path("/api/accounts")
 @Tag(name = "Accounts", description = "Account management endpoints")
@@ -45,11 +50,10 @@ public class AccountsResource {
     
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "List accounts", description = "Returns accounts based on user permissions")
-    @RolesAllowed({Roles.ADMIN, Roles.MANAGE_ACCOUNTS})
+    @Operation(summary = "List accounts", description = "Returns accounts based on user permissions. Users with only USER role see their own account, MANAGE_ACCOUNTS role sees accounts they manage, ADMIN sees all.")
+    @RolesAllowed({Roles.USER})
     public List<AccountResponse> listAccounts() {
         // Get the current user's ID from the JWT token (sub claim)
-        // String currentUserId = securityIdentity.getPrincipal().getName();
         String accountId = accessToken.getSubject();
 
         // If user is admin, return all accounts
@@ -59,10 +63,18 @@ public class AccountsResource {
                     .collect(Collectors.toList());
         }
         
-        // Otherwise, return accounts filtered by user's client roles
-        return accountService.findAccountsByUserClientRoles(accountId).stream()
+        // If user has manage-accounts role, return accounts filtered by user's client roles
+        if (securityIdentity.hasRole(Roles.MANAGE_ACCOUNTS)) {
+            return accountService.findAccountsByUserClientRoles(accountId).stream()
+                    .map(this::toAccountResponse)
+                    .collect(Collectors.toList());
+        }
+        
+        // Otherwise, return only the current user's account
+        return accountService.findById(accountId)
                 .map(this::toAccountResponse)
-                .collect(Collectors.toList());
+                .map(List::of)
+                .orElse(List.of());
     }
 
     @POST
@@ -72,7 +84,7 @@ public class AccountsResource {
     @RolesAllowed(Roles.MANAGE_ACCOUNTS)
     public Response createAccount(@Valid CreateAccountRequest request) {
         // Validate authProvider
-        if (!request.authProvider.equals("google") && !request.authProvider.equals("native")) {
+        if (!request.authProvider.equals(AccountService.GOOGLE) && !request.authProvider.equals(AccountService.NATIVE)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(new ErrorResponse("authProvider must be either 'google', or 'native'"))
                     .build();
@@ -85,42 +97,30 @@ public class AccountsResource {
                     .build();
         }
 
-        String generatedPassword = null;
-        
-        // For native provider, check if username (email) already exists
-        if (request.authProvider.equals("native")) {
-            if (accountService.findCredentialByUsername(request.email).isPresent()) {
-                return Response.status(Response.Status.CONFLICT)
-                        .entity(new ErrorResponse("Username already exists"))
-                        .build();
-            }
-            // Generate a random password for native accounts
-            generatedPassword = generateRandomPassword();
+        // For native provider, check if username already exists (in case it ever differs from email)
+        if (accountService.findCredentialByUsername(request.email).isPresent()) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(new ErrorResponse("Username already exists"))
+                    .build();
         }
 
-        // Create account
-        Account account = new Account();
-        account.setId(UUID.randomUUID().toString());
-        account.setEmail(request.email);
-        account.setAuthProvider(request.authProvider);
+        // Generate a random password for native accounts.
         // For native accounts, use provided name; for federated, it will be updated on first sign-in
-        account.setName(request.authProvider.equals("native") && request.name != null ? request.name : "NOT YET SIGNED IN");
-        account.setEmailVerified(false);
-        account.setPicture(null);
-        account.setCreatedAt(LocalDateTime.now());
-
-        Account savedAccount = accountService.updateAccount(account);
-        
-        // Create credential for native accounts
-        if (request.authProvider.equals("native")) {
-            accountService.createCredentialForAccount(savedAccount.getId(), request.email, generatedPassword);
+        String name = request.name;
+        String generatedPassword = null;
+        if(AccountService.NATIVE.equals(request.authProvider)) {
+            generatedPassword = generateRandomPassword();
+        } else {
+            name = "NOT YET SIGNED IN";
         }
+
+        Account account = accountService.createAccount(request.email, name, request.email, generatedPassword, request.authProvider);
         
         // Create invite token
         String inviteToken = createInviteToken(request.authProvider, request.email, generatedPassword);
         
         return Response.status(Response.Status.CREATED)
-                .entity(new CreateAccountResponse(toAccountResponse(savedAccount), inviteToken))
+                .entity(new CreateAccountResponse(toAccountResponse(account), inviteToken))
                 .build();
     }
     

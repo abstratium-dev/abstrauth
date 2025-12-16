@@ -2,12 +2,6 @@
 
 ## Today
 
-when a new user signs in, they only have the "user" role, so they cannot do anything useful with that. we need to change the @accounts.component.ts and @clients.component.ts so that they can deal with such users. first change the @AccountsResource so that only
-the user role is required to load their own account. if they have the "manage-accounts" role, they should be able to load all accounts, according to the existing logic.
-this way new users can at least see their own account and change their password.
-next, hide the client link if the user doesn't have the "manage-clients" role.
-fix all tests related to these changes. fix all backend tests too, after we added the manager-account and manage-clients roles to the first user.   use `mvn verify` to run all tests.
-
 continue with the happy2 e2e test
 
 - does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
@@ -22,6 +16,7 @@ continue with the happy2 e2e test
 - if native sign in is disabled, don't add the option to create an account with native sign in
 - make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_MANUAL.md](USER_MANUAL.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.
+  - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
 - allow to disable sign in with native - needs a test
 - e2e
   - add scripts for clearing database

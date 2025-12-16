@@ -3,6 +3,7 @@ package dev.abstratium.abstrauth.boundary.oauth;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.GoogleOAuthService;
 import jakarta.inject.Inject;
@@ -104,7 +105,7 @@ public class GoogleCallbackResource {
             Account account = googleOAuthService.handleGoogleCallback(code);
 
             // Approve the authorization request with the account and Google auth method
-            authorizationService.approveAuthorizationRequest(authRequest.getId(), account.getId(), "google");
+            authorizationService.approveAuthorizationRequest(authRequest.getId(), account.getId(), AccountService.GOOGLE);
 
             // Generate authorization code for the client
             AuthorizationCode authCode = authorizationService.generateAuthorizationCode(authRequest.getId());

@@ -55,12 +55,16 @@ export class SigninComponent implements OnInit {
         const inviteDataStr = sessionStorage.getItem('inviteData');
         if (inviteDataStr) {
             try {
+                this.showGoogleSignin = false;
+                this.showNativeSignin = false;
                 this.inviteData = JSON.parse(inviteDataStr);
                 // Filter sign-in options based on invite data
                 if (this.inviteData?.authProvider === 'native') {
-                    this.showGoogleSignin = false;
+                    this.showNativeSignin = true;
                 } else if (this.inviteData?.authProvider === 'google') {
-                    this.showNativeSignin = false;
+                    this.showGoogleSignin = true;
+                } else {
+                    throw new Error("Unexpected authorization provider '" + this.inviteData?.authProvider + "' please contact support")
                 }
             } catch (err) {
                 console.error('Error parsing invite data:', err);
@@ -77,7 +81,15 @@ export class SigninComponent implements OnInit {
 
         effect(() => {
             this.showSignup = this.modelService.signupAllowed$();
-            this.showNativeSignin = this.modelService.allowNativeSignin$();
+
+            // if invite data is present, we may have already decided if we
+            // should show native sign in, so only let the backend override if
+            // there is no invite data. invite data is read in the constructor 
+            // which is always called before this code
+            let allowNativeSignin = this.modelService.allowNativeSignin$();
+            if(!this.inviteData) {
+                this.showNativeSignin = allowNativeSignin;
+            }
         });
     }
 
@@ -135,6 +147,9 @@ export class SigninComponent implements OnInit {
                 }
             },
             error: (error) => {
+                if(error.status === 410) {
+                    this.signinIsExpired = true;
+                }
                 this.errorMessage = error?.error?.details || error.error || error.message || 'Authentication failed';
                 this.isSubmitting = false;
             }

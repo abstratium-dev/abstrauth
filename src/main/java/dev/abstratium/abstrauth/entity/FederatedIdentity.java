@@ -22,7 +22,7 @@ public class FederatedIdentity {
     private String accountId;
 
     @Column(nullable = false, length = 50)
-    private String provider; // "google", "microsoft", "github"
+    private String provider; // "google", etc.
 
     @Column(name = "provider_user_id", nullable = false, length = 255)
     private String providerUserId; // The user ID from the external provider

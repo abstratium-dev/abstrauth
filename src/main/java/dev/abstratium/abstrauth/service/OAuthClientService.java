@@ -2,6 +2,8 @@ package dev.abstratium.abstrauth.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -11,6 +13,7 @@ import jakarta.transaction.Transactional;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @ApplicationScoped
 public class OAuthClientService {
@@ -21,10 +24,16 @@ public class OAuthClientService {
     @Inject
     ObjectMapper objectMapper;
 
+    public List<OAuthClient> findByClientIds(Set<String> clientIds) {
+        var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId IN :clientIds", OAuthClient.class);
+        query.setParameter("clientIds", clientIds);
+        return query.getResultList();
+    }
+
     public Optional<OAuthClient> findByClientId(String clientId) {
         var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", OAuthClient.class);
         query.setParameter("clientId", clientId);
-        return query.getResultStream().findFirst();
+        return query.getResultList().stream().findFirst();
     }
 
     public List<OAuthClient> findAll() {

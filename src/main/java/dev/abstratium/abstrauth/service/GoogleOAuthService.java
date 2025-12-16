@@ -102,19 +102,19 @@ public class GoogleOAuthService {
                     userInfo.getName(),
                     convertToProxyUrl(userInfo.getPicture()),
                     emailVerified != null ? emailVerified : false,
-                    "google"
+                    AccountService.GOOGLE
             );
         }
 
         // Check if this Google account is already linked
         Optional<FederatedIdentity> existingIdentity = 
-                federatedIdentityService.findByProviderAndUserId("google", userInfo.getSub());
+                federatedIdentityService.findByProviderAndUserId(AccountService.GOOGLE, userInfo.getSub());
 
         if (!existingIdentity.isPresent()) {
             // Create the federated identity link
             federatedIdentityService.createFederatedIdentity(
                     account.getId(),
-                    "google",
+                    AccountService.GOOGLE,
                     userInfo.getSub(),
                     userInfo.getEmail()
             );

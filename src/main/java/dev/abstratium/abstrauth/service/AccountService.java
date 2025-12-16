@@ -10,11 +10,15 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @ApplicationScoped
 public class AccountService {
+
+    public static final String NATIVE = "native";
+    public static final String GOOGLE = "google";
 
     @Inject
     EntityManager em;
@@ -39,36 +43,28 @@ public class AccountService {
     }
 
     @Transactional
-    public Account createAccount(String email, String name, String username, String password) {
+    public Account createAccount(String email, String name, String username, String password, String authProvider) {
         // Check if email already exists
         if (findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Email already exists");
         }
-
-        // Check if username already exists
-        if (findCredentialByUsername(username).isPresent()) {
-            throw new IllegalArgumentException("Username already exists");
-        }
-
-        // Check if this is the first account
-        boolean isFirstAccount = countAccounts() == 0;
 
         // Create account
         Account account = new Account();
         account.setEmail(email);
         account.setName(name);
         account.setEmailVerified(false);
-        account.setAuthProvider("native");
+        account.setAuthProvider(authProvider);
+        account.setPicture(null);
+        account.setCreatedAt(LocalDateTime.now());
         em.persist(account);
 
         // Create credentials
-        Credential credential = new Credential();
-        credential.setAccountId(account.getId());
-        credential.setUsername(username);
-        credential.setPasswordHash(hashPassword(password));
-        em.persist(credential);
+        if(AccountService.NATIVE.equals(authProvider) && password != null) {
+            createCredentialForAccount(account.getId(), username, password);
+        }
 
-        addRolesToFirstAccount(isFirstAccount, account);
+        addRoles(account);
 
         return account;
     }
@@ -81,9 +77,6 @@ public class AccountService {
             throw new IllegalArgumentException("Email already exists");
         }
 
-        // Check if this is the first account
-        boolean isFirstAccount = countAccounts() == 0;
-
         // Create account
         Account account = new Account();
         account.setEmail(email);
@@ -93,13 +86,19 @@ public class AccountService {
         account.setAuthProvider(authProvider);
         em.persist(account);
 
-        addRolesToFirstAccount(isFirstAccount, account);
+        addRoles(account);
 
         return account;
     }
 
-    private void addRolesToFirstAccount(boolean isFirstAccount, Account account) {
-        // Assign admin and management roles to first account
+    private void addRoles(Account account) {
+        // All accounts get the "user" role
+        accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._USER_PLAIN);
+        
+        // Check if this is the first account
+        boolean isFirstAccount = countAccounts() == 1;
+
+        // First account also gets admin and management roles
         if (isFirstAccount) {
             accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
             accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._MANAGE_ACCOUNTS_PLAIN);
@@ -276,8 +275,7 @@ public class AccountService {
      * @param username The username (typically email)
      * @param password The plain text password
      */
-    @Transactional
-    public void createCredentialForAccount(String accountId, String username, String password) {
+    private void createCredentialForAccount(String accountId, String username, String password) {
         // Check if username already exists
         if (findCredentialByUsername(username).isPresent()) {
             throw new IllegalArgumentException("Username already exists");

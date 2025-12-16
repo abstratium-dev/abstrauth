@@ -1,9 +1,11 @@
 package dev.abstratium.abstrauth.boundary.api;
 
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
@@ -11,25 +13,48 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Path("/api/clients")
 @Tag(name = "Clients", description = "OAuth client management endpoints")
-@RolesAllowed(Roles.MANAGE_CLIENTS)
 public class ClientsResource {
+
+    @Inject
+    AccountRoleService accountRoleService;
 
     @Inject
     OAuthClientService oauthClientService;
 
+    @Inject
+    SecurityIdentity securityIdentity;
+
+    @Inject
+    JsonWebToken accessToken;    
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "List all OAuth clients", description = "Returns a list of all registered OAuth clients")
+    @RolesAllowed(Roles.USER)
     public List<ClientResponse> listClients() {
-        return oauthClientService.findAll().stream()
+        // Get the current user's ID from the JWT token (sub claim)
+        String accountId = accessToken.getSubject();
+
+        if (securityIdentity.hasRole(Roles.MANAGE_CLIENTS)) {
+            return oauthClientService.findAll().stream()
+                    .map(this::toClientResponse)
+                    .collect(Collectors.toList());
+        }
+        List<String> clientIds = accountRoleService.findClientsByAccountId(accountId);
+        
+        return oauthClientService.findByClientIds(new HashSet<>(clientIds)).stream()
                 .map(this::toClientResponse)
                 .collect(Collectors.toList());
     }
@@ -38,6 +63,7 @@ public class ClientsResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Create a new OAuth client", description = "Creates a new OAuth client with the provided details")
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response createClient(@Valid CreateClientRequest request) {
         // Check if client ID already exists
         if (oauthClientService.findByClientId(request.clientId).isPresent()) {
@@ -66,6 +92,7 @@ public class ClientsResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Update an OAuth client", description = "Updates an existing OAuth client with the provided details")
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response updateClient(@PathParam("id") String id, @Valid UpdateClientRequest request) {
         // Find existing client
         OAuthClient existing = oauthClientService.findAll().stream()
@@ -94,6 +121,7 @@ public class ClientsResource {
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Delete an OAuth client", description = "Deletes an existing OAuth client")
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response deleteClient(@PathParam("id") String id) {
         // Find existing client
         OAuthClient existing = oauthClientService.findAll().stream()

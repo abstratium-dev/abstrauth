@@ -31,7 +31,7 @@ public class AccountRoleService {
      * @param clientId The OAuth client ID
      * @return Set of role names
      */
-    public Set<String> getRolesForAccountAndClient(String accountId, String clientId) {
+    public Set<String> findRolesByAccountIdAndClientId(String accountId, String clientId) {
         var query = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId",
             AccountRole.class
@@ -50,10 +50,25 @@ public class AccountRoleService {
      * @param accountId The account ID
      * @return List of AccountRole entities
      */
-    public List<AccountRole> getRolesForAccount(String accountId) {
+    public List<AccountRole> findRolesByAccountId(String accountId) {
         var query = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.accountId = :accountId",
             AccountRole.class
+        );
+        query.setParameter("accountId", accountId);
+        return query.getResultList();
+    }
+
+    /**
+     * Get all clients for an account
+     * 
+     * @param accountId The account ID
+     * @return List of OAuth client IDs
+     */
+    public List<String> findClientsByAccountId(String accountId) {
+        var query = em.createQuery(
+            "SELECT ar.clientId FROM AccountRole ar WHERE ar.accountId = :accountId",
+            String.class
         );
         query.setParameter("accountId", accountId);
         return query.getResultList();
@@ -74,7 +89,7 @@ public class AccountRoleService {
         checkOnlyAddingToClientWhichTheyAlreadyHave(accountId, clientId);
 
         // Check if role already exists
-        if (getRolesForAccountAndClient(accountId, clientId).contains(role)) {
+        if (findRolesByAccountIdAndClientId(accountId, clientId).contains(role)) {
             throw new ConflictException("Role already exists");
         }
 

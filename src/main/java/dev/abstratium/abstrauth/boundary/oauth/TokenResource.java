@@ -18,6 +18,7 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
@@ -29,7 +30,6 @@ import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import io.smallrye.jwt.build.Jwt;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.FormParam;
@@ -65,9 +65,6 @@ public class TokenResource {
 
     @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
-
-    @ConfigProperty(name = "default.roles")
-    String defaultRoles;
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -342,15 +339,11 @@ public class TokenResource {
 
         // Get roles (groups) for this account and client from the database
         // Roles are stored as just the role name, so we need to prefix with clientId
-        Set<String> dbRoles = accountRoleService.getRolesForAccountAndClient(account.getId(), clientId);
+        Set<String> dbRoles = accountRoleService.findRolesByAccountIdAndClientId(account.getId(), clientId);
         Set<String> groups = new HashSet<>();
         for (String role : dbRoles) {
             groups.add(clientId + "_" + role);
         }
-        
-        // Add default roles from configuration (already in full format with client prefix)
-        // This allows users to have roles without database entries, simplifying user management
-        addDefaultRoles(groups, clientId);
         
         return Jwt.issuer(issuer)
                 .claim("jti", jti)  // Add JWT ID for token revocation
@@ -368,44 +361,6 @@ public class TokenResource {
                 .sign();
     }
 
-    /**
-     * Add default roles from configuration to the groups set.
-     * Roles are parsed from the default.roles configuration property.
-     * 
-     * Supported formats:
-     * - "clientId_roleName" - Only added if clientId matches current client (e.g., "abstratium-abstrauth_user")
-     * - "roleName" - Auto-prefixed with current clientId and added (e.g., "user" becomes "abstratium-abstrauth_user")
-     * 
-     * @param groups The set of groups to add default roles to
-     * @param clientId The current OAuth client ID
-     */
-    private void addDefaultRoles(Set<String> groups, String clientId) {
-        if (defaultRoles == null || defaultRoles.trim().isEmpty()) {
-            return;
-        }
-
-        String[] roles = defaultRoles.split(",");
-        for (String roleSpec : roles) {
-            roleSpec = roleSpec.trim();
-            if (roleSpec.isEmpty()) {
-                continue;
-            }
-
-            // Role format: "clientId_roleName" - only add if it matches current client
-            if (roleSpec.contains("_")) {
-                int underscoreIndex = roleSpec.indexOf('_');
-                String roleClientId = roleSpec.substring(0, underscoreIndex);
-                
-                if (roleClientId.equals(clientId)) {
-                    // Add the full role name with client prefix
-                    groups.add(roleSpec);
-                }
-            } else {
-                // If no underscore, add it as it is, for all clients
-                groups.add(clientId + "_" + roleSpec);
-            }
-        }
-    }
 
     /**
      * Authenticate a confidential client using its client_secret.
