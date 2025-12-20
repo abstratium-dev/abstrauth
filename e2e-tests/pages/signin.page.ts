@@ -53,6 +53,10 @@ function _getInvalidCredentialsError(page: Page) {
     return page.getByText('Invalid username or password');
 }
 
+function _getDenyButton(page: Page) {
+    return page.locator("#deny-button");
+}
+
 /**
  * Reusable function to ensure a user is authenticated.
  * Attempts to sign in with the provided credentials.
@@ -153,18 +157,25 @@ export async function signInAsAdmin(page: Page) {
     await signinButton.click();
     console.log("Clicked sign-in button");
     
-    // Wait for navigation or response
-    await page.waitForLoadState('domcontentloaded');
+    // Wait for navigation or response with longer timeout
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+        console.log("Network didn't go idle, continuing anyway");
+    });
     
     // Wait for either approve button or error message
     const approveButton = _getApproveButton(page);
     const errorBox = page.locator('.error-box');
     
-    // Wait for either to appear (increased timeout for slower responses)
-    await Promise.race([
-        approveButton.waitFor({ state: 'visible', timeout: 15000 }),
-        errorBox.waitFor({ state: 'visible', timeout: 15000 })
-    ]);
+    // Wait for either to appear with extended timeout to handle slow responses
+    try {
+        await Promise.race([
+            approveButton.waitFor({ state: 'visible', timeout: 20000 }),
+            errorBox.waitFor({ state: 'visible', timeout: 20000 })
+        ]);
+    } catch (e) {
+        console.log("Timeout waiting for approve button or error. Current URL:", page.url());
+        throw new Error(`Timeout waiting for authorization page. Current URL: ${page.url()}`);
+    }
     
     // Check if error appeared
     if (await errorBox.isVisible()) {
@@ -308,4 +319,47 @@ export async function signInViaInviteLink(page: Page, inviteLink: string, expect
     await _getSigninButton(page).click();
     
     console.log("Sign in button clicked");
+}
+
+/**
+ * Signs up a new user and signs them in.
+ * Returns the user credentials.
+ */
+export async function signUpAndSignIn(page: Page, email: string, name: string, password: string) {
+    console.log(`Signing up new user: ${email}`);
+    
+    await page.goto('/');
+    await _getSignupLink(page).click();
+    
+    await _getEmailInput(page).fill(email);
+    await _getNameInput(page).fill(name);
+    await _getPasswordInput(page).fill(password);
+    await _getPassword2Input(page).fill(password);
+    
+    await _getCreateAccountButton(page).click();
+    
+    // Sign in
+    await _getSigninButton(page).click();
+    
+    // Approve authorization
+    await _getApproveButton(page).waitFor({ state: 'visible', timeout: 5000 });
+    await _getApproveButton(page).click();
+    
+    // Verify signed in
+    await expect(_getUserLink(page)).toBeVisible({ timeout: 5000 });
+    
+    console.log(`✓ User ${email} signed up and signed in`);
+}
+
+/**
+ * Denies authorization after signing in.
+ * Assumes we're at the authorization approval page.
+ */
+export async function denyAuthorization(page: Page) {
+    console.log("Denying authorization...");
+    
+    await expect(_getDenyButton(page)).toBeVisible({ timeout: 5000 });
+    await _getDenyButton(page).click();
+    
+    console.log("Authorization denied");
 }

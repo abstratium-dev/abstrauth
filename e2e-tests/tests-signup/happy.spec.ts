@@ -1,30 +1,19 @@
 import { test, expect } from '@playwright/test';
+import { signUpAndSignIn } from '../pages/signin.page';
+import { navigateToClients } from '../pages/header';
 
 test('sign up and in', async ({ page }) => {
   await page.goto('/');
 
   await expect(page).toHaveTitle(/Abstrauth/);
 
-  // the page redirects to the login page
-
-  await page.locator("#signup-link").click();
-
-  // generate a random username and password
+  // Generate random user credentials
   const email = Math.random().toString(36).substring(2, 15) + "@abstratium.dev";
   const name = Math.random().toString(36).substring(2, 15);
-  const username = "test_" + Math.random().toString(36).substring(2, 15) + "_test";
   const password = Math.random().toString(36).substring(2, 15);
 
-  await page.locator("#email").fill(email);
-  await page.locator("#name").fill(name);
-  await page.locator("#username").fill(username);
-  await page.locator("#password").fill(password);
-  
-  await page.locator("#create-account-button").click();
-
-  await page.locator("#signin-button").click();
-
-  await page.locator("#approve-button").click();
+  // Sign up and sign in using page object
+  await signUpAndSignIn(page, email, name, password);
 
   await expect(page.locator("#user-link")).toContainText(email);
 
@@ -57,8 +46,8 @@ test('sign up and in', async ({ page }) => {
   // Verify token has iat (issued at) claim
   await expect(page.locator('[data-claim="iat"]')).toBeVisible();
 
-  // Click the clients link to view clients page
-  await page.locator("#clients-link").click();
+  // Navigate to clients page using page object
+  await navigateToClients(page);
 
   // Verify we're on the clients page
   await expect(page.locator('h1')).toContainText('OAuth Clients');

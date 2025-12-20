@@ -1,11 +1,12 @@
 import { test, expect, Page } from '@playwright/test';
 
-import { signout, navigateToAccounts, navigateToClients, getCurrentUserName } from './header';
-import { ensureAdminIsAuthenticated, trySignInAsAdmin, signInViaInviteLink, signInAsAdmin, signInAsManager, MANAGER_EMAIL, MANAGER_NAME, MANAGER_PASSWORD } from './signin.page';
-import { addAccount, deleteAccountsExcept, tryAddRoleToSelf, addRoleToAccount } from './accounts.page';
-import { deleteClientsExcept, addClient } from './clients.page';
-import { changePassword } from './change-password.page';
-import { approveAuthorization, verifySignedIn } from './authorize.page';
+import { signout, navigateToAccounts, navigateToClients, getCurrentUserName } from '../pages/header';
+import { ensureAdminIsAuthenticated, trySignInAsAdmin, signInViaInviteLink, signInAsAdmin, signInAsManager, MANAGER_EMAIL, MANAGER_NAME, MANAGER_PASSWORD } from '../pages/signin.page';
+import { addAccount, deleteAccountsExcept, tryAddRoleToSelf, addRoleToAccount } from '../pages/accounts.page';
+import { deleteClientsExcept, addClient } from '../pages/clients.page';
+import { changePassword } from '../pages/change-password.page';
+import { approveAuthorization, verifySignedIn } from '../pages/authorize.page';
+import { dismissToasts } from '../pages/toast';
 
 test('admin creates manager account and manager signs in via invite link', async ({ page }) => {
     // Step 1: Try to sign in as admin to check if database needs cleanup
@@ -164,6 +165,10 @@ test('admin creates manager account and manager signs in via invite link', async
     
     // Step 24: Click on the link to view accounts with roles for this client
     console.log("Step 24: Clicking link to view accounts with roles for this client...");
+    
+    // Dismiss any toast notifications that might block the click
+    await dismissToasts(page);
+    
     await clientCard.locator('.client-link').click();
     expect(page.url()).toContain('/accounts');
     expect(page.url()).toContain('filter=anapp-acomp');

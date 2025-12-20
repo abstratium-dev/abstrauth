@@ -24,10 +24,6 @@ It uses JWT for authentication and authorization, signed with a public/private k
 
 It coincidentally also uses itself as an authorization server for users signing into the admin UI.
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
-
-It was generated using `quarkus create app --maven --package-name=dev.abstratium.abstrauth --java=21 --name abstrauth dev.abstratium:abstrauth`
-
 ## Security
 
 🔒 **Found a security vulnerability?** Please read our [Security Policy](SECURITY_POLICY.md) for responsible disclosure guidelines.
@@ -119,54 +115,7 @@ Run all tests (unit + integration):
 
 The E2E tests are in `e2e-tests/` and use Playwright to test the full application stack.
 
-#### Running E2E Tests via Maven
-
-**IMPORTANT**: E2E tests require the application to be built with H2 database support. 
-Since `quarkus.datasource.db-kind` is a build-time property, you must use the `e2e` profile:
-
-    mvn verify -Pe2e
-
-This will:
-1. Build the application with H2 database configured
-2. Run unit tests, including angular tests
-3. Package the JAR with H2 database drivers too
-4. Start Quarkus with H2 via `start-e2e-server.sh`
-5. Run Playwright tests against the running application
-6. Stop the server
-
-**Note**: Running `mvn verify` without `-Pe2e` will skip the Playwright tests.
-
-#### Running E2E Tests Manually
-
-For development, you can run tests manually:
-
-1. Start Quarkus in dev mode (uses Quinoa Angular dev server on port 4200):
-   ```bash
-   source /w/abstratium-abstrauth.env
-   mvn quarkus:dev
-   ```
-
-2. In another terminal in the project root folder (so that the playwright config is picked up), run Playwright tests:
-   ```bash
-   npx playwright test --trace=on --workers=1
-   ```
-
-#### Playwright Commands
-
-    npx playwright test --ui
-      Starts the interactive UI mode.
-
-    npx playwright test --project=chromium
-      Runs the tests only on Desktop Chrome.
-
-    npx playwright test example
-      Runs the tests in a specific file.
-
-    npx playwright test --debug
-      Runs the tests in debug mode.
-
-    npx playwright codegen
-      Auto generate tests with Codegen.
+See the [E2E Testing Documentation](e2e-tests/README.md) for detailed instructions.
 
 
 ## TODO
@@ -187,65 +136,4 @@ Font Variant: Regular 400 Normal
 Font Size: 110
 Font Color: #FFFFFF
 Background Color: #5c6bc0
-
-
-----
-
-## Running the application in dev mode
-
-You can run your application in dev mode that enables live coding using:
-
-```shell script
-source /w/abstratium-abstrauth.env
-./mvnw quarkus:dev
-```
-
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
-
-## Packaging and running the application
-
-The application can be packaged using:
-
-```shell script
-./mvnw package
-```
-
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
-
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-```
-
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/abstrauth-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Provided Code
-
-### REST
-
-Easily start your REST Web Services
-
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
 

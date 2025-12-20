@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+import { dismissToasts } from './toast';
 
 // Element accessors
 function _getSignoutLink(page: Page) {
@@ -15,21 +16,6 @@ function _getClientsLink(page: Page) {
 
 function _getUserLink(page: Page) {
     return page.locator("#user-link");
-}
-
-// Helper to dismiss any visible toasts
-async function dismissToasts(page: Page) {
-    const toastCloseButtons = page.locator('.toast-close');
-    const count = await toastCloseButtons.count();
-    
-    // Click all close buttons
-    for (let i = 0; i < count; i++) {
-        try {
-            await toastCloseButtons.nth(i).click({ timeout: 1000 });
-        } catch {
-            // Toast might have auto-dismissed, continue
-        }
-    }
 }
 
 // Exported functions

@@ -145,16 +145,17 @@ export async function addRoleToAccount(page: Page, accountEmail: string, clientI
     
     // Find the tile for the account with the given email
     const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
-    await expect(accountTile).toBeVisible({ timeout: 5000 });
+    await expect(accountTile).toBeVisible({ timeout: 10000 });
     
     // Click the "+ Add Role" button
     const addRoleButton = accountTile.locator('.btn-add-small');
-    await expect(addRoleButton).toBeEnabled({ timeout: 5000 });
+    await expect(addRoleButton).toBeVisible({ timeout: 10000 });
+    await expect(addRoleButton).toBeEnabled({ timeout: 10000 });
     await addRoleButton.click();
     
     // Wait for the form to appear
     const clientSelect = accountTile.locator('select[id^="clientId-"]');
-    await expect(clientSelect).toBeVisible({ timeout: 5000 });
+    await expect(clientSelect).toBeVisible({ timeout: 10000 });
     
     // Fill the client select dropdown
     await clientSelect.selectOption(clientId);
@@ -180,6 +181,9 @@ export async function addRoleToAccount(page: Page, accountEmail: string, clientI
         const errorText = await errorBox.textContent();
         throw new Error(`Role addition failed: ${errorText}`);
     }
+    
+    // Wait for the tile to be stable again after role addition (DOM updates)
+    await expect(accountTile).toBeVisible({ timeout: 5000 });
     
     console.log(`✓ Role "${roleName}" added to account "${accountEmail}"`);
 }

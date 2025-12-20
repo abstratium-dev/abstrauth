@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { waitForSuccessToast } from './toast';
 
 // Element accessors
 function _getNewPasswordInput(page: Page) {
@@ -33,8 +34,7 @@ export async function changePassword(page: Page, newPassword: string) {
     await _getChangePasswordButton(page).click();
     
     // Wait for the success toast to appear
-    const successToast = page.locator('.toast-success, .success-message').filter({ hasText: /password changed successfully/i });
-    await expect(successToast).toBeVisible({ timeout: 5000 });
+    await waitForSuccessToast(page, /password changed successfully/i);
     
     // Wait for redirect to home page (URL should be '/')
     await page.waitForURL('/', { timeout: 5000 });

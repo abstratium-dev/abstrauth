@@ -291,9 +291,43 @@
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <executions>
+                            <!-- First run: tests with ALLOW_SIGNUP=false -->
                             <execution>
-                                <id>run-playwright-tests</id>
-                                <phase>integration-test</phase> <!-- Enable in integration-test phase -->
+                                <id>run-playwright-tests-nosignup</id>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>npx</executable>
+                                    <arguments>
+                                        <argument>playwright</argument>
+                                        <argument>test</argument>
+                                    </arguments>
+                                    <environmentVariables>
+                                        <BASE_URL>http://localhost:8080</BASE_URL>
+                                        <ALLOW_SIGNUP>false</ALLOW_SIGNUP>
+                                    </environmentVariables>
+                                </configuration>
+                            </execution>
+                            <!-- Second run: tests with ALLOW_SIGNUP=true -->
+                            <execution>
+                                <id>run-playwright-tests-signup</id>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>npx</executable>
+                                    <arguments>
+                                        <argument>playwright</argument>
+                                        <argument>test</argument>
+                                    </arguments>
+                                    <environmentVariables>
+                                        <BASE_URL>http://localhost:8080</BASE_URL>
+                                        <ALLOW_SIGNUP>true</ALLOW_SIGNUP>
+                                    </environmentVariables>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>

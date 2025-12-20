@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 console.log("BASE_URL: ", process.env.BASE_URL);
+console.log("ALLOW_SIGNUP: ", process.env.ALLOW_SIGNUP);
 
 /**
  * Read environment variables from file.
@@ -13,6 +14,12 @@ console.log("BASE_URL: ", process.env.BASE_URL);
 /**
  * Playwright Configuration
  * 
+ * Environment Variables:
+ * - BASE_URL: When set, triggers automatic server startup via start-e2e-server.sh
+ * - ALLOW_SIGNUP: Controls which test directory to run and is passed to Quarkus
+ *   - 'true': Runs tests in tests-signup/ directory
+ *   - 'false' or unset: Runs tests in tests-nosignup/ directory
+ * 
  * Usage:
  * - Manual testing: Run `mvn quarkus:dev` then `npx playwright test`
  *   Tests will use http://localhost:8080 (Quinoa Angular dev server)
@@ -20,11 +27,12 @@ console.log("BASE_URL: ", process.env.BASE_URL);
  * - Maven integration: Run `mvn verify -Pe2e`
  *   Tests will use http://localhost:8080 (built Quarkus jar with H2 and static Angular files)
  *   The BASE_URL environment variable is set by Maven to trigger jar startup
+ *   Tests run twice: first with ALLOW_SIGNUP=false, then with ALLOW_SIGNUP=true
  * 
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  testDir: './e2e-tests',
+  testDir: process.env.ALLOW_SIGNUP === 'true' ? './tests-signup' : './tests-nosignup',
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -91,5 +99,8 @@ export default defineConfig({
     timeout: 12000,
     stdout: 'pipe',
     stderr: 'pipe',
+    env: {
+      ALLOW_SIGNUP: process.env.ALLOW_SIGNUP || 'false',
+    },
   } : undefined, // When BASE_URL is not set (manual), assume server is already running
 });
