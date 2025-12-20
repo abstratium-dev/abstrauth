@@ -3,8 +3,9 @@
 ## Today
 
 - stablise e2e tests
-- restructure docs - e.g. add most MD files to the docs folder. the main readme should focus on selling the application as a docker image. other stuff should be in the docs folder.
 - does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
+- docs - describe how to run as a docker image
+- docs - link to native build and other docs
 - disallow deleting last admin account
 - make it impossible to delete the client abstratium-abstrauth
 - improve branch coverage of ui
@@ -16,17 +17,8 @@
   - actually make it only possible once they have changed their password, if native.
   - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
 - allow to disable sign in with native - needs a test
-- e2e
-  - add scripts for clearing database
-  - one test for with registration, one for without
-  - function for logging in as admin and normal
 - entire build cycle including native
-- make e2e add an admin user, and use that through out multiple tests in a single file
 - review tests
-- e2e tests for
-  - CUD roles
-  - CUD clients
-  - CUD accounts
 - complete other open points from first security audit
 - security audit for CRUD operations on clients and accounts "using any trick in the book" for accessing the server via its web API (no direct access of the database, no access to the file system) - try to CRUD accounts, clients and roles!
 
