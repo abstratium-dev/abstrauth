@@ -2,11 +2,9 @@
 
 ## Today
 
-continue with the happy2 e2e test
-
-- does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
-- create a better description of the project. is it also openid and also an idp or iam?
+- stablise e2e tests
 - restructure docs - e.g. add most MD files to the docs folder. the main readme should focus on selling the application as a docker image. other stuff should be in the docs folder.
+- does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
 - disallow deleting last admin account
 - make it impossible to delete the client abstratium-abstrauth
 - improve branch coverage of ui
@@ -37,8 +35,7 @@ continue with the happy2 e2e test
 
 - make fields on create-account-form readonly after creating the account until the user closes the form with the done button. or simply hide them and show the email name and authprovide in the success message.
 - scheduler to clear out old authorization requests and authorization codes
-- does using testtransaction really make sense - is it a good practice?
-  - replace with normal transactional, and make data in each test unique
+- need simple INFO logging to show what a user does.
 - controller should never return Promises
 - angular should always use inject and not constructor
 - do we need a revocation check endpoint so that a third party can check that the token

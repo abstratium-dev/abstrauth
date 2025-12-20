@@ -58,13 +58,28 @@ export async function addAccount(page: Page, email: string, name: string): Promi
 
     await _getNameInput(page).fill(name);
 
-    await _getCreateAccountButton(page).click();
+    // Wait for create button to be enabled
+    const createButton = _getCreateAccountButton(page);
+    await expect(createButton).toBeEnabled({ timeout: 5000 });
+    await createButton.click();
 
-    // Wait for invite link input to be visible
-    await expect(_getInviteLinkInput(page)).toBeVisible({ timeout: 5000 });
+    // Wait for either invite link input or error message (increased timeout for backend processing)
+    const inviteLinkInput = _getInviteLinkInput(page);
+    const errorBox = page.locator('.error-box');
+    
+    await Promise.race([
+        inviteLinkInput.waitFor({ state: 'visible', timeout: 20000 }),
+        errorBox.waitFor({ state: 'visible', timeout: 20000 })
+    ]);
+    
+    // Check if error appeared
+    if (await errorBox.isVisible()) {
+        const errorText = await errorBox.textContent();
+        throw new Error(`Account creation failed: ${errorText}`);
+    }
     
     // Get the value attribute, not textContent
-    const link = await _getInviteLinkInput(page).inputValue();
+    const link = await inviteLinkInput.inputValue();
     console.log("Invite link: " + link);
 
     await _getDoneButton(page).click();
@@ -122,71 +137,110 @@ export async function deleteAccountsExcept(page: Page, keepAccountName: string) 
 }
 
 /**
- * Attempts to add a role to the current user's account.
- * Assumes we're already on the accounts page.
- * Returns the error message if one appears, or null if successful.
+ * Add a role to an account by email.
+ * Assumes we're already on the accounts page and user has manage-accounts role.
  */
-export async function tryAddRoleToSelf(page: Page, clientId: string, roleName: string): Promise<string | null> {
-    console.log(`Attempting to add role "${roleName}" for client "${clientId}"...`);
+export async function addRoleToAccount(page: Page, accountEmail: string, clientId: string, roleName: string): Promise<void> {
+    console.log(`Adding role "${roleName}" for client "${clientId}" to account "${accountEmail}"...`);
     
-    // Wait a bit to ensure any previous DOM updates are complete
-    await page.waitForTimeout(500);
-    
-    // Find the highlighted tile (current user's account)
-    const currentUserTile = _getCurrentUserTile(page);
-    await expect(currentUserTile).toBeVisible({ timeout: 5000 });
-    
-    // Wait for the "+ Add Role" button to be enabled (not disabled)
-    // The button is disabled when addingRoleForAccountId !== null
-    const addRoleButton = currentUserTile.locator('.btn-add-small');
-    await expect(addRoleButton).toBeEnabled({ timeout: 5000 });
+    // Find the tile for the account with the given email
+    const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
+    await expect(accountTile).toBeVisible({ timeout: 5000 });
     
     // Click the "+ Add Role" button
+    const addRoleButton = accountTile.locator('.btn-add-small');
+    await expect(addRoleButton).toBeEnabled({ timeout: 5000 });
     await addRoleButton.click();
     
     // Wait for the form to appear
-    const clientSelect = currentUserTile.locator('select[id^="clientId-"]');
+    const clientSelect = accountTile.locator('select[id^="clientId-"]');
     await expect(clientSelect).toBeVisible({ timeout: 5000 });
     
-    // Use page.evaluate to fill and submit the form in one atomic operation
-    // This avoids all the element detachment issues from Angular's change detection
-    await page.evaluate(({clientId, roleName}) => {
-        // Find the select element for client
-        const selectElement = document.querySelector('.tile.highlighted-tile select[id^="clientId-"]') as HTMLSelectElement;
-        if (selectElement) {
-            selectElement.value = clientId;
-            selectElement.dispatchEvent(new Event('input', { bubbles: true }));
-            selectElement.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        
-        // Find the input element for role
-        const roleInput = document.querySelector('.tile.highlighted-tile input[id^="role-"]') as HTMLInputElement;
-        if (roleInput) {
-            roleInput.value = roleName;
-            roleInput.dispatchEvent(new Event('input', { bubbles: true }));
-            roleInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        
-        // Wait a moment for Angular to process, then click submit button
-        return new Promise<void>((resolve) => {
-            setTimeout(() => {
-                const submitButton = document.querySelector('.tile.highlighted-tile form button[type="submit"]') as HTMLButtonElement;
-                if (submitButton) {
-                    submitButton.click();
-                }
-                resolve();
-            }, 300);
-        });
-    }, {clientId, roleName});
+    // Fill the client select dropdown
+    await clientSelect.selectOption(clientId);
     
-    // Wait for the submission to process
-    await page.waitForTimeout(500);
+    // Fill the role input
+    const roleInput = accountTile.locator('input[id^="role-"]');
+    await roleInput.fill(roleName);
+    
+    // Click the Add Role button
+    const submitButton = accountTile.getByRole('button', { name: /Add Role/i });
+    await submitButton.click();
+    
+    // Wait for either form to close or error to appear
+    const errorBox = page.locator('.error-box');
+    
+    await Promise.race([
+        clientSelect.waitFor({ state: 'hidden', timeout: 10000 }),
+        errorBox.waitFor({ state: 'visible', timeout: 10000 })
+    ]);
+    
+    // Check if error appeared
+    if (await errorBox.isVisible()) {
+        const errorText = await errorBox.textContent();
+        throw new Error(`Role addition failed: ${errorText}`);
+    }
+    
+    console.log(`✓ Role "${roleName}" added to account "${accountEmail}"`);
+}
+
+/**
+ * Attempts to add a role to the current user's account (highlighted tile).
+ * Assumes we're already on the accounts page.
+ * Returns the error message if one appears, or null if successful.
+ * 
+ * This function uses addRoleToAccount internally but adds error handling.
+ */
+export async function tryAddRoleToSelf(page: Page, clientId: string, roleName: string): Promise<string | null> {
+    console.log(`Attempting to add role "${roleName}" for client "${clientId}" to self...`);
+    
+    // Get the current user's email from the highlighted tile
+    const currentUserTile = _getCurrentUserTile(page);
+    await expect(currentUserTile).toBeVisible({ timeout: 5000 });
+    
+    // Extract email from the tile
+    const emailElement = currentUserTile.locator('.tile-subtitle');
+    const accountEmail = await emailElement.textContent();
+    
+    if (!accountEmail) {
+        throw new Error('Could not find current user email');
+    }
+    
+    console.log(`Current user email: ${accountEmail.trim()}`);
+    
+    // Find the tile for the account with the given email
+    const accountTile = page.locator('.tile').filter({ hasText: accountEmail.trim() });
+    await expect(accountTile).toBeVisible({ timeout: 5000 });
+    
+    // Click the "+ Add Role" button
+    const addRoleButton = accountTile.locator('.btn-add-small');
+    
+    // Wait for button to be enabled AND not have the disabled attribute
+    // (Angular might take time to update the disabled state after closing a form)
+    await expect(addRoleButton).toBeEnabled({ timeout: 10000 });
+    await expect(addRoleButton).not.toHaveAttribute('disabled', { timeout: 10000 });
+    
+    await addRoleButton.click();
+    
+    // Wait for the form to appear
+    const clientSelect = accountTile.locator('select[id^="clientId-"]');
+    await expect(clientSelect).toBeVisible({ timeout: 5000 });
+    
+    // Fill the client select dropdown
+    await clientSelect.selectOption(clientId);
+    
+    // Fill the role input
+    const roleInput = accountTile.locator('input[id^="role-"]');
+    await roleInput.fill(roleName);
+    
+    // Click the Add Role button
+    const submitButton = accountTile.getByRole('button', { name: /Add Role/i });
+    await submitButton.click();
     
     // Wait for either error box to appear or form to disappear (success)
-    const errorBox = currentUserTile.locator('.error-box');
+    // Don't use waitForTimeout as it can fail if page closes
+    const errorBox = accountTile.locator('.error-box');
     
-    // Debug: check what's on the page
-    const pageContent = await page.content();
     console.log(`Checking for error after role submission...`);
     
     try {
@@ -200,28 +254,27 @@ export async function tryAddRoleToSelf(page: Page, clientId: string, roleName: s
         // Cancel the form
         await _getCancelButton(page).click();
         
-        // Wait for the form to fully close and tile to be ready for next operation
-        await currentUserTile.locator('select[id^="clientId-"]').waitFor({ state: 'hidden', timeout: 2000 });
+        // Wait for the form to fully close
+        await accountTile.locator('select[id^="clientId-"]').waitFor({ state: 'hidden', timeout: 2000 });
+        
+        // Wait for the Add Role button to become enabled again (component state reset)
+        const addRoleButton = accountTile.locator('.btn-add-small');
+        await expect(addRoleButton).toBeEnabled({ timeout: 5000 });
         
         return errorText?.trim() || 'Unknown error';
     } catch (e) {
         // Error box didn't appear - check if form disappeared (success case)
-        const formStillVisible = await currentUserTile.locator('select[id^="clientId-"]').isVisible().catch(() => false);
+        const formStillVisible = await accountTile.locator('select[id^="clientId-"]').isVisible().catch(() => false);
         
         console.log(`No error box appeared. Form still visible: ${formStillVisible}`);
         
         if (!formStillVisible) {
-            console.log(`✗ Role "${roleName}" was added successfully (should have failed!)`);
+            console.log(`✓ Role "${roleName}" was added successfully`);
             return null;
         }
         
         // Form still visible but no error - unexpected state
         console.log(`Unexpected state: form still visible but no error after 3 seconds`);
-        
-        // Check if there's an error in the page
-        const hasError = await page.locator('.error-box').count();
-        console.log(`Error boxes on page: ${hasError}`);
-        
         await _getCancelButton(page).click();
         return null;
     }

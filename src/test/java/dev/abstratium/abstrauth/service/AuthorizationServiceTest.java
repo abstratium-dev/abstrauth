@@ -127,7 +127,7 @@ public class AuthorizationServiceTest {
 
     @Test
     public void testApproveNonExistentRequest() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(jakarta.ws.rs.NotFoundException.class, () -> {
             authorizationService.approveAuthorizationRequest("nonexistent-id", "account-id", AccountService.NATIVE);
         });
     }
@@ -151,8 +151,8 @@ public class AuthorizationServiceTest {
         em.flush();
         userTransaction.commit();
         
-        // Should throw IllegalStateException for expired request
-        assertThrows(IllegalStateException.class, () -> {
+        // Should throw TimedOutException for expired request
+        assertThrows(dev.abstratium.abstrauth.boundary.TimedOutException.class, () -> {
             authorizationService.approveAuthorizationRequest(request.getId(), "account-id", AccountService.NATIVE);
         });
     }

@@ -86,7 +86,7 @@ public class AccountsResourceTest {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
             .subject(accountId)
             .upn("admin@example.com")
-            .groups(Set.of("abstratium-abstrauth_admin", "abstratium-abstrauth_manage-accounts"))
+            .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_admin", "abstratium-abstrauth_manage-accounts"))
             .claim("email", "admin@example.com")
             .claim("name", "Admin User")
             .sign();
@@ -96,7 +96,7 @@ public class AccountsResourceTest {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
             .subject(accountId)
             .upn("manager@example.com")
-            .groups("abstratium-abstrauth_manage-accounts")
+            .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-accounts"))
             .claim("email", "manager@example.com")
             .claim("name", "Account Manager")
             .sign();
@@ -144,12 +144,12 @@ public class AccountsResourceTest {
         // Create another account with same client
         String userEmail = "shareduser_" + System.currentTimeMillis() + "@example.com";
         Account user = accountService.createAccount(userEmail, "Shared User", "shareduser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        accountRoleService.addRole(user.getId(), "client-a", "user");
+        accountRoleService.addRole(user.getId(), "client-a", "viewer");
         
         // Create account with different client
         String otherEmail = "otheruser_" + System.currentTimeMillis() + "@example.com";
         Account other = accountService.createAccount(otherEmail, "Other User", "otheruser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        accountRoleService.addRole(other.getId(), "client-b", "user");
+        accountRoleService.addRole(other.getId(), "client-b", "viewer");
         commitTransaction();
         
         // Manager should see manager and shared user, but not other user
@@ -177,7 +177,7 @@ public class AccountsResourceTest {
         // Create other accounts with different clients
         String otherEmail = "differentuser_" + System.currentTimeMillis() + "@example.com";
         Account other = accountService.createAccount(otherEmail, "Different User", "differentuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        accountRoleService.addRole(other.getId(), "client-different", "user");
+        accountRoleService.addRole(other.getId(), "client-different", "viewer");
         commitTransaction();
         
         // Manager should only see their own account
@@ -225,13 +225,17 @@ public class AccountsResourceTest {
         String userId = user.getId();
         commitTransaction();
         
-        // Regular users without manage-accounts role should get 403 Forbidden
+        // Regular users with only USER role can see their own account
         given()
             .auth().oauth2(generateUserToken(userId))
             .when()
             .get("/api/accounts")
             .then()
-            .statusCode(403);
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+            .body("$", notNullValue())
+            .body("email", hasItem(userEmail))
+            .body("size()", equalTo(1)); // Should only see their own account
     }
 
     @Test
@@ -257,17 +261,17 @@ public class AccountsResourceTest {
         // Create user1 sharing client-x
         String user1Email = "user1_" + System.currentTimeMillis() + "@example.com";
         Account user1 = accountService.createAccount(user1Email, "User 1", "user1_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        accountRoleService.addRole(user1.getId(), "client-x", "user");
+        accountRoleService.addRole(user1.getId(), "client-x", "viewer");
         
         // Create user2 sharing client-y
         String user2Email = "user2_" + System.currentTimeMillis() + "@example.com";
         Account user2 = accountService.createAccount(user2Email, "User 2", "user2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        accountRoleService.addRole(user2.getId(), "client-y", "user");
+        accountRoleService.addRole(user2.getId(), "client-y", "viewer");
         
         // Create user3 with no shared clients
         String user3Email = "user3_" + System.currentTimeMillis() + "@example.com";
         Account user3 = accountService.createAccount(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        accountRoleService.addRole(user3.getId(), "client-z", "user");
+        accountRoleService.addRole(user3.getId(), "client-z", "viewer");
         commitTransaction();
         
         // Manager should see manager, user1, and user2, but not user3
@@ -518,8 +522,8 @@ public class AccountsResourceTest {
         beginTransaction();
         String targetEmail = "target_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccount(targetEmail, "Target User", "target_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        // Give target account a role in abstratium-abstrauth (this will work because it's the first role for this account)
-        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
+        // Give target account a role in abstratium-abstrauth
+        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
         
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
@@ -531,7 +535,7 @@ public class AccountsResourceTest {
             {
                 "accountId": "%s",
                 "clientId": "test-client",
-                "role": "user"
+                "role": "viewer"
             }
             """, targetAccount.getId());
         
@@ -553,7 +557,7 @@ public class AccountsResourceTest {
         String targetEmail = "target2_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccount(targetEmail, "Target User 2", "target2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         // Give target account a role in abstratium-abstrauth
-        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
+        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
         
         String managerEmail = "manager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Manager 2", "manager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
@@ -587,7 +591,7 @@ public class AccountsResourceTest {
         String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccount(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
         // Give target account a role in abstratium-abstrauth
-        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "user");
+        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
         
         String adminEmail = "admin_" + System.currentTimeMillis() + "@example.com";
         Account admin = accountService.createAccount(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
@@ -623,8 +627,8 @@ public class AccountsResourceTest {
         beginTransaction();
         String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        // Add initial role
-        accountRoleService.addRole(account.getId(), "abstratium-abstrauth", "user");
+        // Add initial role (user role is already added automatically)
+        accountRoleService.addRole(account.getId(), "abstratium-abstrauth", "viewer");
         
         String managerEmail = "manager_dup_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Manager Dup", "manager_dup_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
@@ -635,7 +639,7 @@ public class AccountsResourceTest {
             {
                 "accountId": "%s",
                 "clientId": "abstratium-abstrauth",
-                "role": "user"
+                "role": "viewer"
             }
             """, account.getId());
         
@@ -775,9 +779,11 @@ public class AccountsResourceTest {
             .auth().oauth2(generateManageAccountsToken(managerId))
             .contentType(ContentType.JSON)
             .body(requestBody)
+            .log().all()
             .when()
             .post("/api/accounts")
             .then()
+            .log().all()
             .statusCode(201)
             .body("account.email", equalTo(newEmail))
             .body("account.authProvider", equalTo(AccountService.NATIVE))
@@ -806,8 +812,10 @@ public class AccountsResourceTest {
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
+            .log().all()
             .post("/api/accounts")
             .then()
+            .log().all()
             .statusCode(201)
             .body("account.email", equalTo(newEmail))
             .body("account.authProvider", equalTo(AccountService.GOOGLE))
@@ -895,8 +903,10 @@ public class AccountsResourceTest {
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
+            .log().all()
             .post("/api/accounts")
             .then()
+            .log().all()
             .statusCode(201)
             .extract().asString();
         
@@ -927,8 +937,8 @@ public class AccountsResourceTest {
         );
         String accountId = account.getId();
 
-        // Add a role
-        accountRoleService.addRole(accountId, "test-client", "user");
+        // Add a role (user role is already added automatically)
+        accountRoleService.addRole(accountId, "test-client", "viewer");
 
         // Add a federated identity
         FederatedIdentity fedIdentity = new FederatedIdentity();
@@ -944,7 +954,7 @@ public class AccountsResourceTest {
         // Verify child records exist before deletion
         beginTransaction();
         List<AccountRole> rolesBefore = accountRoleService.findRolesByAccountId(accountId);
-        assertEquals(1, rolesBefore.size());
+        assertEquals(2, rolesBefore.size()); // user role (automatic) + viewer role (manual)
 
         var credQuery = em.createQuery("SELECT c FROM Credential c WHERE c.accountId = :accountId", dev.abstratium.abstrauth.entity.Credential.class);
         credQuery.setParameter("accountId", accountId);

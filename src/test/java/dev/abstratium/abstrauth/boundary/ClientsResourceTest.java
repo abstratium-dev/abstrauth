@@ -22,7 +22,7 @@ public class ClientsResourceTest {
     private String generateValidToken() {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
             .upn("test@example.com")
-            .groups("abstratium-abstrauth_manage-clients")
+            .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
             .claim("email", "test@example.com")
             .claim("name", "Test User")
             .sign();

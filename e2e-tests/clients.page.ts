@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 
 // Element accessors
 function _getClientCards(page: Page) {
@@ -7,6 +7,35 @@ function _getClientCards(page: Page) {
 
 function _getDeleteClientButton(page: Page) {
     return page.getByRole('button', { name: /Delete Client/i });
+}
+
+/**
+ * Adds a new OAuth client.
+ * Assumes we're already on the clients page.
+ */
+export async function addClient(page: Page, clientId: string, clientName: string, redirectUri: string, scopes: string) {
+    console.log(`Adding new client '${clientId}'...`);
+    
+    // Wait for the page to load and the Add Client button to be visible
+    const addClientButton = page.getByRole('button', { name: /Add Client/i });
+    await expect(addClientButton).toBeVisible({ timeout: 10000 });
+    await addClientButton.click();
+    
+    // Fill in the form
+    await page.locator('#clientId').fill(clientId);
+    await page.locator('#clientName').fill(clientName);
+    await page.locator('#redirectUris').fill(redirectUri);
+    await page.locator('#allowedScopes').fill(scopes);
+    
+    // Submit the form
+    const createButton = page.getByRole('button', { name: /Create Client/i });
+    await expect(createButton).toBeEnabled({ timeout: 5000 });
+    await createButton.click();
+    
+    // Wait for the form to close (client created successfully)
+    await page.locator('#clientId').waitFor({ state: 'hidden', timeout: 5000 });
+    
+    console.log(`✓ Created new client '${clientId}'`);
 }
 
 /**

@@ -188,26 +188,32 @@ public class AccountService {
     /**
      * Find accounts filtered by the user's client roles.
      * Returns accounts that have roles for any of the same clients as the given user.
+     * Excludes the universal "user" role from filtering since all users have it.
      * @param accountId The ID of the users account whose client roles to use for filtering
      * @return List of accounts that share client roles with the user
      */
     public List<Account> findAccountsByUserClientRoles(String accountId) {
-        // First, get all unique client IDs from the user's roles
+        // Get all client IDs from the user's roles
         var clientIdsQuery = em.createQuery(
             "SELECT DISTINCT ar.clientId FROM AccountRole ar WHERE ar.accountId = :accountId", 
             String.class
         );
         clientIdsQuery.setParameter("accountId", accountId);
-        List<String> userClientIds = clientIdsQuery.getResultList();
+        List<String> allClientIds = clientIdsQuery.getResultList();
         
-        // If user has no roles, return only the account belonging to them
+        // Filter out the default client's "user" role in Java (simpler SQL, better performance)
+        List<String> userClientIds = allClientIds.stream()
+            .filter(clientId -> !clientId.equals(Roles.CLIENT_ID))
+            .collect(java.util.stream.Collectors.toList());
+        
+        // If user has no roles (other than the default "user" role), return only their own account
         if (userClientIds.isEmpty()) {
             return findById(accountId)
                 .map(List::of)
                 .orElse(List.of());
         }
         
-        // Then, find all account IDs that have roles for any of those client IDs
+        // Find all account IDs that have roles for any of those client IDs
         var accountIdsQuery = em.createQuery(
             "SELECT DISTINCT ar.accountId FROM AccountRole ar WHERE ar.clientId IN :clientIds",
             String.class

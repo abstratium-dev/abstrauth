@@ -64,7 +64,8 @@ class TokenRevocationIntegrationTest {
                 "revocationtest@example.com",
                 "Revocation Test User",
                 "revocationtest",
-                testPassword
+                testPassword,
+                AccountService.NATIVE
         );
     }
 

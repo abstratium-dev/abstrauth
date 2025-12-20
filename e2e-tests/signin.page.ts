@@ -1,5 +1,14 @@
 import { expect, Page } from '@playwright/test';
 
+// Test user credentials
+export const ADMIN_EMAIL = 'admin@abstratium.dev';
+export const ADMIN_PASSWORD = 'secretLong';
+export const ADMIN_NAME = 'Admin';
+
+export const MANAGER_EMAIL = 'manager@abstratium.dev';
+export const MANAGER_PASSWORD = 'secretLong2';
+export const MANAGER_NAME = 'Manager';
+
 function _getUsernameInput(page: Page) {
     return page.locator("#username");
 }
@@ -111,10 +120,7 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
 }
 
 export async function ensureAdminIsAuthenticated(page: Page) {
-    const email = 'admin@abstratium.dev';
-    const password = 'secretLong';
-    const name = 'Admin';
-    await ensureAuthenticated(page, email, password, name);
+    await ensureAuthenticated(page, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME);
 }
 
 /**
@@ -122,32 +128,121 @@ export async function ensureAdminIsAuthenticated(page: Page) {
  * Assumes admin account already exists.
  */
 export async function signInAsAdmin(page: Page) {
-    const email = 'admin@abstratium.dev';
-    const password = 'secretLong';
     
     console.log("Signing in as admin...");
     
-    await page.goto('/');
-    await _getUsernameInput(page).fill(email);
-    await _getPasswordInput(page).fill(password);
-    await _getSigninButton(page).click();
+    // Navigate to home page
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    console.log("Navigated to home page");
     
-    // Wait for approve button
-    await expect(_getApproveButton(page)).toBeVisible({ timeout: 5000 });
-    await _getApproveButton(page).click();
+    // Wait for the username input to be visible and editable
+    // This implicitly waits for Angular to initialize
+    const usernameInput = _getUsernameInput(page);
+    await expect(usernameInput).toBeVisible({ timeout: 10000 });
+    await expect(usernameInput).toBeEditable({ timeout: 10000 });
+    console.log("Username input is visible and editable");
+    
+    // Fill in credentials
+    await usernameInput.fill(ADMIN_EMAIL);
+    await _getPasswordInput(page).fill(ADMIN_PASSWORD);
+    console.log("Filled in credentials");
+    
+    // Wait for sign-in button to be enabled
+    const signinButton = _getSigninButton(page);
+    await expect(signinButton).toBeEnabled({ timeout: 5000 });
+    await signinButton.click();
+    console.log("Clicked sign-in button");
+    
+    // Wait for navigation or response
+    await page.waitForLoadState('domcontentloaded');
+    
+    // Wait for either approve button or error message
+    const approveButton = _getApproveButton(page);
+    const errorBox = page.locator('.error-box');
+    
+    // Wait for either to appear (increased timeout for slower responses)
+    await Promise.race([
+        approveButton.waitFor({ state: 'visible', timeout: 15000 }),
+        errorBox.waitFor({ state: 'visible', timeout: 15000 })
+    ]);
+    
+    // Check if error appeared
+    if (await errorBox.isVisible()) {
+        const errorText = await errorBox.textContent();
+        throw new Error(`Sign-in failed: ${errorText}`);
+    }
+    
+    await approveButton.click();
+    
+    // Wait for navigation after approval
+    await page.waitForURL('**', { timeout: 5000 }).catch(() => {
+        // URL might not change if already on callback page
+    });
     
     // Verify signed in
-    await expect(_getUserLink(page)).toBeVisible();
-    await expect(_getUserLink(page)).toContainText('Admin');
+    await expect(_getUserLink(page)).toBeVisible({ timeout: 10000 });
+    await expect(_getUserLink(page)).toContainText(ADMIN_NAME);
     
     console.log("Signed in as admin successfully");
 }
 
+export async function signInAsManager(page: Page) {
+    
+    console.log("Signing in as manager...");
+    
+    // Navigate to home page
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    
+    // Wait for the username input to be visible and editable
+    // This implicitly waits for Angular to initialize
+    const usernameInput = _getUsernameInput(page);
+    await expect(usernameInput).toBeVisible({ timeout: 10000 });
+    await expect(usernameInput).toBeEditable({ timeout: 10000 });
+    
+    // Fill in credentials
+    await usernameInput.fill(MANAGER_EMAIL);
+    await _getPasswordInput(page).fill(MANAGER_PASSWORD);
+    
+    // Wait for sign-in button to be enabled
+    const signinButton = _getSigninButton(page);
+    await expect(signinButton).toBeEnabled({ timeout: 5000 });
+    await signinButton.click();
+    
+    // Wait for navigation or response
+    await page.waitForLoadState('domcontentloaded');
+    
+    // Wait for either approve button or error message
+    const approveButton = _getApproveButton(page);
+    const errorBox = page.locator('.error-box');
+    
+    // Wait for either to appear (increased timeout for slower responses)
+    await Promise.race([
+        approveButton.waitFor({ state: 'visible', timeout: 15000 }),
+        errorBox.waitFor({ state: 'visible', timeout: 15000 })
+    ]);
+    
+    // Check if error appeared
+    if (await errorBox.isVisible()) {
+        const errorText = await errorBox.textContent();
+        throw new Error(`Sign-in failed: ${errorText}`);
+    }
+    
+    await approveButton.click();
+    
+    // Wait for navigation after approval
+    await page.waitForURL('**', { timeout: 5000 }).catch(() => {
+        // URL might not change if already on callback page
+    });
+    
+    // Verify signed in
+    await expect(_getUserLink(page)).toBeVisible({ timeout: 10000 });
+    await expect(_getUserLink(page)).toContainText(MANAGER_NAME);
+    
+    console.log("Signed in as manager successfully");
+}
+
 export async function ensureManagerIsAuthenticated(page: Page) {
-    const email = 'manager@abstratium.dev';
-    const password = 'secretLong';
-    const name = 'Manager';
-    await ensureAuthenticated(page, email, password, name);
+    await ensureAuthenticated(page, MANAGER_EMAIL, MANAGER_PASSWORD, MANAGER_NAME);
 }
 
 /**
@@ -155,12 +250,10 @@ export async function ensureManagerIsAuthenticated(page: Page) {
  * Does NOT sign up if sign in fails.
  */
 export async function trySignInAsAdmin(page: Page): Promise<boolean> {
-    const email = 'admin@abstratium.dev';
-    const password = 'secretLong';
     
-    await page.goto('/');
-    await _getUsernameInput(page).fill(email);
-    await _getPasswordInput(page).fill(password);
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await _getUsernameInput(page).fill(ADMIN_EMAIL);
+    await _getPasswordInput(page).fill(ADMIN_PASSWORD);
     await _getSigninButton(page).click();
 
     const errorBox = _getInvalidCredentialsError(page);

@@ -111,7 +111,7 @@ class TokenRevocationFilterTest {
         String jti = UUID.randomUUID().toString();
         return Jwt.issuer("https://abstrauth.abstratium.dev")
                 .upn("test@example.com")
-                .groups("abstratium-abstrauth_manage-clients")
+                .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
                 .claim("jti", jti)
                 .sign();
     }
@@ -122,7 +122,7 @@ class TokenRevocationFilterTest {
     private String generateTokenWithJti(String jti) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
                 .upn("test@example.com")
-                .groups("abstratium-abstrauth_manage-clients")
+                .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
                 .claim("jti", jti)
                 .sign();
     }

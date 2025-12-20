@@ -1,8 +1,26 @@
 # abstrauth
 
-A minimum implementation of an oauth authorization server capable of serving multiple applications at same time.
-It uses JWT for authentication and authorization, signed with a public/private key pair so that third-party
-applications can validate the tokens and roles without calls to the authorization server.
+**Abstrauth** is a lightweight OAuth 2.0 Authorization Server and OpenID Connect Provider with federated identity support, designed to serve multiple client applications simultaneously.
+
+## What is Abstrauth?
+
+Abstrauth functions as:
+
+- **OAuth 2.0 Authorization Server** - Implements Authorization Code Flow and Authorization Code Flow with PKCE (RFC 6749, RFC 7636)
+- **OpenID Connect Provider** - Issues JWT tokens with OpenID Connect claims (`openid`, `profile`, `email` scopes)
+- **Identity Provider (IdP)** - Provides native username/password authentication
+- **Identity Broker** - Federates authentication with external IdPs (Google, Microsoft, GitHub)
+- **Identity and Access Management (IAM)** - Manages user accounts, roles, and client applications
+
+## Key Features
+
+- **JWT-based authentication** - Tokens signed with RS256/PS256 using public/private key pairs for stateless verification
+- **Federated login** - Users can authenticate via Google OAuth or native credentials
+- **Multi-tenancy** - Single server instance serves multiple client applications with role-based access control (RBAC)
+- **Self-hosted admin UI** - Angular-based management interface secured by Abstrauth itself
+- **Security hardened** - PKCE enforcement, CSRF protection, rate limiting, CSP headers, and comprehensive security audit compliance
+
+It uses JWT for authentication and authorization, signed with a public/private key pair so that third-party applications can validate the tokens and roles without calls to the authorization server unless they want to do introspection to check if the token has been revoked.
 
 It coincidentally also uses itself as an authorization server for users signing into the admin UI.
 

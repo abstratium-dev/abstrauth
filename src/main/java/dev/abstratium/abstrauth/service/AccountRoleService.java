@@ -108,14 +108,20 @@ public class AccountRoleService {
             return;
         }
         
-        // only admin can add a user to a clientId for which they are not already a member of.
-        // start by selecting all the roles belonging to the account
+        // Get all existing roles for the account
         var query = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.accountId = :accountId",
             AccountRole.class
         );
         query.setParameter("accountId", accountId);
         List<AccountRole> accountRolesForAccount = query.getResultList();
+        
+        // Allow adding the first role to a new account (no existing roles)
+        if (accountRolesForAccount.isEmpty()) {
+            return;
+        }
+        
+        // Only admin can add a user to a clientId for which they are not already a member of
         var uniqueClientIdsForAccount = accountRolesForAccount.stream()
             .map(AccountRole::getClientId)
             .collect(Collectors.toSet());

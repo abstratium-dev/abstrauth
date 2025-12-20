@@ -64,7 +64,8 @@ public class TokenRolesTest {
             testEmail,
             "Roles Test User",
             testUsername,
-            testPassword
+            testPassword,
+            AccountService.NATIVE
         );
         testAccountId = account.getId();
         userTransaction.commit();
@@ -102,8 +103,9 @@ public class TokenRolesTest {
 
     @Test
     public void testTokenContainsAssignedRoles() throws Exception {
-        // Assign roles to the account in a committed transaction
-        addRolesInTransaction(CLIENT_ID, "user", "admin");
+        // Assign admin role to the account in a committed transaction
+        // Note: "user" role is automatically assigned, so we only add "admin"
+        addRolesInTransaction(CLIENT_ID, "admin");
         
         // Complete OAuth flow
         String accessToken = completeOAuthFlow();
@@ -138,8 +140,8 @@ public class TokenRolesTest {
 
     @Test
     public void testTokenContainsMultipleRoles() throws Exception {
-        // Assign multiple roles
-        addRolesInTransaction(CLIENT_ID, "user", "admin", "editor", "viewer");
+        // Assign multiple roles (user role is automatically assigned)
+        addRolesInTransaction(CLIENT_ID, "admin", "editor", "viewer");
         
         // Complete OAuth flow
         String accessToken = completeOAuthFlow();
