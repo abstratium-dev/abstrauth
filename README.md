@@ -123,9 +123,9 @@ See the [E2E Testing Documentation](e2e-tests/README.md) for detailed instructio
 See [TODO.md](TODO.md)
 
 
-# Aesthetics
+## Aesthetics
 
-## favicon
+### favicon
 
 https://favicon.io/favicon-generator/ - text based
 
