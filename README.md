@@ -50,6 +50,13 @@ First add env vars:
 
     source /w/abstratium-abstrauth.env
 
+That file should contain:
+
+    export OAUTH_GOOGLE_CLIENT_ID=...
+    export OAUTH_GOOGLE_CLIENT_SECRET=GOCSPX-...
+
+The values are what you get when you configure a Google OAuth client in the Google Cloud Console. See the following website for details: https://developers.google.com/identity/protocols/oauth2
+
 The application uses Quarkus. Run it with either `./mvnw quarkus:dev` or `quarkus dev` if you have installed the Quarkus CLI.
 
 #### Code coverage
