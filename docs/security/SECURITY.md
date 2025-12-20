@@ -28,25 +28,11 @@ The application uses **Quarkus SmallRye JWT** for securing REST endpoints with r
 
 ### Default Roles
 
-All authenticated users receive default roles configured per environment:
-
-**Development/Test/E2E**:
-```properties
-%dev.default.roles=user,abstratium-abstrauth_manage-clients
-%test.default.roles=user,abstratium-abstrauth_manage-clients
-%e2e.default.roles=user,abstratium-abstrauth_manage-clients
-```
-
-**Production**:
-```properties
-%prod.default.roles=user
-```
+All users receive the "user" role automatically, when their account is created. That role is for the default client named `abstratium-abstrauth`. That way, if the sign in they can see their roles for each client that they have been added to.
 
 **Role Formats**:
 - `user` - Universal role, auto-prefixed with client ID (becomes `abstratium-abstrauth_user`)
 - `abstratium-abstrauth_manage-clients` - Client-specific role, only added if client ID matches
-
-**Security Note**: Development environments grant `manage-clients` role by default for convenience. Production environments should only grant the basic `user` role, with additional roles assigned explicitly via the database (`T_account_roles` table).
 
 ## Configuration
 

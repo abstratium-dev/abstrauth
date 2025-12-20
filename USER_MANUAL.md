@@ -36,3 +36,18 @@ Use the "create account" link (available to users with the role `manage-accounts
 
 IT IS NOT RECOMMENDED to add roles to an account before the user tells you that they were able to sign in. Imagine adding the `admin` role to their account but a threat actor intercepting your invitation and using that role to remove you and other administrators!
 
+## Environment Variables
+
+The application uses several environment variables for configuration:
+
+- `DATABASE_URL` - Database connection string
+  - currently only MySql is supported. The url is in this format: `jdbc:mysql://<host>:<port>/<databasename>`
+- `DATABASE_USER` - Database user
+- `DATABASE_PASSWORD` - Database password
+- `JWT_SIGN_KEY` - Base64-encoded RSA private key for signing tokens
+- `JWT_VERIFY_KEY` - Public key for token verification (extracted manually from the private key using the script named `extract-public-key.sh`)
+- `ALLOW_SIGNUP` - Boolean flag to enable/disable user registration
+  - `true` to allow users to sign up
+  - `false` to disable user registration - users with the admin role can add other users
+  - default is `false` (sign up is disabled by default for security reasons)
+
