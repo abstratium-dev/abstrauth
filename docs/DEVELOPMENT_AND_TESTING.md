@@ -84,7 +84,7 @@ Run all tests (unit + integration):
 
 The E2E tests are in `e2e-tests/` and use Playwright to test the full application stack.
 
-See the [E2E Testing Documentation](e2e-tests/README.md) for detailed instructions.
+See the [E2E Testing Documentation](../e2e-tests/README.md) for detailed instructions.
 
 # Building
 
