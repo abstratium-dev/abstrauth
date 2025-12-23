@@ -327,6 +327,9 @@ export class AccountsComponent implements OnInit {
         alert('You do not have permission to remove roles.');
       } else if (err.status === 404) {
         alert('Account or role not found.');
+      } else if (err.status === 400 && err.error?.error) {
+        // Show the specific error message from the backend
+        alert(err.error.error);
       } else {
         alert('Failed to remove role. Please try again.');
       }
@@ -358,6 +361,9 @@ export class AccountsComponent implements OnInit {
         this.toastService.error('You do not have permission to delete accounts.');
       } else if (err.status === 404) {
         this.toastService.error('Account not found.');
+      } else if (err.status === 400 && err.error?.error) {
+        // Show the specific error message from the backend
+        this.toastService.error(err.error.error);
       } else {
         this.toastService.error('Failed to delete account. Please try again.');
       }

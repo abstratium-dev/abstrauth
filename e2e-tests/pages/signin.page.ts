@@ -157,30 +157,39 @@ export async function signInAsAdmin(page: Page) {
     await signinButton.click();
     console.log("Clicked sign-in button");
     
-    // Wait for navigation or response with longer timeout
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
-        console.log("Network didn't go idle, continuing anyway");
-    });
+    // After clicking signin, wait for either:
+    // 1. URL to change to authorize page
+    // 2. Approve button to appear (might stay on /signin URL but show authorize content)
+    // 3. Error message to appear
     
-    // Wait for either approve button or error message
     const approveButton = _getApproveButton(page);
-    const errorBox = page.locator('.error-box');
+    const signinError = page.locator('.error-box, .error-message, #message');
     
-    // Wait for either to appear with extended timeout to handle slow responses
     try {
         await Promise.race([
-            approveButton.waitFor({ state: 'visible', timeout: 20000 }),
-            errorBox.waitFor({ state: 'visible', timeout: 20000 })
+            page.waitForURL(url => url.toString().includes('/authorize'), { timeout: 15000 }),
+            approveButton.waitFor({ state: 'visible', timeout: 15000 }),
+            signinError.waitFor({ state: 'visible', timeout: 15000 })
         ]);
-    } catch (e) {
-        console.log("Timeout waiting for approve button or error. Current URL:", page.url());
-        throw new Error(`Timeout waiting for authorization page. Current URL: ${page.url()}`);
-    }
-    
-    // Check if error appeared
-    if (await errorBox.isVisible()) {
-        const errorText = await errorBox.textContent();
-        throw new Error(`Sign-in failed: ${errorText}`);
+        
+        // Check if error appeared
+        if (await signinError.isVisible()) {
+            const errorText = await signinError.textContent();
+            throw new Error(`Sign-in failed: ${errorText}`);
+        }
+        
+        // Success - either URL changed or approve button appeared
+        console.log("Sign-in successful, approve button should be visible");
+        
+    } catch (error) {
+        // Timeout - nothing happened
+        console.log("Signin timeout. Current URL:", page.url());
+        await page.screenshot({ path: 'signin-timeout.png', fullPage: true }).catch(() => {});
+        
+        const pageText = await page.locator('body').textContent().catch(() => '');
+        console.log("Page text:", pageText?.substring(0, 500));
+        
+        throw new Error(`Sign-in timeout. URL: ${page.url()}`);
     }
     
     await approveButton.click();

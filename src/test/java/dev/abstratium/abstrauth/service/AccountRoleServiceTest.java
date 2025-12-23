@@ -182,4 +182,100 @@ public class AccountRoleServiceTest {
         assertTrue(roles1.contains("admin"));
         assertTrue(roles2.contains("admin"));
     }
+
+    @Test
+    public void testCannotDeleteLastAdminRoleForAbstrauthClient() throws Exception {
+        // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
+        userTransaction.begin();
+        var existingAdmins = em.createQuery(
+            "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
+            dev.abstratium.abstrauth.entity.AccountRole.class
+        );
+        existingAdmins.setParameter("clientId", Roles.CLIENT_ID);
+        existingAdmins.setParameter("role", Roles._ADMIN_PLAIN);
+        for (var admin : existingAdmins.getResultList()) {
+            em.remove(admin);
+        }
+        
+        // Create a test account with admin role for abstratium-abstrauth
+        String uniqueEmail = "admintest_" + System.nanoTime() + "@example.com";
+        String uniqueUsername = "admintest_" + System.nanoTime();
+        Account adminAccount = accountService.createAccount(
+            uniqueEmail,
+            "Admin Test User",
+            uniqueUsername,
+            "TestPassword123",
+            AccountService.NATIVE
+        );
+        
+        // Add admin role for abstratium-abstrauth
+        accountRoleService.addRole(adminAccount.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        userTransaction.commit();
+        
+        // Try to remove the admin role - should fail because it's the only one
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            accountRoleService.removeRole(adminAccount.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        });
+        
+        assertTrue(exception.getMessage().contains("Cannot delete the last admin role"));
+        assertTrue(exception.getMessage().contains(Roles.CLIENT_ID));
+    }
+
+    @Test
+    public void testCanDeleteAdminRoleWhenMultipleAdminsExist() throws Exception {
+        // Create two accounts with admin role for abstratium-abstrauth
+        userTransaction.begin();
+        String uniqueEmail1 = "admin1_" + System.nanoTime() + "@example.com";
+        String uniqueUsername1 = "admin1_" + System.nanoTime();
+        Account admin1 = accountService.createAccount(
+            uniqueEmail1,
+            "Admin 1",
+            uniqueUsername1,
+            "TestPassword123",
+            AccountService.NATIVE
+        );
+        accountRoleService.addRole(admin1.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        String uniqueEmail2 = "admin2_" + System.nanoTime() + "@example.com";
+        String uniqueUsername2 = "admin2_" + System.nanoTime();
+        Account admin2 = accountService.createAccount(
+            uniqueEmail2,
+            "Admin 2",
+            uniqueUsername2,
+            "TestPassword123",
+            AccountService.NATIVE
+        );
+        accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        userTransaction.commit();
+        
+        // Should be able to remove one admin role since there are two
+        assertDoesNotThrow(() -> {
+            accountRoleService.removeRole(admin1.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        });
+        
+        // Verify the role was removed
+        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(admin1.getId(), Roles.CLIENT_ID);
+        assertFalse(roles.contains(Roles._ADMIN_PLAIN));
+        
+        // Verify the second admin still has the role
+        Set<String> roles2 = accountRoleService.findRolesByAccountIdAndClientId(admin2.getId(), Roles.CLIENT_ID);
+        assertTrue(roles2.contains(Roles._ADMIN_PLAIN));
+    }
+
+    @Test
+    public void testCanDeleteAdminRoleForOtherClients() throws Exception {
+        // Add admin role for a different client
+        userTransaction.begin();
+        accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
+        userTransaction.commit();
+        
+        // Should be able to remove admin role for other clients even if it's the only one
+        assertDoesNotThrow(() -> {
+            accountRoleService.removeRole(testAccountId, TEST_CLIENT_ID, "admin");
+        });
+        
+        // Verify the role was removed
+        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
+        assertFalse(roles.contains("admin"));
+    }
 }

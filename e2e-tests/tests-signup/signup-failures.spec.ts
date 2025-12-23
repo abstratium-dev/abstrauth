@@ -29,7 +29,8 @@ test('sign up and email already exists', async ({ page }) => {
   await page.waitForURL('**/signin/**', { timeout: 10000 });
   
   // now go back to the home page and sign up again
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator("#signup-link")).toBeVisible({ timeout: 5000 });
 
   await page.locator("#signup-link").click();
 
@@ -68,7 +69,8 @@ test('sign up and username already exists', async ({ page }) => {
   await page.waitForURL('**/signin/**', { timeout: 10000 });
   
   // now go back to the home page
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator("#signup-link")).toBeVisible({ timeout: 5000 });
 
   await page.locator("#signup-link").click();
 

@@ -196,4 +196,48 @@ public class OAuthClientServiceTest {
         Optional<OAuthClient> notFound = oauthClientService.findByClientId(clientIdToDelete);
         assertFalse(notFound.isPresent());
     }
+
+    @Test
+    public void testCannotDeleteAbstrauthClient() {
+        // Find the abstratium-abstrauth client
+        Optional<OAuthClient> clientOpt = oauthClientService.findByClientId(Roles.CLIENT_ID);
+        assertTrue(clientOpt.isPresent(), "abstratium-abstrauth client should exist");
+        
+        OAuthClient client = clientOpt.get();
+        
+        // Try to delete it - should fail
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            oauthClientService.delete(client);
+        });
+        
+        assertTrue(exception.getMessage().contains("Cannot delete the " + Roles.CLIENT_ID + " client"));
+        
+        // Verify it still exists
+        Optional<OAuthClient> stillExists = oauthClientService.findByClientId(Roles.CLIENT_ID);
+        assertTrue(stillExists.isPresent(), "abstratium-abstrauth client should still exist");
+    }
+
+    @Test
+    @Transactional
+    public void testCanDeleteOtherClients() {
+        // Create a different client
+        OAuthClient client = new OAuthClient();
+        client.setClientId("deletable-client-" + System.currentTimeMillis());
+        client.setClientName("Deletable Client");
+        client.setClientType("public");
+        client.setRedirectUris("[\"http://localhost:3000/callback\"]");
+        client.setAllowedScopes("[\"openid\"]");
+        client.setRequirePkce(true);
+
+        OAuthClient created = oauthClientService.create(client);
+        
+        // Should be able to delete other clients
+        assertDoesNotThrow(() -> {
+            oauthClientService.delete(created);
+        });
+        
+        // Verify it's deleted
+        Optional<OAuthClient> deleted = oauthClientService.findByClientId(created.getClientId());
+        assertFalse(deleted.isPresent());
+    }
 }

@@ -657,4 +657,39 @@ public class ClientsResourceTest {
             .statusCode(201)
             .body("requirePkce", equalTo(false));
     }
+
+    @Test
+    public void testCannotDeleteAbstrauthClient() {
+        String token = generateValidToken();
+        
+        // Get the abstratium-abstrauth client ID
+        String clientId = given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .get("/api/clients")
+            .then()
+            .statusCode(200)
+            .body("find { it.clientId == 'abstratium-abstrauth' }.id", notNullValue())
+            .extract()
+            .jsonPath()
+            .getString("find { it.clientId == 'abstratium-abstrauth' }.id");
+        
+        // Try to delete it - should fail with 400
+        given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .delete("/api/clients/" + clientId)
+            .then()
+            .statusCode(400)
+            .body("error", containsString("Cannot delete the abstratium-abstrauth client"));
+        
+        // Verify it still exists
+        given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .get("/api/clients")
+            .then()
+            .statusCode(200)
+            .body("clientId", hasItem("abstratium-abstrauth"));
+    }
 }

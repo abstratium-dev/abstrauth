@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.boundary;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
@@ -21,6 +22,7 @@ import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.FederatedIdentity;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
@@ -756,6 +758,150 @@ public class AccountsResourceTest {
             .then()
             .statusCode(404)
             .body("error", equalTo("Account not found"));
+    }
+
+    @Test
+    public void testCannotRemoveLastAdminRoleForAbstrauthClient() throws Exception {
+        // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
+        beginTransaction();
+        var existingAdmins = em.createQuery(
+            "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
+            AccountRole.class
+        );
+        existingAdmins.setParameter("clientId", Roles.CLIENT_ID);
+        existingAdmins.setParameter("role", Roles._ADMIN_PLAIN);
+        for (var admin : existingAdmins.getResultList()) {
+            em.remove(admin);
+        }
+        
+        // Create an account with admin role for abstratium-abstrauth
+        String email = "lastadmin_" + System.currentTimeMillis() + "@example.com";
+        Account adminAccount = accountService.createAccount(email, "Last Admin", "lastadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        String adminAccountId = adminAccount.getId();
+        accountRoleService.addRole(adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        // Create manager account
+        String managerEmail = "manager_lastadmin_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_lastadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        String managerId = manager.getId();
+        commitTransaction();
+        
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "%s",
+                "role": "%s"
+            }
+            """, adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .delete("/api/accounts/role")
+            .then()
+            .statusCode(400)
+            .body("error", containsString("Cannot delete the last admin role"));
+    }
+
+    @Test
+    public void testCanRemoveAdminRoleWhenMultipleAdminsExist() throws Exception {
+        // Create two accounts with admin role for abstratium-abstrauth
+        beginTransaction();
+        String email1 = "admin1_api_" + System.currentTimeMillis() + "@example.com";
+        Account admin1 = accountService.createAccount(email1, "Admin 1", "admin1_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        String admin1Id = admin1.getId();
+        accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        String email2 = "admin2_api_" + System.currentTimeMillis() + "@example.com";
+        Account admin2 = accountService.createAccount(email2, "Admin 2", "admin2_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        // Create manager account
+        String managerEmail = "manager_multi_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_multi_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        String managerId = manager.getId();
+        commitTransaction();
+        
+        String requestBody = String.format("""
+            {
+                "accountId": "%s",
+                "clientId": "%s",
+                "role": "%s"
+            }
+            """, admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .delete("/api/accounts/role")
+            .then()
+            .statusCode(204);
+    }
+
+    @Test
+    public void testCannotDeleteAccountWithOnlyAdminRole() throws Exception {
+        // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
+        beginTransaction();
+        var existingAdmins = em.createQuery(
+            "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
+            AccountRole.class
+        );
+        existingAdmins.setParameter("clientId", Roles.CLIENT_ID);
+        existingAdmins.setParameter("role", Roles._ADMIN_PLAIN);
+        for (var admin : existingAdmins.getResultList()) {
+            em.remove(admin);
+        }
+        
+        // Create an account with admin role for abstratium-abstrauth
+        String email = "onlyadmin_api_" + System.currentTimeMillis() + "@example.com";
+        Account adminAccount = accountService.createAccount(email, "Only Admin", "onlyadmin_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        String adminAccountId = adminAccount.getId();
+        accountRoleService.addRole(adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        // Create manager account
+        String managerEmail = "manager_delacct_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        String managerId = manager.getId();
+        commitTransaction();
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .when()
+            .delete("/api/accounts/" + adminAccountId)
+            .then()
+            .statusCode(400)
+            .body("error", containsString("Cannot delete the account with the only admin role"));
+    }
+
+    @Test
+    public void testCanDeleteAccountWhenMultipleAdminsExist() throws Exception {
+        // Create two accounts with admin role for abstratium-abstrauth
+        beginTransaction();
+        String email1 = "admin1_delacct_" + System.currentTimeMillis() + "@example.com";
+        Account admin1 = accountService.createAccount(email1, "Admin 1", "admin1_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        String admin1Id = admin1.getId();
+        accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        String email2 = "admin2_delacct_" + System.currentTimeMillis() + "@example.com";
+        Account admin2 = accountService.createAccount(email2, "Admin 2", "admin2_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        // Create manager account
+        String managerEmail = "manager_delacct2_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_delacct2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        String managerId = manager.getId();
+        commitTransaction();
+        
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .when()
+            .delete("/api/accounts/" + admin1Id)
+            .then()
+            .statusCode(204);
     }
 
     @Test

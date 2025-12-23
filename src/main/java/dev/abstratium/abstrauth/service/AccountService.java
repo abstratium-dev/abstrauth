@@ -258,12 +258,18 @@ public class AccountService {
      * However, T_authorization_requests has no foreign key constraint, so we delete it manually.
      * 
      * @param accountId The ID of the account to delete
+     * @throws IllegalArgumentException if attempting to delete the account with the only admin role for abstratium-abstrauth
      */
     @Transactional
     public void deleteAccount(String accountId) {
         Account account = em.find(Account.class, accountId);
         if (account == null) {
             throw new IllegalArgumentException("Account not found");
+        }
+
+        // Prevent deletion if this account has the only admin role for abstratium-abstrauth
+        if (hasOnlyAdminRoleForAbstrauthClient(accountId)) {
+            throw new IllegalArgumentException("Cannot delete the account with the only admin role for " + Roles.CLIENT_ID);
         }
 
         // Delete authorization requests (no CASCADE DELETE constraint in database)
@@ -273,6 +279,39 @@ public class AccountService {
 
         // Delete the account (CASCADE DELETE will handle roles, credentials, federated identities, and auth codes)
         em.remove(account);
+    }
+    
+    /**
+     * Check if this account has the only admin role for abstratium-abstrauth
+     * 
+     * @param accountId The account ID to check
+     * @return true if this account has the only admin role for abstratium-abstrauth
+     */
+    private boolean hasOnlyAdminRoleForAbstrauthClient(String accountId) {
+        // Check if this account has the admin role for abstratium-abstrauth
+        var accountRoleQuery = em.createQuery(
+            "SELECT COUNT(ar) FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.role = :role",
+            Long.class
+        );
+        accountRoleQuery.setParameter("accountId", accountId);
+        accountRoleQuery.setParameter("clientId", Roles.CLIENT_ID);
+        accountRoleQuery.setParameter("role", Roles._ADMIN_PLAIN);
+        long accountHasAdminRole = accountRoleQuery.getSingleResult();
+        
+        if (accountHasAdminRole == 0) {
+            return false; // This account doesn't have the admin role
+        }
+        
+        // Count total admin roles for abstratium-abstrauth
+        var totalAdminQuery = em.createQuery(
+            "SELECT COUNT(ar) FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
+            Long.class
+        );
+        totalAdminQuery.setParameter("clientId", Roles.CLIENT_ID);
+        totalAdminQuery.setParameter("role", Roles._ADMIN_PLAIN);
+        long totalAdminRoles = totalAdminQuery.getSingleResult();
+        
+        return totalAdminRoles <= 1; // This is the only admin
     }
 
     /**

@@ -471,4 +471,103 @@ public class AccountServiceTest {
         // but it should not be null which would indicate lazy loading
         assertNotNull(ourAccount.getRoles(), "Roles collection should not be null (eagerly loaded)");
     }
+
+    @Test
+    public void testCannotDeleteAccountWithOnlyAdminRole() throws Exception {
+        // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
+        userTransaction.begin();
+        var existingAdmins = em.createQuery(
+            "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
+            dev.abstratium.abstrauth.entity.AccountRole.class
+        );
+        existingAdmins.setParameter("clientId", Roles.CLIENT_ID);
+        existingAdmins.setParameter("role", Roles._ADMIN_PLAIN);
+        for (var admin : existingAdmins.getResultList()) {
+            em.remove(admin);
+        }
+        
+        // Create an account with admin role for abstratium-abstrauth
+        String email = "onlyadmin_" + System.currentTimeMillis() + "@example.com";
+        String username = "onlyadmin_" + System.currentTimeMillis();
+        Account adminAccount = accountService.createAccount(email, "Only Admin", username, "Password123", AccountService.NATIVE);
+        accountRoleService.addRole(adminAccount.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        userTransaction.commit();
+        
+        // Try to delete the account - should fail because it has the only admin role
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            accountService.deleteAccount(adminAccount.getId());
+        });
+        
+        assertTrue(exception.getMessage().contains("Cannot delete the account with the only admin role"));
+        assertTrue(exception.getMessage().contains(Roles.CLIENT_ID));
+    }
+
+    @Test
+    public void testCanDeleteAccountWhenMultipleAdminsExist() throws Exception {
+        // Create two accounts with admin role for abstratium-abstrauth
+        userTransaction.begin();
+        String email1 = "admin1_del_" + System.currentTimeMillis() + "@example.com";
+        String username1 = "admin1_del_" + System.currentTimeMillis();
+        Account admin1 = accountService.createAccount(email1, "Admin 1", username1, "Password123", AccountService.NATIVE);
+        accountRoleService.addRole(admin1.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        
+        String email2 = "admin2_del_" + System.currentTimeMillis() + "@example.com";
+        String username2 = "admin2_del_" + System.currentTimeMillis();
+        Account admin2 = accountService.createAccount(email2, "Admin 2", username2, "Password123", AccountService.NATIVE);
+        accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        userTransaction.commit();
+        
+        // Should be able to delete one admin account since there are two
+        assertDoesNotThrow(() -> {
+            accountService.deleteAccount(admin1.getId());
+        });
+        
+        // Verify the account was deleted
+        Optional<Account> deleted = accountService.findById(admin1.getId());
+        assertFalse(deleted.isPresent());
+        
+        // Verify the second admin still exists
+        Optional<Account> remaining = accountService.findById(admin2.getId());
+        assertTrue(remaining.isPresent());
+    }
+
+    @Test
+    public void testCanDeleteAccountWithoutAdminRole() throws Exception {
+        // Create an account without admin role
+        userTransaction.begin();
+        String email = "nonadmin_" + System.currentTimeMillis() + "@example.com";
+        String username = "nonadmin_" + System.currentTimeMillis();
+        Account account = accountService.createAccount(email, "Non Admin", username, "Password123", AccountService.NATIVE);
+        // Don't add admin role
+        userTransaction.commit();
+        
+        // Should be able to delete this account
+        assertDoesNotThrow(() -> {
+            accountService.deleteAccount(account.getId());
+        });
+        
+        // Verify the account was deleted
+        Optional<Account> deleted = accountService.findById(account.getId());
+        assertFalse(deleted.isPresent());
+    }
+
+    @Test
+    public void testCanDeleteAccountWithAdminRoleForOtherClients() throws Exception {
+        // Create an account with admin role for a different client
+        userTransaction.begin();
+        String email = "otheradmin_" + System.currentTimeMillis() + "@example.com";
+        String username = "otheradmin_" + System.currentTimeMillis();
+        Account account = accountService.createAccount(email, "Other Admin", username, "Password123", AccountService.NATIVE);
+        accountRoleService.addRole(account.getId(), "client-test", "admin");
+        userTransaction.commit();
+        
+        // Should be able to delete this account (admin role is for different client)
+        assertDoesNotThrow(() -> {
+            accountService.deleteAccount(account.getId());
+        });
+        
+        // Verify the account was deleted
+        Optional<Account> deleted = accountService.findById(account.getId());
+        assertFalse(deleted.isPresent());
+    }
 }

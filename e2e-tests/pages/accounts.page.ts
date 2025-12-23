@@ -115,19 +115,24 @@ export async function deleteAccountsExcept(page: Page, keepAccountName: string) 
         if (accountName?.trim() !== keepAccountName) {
             console.log(`Deleting account: ${accountName}`);
             
+            const currentCount = await tiles.count();
+            
             // Find and click the delete button (trash icon) for this account
             const deleteButton = tile.locator('.btn-icon-danger').first();
             await deleteButton.click();
             
-            // Wait for confirmation dialog and confirm
-            await page.waitForTimeout(500);
+            // Wait for confirmation dialog to appear
+            const deleteAccountButton = _getDeleteAccountButton(page);
+            await expect(deleteAccountButton).toBeVisible({ timeout: 2000 });
             
             // Click the confirm button in the dialog
-            // The dialog should have a button with text like "Delete Account"
-            await _getDeleteAccountButton(page).click();
+            await deleteAccountButton.click();
             
-            // Wait for the account to be deleted and DOM to update
-            await page.waitForTimeout(1000);
+            // Wait for the tile count to decrease (account was deleted)
+            await expect(async () => {
+                const newCount = await tiles.count();
+                expect(newCount).toBe(currentCount - 1);
+            }).toPass({ timeout: 5000 });
         } else {
             console.log(`Keeping account: ${accountName}`);
         }
@@ -151,7 +156,10 @@ export async function addRoleToAccount(page: Page, accountEmail: string, clientI
     const addRoleButton = accountTile.locator('.btn-add-small');
     await expect(addRoleButton).toBeVisible({ timeout: 10000 });
     await expect(addRoleButton).toBeEnabled({ timeout: 10000 });
-    await addRoleButton.click();
+    
+    // Use scrollIntoViewIfNeeded to ensure button is in viewport and stable
+    await addRoleButton.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await addRoleButton.click({ timeout: 10000 });
     
     // Wait for the form to appear
     const clientSelect = accountTile.locator('select[id^="clientId-"]');
@@ -282,4 +290,123 @@ export async function tryAddRoleToSelf(page: Page, clientId: string, roleName: s
         await _getCancelButton(page).click();
         return null;
     }
+}
+
+/**
+ * Attempts to delete a role from an account by email.
+ * Assumes we're already on the accounts page and user has manage-accounts role.
+ * Returns the error message if one appears, or null if successful.
+ */
+export async function tryDeleteRoleFromAccount(page: Page, accountEmail: string, clientId: string, roleName: string): Promise<string | null> {
+    console.log(`Attempting to delete role "${roleName}" for client "${clientId}" from account "${accountEmail}"...`);
+    
+    // Find the tile for the account with the given email
+    const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
+    await expect(accountTile).toBeVisible({ timeout: 10000 });
+    
+    // Find the sub-tile that contains both the role name and client ID
+    const subTile = accountTile.locator('.sub-tile').filter({ hasText: roleName }).filter({ hasText: clientId });
+    await expect(subTile).toBeVisible({ timeout: 5000 });
+    
+    // Set up alert dialog handler to capture error messages
+    let alertMessage: string | null = null;
+    page.on('dialog', async dialog => {
+        alertMessage = dialog.message();
+        console.log(`Alert appeared: ${alertMessage}`);
+        await dialog.accept();
+    });
+    
+    // Click the delete button (trash icon) on the sub-tile
+    const deleteButton = subTile.locator('.btn-icon-danger');
+    await deleteButton.click();
+    
+    // Wait for confirmation dialog to appear
+    const confirmButton = page.locator('button.btn-danger').filter({ hasText: 'Delete Role' });
+    await expect(confirmButton).toBeVisible({ timeout: 2000 });
+    
+    // Click confirm button in the confirmation dialog
+    await confirmButton.click();
+    
+    // Wait a bit for the backend call to complete and alert/success to happen
+    await Promise.race([
+        page.waitForEvent('dialog', { timeout: 2000 }).catch(() => null),
+        subTile.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => null)
+    ]);
+    
+    console.log(`Checking for error after role deletion...`);
+    
+    if (alertMessage) {
+        console.log(`✓ Error occurred: ${alertMessage}`);
+        return alertMessage;
+    }
+    
+    // Check if role disappeared (success case)
+    const roleStillVisible = await subTile.isVisible().catch(() => false);
+    
+    console.log(`No alert appeared. Role still visible: ${roleStillVisible}`);
+    
+    if (!roleStillVisible) {
+        console.log(`✓ Role "${roleName}" was deleted successfully`);
+        return null;
+    }
+    
+    // Role still visible but no error - unexpected state
+    console.log(`Unexpected state: role still visible but no alert`);
+    return null;
+}
+
+/**
+ * Attempts to delete an account by email.
+ * Assumes we're already on the accounts page and user has manage-accounts role.
+ * Returns the error message if one appears, or null if successful.
+ */
+export async function tryDeleteAccount(page: Page, accountEmail: string): Promise<string | null> {
+    console.log(`Attempting to delete account "${accountEmail}"...`);
+    
+    // Find the tile for the account with the given email
+    const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
+    await expect(accountTile).toBeVisible({ timeout: 10000 });
+    
+    // Find and click the delete button (trash icon) for this account
+    const deleteButton = accountTile.locator('.btn-icon-danger').first();
+    await deleteButton.click();
+    
+    // Wait for confirmation dialog to appear
+    const deleteAccountButton = _getDeleteAccountButton(page);
+    await expect(deleteAccountButton).toBeVisible({ timeout: 2000 });
+    
+    // Click the confirm button in the dialog
+    await deleteAccountButton.click();
+    
+    // Wait for either toast notification to appear or account to disappear (success)
+    await Promise.race([
+        page.locator('.toast-error').waitFor({ state: 'visible', timeout: 2000 }).catch(() => null),
+        accountTile.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => null)
+    ]);
+    
+    console.log(`Checking for error after account deletion...`);
+    
+    // Check for error toast notification
+    const errorToast = page.locator('.toast-error');
+    const errorToastVisible = await errorToast.isVisible().catch(() => false);
+    
+    if (errorToastVisible) {
+        const errorText = await errorToast.locator('.toast-message').textContent();
+        console.log(`✓ Error toast appeared: ${errorText}`);
+        return errorText?.trim() || 'Unknown error';
+    }
+    
+    // Check if account disappeared (success case)
+    const accountStillVisible = await accountTile.isVisible().catch(() => false);
+    
+    console.log(`No error toast appeared. Account still visible: ${accountStillVisible}`);
+    
+    if (!accountStillVisible) {
+        console.log(`✓ Account "${accountEmail}" was deleted successfully`);
+        return null;
+    }
+    
+    // Account still visible but no error - unexpected state
+    console.log(`Unexpected state: account still visible but no error toast`);
+    return null;
 }

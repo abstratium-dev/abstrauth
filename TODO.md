@@ -2,12 +2,11 @@
 
 ## Today
 
+- add e2e that manager and admin cannot delete admin account OR role
 - stablise e2e tests
-- does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
+d- does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
 - docs - describe how to run as a docker image
 - docs - link to native build and other docs
-- disallow deleting last admin account
-- make it impossible to delete the client abstratium-abstrauth
 - improve branch coverage of ui
 - use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
  in a test somewhere

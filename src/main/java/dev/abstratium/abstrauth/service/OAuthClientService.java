@@ -84,6 +84,10 @@ public class OAuthClientService {
 
     @Transactional
     public void delete(OAuthClient client) {
+        // Prevent deletion of the abstratium-abstrauth client
+        if (Roles.CLIENT_ID.equals(client.getClientId())) {
+            throw new IllegalArgumentException("Cannot delete the " + Roles.CLIENT_ID + " client");
+        }
         em.remove(em.contains(client) ? client : em.merge(client));
     }
 }

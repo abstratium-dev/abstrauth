@@ -154,9 +154,18 @@ public class AccountRoleService {
      * @param accountId The account ID
      * @param clientId The OAuth client ID
      * @param role The role name
+     * @throws IllegalArgumentException if attempting to delete the last admin role for abstratium-abstrauth
      */
     @Transactional
     public void removeRole(String accountId, String clientId, String role) {
+        // Prevent deletion of the last admin role for abstratium-abstrauth
+        if (Roles.CLIENT_ID.equals(clientId) && Roles._ADMIN_PLAIN.equals(role)) {
+            long adminCount = countAdminRolesForClient(Roles.CLIENT_ID);
+            if (adminCount <= 1) {
+                throw new IllegalArgumentException("Cannot delete the last admin role for " + Roles.CLIENT_ID);
+            }
+        }
+        
         var query = em.createQuery(
             "DELETE FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.role = :role"
         );
@@ -164,5 +173,21 @@ public class AccountRoleService {
         query.setParameter("clientId", clientId);
         query.setParameter("role", role);
         query.executeUpdate();
+    }
+    
+    /**
+     * Count the number of admin roles for a specific client
+     * 
+     * @param clientId The OAuth client ID
+     * @return The count of admin roles
+     */
+    private long countAdminRolesForClient(String clientId) {
+        var query = em.createQuery(
+            "SELECT COUNT(ar) FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
+            Long.class
+        );
+        query.setParameter("clientId", clientId);
+        query.setParameter("role", Roles._ADMIN_PLAIN);
+        return query.getSingleResult();
     }
 }
