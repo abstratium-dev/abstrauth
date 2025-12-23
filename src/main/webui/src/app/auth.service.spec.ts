@@ -2,6 +2,7 @@ import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { AuthService, ANONYMOUS } from './auth.service';
 
 describe('AuthService', () => {
+
   let service: AuthService;
 
   beforeEach(() => {

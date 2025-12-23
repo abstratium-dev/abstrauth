@@ -14,6 +14,8 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
@@ -154,6 +156,7 @@ public class WellKnownResource {
         throw new IllegalArgumentException("Private key is not an RSA CRT key");
     }
     
+    @RegisterForReflection
     public static class ErrorResponse {
         public String error;
         public String error_description;
@@ -164,6 +167,7 @@ public class WellKnownResource {
         }
     }
 
+    @RegisterForReflection
     @Schema(description = "OAuth 2.0 Authorization Server Metadata")
     public static class ServerMetadata {
         @Schema(description = "Authorization server issuer identifier", examples = "https://auth.example.com")
@@ -200,12 +204,14 @@ public class WellKnownResource {
         public String[] token_endpoint_auth_methods_supported;
     }
 
+    @RegisterForReflection
     @Schema(description = "JSON Web Key Set")
     public static class JwksResponse {
         @Schema(description = "Array of JSON Web Keys")
         public JwkKey[] keys;
     }
 
+    @RegisterForReflection
     @Schema(description = "JSON Web Key")
     public static class JwkKey {
         @Schema(description = "Key type", examples = "RSA")

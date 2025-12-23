@@ -29,6 +29,7 @@ import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -405,6 +406,7 @@ public class TokenResource {
     /**
      * Token Response DTO for OpenAPI documentation
      */
+    @RegisterForReflection
     @Schema(description = "OAuth 2.0 Token Response")
     public static class TokenResponse {
         @Schema(description = "The access token issued by the authorization server", examples = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")
@@ -426,6 +428,7 @@ public class TokenResource {
     /**
      * Error Response DTO for OpenAPI documentation
      */
+    @RegisterForReflection
     @Schema(description = "OAuth 2.0 Error Response")
     public static class ErrorResponse {
         @Schema(

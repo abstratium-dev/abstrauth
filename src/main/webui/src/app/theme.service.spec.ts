@@ -4,8 +4,12 @@ import { ThemeService, Theme } from './theme.service';
 describe('ThemeService', () => {
   let service: ThemeService;
   let localStorageSpy: jasmine.SpyObj<Storage>;
+  let originalLocalStorage: Storage;
 
   beforeEach(() => {
+    // Preserve the original localStorage so it can be restored after the test
+    originalLocalStorage = window.localStorage;
+
     // Create a spy for localStorage
     localStorageSpy = jasmine.createSpyObj('localStorage', ['getItem', 'setItem', 'removeItem']);
     localStorageSpy.getItem.and.returnValue(null); // Default to null
@@ -21,8 +25,14 @@ describe('ThemeService', () => {
   });
 
   afterEach(() => {
-    // Clean up
+    // Clean up DOM state
     document.documentElement.removeAttribute('data-theme');
+
+    // Restore the original localStorage implementation
+    Object.defineProperty(window, 'localStorage', {
+      value: originalLocalStorage,
+      writable: true
+    });
   });
 
   it('should be created', () => {

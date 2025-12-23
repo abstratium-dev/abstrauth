@@ -2,9 +2,7 @@
 
 ## Today
 
-- add e2e that manager and admin cannot delete admin account OR role
-- stablise e2e tests
-d- does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of the urls IN PROD? coz that'd be bad
+- refactor all ErrorResponse classes into a common class with its own file
 - docs - describe how to run as a docker image
 - docs - link to native build and other docs
 - improve branch coverage of ui
@@ -24,7 +22,8 @@ d- does http://localhost:8080/oauth2/authorize/details/ show a list of ALL of th
 
 ## Tomorrow
 
-- make fields on create-account-form readonly after creating the account until the user closes the form with the done button. or simply hide them and show the email name and authprovide in the success message.
+- telemetry
+- audit logs
 - scheduler to clear out old authorization requests and authorization codes
 - need simple INFO logging to show what a user does.
 - controller should never return Promises

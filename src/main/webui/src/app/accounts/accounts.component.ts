@@ -324,14 +324,14 @@ export class AccountsComponent implements OnInit {
       await this.controller.removeAccountRole(accountId, clientId, role);
     } catch (err: any) {
       if (err.status === 403) {
-        alert('You do not have permission to remove roles.');
+        this.toastService.error('You do not have permission to remove roles.');
       } else if (err.status === 404) {
-        alert('Account or role not found.');
+        this.toastService.error('Account or role not found.');
       } else if (err.status === 400 && err.error?.error) {
         // Show the specific error message from the backend
-        alert(err.error.error);
+        this.toastService.error(err.error.error);
       } else {
-        alert('Failed to remove role. Please try again.');
+        this.toastService.error('Failed to remove role. Please try again.');
       }
     }
   }

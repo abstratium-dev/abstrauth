@@ -30,6 +30,10 @@ public class ConfigInfoContributor implements InfoContributor {
     @ConfigProperty(name = "rate-limit.enabled")
     boolean rateLimitEnabled;
 
+    @Inject
+    @ConfigProperty(name = "build.version")
+    String buildVersion;
+
     @Override
     public String name() {
         return "config";
@@ -41,7 +45,8 @@ public class ConfigInfoContributor implements InfoContributor {
             "allowSignup", allowSignup,
             "jwtIssuer", jwtIssuer,
             "googleRedirectUri", googleRedirectUri,
-            "rateLimitEnabled", rateLimitEnabled
+            "rateLimitEnabled", rateLimitEnabled,
+            "buildVersion", buildVersion
         );
     }
 }

@@ -157,11 +157,11 @@ export class ClientsComponent implements OnInit {
       }
     } catch (err: any) {
       if (err.status === 404) {
-        alert('Client not found. It may have already been deleted.');
+        this.toastService.error('Client not found. It may have already been deleted.');
       } else if (err.status === 403) {
-        alert('You do not have permission to delete clients.');
+        this.toastService.error('You do not have permission to delete clients.');
       } else {
-        alert('Failed to delete client. Please try again.');
+        this.toastService.error('Failed to delete client. Please try again.');
       }
     }
   }

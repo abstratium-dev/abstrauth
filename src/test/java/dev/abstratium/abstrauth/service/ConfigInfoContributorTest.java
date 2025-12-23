@@ -31,7 +31,9 @@ class ConfigInfoContributorTest {
             .body("config.allowSignup", notNullValue())
             .body("config.jwtIssuer", equalTo("https://abstrauth.abstratium.dev"))
             .body("config.googleRedirectUri", notNullValue())
-            .body("config.rateLimitEnabled", notNullValue());
+            .body("config.rateLimitEnabled", notNullValue())
+            .body("config.buildVersion", notNullValue())
+            .body("config.buildVersion", matchesRegex("\\d{14}"));
     }
 
     @Test

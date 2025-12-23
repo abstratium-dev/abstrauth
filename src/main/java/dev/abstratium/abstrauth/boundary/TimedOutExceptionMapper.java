@@ -1,5 +1,6 @@
 package dev.abstratium.abstrauth.boundary;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
@@ -22,6 +23,7 @@ public class TimedOutExceptionMapper implements ExceptionMapper<TimedOutExceptio
     /**
      * Simple error response structure
      */
+    @RegisterForReflection
     public static class ErrorResponse {
         public String error;
 

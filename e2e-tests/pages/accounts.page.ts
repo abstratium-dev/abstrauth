@@ -308,14 +308,12 @@ export async function tryDeleteRoleFromAccount(page: Page, accountEmail: string,
     const subTile = accountTile.locator('.sub-tile').filter({ hasText: roleName }).filter({ hasText: clientId });
     await expect(subTile).toBeVisible({ timeout: 5000 });
     
-    // Set up alert dialog handler to capture error messages
-    let alertMessage: string | null = null;
-    page.on('dialog', async dialog => {
-        alertMessage = dialog.message();
-        console.log(`Alert appeared: ${alertMessage}`);
-        await dialog.accept();
-    });
+    // Track error toast message
+    let errorMessage: string | null = null;
     
+    // Count existing ERROR toasts before the operation
+    const initialErrorToastCount = await page.locator('.toast-error').count();
+
     // Click the delete button (trash icon) on the sub-tile
     const deleteButton = subTile.locator('.btn-icon-danger');
     await deleteButton.click();
@@ -327,32 +325,64 @@ export async function tryDeleteRoleFromAccount(page: Page, accountEmail: string,
     // Click confirm button in the confirmation dialog
     await confirmButton.click();
     
-    // Wait a bit for the backend call to complete and alert/success to happen
-    await Promise.race([
-        page.waitForEvent('dialog', { timeout: 2000 }).catch(() => null),
-        subTile.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => null)
-    ]);
-    
     console.log(`Checking for error after role deletion...`);
     
-    if (alertMessage) {
-        console.log(`✓ Error occurred: ${alertMessage}`);
-        return alertMessage;
-    }
+    // Use Playwright's expect().toPass() to poll for either condition
+    let result: string | null = null;
+    let iterationCount = 0;
     
-    // Check if role disappeared (success case)
-    const roleStillVisible = await subTile.isVisible().catch(() => false);
-    
-    console.log(`No alert appeared. Role still visible: ${roleStillVisible}`);
-    
-    if (!roleStillVisible) {
-        console.log(`✓ Role "${roleName}" was deleted successfully`);
+    try {
+        await expect(async () => {
+            iterationCount++;
+            
+            // Debug: Check all toasts on page
+            const allToasts = await page.locator('.toast').count();
+            const allToastErrors = await page.locator('.toast-error').count();
+            
+            if (iterationCount === 1 || iterationCount % 4 === 0) {
+                console.log(`[Role deletion - Iteration ${iterationCount}] All toasts: ${allToasts}, Error toasts: ${allToastErrors}`);
+            }
+            
+            // Check if a NEW error toast appeared (count increased)
+            if (allToastErrors > initialErrorToastCount) {
+                // Get all error toast messages and find the newest one
+                const allErrorMessages = await page.locator('.toast-error .toast-message').allTextContents();
+                result = allErrorMessages[allErrorMessages.length - 1]?.trim() || 'Unknown error';
+                console.log(`✓ Error toast appeared: ${result}`);
+                expect(true).toBe(true); // Pass the assertion
+                return;
+            }
+            
+            // Check if role disappeared (success case)
+            const roleStillVisible = await subTile.isVisible().catch(() => false);
+            if (!roleStillVisible) {
+                console.log(`✓ Role "${roleName}" was deleted successfully`);
+                result = null;
+                expect(true).toBe(true); // Pass the assertion
+                return;
+            }
+            
+            // Neither condition met yet, fail to continue polling
+            throw new Error('Still waiting for toast or role removal');
+        }).toPass({ timeout: 5000, intervals: [250] });
+    } catch (e) {
+        // Timeout - neither toast appeared nor role disappeared
+        console.log(`Timeout after ${iterationCount} iterations: No error toast and role still visible`);
+        
+        // Final debug check
+        const finalToastCount = await page.locator('.toast').count();
+        const finalErrorToastCount = await page.locator('.toast-error').count();
+        console.log(`Final state: ${finalToastCount} toasts, ${finalErrorToastCount} error toasts (started with ${initialErrorToastCount} error toasts)`);
+        
+        if (finalToastCount > 0) {
+            const toastMessages = await page.locator('.toast-message').allTextContents();
+            console.log(`Toast messages found: ${JSON.stringify(toastMessages)}`);
+        }
+        
         return null;
     }
     
-    // Role still visible but no error - unexpected state
-    console.log(`Unexpected state: role still visible but no alert`);
-    return null;
+    return result;
 }
 
 /**
@@ -378,35 +408,67 @@ export async function tryDeleteAccount(page: Page, accountEmail: string): Promis
     // Click the confirm button in the dialog
     await deleteAccountButton.click();
     
-    // Wait for either toast notification to appear or account to disappear (success)
-    await Promise.race([
-        page.locator('.toast-error').waitFor({ state: 'visible', timeout: 2000 }).catch(() => null),
-        accountTile.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => null)
-    ]);
-    
+    // Count existing ERROR toasts before the operation
+    const initialErrorToastCount = await page.locator('.toast-error').count();
+
     console.log(`Checking for error after account deletion...`);
     
-    // Check for error toast notification
-    const errorToast = page.locator('.toast-error');
-    const errorToastVisible = await errorToast.isVisible().catch(() => false);
+    // Use Playwright's expect().toPass() to poll for either condition
+    let result: string | null = null;
+    let iterationCount = 0;
     
-    if (errorToastVisible) {
-        const errorText = await errorToast.locator('.toast-message').textContent();
-        console.log(`✓ Error toast appeared: ${errorText}`);
-        return errorText?.trim() || 'Unknown error';
-    }
-    
-    // Check if account disappeared (success case)
-    const accountStillVisible = await accountTile.isVisible().catch(() => false);
-    
-    console.log(`No error toast appeared. Account still visible: ${accountStillVisible}`);
-    
-    if (!accountStillVisible) {
-        console.log(`✓ Account "${accountEmail}" was deleted successfully`);
+    try {
+        await expect(async () => {
+            iterationCount++;
+            
+            // Debug: Check all toasts on page
+            const allToasts = await page.locator('.toast').count();
+            const allToastErrors = await page.locator('.toast-error').count();
+            const toastContainer = await page.locator('.toast-container').count();
+            
+            if (iterationCount === 1 || iterationCount % 4 === 0) {
+                console.log(`[Iteration ${iterationCount}] Toast containers: ${toastContainer}, All toasts: ${allToasts}, Error toasts: ${allToastErrors}`);
+            }
+            
+            // Check if a NEW error toast appeared (count increased)
+            if (allToastErrors > initialErrorToastCount) {
+                // Get all error toast messages and find the newest one
+                const allErrorMessages = await page.locator('.toast-error .toast-message').allTextContents();
+                result = allErrorMessages[allErrorMessages.length - 1]?.trim() || 'Unknown error';
+                console.log(`✓ Error toast appeared: ${result}`);
+                expect(true).toBe(true); // Pass the assertion
+                return;
+            }
+            
+            // Check if account disappeared (success case)
+            const accountStillVisible = await accountTile.isVisible().catch(() => false);
+            if (!accountStillVisible) {
+                console.log(`✓ Account "${accountEmail}" was deleted successfully`);
+                result = null;
+                expect(true).toBe(true); // Pass the assertion
+                return;
+            }
+            
+            // Neither condition met yet, fail to continue polling
+            throw new Error('Still waiting for toast or account removal');
+        }).toPass({ timeout: 5000, intervals: [250] });
+    } catch (e) {
+        // Timeout - neither toast appeared nor account disappeared
+        console.log(`Timeout after ${iterationCount} iterations: No error toast and account still visible`);
+        
+        // Final debug check
+        const finalToastCount = await page.locator('.toast').count();
+        const finalErrorToastCount = await page.locator('.toast-error').count();
+        console.log(`Final state: ${finalToastCount} toasts, ${finalErrorToastCount} error toasts (started with ${initialErrorToastCount} error toasts)`);
+        
+        // Try to get any toast messages that exist
+        if (finalToastCount > 0) {
+            const toastMessages = await page.locator('.toast-message').allTextContents();
+            console.log(`Toast messages found: ${JSON.stringify(toastMessages)}`);
+        }
+        
         return null;
     }
     
-    // Account still visible but no error - unexpected state
-    console.log(`Unexpected state: account still visible but no error toast`);
-    return null;
+    return result;
 }

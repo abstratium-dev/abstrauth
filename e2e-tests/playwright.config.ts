@@ -94,7 +94,7 @@ export default defineConfig({
   webServer: process.env.BASE_URL ? {
     // When BASE_URL is set (Maven integration), start the built jar
     command: './start-e2e-server.sh',
-    url: 'http://localhost:8080/q/health/ready',
+    url: 'http://localhost:8080/m/health',
     reuseExistingServer: !process.env.CI,
     timeout: 12000,
     stdout: 'pipe',
