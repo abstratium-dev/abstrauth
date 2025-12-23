@@ -10,7 +10,7 @@
  in a test somewhere
 - `auth-callback.component.ts` should fetch the http only cookie from the server, since it cannot set it to http only itself. see `document.cookie` => actually simply make `POST /oauth2/token` return the cookie as http only and secure if prod
 - if native sign in is disabled, don't add the option to create an account with native sign in
-- make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_MANUAL.md](USER_MANUAL.md). once this has been supressed, describe it in the manual.
+- make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.
   - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
 - allow to disable sign in with native - needs a test
