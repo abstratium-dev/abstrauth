@@ -28,7 +28,7 @@ It coincidentally also uses itself as an authorization server for users signing 
 
 🔒 **Found a security vulnerability?** Please read our [Security Policy](SECURITY_POLICY.md) for responsible disclosure guidelines.
 
-For information about the security implementation and features, see [SECURITY.md](docs/SECURITY.md).
+For information about the security implementation and features, see [SECURITY.md](docs/security/SECURITY.md).
 
 ## Documentation
 
