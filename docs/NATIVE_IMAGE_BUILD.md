@@ -17,7 +17,7 @@ This script will:
 
 Then run the container (make sure to source your env file first: `source /w/abstratium-abstrauth.env`) as shown below, in order to test it. For a production deployment, see [../USER_GUIDE.md](USER_GUIDE.md).
 
-Note: The `latest` tag always refers to the most recently built and pushed image. You can also use a specific version tag (e.g., `ghcr.io/abstratium/abstrauth:20251223212503`).
+Note: The `latest` tag always refers to the most recently built and pushed image. You can also use a specific version tag (e.g., `ghcr.io/abstratium-dev/abstrauth:20251223212503`).
 
 ```bash
 docker run -it --rm \

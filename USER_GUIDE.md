@@ -74,7 +74,7 @@ Abstrauth uses RSA keys for signing and verifying JWT tokens. You need to genera
 
 1. **Pull the latest image** from GitHub Container Registry:
    ```bash
-   docker pull ghcr.io/abstratium/abstrauth:latest
+   docker pull ghcr.io/abstratium-dev/abstrauth:latest
    ```
 
 2. **Run the container**:
@@ -92,7 +92,7 @@ Abstrauth uses RSA keys for signing and verifying JWT tokens. You need to genera
      -e OAUTH_GOOGLE_CLIENT_ID="your_google_client_id" \
      -e OAUTH_GOOGLE_CLIENT_SECRET="your_google_client_secret" \
      -e ALLOW_SIGNUP="false" \
-     ghcr.io/abstratium/abstrauth:latest
+     ghcr.io/abstratium-dev/abstrauth:latest
    ```
 
 3. **Verify the container is running**:
