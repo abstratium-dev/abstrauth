@@ -85,3 +85,51 @@ export async function deleteClientsExcept(page: Page, keepClientId: string) {
     
     console.log("Finished deleting clients");
 }
+
+/**
+ * Deletes a specific client by ID if it exists.
+ * Assumes we're already on the clients page.
+ * Returns true if client was found and deleted, false otherwise.
+ */
+export async function deleteClientIfExists(page: Page, clientId: string): Promise<boolean> {
+    console.log(`Checking if client '${clientId}' exists...`);
+    
+    // Wait for clients to load
+    const cards = _getClientCards(page);
+    await cards.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {
+        console.log("No clients found on page");
+        return false;
+    });
+    
+    const count = await cards.count();
+    console.log(`Found ${count} client cards`);
+    
+    // Iterate through all cards to find the matching client
+    for (let i = 0; i < count; i++) {
+        const card = cards.nth(i);
+        const cardClientId = await card.getAttribute('data-client-id');
+        
+        if (cardClientId === clientId) {
+            console.log(`Found client '${clientId}', deleting...`);
+            
+            // Find and click the delete button (trash icon) for this client
+            const deleteButton = card.locator('.btn-icon-danger').first();
+            await deleteButton.click();
+            
+            // Wait for confirmation dialog and confirm
+            await page.waitForTimeout(500);
+            
+            // Click the confirm button in the dialog
+            await _getDeleteClientButton(page).click();
+            
+            // Wait for the client to be deleted and DOM to update
+            await page.waitForTimeout(1000);
+            
+            console.log(`✓ Deleted client '${clientId}'`);
+            return true;
+        }
+    }
+    
+    console.log(`✓ Client '${clientId}' does not exist`);
+    return false;
+}

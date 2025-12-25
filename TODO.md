@@ -2,8 +2,15 @@
 
 ## Today
 
-- i want the token to be in-memory in the browser. or in the http cookie, instead of the session. so the session should only be used for the login request.
 - `auth-callback.component.ts` should fetch the http only cookie from the server, since it cannot set it to http only itself. see `document.cookie` => actually simply make `POST /oauth2/token` return the cookie as http only and secure if prod
+see https://quarkus.io/guides/security-jwt#:~:text=issued%20at)%20time.-,mp.jwt.token.header,-Authorization
+
+# Tell Quarkus to look for JWT in Cookie header instead of Authorization
+mp.jwt.token.header=Cookie
+
+# Specify the cookie name containing the JWT
+mp.jwt.token.cookie=access_token
+
 - refactor all ErrorResponse classes into a common class with its own file
 - docs - describe how to run as a docker image
 - docs - link to native build and other docs

@@ -27,7 +27,7 @@ const app = express();
 const PORT = process.env.PORT || 3333;
 
 // Configuration - these should match your OAuth client registration
-const CLIENT_ID = process.env.CLIENT_ID || 'anapp-acomp';
+const CLIENT_ID = process.env.CLIENT_ID || 'test-oauth-client';
 const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3333';
 const AUTHORIZATION_ENDPOINT = process.env.AUTHORIZATION_ENDPOINT || 'http://localhost:8080/oauth2/authorize';
 const TOKEN_ENDPOINT = process.env.TOKEN_ENDPOINT || 'http://localhost:8080/oauth2/token';

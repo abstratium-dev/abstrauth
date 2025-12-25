@@ -165,8 +165,8 @@
             if (!response.ok) {
                 if (response.status === 401) {
                     // Not authenticated - initiate login
-                    loadingEl.textContent = 'Not authenticated. Redirecting to login...';
-                    setTimeout(initiateLogin, 1000);
+                    window.initiateLogin = initiateLogin;
+                    loadingEl.innerHTML = '<p>Not authenticated. Click to sign in.</p><button onclick="initiateLogin()">Sign In</button>';
                     return;
                 }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
