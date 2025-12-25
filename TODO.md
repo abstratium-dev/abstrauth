@@ -2,13 +2,14 @@
 
 ## Today
 
+- i want the token to be in-memory in the browser. or in the http cookie, instead of the session. so the session should only be used for the login request.
+- `auth-callback.component.ts` should fetch the http only cookie from the server, since it cannot set it to http only itself. see `document.cookie` => actually simply make `POST /oauth2/token` return the cookie as http only and secure if prod
 - refactor all ErrorResponse classes into a common class with its own file
 - docs - describe how to run as a docker image
 - docs - link to native build and other docs
 - improve branch coverage of ui
 - use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
  in a test somewhere
-- `auth-callback.component.ts` should fetch the http only cookie from the server, since it cannot set it to http only itself. see `document.cookie` => actually simply make `POST /oauth2/token` return the cookie as http only and secure if prod
 - if native sign in is disabled, don't add the option to create an account with native sign in
 - make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.

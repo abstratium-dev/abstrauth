@@ -245,3 +245,15 @@ The application uses several environment variables for configuration:
 - **`QUARKUS_MANAGEMENT_ENABLED`** - Enable management interface (default: `true`)
 - **`QUARKUS_MANAGEMENT_PORT`** - Management interface port (default: `9002`)
 
+## Integrating Abstrauth into Your Application
+
+See [client-example](client-example/README.md).
+
+### Additional Resources
+
+- [OAuth 2.0 Flows Documentation](docs/oauth/FLOWS.md)
+- [Federated Login Guide](docs/oauth/FEDERATED_LOGIN.md)
+- [Security Best Practices](docs/security/SECURITY.md)
+- [RFC 6749 - OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc6749)
+- [RFC 7636 - PKCE](https://datatracker.ietf.org/doc/html/rfc7636)
+

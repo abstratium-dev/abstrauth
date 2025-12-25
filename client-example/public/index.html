@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Example OAuth Client - Dashboard</title>
+  <style>
+    .info-row {
+      display: flex;
+      padding: 10px 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .info-label {
+      font-weight: 600;
+      min-width: 150px;
+    }
+
+    .info-value {
+      word-break: break-all;
+    }
+
+    .btn {
+      background-color: #667eea;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .error {
+      color: #721c24;
+    }
+
+    .feature-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .feature-list li {
+      padding: 10px 0;
+      padding-left: 30px;
+      position: relative;
+    }
+
+    .feature-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+    <div id="loading">
+      Loading user information...
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div id="content" style="display: none;">
+      <div>
+        <h2>User Information</h2>
+        <div class="info-row">
+          <div class="info-label">Name:</div>
+          <div class="info-value" id="user-name">-</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Email:</div>
+          <div class="info-value" id="user-email">-</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Subject (User ID):</div>
+          <div class="info-value" id="user-sub">-</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Groups:</div>
+          <div class="info-value" id="user-groups">-</div>
+        </div>
+      </div>
+
+      <h2>What Just Happened?</h2>
+      <ul class="feature-list">
+        <li><strong>PKCE Protection:</strong> Your client generated a code_verifier and code_challenge to prevent
+          authorization code interception attacks.</li>
+        <li><strong>State Validation:</strong> The state parameter was validated to prevent CSRF attacks.</li>
+        <li><strong>Secure Token Exchange:</strong> The authorization code was exchanged for an access token using the
+          code_verifier.</li>
+        <li><strong>JWT Access Token:</strong> A signed JWT that can be used to access protected
+          resources was received.</li>
+        <li><strong>User Claims:</strong> The JWT contains claims about the authenticated user (name, email, groups
+          (roles), etc.), shown above.</li>
+      </ul>
+
+      <div>
+        <button onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+
+</html>

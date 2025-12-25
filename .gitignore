@@ -45,7 +45,6 @@ nb-configuration.xml
 .certs/
 
 # Playwright
-e2e-tests/node_modules/
 e2e-tests/test-results/
 e2e-tests/playwright-report/
 e2e-tests/blob-report/
@@ -54,3 +53,4 @@ e2e-tests/playwright/.auth/
 
 .quinoa
 
+**/node_modules/
