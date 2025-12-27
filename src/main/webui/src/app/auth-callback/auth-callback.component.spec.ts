@@ -271,7 +271,7 @@ describe('AuthCallbackComponent - Email Mismatch Warning', () => {
       access_token: 'test-token',
       token_type: 'Bearer',
       expires_in: 3600,
-      refresh_token: 'test-refresh',
+      refresh_token: null,
       scope: 'openid'
     });
 
@@ -315,7 +315,7 @@ describe('AuthCallbackComponent - Email Mismatch Warning', () => {
       access_token: 'test-token',
       token_type: 'Bearer',
       expires_in: 3600,
-      refresh_token: 'test-refresh',
+      refresh_token: null,
       scope: 'openid'
     });
 
@@ -350,7 +350,7 @@ describe('AuthCallbackComponent - Email Mismatch Warning', () => {
       access_token: 'test-token',
       token_type: 'Bearer',
       expires_in: 3600,
-      refresh_token: 'test-refresh',
+      refresh_token: null,
       scope: 'openid'
     });
 
@@ -386,7 +386,7 @@ describe('AuthCallbackComponent - Email Mismatch Warning', () => {
       access_token: 'test-token',
       token_type: 'Bearer',
       expires_in: 3600,
-      refresh_token: 'test-refresh',
+      refresh_token: null,
       scope: 'openid'
     });
 

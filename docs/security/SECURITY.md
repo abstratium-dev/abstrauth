@@ -307,8 +307,8 @@ sequenceDiagram
    - Prevents code leakage to attacker's domain
 
 4. **SameSite Cookies**:
-   - Refresh tokens use `SameSite=Lax` attribute
-   - Prevents CSRF on token refresh endpoint
+   - Cookies use `SameSite=Strict` attribute
+   - Prevents CSRF
 
 ## Security Best Practices
 

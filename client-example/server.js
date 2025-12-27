@@ -138,19 +138,9 @@ app.post('/api/token', async (req, res) => {
         res.cookie('access_token', tokens.access_token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-            sameSite: 'lax',
+            sameSite: 'Strict',
             maxAge: tokens.expires_in * 1000 // Convert seconds to milliseconds
         });
-
-        // Optionally store refresh token in HTTP-only cookie
-        if (tokens.refresh_token) {
-            res.cookie('refresh_token', tokens.refresh_token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-            });
-        }
 
         // Return success (no token in response body)
         res.json({ success: true });
@@ -210,7 +200,6 @@ app.get('/api/user', (req, res) => {
  */
 app.post('/api/logout', (req, res) => {
     res.clearCookie('access_token');
-    res.clearCookie('refresh_token');
     res.json({ success: true });
 });
 

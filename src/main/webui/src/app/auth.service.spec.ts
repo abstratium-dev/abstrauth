@@ -134,9 +134,9 @@ describe('AuthService', () => {
       expect(service.isAuthenticated()).toBe(false);
     }));
 
-    it('should return false after refresh (current implementation)', () => {
+    it('should return false after reset', () => {
       service.setAccessToken(validJwt);
-      service.refreshToken();
+      service.resetToken();
       expect(service.isAuthenticated()).toBe(false);
     });
   });
@@ -246,21 +246,21 @@ describe('AuthService', () => {
     }));
   });
 
-  describe('Token Refresh', () => {
+  describe('Token Reset', () => {
     const validJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2Fic3RyYXV0aC5hYnN0cmF0aXVtLmRldiIsInN1YiI6InVzZXItMTIzIiwiZ3JvdXBzIjpbImFkbWluIl0sImVtYWlsIjoidGVzdEBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiVGVzdCBVc2VyIiwic2NvcGUiOiJvcGVuaWQiLCJpYXQiOjE2MDk0NTkyMDAsImV4cCI6MTYwOTU0NTYwMCwiY2xpZW50X2lkIjoidGVzdC1jbGllbnQiLCJqdGkiOiJqd3QtaWQtMTIzIiwidXBuIjoidGVzdEBleGFtcGxlLmNvbSJ9.signature';
 
-    it('should reset to anonymous on refresh (current implementation)', () => {
+    it('should reset to anonymous on reset', () => {
       service.setAccessToken(validJwt);
-      service.refreshToken();
+      service.resetToken();
 
       const token = service.getAccessToken();
       expect(token.email).toBe(ANONYMOUS.email);
       expect(token.isAuthenticated).toBe(false);
     });
 
-    it('should update token$ signal on refresh', () => {
+    it('should update token$ signal on reset', () => {
       service.setAccessToken(validJwt);
-      service.refreshToken();
+      service.resetToken();
 
       const token = service.token$();
       expect(token.isAuthenticated).toBe(false);

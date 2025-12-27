@@ -9,7 +9,7 @@ interface TokenResponse {
     access_token: string;
     token_type: string;
     expires_in: number;
-    refresh_token: string;
+    refresh_token: string; // always null since the client is public not confidential
     scope: string;
 }
 
@@ -89,12 +89,6 @@ export class AuthCallbackComponent implements OnInit {
         params.append('code_verifier', storedVerifier);
         this.http.post<TokenResponse>('/oauth2/token', params.toString(), { headers }).subscribe(
             (response: TokenResponse) => {
-                // set the refresh token as a cookie that expires in 1 day
-                // it should be http only, and secure if the current protocol is https
-                const cookie = response.refresh_token;
-                const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString();
-                document.cookie = `refresh_token=${cookie}; expires=${expires}; path=/; samesite=lax; ${window.location.protocol === 'https:' ? 'secure' : ''}`;
-
                 this.authService.setAccessToken(response.access_token);
 
                 // Check if password change is required (for native invite flow)

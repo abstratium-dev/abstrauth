@@ -201,7 +201,7 @@ Your application has **defense in depth** with multiple layers of CSRF protectio
 - Prevents code leakage to attacker's domain
 
 ### 5. SameSite Cookies ✅
-- Refresh tokens use `SameSite=Lax` attribute
+- Refresh tokens use `SameSite=Strict` attribute
 - Prevents CSRF on token refresh endpoint
 
 ## Security Checklist

@@ -49,6 +49,8 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "OAuth 2.0 Token", description = "OAuth 2.0 Token management endpoints")
 public class TokenResource {
 
+    public static final int ACCESS_TOKEN_TIMEOUT = 900; // 15 minutes
+
     @Inject
     AuthorizationService authorizationService;
 
@@ -300,8 +302,12 @@ public class TokenResource {
         TokenResponse response = new TokenResponse();
         response.access_token = accessToken;
         response.token_type = "Bearer";
-        response.expires_in = 3600; // 1 hour
+        response.expires_in = ACCESS_TOKEN_TIMEOUT;
         response.scope = authCode.getScope();
+        // TODO only allow confidential clients to have refresh tokens, never allow SPAs to have them as they can be used for continuous access
+        // TODO later when we support refresh tokens:
+        // response.refresh_token = generateRefreshToken(account, authCode.getScope(), clientId);
+        // the refresh token should be an http only cookie, with path set to the url used to refresh, so that it can only be used then
 
         return Response.ok(response).build();
     }
@@ -333,7 +339,7 @@ public class TokenResource {
 
     private String generateAccessToken(Account account, String scope, String clientId, String authMethod) {
         Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(3600); // 1 hour
+        Instant expiresAt = now.plusSeconds(ACCESS_TOKEN_TIMEOUT);
 
         // Generate unique JTI (JWT ID) for token revocation support
         String jti = UUID.randomUUID().toString();

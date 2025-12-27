@@ -54,7 +54,7 @@ export class AuthService {
 
     token$ = signal<Token>(ANONYMOUS);
     private token = ANONYMOUS;
-    private jwt = '';
+    private jwt = ''; // ok to keep in memory: https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26#name-in-memory-token-storage
     private routeBeforeSignIn = defaultRoute;
     private currentUrl: string = defaultRoute;
 
@@ -99,15 +99,15 @@ export class AuthService {
         this.token.isAuthenticated = true;
         this.token$.set(this.token);
 
-        // set a timer to refresh the token, 5 mins before expiry
+        // set a timer to reset the token, 1 min before expiry
         let now = Date.now();
         let expiry = new Date(this.token.exp * 1000);
         let millisUntilExpiry = expiry.getTime() - now;
-        let fiveMinsLessThanMillisUntilExpiry = Math.max(0, millisUntilExpiry - (5 * 60 * 1000));
-        console.debug("refreshing in ", fiveMinsLessThanMillisUntilExpiry, "ms")
+        let oneMinLessThanMillisUntilExpiry = Math.max(0, millisUntilExpiry - (1 * 60 * 1000));
+        console.debug("resetting in ", oneMinLessThanMillisUntilExpiry, "ms")
         setTimeout(() => {
-            this.refreshToken();
-        }, fiveMinsLessThanMillisUntilExpiry);
+            this.resetToken();
+        }, oneMinLessThanMillisUntilExpiry);
     }
 
     getJwt() {
@@ -143,9 +143,7 @@ export class AuthService {
         return this.token.exp < Date.now() + 60 * 60 * 1000;
     }
 
-    refreshToken() {
-        // TODO actually refresh it using the refresh token
-        // for the time being, set it to anon
+    resetToken() {
         this.token = ANONYMOUS;
         this.token.isAuthenticated = false;
         this.token$.set(this.token);

@@ -37,6 +37,7 @@ For information about the security implementation and features, see [SECURITY.md
 - [Federated Login](docs/oauth/FEDERATED_LOGIN.md)
 - [Database](docs/DATABASE.md)
 - [Native Image Build](docs/NATIVE_IMAGE_BUILD.md)
+- [Why do I need to implement a BFF?](decisions/BFF.md)
 
 ## Running the Application
 

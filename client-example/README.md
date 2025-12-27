@@ -192,7 +192,7 @@ If an attacker tricks a user into visiting a malicious callback URL, the state v
 
 - Access token is stored in an **HTTP-only cookie** (not accessible to JavaScript)
 - Protects against XSS attacks (even if XSS vulnerability exists, token cannot be stolen)
-- Cookie has `sameSite=lax` for CSRF protection
+- Cookie has `sameSite=Strict` for CSRF protection
 - Cookie has `secure=true` in production (HTTPS only)
 - Server is **completely stateless** - no sessions, no in-memory storage
 
@@ -221,7 +221,7 @@ This example uses a **hybrid architecture**: browser-side OAuth flow with server
 1. **XSS Protection**: Even if XSS vulnerability exists, JavaScript cannot access HTTP-only cookies
 2. **Equivalent to session-based**: Cookie gives access to server, which uses token - same security as session ID
 3. **Stateless server**: No server-side sessions needed, server remains stateless
-4. **CSRF Protection**: `sameSite=lax` prevents CSRF attacks
+4. **CSRF Protection**: `sameSite=Strict` prevents CSRF attacks
 5. **HTTPS in production**: `secure=true` ensures cookie only sent over HTTPS
 
 #### ✅ PKCE Security
@@ -256,7 +256,7 @@ The `state` parameter prevents Cross-Site Request Forgery attacks.
 2. **Same-origin**: `sessionStorage` is isolated per origin
 3. **Validated immediately**: State is checked and cleared in callback
 4. **XSS risk is minimal**: Even if XSS exists, attacker would need to intercept the exact moment of OAuth callback
-5. **Additional protection**: HTTP-only cookie with `sameSite=lax` provides defense in depth
+5. **Additional protection**: HTTP-only cookie with `sameSite=Strict` provides defense in depth
 
 #### ✅ Token Storage Compliance
 
@@ -274,7 +274,7 @@ The `state` parameter prevents Cross-Site Request Forgery attacks.
 res.cookie('access_token', tokens.access_token, {
     httpOnly: true,  // ← Not accessible to JavaScript
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: tokens.expires_in * 1000
 });
 

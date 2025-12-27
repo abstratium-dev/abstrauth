@@ -2,6 +2,28 @@
 
 ## Today
 
+- describe the cpu/memory/etc. footprint in README.md
+
+
+https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26#section-6.3.4.3 :
+This architecture is not recommended for business applications, sensitive applications, and applications that handle personal data.
+
+
+=> we need a BFF
+
+    Wait, I just realised something. When the authorization server responds to the consent request, it redirects the browser back to my application using http 302. the url contains the code and state. the browser then makes the request to the application server. 
+
+    so in all cases, the browser has the code and state.
+
+    are you saying that it is still safer for the bff to do the token exchange than it is for the client to do it, because if javascript were say injected by a dependency, that javascript would have access to the code and state. but in the case of using a bff, the browser doesn't have access to things like the code verifier and will never see the token, so it is safer for that reason?
+
+
+make the abstrauth client create a session. document the decision. state that it is more correct to create a session, rather than push the token into the client.  or at least have an api that turns the token that is received, into a cookie.
+
+update the client example to use the cookie instead of leaking the token to the ui. or is that already done?
+
+update arch decisions for BFFs, if i decide that the token can be a cookie.
+
 - `auth-callback.component.ts` should fetch the http only cookie from the server, since it cannot set it to http only itself. see `document.cookie` => actually simply make `POST /oauth2/token` return the cookie as http only and secure if prod
 see https://quarkus.io/guides/security-jwt#:~:text=issued%20at)%20time.-,mp.jwt.token.header,-Authorization
 
@@ -11,6 +33,7 @@ mp.jwt.token.header=Cookie
 # Specify the cookie name containing the JWT
 mp.jwt.token.cookie=access_token
 
+- use https://quarkus.io/guides/security-oidc-code-flow-authentication#proof-key-for-code-exchange-pkce for other applications - see pkce section. 
 - refactor all ErrorResponse classes into a common class with its own file
 - docs - describe how to run as a docker image
 - docs - link to native build and other docs
@@ -30,6 +53,9 @@ mp.jwt.token.cookie=access_token
 
 ## Tomorrow
 
+- csrf cookie for normal use? gitea seems to have one
+- track ip address and browser info. if a new sign in is detected, inform the user via email
+- MFA
 - telemetry
 - audit logs
 - scheduler to clear out old authorization requests and authorization codes
@@ -78,7 +104,7 @@ mp.jwt.token.cookie=access_token
 - GDPR - allow user to delete all of their data
 - add microsoft login
 - add github login
-- add using refresh tokens
+- add using refresh tokens but only for confidential clients
 - add a nonce (number used once) to the authorization request
 - add "realms" which are used to create multitenancy in a single instance of abstrauth
 - make issuer depend on redirect url?
