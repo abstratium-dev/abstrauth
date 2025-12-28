@@ -1,24 +1,30 @@
 /**
- * Example OAuth 2.0 Client Application (Stateless)
+ * Example OAuth 2.0 Client Application (Backend For Frontend Pattern)
  * 
  * This server demonstrates how to integrate with the Abstrauth authorization server
- * using the Authorization Code Flow with PKCE (Proof Key for Code Exchange).
+ * using the Backend For Frontend (BFF) pattern with Authorization Code Flow + PKCE.
  * 
- * Flow:
+ * BFF Pattern Flow:
  * 1. User visits / - Browser loads SPA
- * 2. Browser generates PKCE parameters (code_verifier, state) and stores in sessionStorage
- * 3. Browser redirects to authorization server with code_challenge
- * 4. User authenticates and grants consent
- * 5. Authorization server redirects back to / with authorization code
- * 6. Browser sends code + code_verifier to server /api/token endpoint
- * 7. Server exchanges code for access token and returns it in HTTP-only cookie
- * 8. Browser can now call /api/user with cookie to get user info
+ * 2. SPA redirects to /oauth/login to initiate OAuth flow
+ * 3. BFF generates PKCE parameters (code_verifier, state) and stores in server session
+ * 4. BFF redirects browser to authorization server with code_challenge
+ * 5. User authenticates and grants consent at authorization server
+ * 6. Authorization server redirects back to /oauth/callback with authorization code
+ * 7. BFF exchanges code + code_verifier + client_secret for access token
+ * 8. BFF stores access token in encrypted HTTP-only cookie
+ * 9. BFF redirects browser to / (home page)
+ * 10. Browser can now call /api/user with cookie to get user info
  * 
- * IMPORTANT: This server is STATELESS - no sessions, no in-memory storage.
- * The access token is stored in an HTTP-only cookie for security.
+ * IMPORTANT: This is a CONFIDENTIAL CLIENT using the BFF pattern.
+ * - PKCE parameters generated and stored by the backend (not browser)
+ * - client_secret used in token exchange
+ * - Tokens stored in encrypted HTTP-only cookies (never exposed to JavaScript)
+ * - Session storage used for PKCE parameters during OAuth flow
  */
 
 const express = require('express');
+const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 const path = require('path');
@@ -27,11 +33,26 @@ const app = express();
 const PORT = process.env.PORT || 3333;
 
 // Configuration - these should match your OAuth client registration
-const CLIENT_ID = process.env.CLIENT_ID || 'test-oauth-client';
-const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3333';
+const CLIENT_ID = process.env.CLIENT_ID || 'abstratium-abstrauth';
+const CLIENT_SECRET = process.env.CLIENT_SECRET || 'dev-secret-CHANGE-IN-PROD';
+const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3333/oauth/callback';
 const AUTHORIZATION_ENDPOINT = process.env.AUTHORIZATION_ENDPOINT || 'http://localhost:8080/oauth2/authorize';
 const TOKEN_ENDPOINT = process.env.TOKEN_ENDPOINT || 'http://localhost:8080/oauth2/token';
 const SCOPE = process.env.SCOPE || 'openid profile email';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-session-secret-CHANGE-IN-PROD';
+const COOKIE_SECRET = process.env.COOKIE_SECRET || 'dev-cookie-secret-CHANGE-IN-PROD';
+
+// Session middleware for storing PKCE parameters during OAuth flow
+app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 10 * 60 * 1000 // 10 minutes
+    }
+}));
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
@@ -60,6 +81,48 @@ function base64URLEncode(buffer) {
 }
 
 /**
+ * Encrypt token using AES-256-GCM
+ * @param {string} token - Token to encrypt
+ * @returns {string} Encrypted token (base64)
+ */
+function encryptToken(token) {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(COOKIE_SECRET.padEnd(32, '0').substring(0, 32)), iv);
+    
+    let encrypted = cipher.update(token, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+    
+    const authTag = cipher.getAuthTag();
+    
+    // Return: iv + authTag + encrypted (all base64)
+    return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
+}
+
+/**
+ * Decrypt token using AES-256-GCM
+ * @param {string} encryptedToken - Encrypted token (base64)
+ * @returns {string} Decrypted token
+ */
+function decryptToken(encryptedToken) {
+    const parts = encryptedToken.split(':');
+    if (parts.length !== 3) {
+        throw new Error('Invalid encrypted token format');
+    }
+    
+    const iv = Buffer.from(parts[0], 'base64');
+    const authTag = Buffer.from(parts[1], 'base64');
+    const encrypted = parts[2];
+    
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(COOKIE_SECRET.padEnd(32, '0').substring(0, 32)), iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encrypted, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+}
+
+/**
  * Generate PKCE code challenge from code verifier
  * @param {string} codeVerifier - The code verifier
  * @returns {string} Base64URL-encoded SHA256 hash
@@ -71,35 +134,71 @@ function generateCodeChallenge(codeVerifier) {
 
 /**
  * Home page - serves index.html page
- * The browser handles OAuth flow client-side
+ * The BFF handles OAuth flow server-side
  */
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 /**
- * OAuth configuration endpoint
- * Returns configuration for browser-based OAuth flow
+ * OAuth login initiation endpoint
+ * BFF generates PKCE parameters and redirects to authorization server
  */
-app.get('/api/oauth-config', (req, res) => {
-    res.json({
-        client_id: CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
-        authorization_endpoint: AUTHORIZATION_ENDPOINT,
-        scope: SCOPE
-    });
+app.get('/oauth/login', (req, res) => {
+    // Generate PKCE parameters
+    const codeVerifier = generateRandomString(32);
+    const codeChallenge = generateCodeChallenge(codeVerifier);
+    const state = generateRandomString(16);
+
+    // Store PKCE parameters in session (server-side)
+    req.session.codeVerifier = codeVerifier;
+    req.session.state = state;
+
+    console.log('Generated PKCE parameters:', { codeVerifier, codeChallenge, state });
+
+    // Build authorization URL
+    const authUrl = new URL(AUTHORIZATION_ENDPOINT);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('client_id', CLIENT_ID);
+    authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
+    authUrl.searchParams.set('scope', SCOPE);
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+
+    console.log('Redirecting to authorization endpoint:', authUrl.toString());
+
+    // Redirect to authorization server
+    res.redirect(authUrl.toString());
 });
 
 /**
- * Token exchange endpoint
- * Browser sends authorization code + code_verifier, server exchanges for token
- * and returns it in an HTTP-only cookie
+ * OAuth callback endpoint
+ * Authorization server redirects here with authorization code
+ * BFF exchanges code for token using PKCE + client_secret
  */
-app.post('/api/token', async (req, res) => {
-    const { code, code_verifier } = req.body;
+app.get('/oauth/callback', async (req, res) => {
+    const { code, state, error, error_description } = req.query;
 
-    if (!code || !code_verifier) {
-        return res.status(400).json({ error: 'Missing code or code_verifier' });
+    // Handle authorization errors
+    if (error) {
+        console.error('Authorization error:', error, error_description);
+        return res.redirect(`/?error=${error}&error_description=${encodeURIComponent(error_description || '')}`);
+    }
+
+    if (!code || !state) {
+        return res.redirect('/?error=invalid_callback&error_description=Missing+code+or+state');
+    }
+
+    // Validate state parameter (CSRF protection)
+    if (state !== req.session.state) {
+        console.error('State mismatch:', { received: state, expected: req.session.state });
+        return res.redirect('/?error=invalid_state&error_description=CSRF+validation+failed');
+    }
+
+    const codeVerifier = req.session.codeVerifier;
+    if (!codeVerifier) {
+        return res.redirect('/?error=missing_verifier&error_description=PKCE+verifier+not+found');
     }
 
     try {
@@ -109,7 +208,8 @@ app.post('/api/token', async (req, res) => {
             code: code,
             redirect_uri: REDIRECT_URI,
             client_id: CLIENT_ID,
-            code_verifier: code_verifier
+            client_secret: CLIENT_SECRET, // Confidential client authentication
+            code_verifier: codeVerifier // PKCE verification
         });
 
         console.log('Exchanging code for token at:', TOKEN_ENDPOINT);
@@ -125,46 +225,50 @@ app.post('/api/token', async (req, res) => {
         if (!tokenResponse.ok) {
             const errorText = await tokenResponse.text();
             console.error('Token exchange failed:', tokenResponse.status, errorText);
-            return res.status(tokenResponse.status).json({ 
-                error: 'token_exchange_failed',
-                error_description: errorText 
-            });
+            return res.redirect(`/?error=token_exchange_failed&error_description=${encodeURIComponent(errorText)}`);
         }
 
         const tokens = await tokenResponse.json();
         console.log('Successfully obtained tokens');
 
-        // Store access token in HTTP-only cookie
-        res.cookie('access_token', tokens.access_token, {
+        // Encrypt token before storing in cookie
+        const encryptedToken = encryptToken(tokens.access_token);
+
+        // Store encrypted access token in HTTP-only cookie
+        res.cookie('access_token', encryptedToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'Strict',
-            maxAge: tokens.expires_in * 1000 // Convert seconds to milliseconds
+            maxAge: tokens.expires_in * 1000
         });
 
-        // Return success (no token in response body)
-        res.json({ success: true });
+        // Clear session data (no longer needed)
+        delete req.session.codeVerifier;
+        delete req.session.state;
+
+        // Redirect to home page
+        res.redirect('/');
     } catch (error) {
         console.error('Error during token exchange:', error);
-        res.status(500).json({ 
-            error: 'server_error',
-            error_description: error.message 
-        });
+        res.redirect(`/?error=server_error&error_description=${encodeURIComponent(error.message)}`);
     }
 });
 
 /**
  * API endpoint to get current user info
- * Reads access token from HTTP-only cookie and parses JWT claims
+ * Reads encrypted access token from HTTP-only cookie, decrypts it, and parses JWT claims
  */
 app.get('/api/user', (req, res) => {
-    const accessToken = req.cookies.access_token;
+    const encryptedToken = req.cookies.access_token;
 
-    if (!accessToken) {
+    if (!encryptedToken) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
     try {
+        // Decrypt token
+        const accessToken = decryptToken(encryptedToken);
+
         // Parse JWT to get user info (for demo purposes - in production, validate signature)
         const tokenParts = accessToken.split('.');
         if (tokenParts.length !== 3) {
@@ -179,7 +283,7 @@ app.get('/api/user', (req, res) => {
             return res.status(401).json({ error: 'Token expired' });
         }
 
-        // Return user info from JWT claims
+        // Return user info from JWT claims (payload only, no signature)
         res.json({
             user: {
                 sub: payload.sub,
@@ -190,6 +294,7 @@ app.get('/api/user', (req, res) => {
         });
     } catch (error) {
         console.error('Error parsing token:', error);
+        res.clearCookie('access_token');
         res.status(401).json({ error: 'Invalid token' });
     }
 });

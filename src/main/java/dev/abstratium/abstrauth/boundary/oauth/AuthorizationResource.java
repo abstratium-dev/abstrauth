@@ -145,6 +145,17 @@ public class AuthorizationResource {
 
         OAuthClient client = clientOpt.get();
 
+        // Enforce BFF pattern: Only confidential clients are supported
+        if (!"confidential".equals(client.getClientType())) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error: BFF Pattern Required</h1>" +
+                            "<p>This authorization server only supports confidential clients using the Backend For Frontend (BFF) pattern.</p>" +
+                            "<p>Public clients (SPAs handling tokens directly) are not supported for security reasons.</p>" +
+                            "<p>See <a href='https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26#section-6.1'>OAuth 2.0 for Browser-Based Apps</a> for details.</p>" +
+                            "</body></html>")
+                    .build();
+        }
+
         // Validate redirect_uri
         if (redirectUri == null || redirectUri.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -164,10 +175,10 @@ public class AuthorizationResource {
                     "Requested scope is not allowed", state);
         }
 
-        // Validate PKCE if required
-        if (client.getRequirePkce() && (codeChallenge == null || codeChallenge.isBlank())) {
+        // Enforce PKCE: Required for all clients (BFF pattern)
+        if (codeChallenge == null || codeChallenge.isBlank()) {
             return buildErrorRedirect(redirectUri, "invalid_request", 
-                    "code_challenge is required for this client", state);
+                    "code_challenge is required - this server only supports PKCE (RFC 7636)", state);
         }
 
         if (codeChallenge != null && (codeChallengeMethod == null || codeChallengeMethod.isBlank())) {

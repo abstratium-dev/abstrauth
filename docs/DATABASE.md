@@ -49,10 +49,11 @@ erDiagram
         VARCHAR(36) id PK "UUID primary key"
         VARCHAR(255) client_id UK "Unique client identifier"
         VARCHAR(255) client_name "Human-readable client name"
-        VARCHAR(20) client_type "public or confidential"
+        VARCHAR(20) client_type "confidential (BFF pattern required)"
+        VARCHAR(255) client_secret_hash "BCrypt hash of client secret"
         VARCHAR(5000) redirect_uris "JSON array of allowed URIs"
         VARCHAR(5000) allowed_scopes "JSON array of scopes"
-        BOOLEAN require_pkce "PKCE requirement flag"
+        BOOLEAN require_pkce "PKCE requirement flag (always true)"
         TIMESTAMP created_at "Client sign up timestamp"
     }
 
@@ -132,21 +133,30 @@ The `T_credentials` table stores authentication credentials for user accounts. I
 
 The `T_oauth_clients` table stores registered OAuth 2.0 client applications that can request authorization.
 
+**Important:** This authorization server **only supports confidential clients** using the Backend For Frontend (BFF) pattern. Public clients (SPAs handling tokens directly) are rejected for security reasons.
+
 **Key Features:**
-- Supports both public (SPA, mobile) and confidential (server-side) clients
+- All clients MUST be confidential (BFF pattern required)
+- Stores BCrypt-hashed client secrets for authentication
 - Stores redirect URIs as JSON array for validation
 - Stores allowed scopes as JSON array for authorization
-- PKCE can be enforced per client
+- PKCE is REQUIRED for all clients (enforced at authorization endpoint)
 
 **Client Types:**
-- `public`: Clients that cannot securely store secrets (SPAs, mobile apps)
-- `confidential`: Clients that can securely store secrets (server applications)
+- `confidential`: Clients that can securely store secrets (BFF backends, server applications)
+- ~~`public`~~: **NOT SUPPORTED** - Public clients are rejected at authorization time
+
+**Security Requirements:**
+- `client_secret_hash`: BCrypt hash of the client secret (REQUIRED)
+- `require_pkce`: Must be `true` (PKCE enforced for all requests)
+- `client_type`: Must be `confidential`
 
 **Constraints:**
 - `I_oauth_clients_client_id`: Unique index on client_id
 
 **Default Data:**
-- A test SPA client is pre-configured for development (see V01.006 migration)
+- The default client `abstratium-abstrauth` is configured as confidential (see V01.010 migration)
+- Client secret must be set via environment variable `ABSTRAUTH_CLIENT_SECRET`
 
 ### T_authorization_requests
 
@@ -333,11 +343,11 @@ GROUP BY client_id, status;
 
 - **V01.001**: Create T_accounts table
 - **V01.002**: Create T_credentials table with FK to T_accounts
-- **V01.003**: Create T_oauth_clients table
+- **V01.003**: Create T_oauth_clients table (with client_secret_hash column)
 - **V01.004**: Create T_authorization_requests table
 - **V01.005**: Create T_authorization_codes table with FKs
 - **V01.006**: Insert default test client for development
 - **V01.007**: Create T_account_roles table for role-based access control
 - **V01.008**: Add picture and auth_provider columns to T_accounts
 - **V01.009**: Create T_federated_identities table for federated login
-- **V01.010**: Add auth_method column to T_authorization_requests
+- **V01.010**: Update default client to confidential with client_secret_hash (BFF pattern)

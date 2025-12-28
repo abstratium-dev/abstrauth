@@ -1,6 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { NavigationEnd, Router } from '@angular/router';
-import { filter } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
+import { catchError, filter, map, tap } from 'rxjs/operators';
 import { CLIENT_ID } from './authorize/authorize.component';
 
 export const ISSUER = 'https://abstrauth.abstratium.dev';
@@ -10,7 +12,7 @@ export const ROLE_MANAGE_ACCOUNTS = 'abstratium-abstrauth_manage-accounts';
 
 const LOCALSTORAGE_KEY_ROUTE_BEFORE_SIGN_IN = 'routeBeforeSignIn';
 const defaultRoute = '/accounts';
-const ignoredRoutes = ['/signout', '/signin', '/signup', '/auth-callback', '/authorize'];
+const ignoredRoutes = ['/signout', '/signin', '/signup', '/authorize'];
 
 export interface Token {
     iss: string;
@@ -51,12 +53,13 @@ export const ANONYMOUS: Token = {
 })
 export class AuthService {
     private router = inject(Router);
+    private http = inject(HttpClient);
 
     token$ = signal<Token>(ANONYMOUS);
     private token = ANONYMOUS;
-    private jwt = ''; // ok to keep in memory: https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26#name-in-memory-token-storage
     private routeBeforeSignIn = defaultRoute;
     private currentUrl: string = defaultRoute;
+    private initialized = false;
 
     constructor() {
         this.routeBeforeSignIn = localStorage.getItem(LOCALSTORAGE_KEY_ROUTE_BEFORE_SIGN_IN) || defaultRoute;
@@ -81,37 +84,55 @@ export class AuthService {
         return this.routeBeforeSignIn;
     }
 
-    getAccessToken() {
-        return this.token;
+    /**
+     * Initialize auth service by loading user info from backend.
+     * Called by APP_INITIALIZER before app starts.
+     * 
+     * If user is authenticated (has OIDC session), loads their info.
+     * If not authenticated, sets ANONYMOUS token.
+     */
+    initialize(): Observable<void> {
+        if (this.initialized) {
+            return of(void 0);
+        }
+
+        return this.http.get<Token>('/api/userinfo').pipe(
+            tap(token => {
+                this.token = token;
+                this.token$.set(token);
+                this.initialized = true;
+                this.setupTokenExpiryTimer(token.exp);
+            }),
+            catchError(() => {
+                // Not authenticated - use ANONYMOUS token
+                this.token = ANONYMOUS;
+                this.token$.set(ANONYMOUS);
+                this.initialized = true;
+                return of(ANONYMOUS);
+            }),
+            map(() => void 0)
+        );
     }
 
-    setAccessToken(jwt: string) {
 
-        this.jwt = jwt;
-
-        // convert jwt to token
-        var base64Url = jwt.split('.')[1];
-        var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        this.token = JSON.parse(jsonPayload);
-        this.token.isAuthenticated = true;
-        this.token$.set(this.token);
-
-        // set a timer to reset the token, 1 min before expiry
-        let now = Date.now();
-        let expiry = new Date(this.token.exp * 1000);
-        let millisUntilExpiry = expiry.getTime() - now;
-        let oneMinLessThanMillisUntilExpiry = Math.max(0, millisUntilExpiry - (1 * 60 * 1000));
-        console.debug("resetting in ", oneMinLessThanMillisUntilExpiry, "ms")
+    /**
+     * Setup timer to reset token 1 minute before expiry.
+     */
+    private setupTokenExpiryTimer(exp: number): void {
+        const now = Date.now();
+        const expiry = new Date(exp * 1000);
+        const millisUntilExpiry = expiry.getTime() - now;
+        const oneMinLessThanMillisUntilExpiry = Math.max(0, millisUntilExpiry - (1 * 60 * 1000));
+        
+        console.debug("Token expires in", millisUntilExpiry, "ms, resetting in", oneMinLessThanMillisUntilExpiry, "ms");
+        
         setTimeout(() => {
             this.resetToken();
         }, oneMinLessThanMillisUntilExpiry);
     }
 
-    getJwt() {
-        return this.jwt;
+    getAccessToken() {
+        return this.token;
     }
 
     getEmail() {
@@ -152,17 +173,9 @@ export class AuthService {
     signout() {
         this.setRouteBeforeSignIn(this.currentUrl);
 
-        // TODO call back end, except... it's stateless so there is no point
-
-        // Defer token update to avoid ExpressionChangedAfterItHasBeenCheckedError
-        // This ensures the signal update happens after the current change detection cycle
-        setTimeout(() => {
-            this.token = ANONYMOUS;
-            this.token.isAuthenticated = false;
-            this.token$.set(this.token);
-
-            this.router.navigate(['/']);
-        }, 0);
+        // Call OIDC logout endpoint which clears HTTP-only cookies
+        // and redirects to / (configured in application.properties)
+        window.location.href = '/api/auth/logout';
     }
 
     hasRole(role: string): boolean {

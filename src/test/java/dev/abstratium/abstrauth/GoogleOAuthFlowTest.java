@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @QuarkusTest
 public class GoogleOAuthFlowTest {
 
+    private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
     private static WireMockServer wireMockServer;
 
     @BeforeAll
@@ -132,6 +133,7 @@ public class GoogleOAuthFlowTest {
                 .formParam("code", authCode)
                 .formParam("redirect_uri", "http://localhost:4200/auth-callback")
                 .formParam("client_id", "abstratium-abstrauth")
+                .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
                 .when()
                 .post("/oauth2/token");
@@ -141,7 +143,7 @@ public class GoogleOAuthFlowTest {
         tokenResponse.then()
                 .body("access_token", notNullValue())
                 .body("token_type", is("Bearer"))
-                .body("expires_in", is(3600));
+                .body("expires_in", is(900));
 
         // Verify WireMock was called
         verify(postRequestedFor(urlEqualTo("/oauth2/v4/token")));

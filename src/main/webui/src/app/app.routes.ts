@@ -4,7 +4,6 @@ import { NotFoundComponent } from './not-found/not-found.component';
 import { HomeComponent } from './home/home.component';
 import { SigninComponent } from './signin/signin.component';
 import { SignoutComponent } from './signout/signout.component';
-import { AuthCallbackComponent } from './auth-callback/auth-callback.component';
 import { SignupComponent } from './signup/signup.component';
 import { AuthorizeComponent } from './authorize/authorize.component';
 import { ClientsComponent } from './clients/clients.component';
@@ -20,7 +19,6 @@ export const routes: Routes = [
   { path: 'signin-after-invite',   component: SigninAfterInviteComponent },
   { path: 'signout',   component: SignoutComponent },
   { path: 'signup',   component: SignupComponent },
-  { path: 'auth-callback',   component: AuthCallbackComponent },
   { path: 'change-password',   component: ChangePasswordComponent, canActivate: [authGuard] },
   { path: 'clients',  component: ClientsComponent, canActivate: [authGuard] },
   { path: 'accounts', component: AccountsComponent, canActivate: [authGuard] },

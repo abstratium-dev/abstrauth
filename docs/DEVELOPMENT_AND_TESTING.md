@@ -40,33 +40,37 @@ The application uses a MySQL database. It expects a database to be running at `l
 
 Create the container, the database and user for abstrauth:
 
-    docker run -d \
-        --restart unless-stopped \
-        --name abstratium-mysql \
-        --network abstratium \
-        -e MYSQL_ROOT_PASSWORD=secret \
-        -p 127.0.0.1:41040:3306 \
-        -v /shared2/mysql-abstratium/:/var/lib/mysql:rw \
-        mysql:9.3
+```bash
+docker run -d \
+    --restart unless-stopped \
+    --name abstratium-mysql \
+    --network abstratium \
+    -e MYSQL_ROOT_PASSWORD=secret \
+    -p 127.0.0.1:41040:3306 \
+    -v /shared2/mysql-abstratium/:/var/lib/mysql:rw \
+    mysql:9.3
 
-    # create the database and user for abstrauth
-    docker run -it --rm --network abstratium mysql mysql -h abstratium-mysql --port 3306 -u root -psecret
+# create the database and user for abstrauth
+docker run -it --rm --network abstratium mysql mysql -h abstratium-mysql --port 3306 -u root -psecret
 
-    DROP USER IF EXISTS 'abstrauth'@'%';
 
-    CREATE USER 'abstrauth'@'%' IDENTIFIED BY 'secret';
+DROP USER IF EXISTS 'abstrauth'@'%';
 
-    DROP DATABASE IF EXISTS abstrauth;
+CREATE USER 'abstrauth'@'%' IDENTIFIED BY 'secret';
 
-    CREATE DATABASE abstrauth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-    GRANT ALL PRIVILEGES ON abstrauth.* TO abstrauth@'%'; -- on own database
+DROP DATABASE IF EXISTS abstrauth;
 
-    FLUSH PRIVILEGES;
+CREATE DATABASE abstrauth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON abstrauth.* TO abstrauth@'%'; -- on own database
+
+FLUSH PRIVILEGES;
+```
 
 exit, then reconnect using the abstrauth user:
 
-    docker run -it --network abstratium --rm mysql mysql -h abstratium-mysql --port 3306 -u abstrauth -psecret abstrauth
-
+```bash
+docker run -it --network abstratium --rm mysql mysql -h abstratium-mysql --port 3306 -u abstrauth -psecret abstrauth
+```
 
 # Testing
 

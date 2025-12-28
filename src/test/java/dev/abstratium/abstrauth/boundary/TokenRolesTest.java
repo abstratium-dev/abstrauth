@@ -39,6 +39,7 @@ public class TokenRolesTest {
     jakarta.transaction.UserTransaction userTransaction;
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
+    private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
     private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
     
     private String testUsername;
@@ -227,6 +228,7 @@ public class TokenRolesTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", authCode)
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", codeVerifier)
             .when()

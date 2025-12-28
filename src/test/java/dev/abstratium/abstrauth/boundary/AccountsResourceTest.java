@@ -31,6 +31,8 @@ import jakarta.inject.Inject;
 @QuarkusTest
 public class AccountsResourceTest {
 
+    private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
+
     @Inject
     AccountService accountService;
 
@@ -280,8 +282,10 @@ public class AccountsResourceTest {
         given()
             .auth().oauth2(generateManageAccountsToken(managerId))
             .when()
+            .log().all()
             .get("/api/accounts")
             .then()
+            .log().all()
             .statusCode(200)
             .contentType(ContentType.JSON)
             .body("$", notNullValue())

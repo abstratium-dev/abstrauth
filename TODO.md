@@ -34,6 +34,16 @@ mp.jwt.token.header=Cookie
 mp.jwt.token.cookie=access_token
 
 - use https://quarkus.io/guides/security-oidc-code-flow-authentication#proof-key-for-code-exchange-pkce for other applications - see pkce section. 
+- set a value in application.properties for quarkus.oidc.credentials.secret=${ABSTRAUTH_CLIENT_SECRET:dev-secret-CHANGE-IN-PROD}
+in the user guide AND where i describe how to run the native image
+- see V01.010...sql need to work out a way to set the client secret of the default client! perhaps set and show it when you are the first admin. or let admin reset it! yeah. and stick that in the userguide that it needs to be reset.
+- app.config.ts uses deprecated animation stuff
+- is this statement true? "JWT tokens are signed using PS256 (RSA-PSS with SHA-256) algorithm"
+- check SECURITY.md - how much of this section is still true? "OAuth2 State Parameter and CSRF Protection"
+- check SECURITY.md - how much of this section is still true? "Content Security Policy (CSP)"
+- do we inforce confidential clients? that is the result of the design decision
+- is it right that the initial authorization request sends the client_secret, or is the client_secret only normally sent when exchanging the token?
+
 - refactor all ErrorResponse classes into a common class with its own file
 - docs - describe how to run as a docker image
 - docs - link to native build and other docs

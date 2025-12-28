@@ -12,30 +12,34 @@ This document describes how the Abstratium Authorization Server supports federat
 - [Token Mapping and Claims](#token-mapping-and-claims)
 - [Account Linking](#account-linking)
 - [Implementation Considerations](#implementation-considerations)
+- [Summary](#summary)
 
 ## Overview
 
 ### What is Federated Login?
 
-Federated login allows users to authenticate using external Identity Providers (IdPs) like Google, Microsoft, GitHub, etc. The Abstratium Authorization Server acts as a **broker** between the client application (SPA) and external IdPs.
+Federated login allows users to authenticate using external Identity Providers (IdPs) like Google, Microsoft, GitHub, etc. The Abstratium Authorization Server acts as a **broker** between the client application and external IdPs.
+
+**Important:** This document describes federated login in the context of the **Backend For Frontend (BFF)** architecture. All OAuth token handling is performed by the Quarkus backend, never by the Angular frontend.
 
 ### Key Concepts
 
-1. **Client Application (SPA)** - Your Single Page Application
-2. **Abstratium Authorization Server** - Your OAuth 2.0 server (acts as both Authorization Server and OAuth Client)
-3. **External Identity Provider** - Google, Microsoft, GitHub, etc.
-4. **Resource Server** - Your backend API that validates Abstratium-issued JWTs
+1. **Angular SPA** - Your Single Page Application (frontend only, no token handling)
+2. **Quarkus BFF** - Your backend that handles OAuth flows (confidential client)
+3. **Abstratium Authorization Server** - Your OAuth 2.0 server (acts as both Authorization Server and OAuth Client)
+4. **External Identity Provider** - Google, Microsoft, GitHub, etc.
+5. **Resource Server** - Your backend API that validates Abstratium-issued JWTs
 
 ### Trust Model
 
 ```
-SPA → trusts → Abstratium Auth Server → trusts → External IdP
-                        ↓
-                  Issues JWT for
-                  Resource Server
+Angular SPA → trusts → Quarkus BFF → trusts → Abstratium Auth Server → trusts → External IdP
+                            ↓                           ↓
+                    HTTP-only cookies          Issues JWT for
+                    (encrypted)                Resource Server
 ```
 
-The SPA and Resource Server **only trust tokens issued by Abstratium**, not tokens from external IdPs.
+The Angular SPA receives only JWT payload (no signature). The BFF and Resource Server **only trust tokens issued by Abstratium**, not tokens from external IdPs.
 
 ---
 
@@ -45,30 +49,36 @@ The SPA and Resource Server **only trust tokens issued by Abstratium**, not toke
 
 ```mermaid
 graph TB
-    SPA[Single Page Application]
+    SPA[Angular SPA<br/>Frontend Only]
+    BFF[Quarkus BFF<br/>Confidential Client]
     AuthServer[Abstratium Auth Server]
     Google[Google Identity Provider]
     Microsoft[Microsoft Identity Provider]
     Native[Native Auth<br/>Username/Password]
     ResourceServer[Resource Server/API]
     
-    SPA -->|1. Initiate Login| AuthServer
-    AuthServer -->|2. Show IdP Selection| SPA
-    SPA -->|3a. Select Google| AuthServer
-    AuthServer -->|4a. Redirect to Google| Google
-    Google -->|5a. Auth Code| AuthServer
+    SPA -->|1. Initiate Login| BFF
+    BFF -->|2. OIDC Flow| AuthServer
+    AuthServer -->|3. Show IdP Selection| SPA
+    SPA -->|4a. Select Google| AuthServer
+    AuthServer -->|5a. Redirect to Google| Google
+    Google -->|6a. Auth Code| AuthServer
     
-    SPA -->|3b. Select Microsoft| AuthServer
-    AuthServer -->|4b. Redirect to Microsoft| Microsoft
-    Microsoft -->|5b. Auth Code| AuthServer
+    SPA -->|4b. Select Microsoft| AuthServer
+    AuthServer -->|5b. Redirect to Microsoft| Microsoft
+    Microsoft -->|6b. Auth Code| AuthServer
     
-    SPA -->|3c. Select Native| AuthServer
-    AuthServer -->|4c. Show Login Form| Native
-    Native -->|5c. Credentials| AuthServer
+    SPA -->|4c. Select Native| AuthServer
+    AuthServer -->|5c. Show Login Form| Native
+    Native -->|6c. Credentials| AuthServer
     
-    AuthServer -->|6. Issue Abstratium JWT| SPA
-    SPA -->|7. Use JWT| ResourceServer
-    ResourceServer -->|8. Validate JWT| AuthServer
+    AuthServer -->|7. Auth Code| BFF
+    BFF -->|8. Exchange Code + client_secret| AuthServer
+    AuthServer -->|9. Issue JWT| BFF
+    BFF -->|10. Set HTTP-only cookies| SPA
+    SPA -->|11. Load userinfo| BFF
+    BFF -->|12. Use JWT| ResourceServer
+    ResourceServer -->|13. Validate JWT| AuthServer
 ```
 
 ---
@@ -79,17 +89,17 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant SPA as Single Page App
-    participant Browser as User Browser
+    participant SPA as Angular SPA
+    participant BFF as Quarkus BFF
     participant AuthServer as Abstratium Auth Server
     participant Google as Google Identity Provider
     participant ResourceServer as Resource Server
 
     Note over SPA: User clicks "Login"
     
-    SPA->>SPA: Generate PKCE parameters
-    SPA->>Browser: Redirect to /oauth2/authorize
-    Browser->>AuthServer: GET /oauth2/authorize?<br/>response_type=code&client_id=spa_client&<br/>redirect_uri=...&code_challenge=...
+    SPA->>BFF: Navigate to /authorize
+    BFF->>BFF: Generate PKCE parameters<br/>Generate state
+    BFF->>AuthServer: Redirect to /oauth2/authorize?<br/>response_type=code&client_id=abstratium-abstrauth&<br/>redirect_uri=/auth-callback&code_challenge=...
     
     AuthServer->>Browser: 302 Redirect to /signin/{requestId}
     Browser->>SPA: Load /signin page
@@ -111,15 +121,23 @@ sequenceDiagram
     
     AuthServer->>AuthServer: Verify Google ID token<br/>Extract user claims<br/>Create/update user account
     
-    AuthServer->>Browser: 302 Redirect to SPA
-    Browser->>SPA: /callback?code=ABSTRATIUM_CODE&state=xyz
+    AuthServer->>Browser: 302 Redirect to BFF callback
+    Browser->>BFF: /auth-callback?code=ABSTRATIUM_CODE&state=xyz
     
-    SPA->>AuthServer: POST /oauth2/token<br/>(exchange code with PKCE)
-    AuthServer->>SPA: Abstratium JWT
+    BFF->>AuthServer: POST /oauth2/token<br/>(exchange code with PKCE + client_secret)
+    AuthServer->>BFF: Abstratium JWT
+    BFF->>BFF: Store JWT in HTTP-only cookie
+    BFF->>Browser: 302 Redirect to SPA home
+    Browser->>SPA: Load application
     
-    SPA->>ResourceServer: API request with JWT
+    SPA->>BFF: Load userinfo
+    BFF->>SPA: JWT payload (no signature)
+    
+    SPA->>BFF: API request (cookie sent automatically)
+    BFF->>ResourceServer: API request with JWT from cookie
     ResourceServer->>ResourceServer: Verify JWT signature
-    ResourceServer->>SPA: Protected resource
+    ResourceServer->>BFF: Protected resource
+    BFF->>SPA: Protected resource
 ```
 
 ### Key Steps Explained
@@ -178,17 +196,20 @@ The auth server:
 3. Generates Abstratium authorization code
 4. Redirects to SPA with Abstratium code
 
-#### 7. SPA Exchanges Code for Token
+#### 7. BFF Exchanges Code for Token
 ```http
 POST /oauth2/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&
 code=ABSTRATIUM_AUTH_CODE&
-redirect_uri=https://app.example.com/callback&
-client_id=spa_client&
+redirect_uri=https://bff.example.com/auth-callback&
+client_id=abstratium-abstrauth&
+client_secret=BFF_CLIENT_SECRET&
 code_verifier=ORIGINAL_CODE_VERIFIER
 ```
+
+**Note:** The BFF (Quarkus OIDC) handles this automatically. The code_verifier is generated and stored by the BFF, not the Angular SPA.
 
 ---
 
@@ -198,11 +219,14 @@ code_verifier=ORIGINAL_CODE_VERIFIER
 
 ```mermaid
 sequenceDiagram
-    participant SPA as Single Page App
+    participant SPA as Angular SPA
+    participant BFF as Quarkus BFF
     participant Browser as User Browser
     participant AuthServer as Abstratium Auth Server
 
-    SPA->>Browser: Redirect to /oauth2/authorize (with PKCE)
+    SPA->>BFF: Navigate to /authorize
+    BFF->>BFF: Generate PKCE parameters<br/>Generate state
+    BFF->>Browser: Redirect to /oauth2/authorize (with PKCE)
     Browser->>AuthServer: GET /oauth2/authorize?...
     
     AuthServer->>Browser: 302 Redirect to /signin/{requestId}
@@ -215,19 +239,26 @@ sequenceDiagram
     Note over SPA: Angular app shows consent page
     SPA->>AuthServer: POST /oauth2/authorize<br/>consent=approve&request_id=REQ_123
     
-    AuthServer->>Browser: 302 Redirect to client callback
-    Browser->>SPA: /callback?code=CODE&state=xyz
+    AuthServer->>Browser: 302 Redirect to BFF callback
+    Browser->>BFF: /auth-callback?code=CODE&state=xyz
     
-    SPA->>AuthServer: POST /oauth2/token (with PKCE)
-    AuthServer->>SPA: Abstratium JWT
+    BFF->>AuthServer: POST /oauth2/token<br/>(with PKCE + client_secret)
+    AuthServer->>BFF: Abstratium JWT
+    BFF->>BFF: Store JWT in HTTP-only cookie
+    BFF->>Browser: 302 Redirect to SPA home
+    Browser->>SPA: Load application
+    SPA->>BFF: Load userinfo
+    BFF->>SPA: JWT payload (no signature)
 ```
 
 ### Key Points
 
 1. **OAuth 2.0 Compliant**: Uses Authorization Code Flow, not Resource Owner Password Credentials
 2. **No Direct Password to Token**: Credentials go through proper authentication endpoint
-3. **Consistent Flow**: Same OAuth flow as federated login from SPA perspective
-4. **Consent Support**: Can require user consent for scopes
+3. **BFF Pattern**: Token exchange happens in the backend with client_secret
+4. **HTTP-only Cookies**: JWT stored securely, never exposed to JavaScript
+5. **Consistent Flow**: Same OAuth flow as federated login from SPA perspective
+6. **Consent Support**: Can require user consent for scopes
 
 ---
 
@@ -527,72 +558,16 @@ https://app.example.com/callback?
 
 ---
 
-## Complete SPA Example
-
-```javascript
-// 1. Initiate login
-function login() {
-  const codeVerifier = generateRandomString(128);
-  const codeChallenge = await sha256Base64Url(codeVerifier);
-  const state = generateRandomString(32);
-  
-  sessionStorage.setItem('code_verifier', codeVerifier);
-  sessionStorage.setItem('state', state);
-  
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: 'spa_client',
-    redirect_uri: 'https://app.example.com/callback',
-    scope: 'openid profile email',
-    state: state,
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256'
-  });
-  
-  window.location.href = `https://auth.abstratium.com/oauth2/authorize?${params}`;
-}
-
-// 2. Handle callback
-async function handleCallback() {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('code');
-  const state = params.get('state');
-  
-  if (state !== sessionStorage.getItem('state')) {
-    throw new Error('Invalid state');
-  }
-  
-  const codeVerifier = sessionStorage.getItem('code_verifier');
-  const response = await fetch('https://auth.abstratium.com/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: 'https://app.example.com/callback',
-      client_id: 'spa_client',
-      code_verifier: codeVerifier
-    })
-  });
-  
-  const tokens = await response.json();
-  storeTokensInMemory(tokens);
-  
-  sessionStorage.removeItem('code_verifier');
-  sessionStorage.removeItem('state');
-}
-```
-
----
-
 ## Summary
 
 The Abstratium Authorization Server supports:
 
 1. **Federated Login**: Google, Microsoft, GitHub, etc.
 2. **Native Login**: Username/password via OAuth 2.0 flow
-3. **Consistent Tokens**: All auth methods produce Abstratium JWTs
-4. **Account Linking**: Email-based or explicit linking
-5. **Security**: PKCE, state validation, ID token verification
+3. **BFF Pattern**: All clients must be confidential clients using a backend
+4. **HTTP-only Cookies**: Tokens stored securely, never exposed to JavaScript
+5. **Consistent Tokens**: All auth methods produce Abstratium JWTs
+6. **Account Linking**: Email-based or explicit linking
+7. **Security**: PKCE required, confidential clients only, state validation, ID token verification
 
-The SPA always uses the same OAuth 2.0 Authorization Code Flow with PKCE, regardless of which authentication method the user chooses.
+The BFF (Quarkus backend) handles the OAuth 2.0 Authorization Code Flow with PKCE, regardless of which authentication method the user chooses. The Angular SPA never handles tokens directly.

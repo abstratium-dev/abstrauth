@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class WellKnownResourceTest {
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
+    private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
     private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
 
     @Test
@@ -144,6 +145,7 @@ public class WellKnownResourceTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", code)
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", codeVerifier)
             .when()

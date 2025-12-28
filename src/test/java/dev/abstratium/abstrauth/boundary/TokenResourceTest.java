@@ -13,6 +13,7 @@ import static org.hamcrest.CoreMatchers.*;
 public class TokenResourceTest {
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
+    private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
     private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
 
     @Test
@@ -76,6 +77,7 @@ public class TokenResourceTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", "some_code")
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .when()
             .post("/oauth2/token")
             .then()
@@ -106,6 +108,7 @@ public class TokenResourceTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", "expired_or_invalid_code")
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", "verifier")
             .when()
@@ -123,6 +126,7 @@ public class TokenResourceTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", "some_code")
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", "http://evil.com/auth-callback")
             .formParam("code_verifier", "verifier")
             .when()
@@ -139,6 +143,7 @@ public class TokenResourceTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", "some_code")
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", "verifier")
             .when()
@@ -278,6 +283,7 @@ public class TokenResourceTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", "some_code_without_pkce")
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", "unnecessary_verifier")
             .when()

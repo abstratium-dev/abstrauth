@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class CompleteOAuthFlowTest {
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
+    private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
     private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
     private static final String TEST_USERNAME = "flowtest_" + System.currentTimeMillis();
     private static final String TEST_EMAIL = "flowtest_" + System.currentTimeMillis() + "@example.com";
@@ -109,6 +110,7 @@ public class CompleteOAuthFlowTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", authCode)
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", codeVerifier)
             .when()
@@ -117,7 +119,7 @@ public class CompleteOAuthFlowTest {
             .statusCode(200)
             .body("access_token", notNullValue())
             .body("token_type", equalTo("Bearer"))
-            .body("expires_in", equalTo(3600))
+            .body("expires_in", equalTo(900))
             .body("scope", equalTo("openid profile email"))
             .extract()
             .response();
@@ -140,6 +142,7 @@ public class CompleteOAuthFlowTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", "invalid_code")
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", "some_verifier")
             .when()
@@ -199,6 +202,7 @@ public class CompleteOAuthFlowTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", authCode)
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", "wrong_verifier_12345678901234567890123456789012")
             .when()
@@ -258,6 +262,7 @@ public class CompleteOAuthFlowTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", authCode)
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .when()
             .post("/oauth2/token")
@@ -384,6 +389,7 @@ public class CompleteOAuthFlowTest {
             .formParam("grant_type", "authorization_code")
             .formParam("code", authCode)
             .formParam("client_id", CLIENT_ID)
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("redirect_uri", REDIRECT_URI)
             .formParam("code_verifier", codeVerifier)
             .when()

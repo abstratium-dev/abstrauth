@@ -36,6 +36,8 @@ EXIT;
 
 Abstrauth will automatically create all necessary tables and an initial OAuth2 client (`abstratium-abstrauth`) when it first connects to the database.
 
+**Important:** The default client is configured as a **confidential client** (required for the BFF pattern). You MUST set the client secret via environment variable (see below).
+
 New versions will update the database as needed.
 
 ### Generate JWT Keys
@@ -70,6 +72,31 @@ Abstrauth uses RSA keys for signing and verifying JWT tokens. You need to genera
    # Store securely and never commit to version control
    ```
 
+### Generate Client Secret and Cookie Encryption Key
+
+**Important:** Abstrauth uses the Backend For Frontend (BFF) pattern, which requires:
+1. A client secret for the default OAuth client
+2. A cookie encryption key for securing HTTP-only cookies
+
+1. **Generate a secure client secret** (32+ characters recommended):
+   ```bash
+   openssl rand -base64 32
+   ```
+   Use this output for `ABSTRAUTH_CLIENT_SECRET`.
+
+2. **Generate a cookie encryption key** (must be at least 32 characters):
+   ```bash
+   openssl rand -base64 32
+   ```
+   Use this output for `COOKIE_ENCRYPTION_SECRET`.
+
+3. **Store securely**:
+   - Never commit these secrets to version control
+   - Use a secrets manager in production (e.g., AWS Secrets Manager, HashiCorp Vault)
+   - Rotate secrets periodically
+
+**Security Note:** The client secret in the database (`client_secret_hash`) must match the secret provided via `ABSTRAUTH_CLIENT_SECRET`. The database stores a BCrypt hash for security. In development, a default hash is provided, but **you MUST change this in production**.
+
 ### Pull and Run the Docker Container
 
 1. **Pull the latest image** from GitHub Container Registry:
@@ -89,11 +116,27 @@ Abstrauth uses RSA keys for signing and verifying JWT tokens. You need to genera
      -e QUARKUS_DATASOURCE_PASSWORD="your_secure_password" \
      -e SMALLRYE_JWT_SIGN_KEY="your_base64_private_key_here" \
      -e MP_JWT_VERIFY_PUBLICKEY="your_base64_public_key_here" \
+     -e ABSTRAUTH_CLIENT_SECRET="your_generated_client_secret" \
+     -e COOKIE_ENCRYPTION_SECRET="your_generated_cookie_encryption_key" \
      -e OAUTH_GOOGLE_CLIENT_ID="your_google_client_id" \
      -e OAUTH_GOOGLE_CLIENT_SECRET="your_google_client_secret" \
      -e ALLOW_SIGNUP="false" \
      ghcr.io/abstratium-dev/abstrauth:latest
    ```
+
+   **Required Environment Variables:**
+   - `QUARKUS_DATASOURCE_JDBC_URL`: Database connection URL
+   - `QUARKUS_DATASOURCE_USERNAME`: Database username
+   - `QUARKUS_DATASOURCE_PASSWORD`: Database password
+   - `SMALLRYE_JWT_SIGN_KEY`: Base64-encoded private key for signing JWTs
+   - `MP_JWT_VERIFY_PUBLICKEY`: Base64-encoded public key for verifying JWTs
+   - `ABSTRAUTH_CLIENT_SECRET`: Client secret for the default OAuth client (BFF pattern)
+   - `COOKIE_ENCRYPTION_SECRET`: Encryption key for HTTP-only cookies (min 32 chars)
+   
+   **Optional Environment Variables:**
+   - `OAUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID (for federated login)
+   - `OAUTH_GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+   - `ALLOW_SIGNUP`: Allow new user registration (`true` in dev, `false` in prod)
 
 3. **Verify the container is running**:
    ```bash

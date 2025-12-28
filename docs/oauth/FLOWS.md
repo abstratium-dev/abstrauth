@@ -4,109 +4,111 @@ This document describes the OAuth 2.0 authorization flows supported by the Abstr
 
 ## Table of Contents
 
-- [Supported Flows](#supported-flows)
-- [Flow 1: Authorization Code Flow with PKCE (for SPAs)](#flow-1-authorization-code-flow-with-pkce-for-spas)
-- [Flow 2: Authorization Code Flow (for Backend Servers)](#flow-2-authorization-code-flow-for-backend-servers)
+- [Supported Flow](#supported-flow)
+- [Authorization Code Flow with PKCE (Backend For Frontend)](#flow-1-authorization-code-flow-with-pkce-backend-for-frontend)
 - [Optional Operations](#optional-operations)
 - [Token Refresh Flow](#token-refresh-flow)
 - [Discovery and Key Management](#discovery-and-key-management)
 
-## Supported Flows
+## Supported Flow
 
-This authorization server implements two OAuth 2.0 flows:
+This authorization server implements **one** OAuth 2.0 flow:
 
-1. **Authorization Code Flow with PKCE** - Recommended for Single Page Applications (SPAs) and mobile apps
-2. **Authorization Code Flow** - For confidential clients like backend servers
+**Authorization Code Flow with PKCE (Backend For Frontend Pattern)**
 
-Both flows are based on:
+This flow is based on:
 - [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749) - OAuth 2.0 Authorization Framework
 - [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636) - Proof Key for Code Exchange (PKCE)
 - [RFC 6819](https://datatracker.ietf.org/doc/html/rfc6819) - OAuth 2.0 Threat Model and Security Considerations
 - [RFC 9700](https://datatracker.ietf.org/doc/html/rfc9700) - OAuth 2.0 Security Best Current Practice
+- [draft-ietf-oauth-browser-based-apps-26](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26) - OAuth 2.0 for Browser-Based Apps
+
+**Important Security Requirements:**
+- ✅ **PKCE is REQUIRED** for all authorization requests
+- ✅ **Confidential clients ONLY** - Public clients are not supported
+- ✅ **BFF pattern REQUIRED** - SPAs must use a backend to handle OAuth
+- ✅ **HTTP-only cookies** - Tokens never exposed to JavaScript
 
 ---
 
-## Flow 1: Authorization Code Flow with PKCE (for SPAs)
+## Flow 1: Authorization Code Flow with PKCE (Backend For Frontend)
 
-**Use Case:** Single Page Applications (React, Angular, Vue.js) running in a browser
+**Use Case:** Single Page Applications using a Backend For Frontend (BFF) architecture
 
-**Security:** PKCE prevents authorization code interception attacks without requiring client secrets
+**Security:** BFF acts as confidential client with client secret. Tokens stored in HTTP-only cookies, never exposed to browser. PKCE handled by backend.
+
+**Important:** According to [draft-ietf-oauth-browser-based-apps-26](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26#section-6.1), the BFF pattern is **required** for sensitive applications and applications handling personal data. See [decisions/BFF.md](../../decisions/BFF.md) for rationale.
+
+**All clients using abstrauth MUST be confidential clients with a BFF.** Public clients (SPAs handling tokens directly) are not supported.
 
 ### Flow Diagram
 
 ```mermaid
 sequenceDiagram
-    participant SPA as Single Page App
-    participant Browser as User Browser
-    participant AuthServer as Authorization Server
+    participant SPA as Angular SPA
+    participant BFF as Quarkus BFF
+    participant AuthServer as Authorization Server<br/>(abstrauth itself)
     participant ResourceServer as Resource/API Server
 
-    Note over SPA: 1. Generate PKCE Parameters
-    SPA->>SPA: Generate code_verifier (random string)
-    SPA->>SPA: Generate code_challenge = SHA256(code_verifier)
-
-    Note over SPA,AuthServer: 2. Authorization Request
-    SPA->>Browser: Redirect to /oauth2/authorize
-    Note right of Browser: Parameters:<br/>response_type=code<br/>client_id=spa_client<br/>redirect_uri=https://app.example.com/callback<br/>scope=openid profile email<br/>state=random_state (CSRF protection)<br/>code_challenge=BASE64URL(SHA256(code_verifier))<br/>code_challenge_method=S256
+    Note over SPA: 1. User Initiates Login
+    SPA->>BFF: Navigate to /authorize
     
-    Browser->>AuthServer: GET /oauth2/authorize?params...
+    Note over BFF: 2. BFF Initiates OIDC Flow
+    BFF->>BFF: Generate PKCE parameters<br/>Generate state parameter
+    BFF->>AuthServer: Redirect to /oauth2/authorize
+    Note right of BFF: Parameters:<br/>response_type=code<br/>client_id=abstratium-abstrauth<br/>redirect_uri=https://auth.abstratium.dev/auth-callback<br/>scope=openid profile email<br/>state=random_state<br/>code_challenge=...<br/>code_challenge_method=S256
     
     Note over AuthServer: 3. Redirect to Angular App
-    AuthServer->>Browser: 302 Redirect to /signin/{requestId}
-    Browser->>SPA: Load /signin page
+    AuthServer->>SPA: 302 Redirect to /signin/{requestId}
     
-    Note over SPA: 4. Fetch Request Details
-    SPA->>AuthServer: GET /oauth2/authorize/details/{requestId}
-    AuthServer->>SPA: {clientName, scope}
+    Note over SPA: 4. User Authentication & Consent
+    SPA->>AuthServer: POST /oauth2/authorize/authenticate
+    SPA->>AuthServer: POST /oauth2/authorize (consent)
     
-    Note over SPA: 5. User Authentication
-    SPA->>AuthServer: POST /oauth2/authorize/authenticate<br/>{username, password, request_id}
-    AuthServer->>SPA: {name} (JSON)
+    Note over AuthServer: 5. Authorization Response
+    AuthServer->>BFF: 302 Redirect to /auth-callback?code=...&state=...
     
-    Note over SPA: 6. User Consent
-    SPA->>AuthServer: POST /oauth2/authorize<br/>{consent=approve, request_id}
+    Note over BFF: 6. BFF Exchanges Code for Tokens
+    BFF->>BFF: Validate state parameter
+    BFF->>AuthServer: POST /oauth2/token
+    Note right of BFF: Parameters:<br/>grant_type=authorization_code<br/>code=AUTH_CODE<br/>client_id=abstratium-abstrauth<br/>client_secret=SECRET<br/>code_verifier=...<br/>redirect_uri=...
     
-    Note over AuthServer: 7. Authorization Response
-    AuthServer->>Browser: 302 Redirect to redirect_uri
-    Browser->>SPA: https://app.example.com/callback?code=AUTH_CODE&state=random_state
+    Note over AuthServer: 7. Validate & Issue Tokens
+    AuthServer->>AuthServer: Verify client_secret<br/>Verify PKCE<br/>Generate tokens
+    AuthServer->>BFF: 200 OK + Tokens
     
-    Note over SPA: 8. Validate State (CSRF Protection)
-    SPA->>SPA: Verify state === sessionStorage.state<br/>Reject if mismatch (CSRF attack)
+    Note over BFF: 8. Store Tokens in HTTP-Only Cookies
+    BFF->>BFF: Encrypt tokens<br/>Set HTTP-only cookies<br/>SameSite=Strict, Secure
+    BFF->>SPA: 302 Redirect to /
     
-    Note over SPA,AuthServer: 9. Token Request
-    SPA->>AuthServer: POST /oauth2/token
-    Note right of SPA: Parameters:<br/>grant_type=authorization_code<br/>code=AUTH_CODE<br/>redirect_uri=https://app.example.com/callback<br/>client_id=spa_client<br/>code_verifier=original_code_verifier
+    Note over SPA: 9. Load User Info
+    SPA->>BFF: GET /api/userinfo (cookie sent automatically)
+    BFF->>BFF: Decrypt cookie<br/>Extract JWT payload
+    BFF->>SPA: 200 OK + User Info (no signature)
     
-    Note over AuthServer: 10. Validate PKCE
-    AuthServer->>AuthServer: Verify SHA256(code_verifier) == stored code_challenge
-    AuthServer->>AuthServer: Validate authorization code
-    AuthServer->>AuthServer: Generate access_token (JWT)
-    AuthServer->>AuthServer: Generate refresh_token
-    
-    AuthServer->>SPA: 200 OK
-    Note right of AuthServer: Response:<br/>{<br/>  "access_token": "eyJhbG...",<br/>  "token_type": "Bearer",<br/>  "expires_in": 3600,<br/>  "refresh_token": "tGzv3J...",<br/>  "scope": "openid profile email"<br/>}
-    
-    Note over SPA: 11. Store Tokens Securely
-    SPA->>SPA: Store tokens in memory<br/>(NOT localStorage)
-    
-    Note over SPA,ResourceServer: 12. Access Protected Resources
-    SPA->>ResourceServer: GET /api/user/profile
-    Note right of SPA: Header:<br/>Authorization: Bearer eyJhbG...
-    
-    ResourceServer->>ResourceServer: Verify JWT signature<br/>using JWKS from AuthServer
-    ResourceServer->>SPA: 200 OK + User Data
+    Note over SPA,ResourceServer: 10. Access Protected Resources
+    SPA->>BFF: GET /api/clients (cookie sent automatically)
+    BFF->>ResourceServer: GET /api/clients
+    Note right of BFF: Header:<br/>Authorization: Bearer <JWT from cookie>
+    ResourceServer->>ResourceServer: Verify JWT signature
+    ResourceServer->>BFF: 200 OK + Data
+    BFF->>SPA: 200 OK + Data
 ```
 
 ### Step-by-Step Details
 
-#### 1. Generate PKCE Parameters
-```javascript
-// Generate code_verifier (43-128 characters)
-const code_verifier = generateRandomString(128);
+#### 1. User Initiates Login
 
-// Generate code_challenge
-const code_challenge = base64UrlEncode(sha256(code_verifier));
-```
+The Angular SPA redirects to `/authorize`, which triggers the Quarkus OIDC flow.
+
+#### 2. BFF Generates PKCE Parameters (Automatic)
+
+Quarkus OIDC automatically generates PKCE parameters:
+- `code_verifier`: Cryptographically random string (43-128 characters)
+- `code_challenge`: BASE64URL(SHA256(code_verifier))
+- `code_challenge_method`: S256
+
+**Note:** The Angular frontend does NOT generate PKCE parameters. This is handled entirely by the Quarkus backend.
 
 #### 2. Authorization Request
 ```http
@@ -192,114 +194,6 @@ code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
   "refresh_token": "tGzv3JOkF0XG5Qx2TlKWIA",
   "scope": "openid profile email"
 }
-```
-
----
-
-## Flow 2: Authorization Code Flow (for Backend Servers)
-
-**⚠️ IMPLEMENTATION STATUS: NOT YET IMPLEMENTED**
-
-This flow is documented for future implementation but is not currently supported by the authorization server. The following features are missing:
-- `client_secret` field in `T_oauth_clients` table
-- `client_secret` validation in token endpoint
-- Client authentication via HTTP Basic Auth or POST body
-- Proper handling of confidential vs public client types
-
-**Use Case:** Confidential clients like backend servers, server-side web applications
-
-**Security:** Uses client secret for authentication, PKCE is optional but recommended
-
-### Flow Diagram
-
-```mermaid
-sequenceDiagram
-    participant Backend as Backend Server
-    participant Browser as User Browser
-    participant AuthServer as Authorization Server
-    participant ResourceServer as Resource/API Server
-
-    Note over Backend,AuthServer: 1. Authorization Request
-    Backend->>Browser: Redirect to /oauth2/authorize
-    Note right of Browser: Parameters:<br/>response_type=code<br/>client_id=backend_client<br/>redirect_uri=https://backend.example.com/callback<br/>scope=openid profile email<br/>state=random_state
-    
-    Browser->>AuthServer: GET /oauth2/authorize?params...
-    
-    Note over AuthServer: 2. Redirect to Angular App
-    AuthServer->>Browser: 302 Redirect to /signin/{requestId}
-    Browser->>Backend: Load /signin page (served by backend)
-    
-    Note over Backend: 3. User Authentication (via Angular)
-    Backend->>AuthServer: POST /oauth2/authorize/authenticate
-    AuthServer->>Backend: {name} (JSON)
-    
-    Note over Backend: 4. User Consent (via Angular)
-    Backend->>AuthServer: POST /oauth2/authorize<br/>{consent=approve, request_id}
-    
-    Note over AuthServer: 5. Authorization Response
-    AuthServer->>Browser: 302 Redirect to redirect_uri
-    Browser->>Backend: https://backend.example.com/callback?code=AUTH_CODE&state=random_state
-    
-    Note over Backend: 6. Validate State
-    Backend->>Backend: Verify state parameter matches
-    
-    Note over Backend,AuthServer: 7. Token Request (Server-to-Server)
-    Backend->>AuthServer: POST /oauth2/token
-    Note right of Backend: Parameters:<br/>grant_type=authorization_code<br/>code=AUTH_CODE<br/>redirect_uri=https://backend.example.com/callback<br/>client_id=backend_client<br/>client_secret=SECRET_KEY
-    
-    Note over AuthServer: 8. Validate Client Credentials
-    AuthServer->>AuthServer: Verify client_id and client_secret
-    AuthServer->>AuthServer: Validate authorization code
-    AuthServer->>AuthServer: Generate access_token (JWT)
-    AuthServer->>AuthServer: Generate refresh_token
-    
-    AuthServer->>Backend: 200 OK
-    Note right of AuthServer: Response:<br/>{<br/>  "access_token": "eyJhbG...",<br/>  "token_type": "Bearer",<br/>  "expires_in": 3600,<br/>  "refresh_token": "tGzv3J...",<br/>  "scope": "openid profile email"<br/>}
-    
-    Note over Backend: 9. Store Tokens Securely
-    Backend->>Backend: Store tokens in secure session<br/>or encrypted database
-    
-    Note over Backend,ResourceServer: 10. Access Protected Resources
-    Backend->>ResourceServer: GET /api/user/profile
-    Note right of Backend: Header:<br/>Authorization: Bearer eyJhbG...
-    
-    ResourceServer->>ResourceServer: Verify JWT signature<br/>using JWKS from AuthServer
-    ResourceServer->>Backend: 200 OK + User Data
-```
-
-### Step-by-Step Details
-
-#### 1. Authorization Request
-```http
-GET /oauth2/authorize?
-  response_type=code&
-  client_id=backend_client_12345&
-  redirect_uri=https://backend.example.com/callback&
-  scope=openid%20profile%20email&
-  state=xyz123
-```
-
-#### 6. Token Request (with Client Secret)
-```http
-POST /oauth2/token
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code&
-code=SplxlOBeZQQYbYS6WxSbIA&
-redirect_uri=https://backend.example.com/callback&
-client_id=backend_client_12345&
-client_secret=your_client_secret_here
-```
-
-**Alternative: HTTP Basic Authentication**
-```http
-POST /oauth2/token
-Authorization: Basic base64(client_id:client_secret)
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code&
-code=SplxlOBeZQQYbYS6WxSbIA&
-redirect_uri=https://backend.example.com/callback
 ```
 
 ---
@@ -535,22 +429,41 @@ GET /.well-known/jwks.json
 
 ## Security Best Practices
 
-### For Single Page Applications (SPAs)
-1. **Always use PKCE** - Protects against authorization code interception
-2. **Store tokens in memory** - Never use localStorage or sessionStorage for access tokens
-3. **Use short-lived access tokens** - Minimize impact of token theft
-4. **Implement token refresh** - Use refresh tokens to obtain new access tokens
-5. **Validate state parameter** - **CRITICAL**: Always validate state in callback to prevent CSRF attacks
-6. **Use HTTPS only** - All communication must be encrypted
-7. **Clear sensitive data** - Remove code_verifier and state from sessionStorage after use
+### For Single Page Applications (SPAs) - BFF Pattern Required
 
-### For Backend Servers
-1. **Protect client secrets** - Store securely, never expose in client-side code
-2. **Use PKCE even with client secret** - Defense in depth
+**IMPORTANT:** All SPAs using abstrauth MUST use the Backend For Frontend (BFF) pattern. Public clients (SPAs handling tokens directly) are NOT supported.
+
+See [decisions/BFF.md](../../decisions/BFF.md) and [draft-ietf-oauth-browser-based-apps-26](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26#section-6.1) for rationale.
+
+**BFF Requirements:**
+1. **Use confidential client** - Backend must authenticate with client_secret
+2. **PKCE handled by backend** - Quarkus OIDC handles PKCE automatically
+3. **HTTP-only cookies** - Tokens stored in encrypted HTTP-only cookies
+4. **Never expose tokens to JavaScript** - Frontend receives only JWT payload (no signature)
+5. **SameSite=Strict cookies** - Prevents CSRF attacks
+6. **Secure flag in production** - HTTPS-only cookie transmission
+7. **Cookie encryption** - Encrypt cookie contents for additional security
+
+**What the Frontend Does:**
+- Calls `/api/userinfo` to get user information (JWT payload without signature)
+- Uses this data for UI decisions (showing user name, checking roles)
+- HTTP-only cookies sent automatically by browser
+
+**What the Frontend Does NOT Do:**
+- ❌ Does not store JWT tokens
+- ❌ Does not parse JWT tokens
+- ❌ Does not add Authorization headers
+- ❌ Does not handle PKCE
+- ❌ Does not validate state parameter
+
+### For Backend Servers (Confidential Clients)
+1. **Protect client secrets** - Store securely in environment variables, never in code
+2. **Use PKCE** - Defense in depth, even with client secret
 3. **Validate redirect URIs** - Prevent authorization code interception
 4. **Implement proper session management** - Secure token storage
 5. **Use refresh token rotation** - Detect token theft
 6. **Monitor for suspicious activity** - Log and alert on anomalies
+7. **Encrypt session cookies** - Protect cookie contents
 
 ### For Resource Servers
 1. **Verify JWT signatures** - Use JWKS endpoint to get public keys
@@ -593,225 +506,15 @@ https://client.example.com/callback?
 
 ---
 
-## Complete Flow Examples
-
-### SPA Example (React/Angular/Vue)
-
-```javascript
-// 1. Initiate authorization
-function login() {
-  const codeVerifier = generateRandomString(128);
-  const codeChallenge = await generateCodeChallenge(codeVerifier);
-  const state = generateRandomString(32);
-  
-  // Store for later use
-  sessionStorage.setItem('code_verifier', codeVerifier);
-  sessionStorage.setItem('state', state);
-  
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: 'spa_client_12345',
-    redirect_uri: 'https://app.example.com/callback',
-    scope: 'openid profile email',
-    state: state,
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256'
-  });
-  
-  window.location.href = `https://auth.example.com/oauth2/authorize?${params}`;
-}
-
-// 2. Handle callback
-async function handleCallback() {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('code');
-  const state = params.get('state');
-  
-  // CRITICAL: Validate state to prevent CSRF attacks
-  const storedState = sessionStorage.getItem('state');
-  if (!state || !storedState || state !== storedState) {
-    console.error('CSRF Protection: State mismatch');
-    sessionStorage.removeItem('state');
-    sessionStorage.removeItem('code_verifier');
-    throw new Error('Security Error: Invalid state parameter. Possible CSRF attack detected.');
-  }
-  
-  // Clear state after successful validation
-  sessionStorage.removeItem('state');
-  
-  // Exchange code for tokens
-  const codeVerifier = sessionStorage.getItem('code_verifier');
-  const response = await fetch('https://auth.example.com/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: 'https://app.example.com/callback',
-      client_id: 'spa_client_12345',
-      code_verifier: codeVerifier
-    })
-  });
-  
-  const tokens = await response.json();
-  
-  // Store tokens in memory (use a state management solution)
-  storeTokensInMemory(tokens);
-  
-  // Clean up code_verifier
-  sessionStorage.removeItem('code_verifier');
-}
-
-// 3. Use access token
-async function fetchUserProfile() {
-  const accessToken = getAccessTokenFromMemory();
-  
-  const response = await fetch('https://api.example.com/user/profile', {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`
-    }
-  });
-  
-  return await response.json();
-}
-
-// 4. Refresh token
-async function refreshAccessToken() {
-  const refreshToken = getRefreshTokenFromMemory();
-  
-  const response = await fetch('https://auth.example.com/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: 'spa_client_12345'
-    })
-  });
-  
-  const tokens = await response.json();
-  storeTokensInMemory(tokens);
-}
-
-// 5. Logout
-async function logout() {
-  const refreshToken = getRefreshTokenFromMemory();
-  
-  // Revoke refresh token
-  await fetch('https://auth.example.com/oauth2/revoke', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      token: refreshToken,
-      token_type_hint: 'refresh_token',
-      client_id: 'spa_client_12345'
-    })
-  });
-  
-  // Clear tokens from memory
-  clearTokensFromMemory();
-  
-  // Redirect to home
-  window.location.href = '/';
-}
-```
-
-### Backend Server Example (Node.js/Java/Python)
-
-```javascript
-// 1. Initiate authorization
-app.get('/login', (req, res) => {
-  const state = generateRandomString(32);
-  req.session.state = state;
-  
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: 'backend_client_12345',
-    redirect_uri: 'https://backend.example.com/callback',
-    scope: 'openid profile email',
-    state: state
-  });
-  
-  res.redirect(`https://auth.example.com/oauth2/authorize?${params}`);
-});
-
-// 2. Handle callback
-app.get('/callback', async (req, res) => {
-  const { code, state } = req.query;
-  
-  // Validate state
-  if (state !== req.session.state) {
-    return res.status(400).send('Invalid state parameter');
-  }
-  
-  // Exchange code for tokens
-  const response = await fetch('https://auth.example.com/oauth2/token', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + Buffer.from(
-        `${CLIENT_ID}:${CLIENT_SECRET}`
-      ).toString('base64')
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: 'https://backend.example.com/callback'
-    })
-  });
-  
-  const tokens = await response.json();
-  
-  // Store tokens in secure session
-  req.session.accessToken = tokens.access_token;
-  req.session.refreshToken = tokens.refresh_token;
-  
-  res.redirect('/dashboard');
-});
-
-// 3. Protected route
-app.get('/api/user', async (req, res) => {
-  const accessToken = req.session.accessToken;
-  
-  const response = await fetch('https://api.example.com/user/profile', {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`
-    }
-  });
-  
-  const userData = await response.json();
-  res.json(userData);
-});
-
-// 4. Logout
-app.post('/logout', async (req, res) => {
-  const refreshToken = req.session.refreshToken;
-  
-  // Revoke refresh token
-  await fetch('https://auth.example.com/oauth2/revoke', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + Buffer.from(
-        `${CLIENT_ID}:${CLIENT_SECRET}`
-      ).toString('base64')
-    },
-    body: new URLSearchParams({
-      token: refreshToken,
-      token_type_hint: 'refresh_token'
-    })
-  });
-  
-  // Destroy session
-  req.session.destroy();
-  res.redirect('/');
-});
-```
-
----
-
 ## Conclusion
 
-This authorization server provides secure OAuth 2.0 flows for both public clients (SPAs) and confidential clients (backend servers). Always follow security best practices and use PKCE for enhanced security, especially for public clients.
+This authorization server provides a secure OAuth 2.0 flow using the Backend For Frontend (BFF) pattern with confidential clients only. 
 
-For more information, refer to the RFC specifications linked at the beginning of this document.
+**Key Security Features:**
+- PKCE required for all requests
+- Confidential clients only (public clients rejected)
+- HTTP-only encrypted cookies
+- Tokens never exposed to JavaScript
+- Compliant with OAuth 2.0 security best practices
+
+For more information, refer to the RFC specifications and security best practices linked at the beginning of this document.

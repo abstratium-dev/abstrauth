@@ -62,20 +62,46 @@ public class WellKnownResource {
         )
     })
     public Response serverMetadata() {
+        return Response.ok(buildMetadata()).build();
+    }
+
+    @GET
+    @Path("/openid-configuration")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "OpenID Connect Discovery",
+        description = "Returns OpenID Connect provider metadata (same as OAuth 2.0 metadata)"
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "OpenID Connect provider metadata",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ServerMetadata.class)
+            )
+        )
+    })
+    public Response openidConfiguration() {
+        return Response.ok(buildMetadata()).build();
+    }
+
+    private ServerMetadata buildMetadata() {
         ServerMetadata metadata = new ServerMetadata();
         metadata.issuer = baseUrl;
         metadata.authorization_endpoint = baseUrl + "/oauth2/authorize";
         metadata.token_endpoint = baseUrl + "/oauth2/token";
         metadata.introspection_endpoint = baseUrl + "/oauth2/introspect";
         metadata.revocation_endpoint = baseUrl + "/oauth2/revoke";
+        metadata.end_session_endpoint = baseUrl + "/api/auth/logout";
         metadata.jwks_uri = baseUrl + "/.well-known/jwks.json";
         metadata.response_types_supported = new String[]{"code"};
-        metadata.grant_types_supported = new String[]{"authorization_code"};
+        metadata.grant_types_supported = new String[]{"authorization_code", "refresh_token"};
         metadata.code_challenge_methods_supported = new String[]{"S256", "plain"};
         metadata.scopes_supported = new String[]{"openid", "profile", "email"};
-        metadata.token_endpoint_auth_methods_supported = new String[]{"none"};
+        metadata.token_endpoint_auth_methods_supported = new String[]{"client_secret_post", "client_secret_basic"};
         
-        return Response.ok(metadata).build();
+        return metadata;
     }
 
     @GET
@@ -184,6 +210,9 @@ public class WellKnownResource {
 
         @Schema(description = "Token revocation endpoint URL", examples = "https://auth.example.com/oauth2/revoke")
         public String revocation_endpoint;
+
+        @Schema(description = "End session endpoint URL for RP-Initiated Logout", examples = "https://auth.example.com/oauth2/logout")
+        public String end_session_endpoint;
 
         @Schema(description = "JWKS URI", examples = "https://auth.example.com/.well-known/jwks.json")
         public String jwks_uri;

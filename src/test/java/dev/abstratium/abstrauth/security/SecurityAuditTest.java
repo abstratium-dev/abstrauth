@@ -36,6 +36,8 @@ import jakarta.transaction.Transactional;
 @QuarkusTest
 public class SecurityAuditTest {
 
+    private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
+
     @Inject
     AccountService accountService;
 
@@ -111,6 +113,7 @@ public class SecurityAuditTest {
             .formParam("code", authCode)
             .formParam("redirect_uri", redirectUri)
             .formParam("client_id", testClient.getClientId())
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("code_verifier", codeVerifier)
         .when()
             .post("/oauth2/token")
@@ -170,6 +173,7 @@ public class SecurityAuditTest {
                 .formParam("code", authCode)
                 .formParam("redirect_uri", redirectUri)
                 .formParam("client_id", testClient.getClientId())
+                .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", codeVerifier)
             .when()
                 .post("/oauth2/token");
@@ -196,6 +200,7 @@ public class SecurityAuditTest {
                 .formParam("code", authCode)
                 .formParam("redirect_uri", redirectUri)
                 .formParam("client_id", testClient.getClientId())
+                .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", codeVerifier)
             .when()
                 .post("/oauth2/token");
@@ -216,6 +221,7 @@ public class SecurityAuditTest {
                 .formParam("code", authCode2)
                 .formParam("redirect_uri", redirectUri)
                 .formParam("client_id", testClient.getClientId())
+                .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", wrongVerifier)
             .when()
                 .post("/oauth2/token");
@@ -272,7 +278,7 @@ public class SecurityAuditTest {
             .formParam("code", authCode)
             .formParam("redirect_uri", redirectUri)
             .formParam("client_id", testClient.getClientId())
-            .formParam("client_secret", "test-secret-123") // This is ignored
+            .formParam("client_secret", CLIENT_SECRET) // Correct secret for BFF pattern
             .formParam("code_verifier", codeVerifier)
         .when()
             .post("/oauth2/token")
@@ -489,6 +495,7 @@ public class SecurityAuditTest {
             .formParam("code", code)
             .formParam("redirect_uri", redirectUri)
             .formParam("client_id", testClient.getClientId())
+            .formParam("client_secret", CLIENT_SECRET)
             .formParam("code_verifier", codeVerifier)
         .when()
             .post("/oauth2/token")

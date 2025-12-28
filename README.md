@@ -1,12 +1,12 @@
 # abstrauth
 
-**Abstrauth** is a lightweight OAuth 2.0 Authorization Server and OpenID Connect Provider with federated identity support, designed to serve multiple client applications simultaneously.
+**Abstrauth** is a lightweight OAuth 2.0 Authorization Server and OpenID Connect Provider with federated identity support, designed to serve multiple client applications using the Backend For Frontend (BFF) pattern.
 
 ## What is Abstrauth?
 
 Abstrauth functions as:
 
-- **OAuth 2.0 Authorization Server** - Implements Authorization Code Flow and Authorization Code Flow with PKCE (RFC 6749, RFC 7636)
+- **OAuth 2.0 Authorization Server** - Implements Authorization Code Flow with PKCE (RFC 6749, RFC 7636) for confidential clients only
 - **OpenID Connect Provider** - Issues JWT tokens with OpenID Connect claims (`openid`, `profile`, `email` scopes)
 - **Identity Provider (IdP)** - Provides native username/password authentication
 - **Identity Broker** - Federates authentication with external IdPs (Google, Microsoft, GitHub)
@@ -14,15 +14,21 @@ Abstrauth functions as:
 
 ## Key Features
 
-- **JWT-based authentication** - Tokens signed with RS256/PS256 using public/private key pairs for stateless verification
+- **Backend For Frontend (BFF) Architecture** - All clients MUST be confidential clients using a backend to handle OAuth flows
+- **JWT-based authentication** - Tokens signed with PS256 using public/private key pairs for stateless verification
+- **HTTP-only encrypted cookies** - Tokens never exposed to JavaScript for maximum security
 - **Federated login** - Users can authenticate via Google OAuth or native credentials
 - **Multi-tenancy** - Single server instance serves multiple client applications with role-based access control (RBAC)
-- **Self-hosted admin UI** - Angular-based management interface secured by Abstrauth itself
-- **Security hardened** - PKCE enforcement, CSRF protection, rate limiting, CSP headers, and comprehensive security audit compliance
+- **Self-hosted admin UI** - Angular-based management interface secured by Abstrauth itself using BFF pattern
+- **Security hardened** - PKCE required, confidential clients only, HTTP-only cookies, CSRF protection, rate limiting, CSP headers
 
-It uses JWT for authentication and authorization, signed with a public/private key pair so that third-party applications can validate the tokens and roles without calls to the authorization server unless they want to do introspection to check if the token has been revoked.
+**Security Architecture:**
+- Tokens are stored in encrypted HTTP-only cookies (never accessible to JavaScript)
+- PKCE is REQUIRED for all authorization requests
+- Only confidential clients are supported (public clients are rejected)
+- Compliant with [OAuth 2.0 for Browser-Based Apps](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26)
 
-It coincidentally also uses itself as an authorization server for users signing into the admin UI.
+Abstrauth uses itself as an authorization server for users signing into the admin UI, demonstrating the BFF pattern in practice.
 
 ## Security
 

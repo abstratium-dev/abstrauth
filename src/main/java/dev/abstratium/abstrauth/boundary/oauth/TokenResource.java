@@ -130,6 +130,8 @@ public class TokenResource {
         )
     })
     public Response token(
+        @jakarta.ws.rs.core.Context jakarta.ws.rs.core.HttpHeaders headers,
+        
         @Parameter(
             description = "Grant type - 'authorization_code' or 'refresh_token'",
             required = true,
@@ -154,7 +156,7 @@ public class TokenResource {
 
         @Parameter(
             description = "Client identifier",
-            required = true,
+            required = false,
             example = "client_12345"
         )
         @FormParam("client_id") String clientId,
@@ -187,6 +189,14 @@ public class TokenResource {
         )
         @FormParam("scope") String scope
     ) {
+        // Extract client credentials from HTTP Basic Auth if not in form params
+        if ((clientId == null || clientId.isBlank()) && headers.getHeaderString("Authorization") != null) {
+            String[] credentials = extractBasicAuth(headers.getHeaderString("Authorization"));
+            if (credentials != null) {
+                clientId = credentials[0];
+                clientSecret = credentials[1];
+            }
+        }
         // Validate grant_type
         if (!"authorization_code".equals(grantType) && !"refresh_token".equals(grantType)) {
             return buildErrorResponse(Response.Status.BAD_REQUEST, "unsupported_grant_type",
@@ -297,6 +307,12 @@ public class TokenResource {
 
         // Generate access token with the authentication method used for this session
         String accessToken = generateAccessToken(account, authCode.getScope(), clientId, authMethod);
+        
+        // Generate ID token for OIDC (if openid scope is requested)
+        String idToken = null;
+        if (authCode.getScope() != null && authCode.getScope().contains("openid")) {
+            idToken = generateIdToken(account, clientId, authMethod);
+        }
 
         // Build token response
         TokenResponse response = new TokenResponse();
@@ -304,6 +320,7 @@ public class TokenResource {
         response.token_type = "Bearer";
         response.expires_in = ACCESS_TOKEN_TIMEOUT;
         response.scope = authCode.getScope();
+        response.id_token = idToken;
         // TODO only allow confidential clients to have refresh tokens, never allow SPAs to have them as they can be used for continuous access
         // TODO later when we support refresh tokens:
         // response.refresh_token = generateRefreshToken(account, authCode.getScope(), clientId);
@@ -365,6 +382,31 @@ public class TokenResource {
                 .claim("auth_method", authMethod)  // Use the auth method from this login session
                 .issuedAt(now)
                 .expiresAt(expiresAt)
+                .jws()
+                    .keyId("abstrauth-key-1")  // Must match kid in JWKS
+                .sign();
+    }
+
+    /**
+     * Generate OpenID Connect ID Token
+     * ID tokens are used to convey user identity information to the client
+     */
+    private String generateIdToken(Account account, String clientId, String authMethod) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plusSeconds(ACCESS_TOKEN_TIMEOUT);
+
+        return Jwt.issuer(issuer)
+                .subject(account.getId())
+                .audience(clientId)  // ID token audience is the client_id
+                .claim("jti", UUID.randomUUID().toString())  // Add unique token ID
+                .claim("email", account.getEmail())
+                .claim("name", account.getName())
+                .claim("email_verified", account.getEmailVerified())
+                .claim("auth_method", authMethod)
+                .issuedAt(now)
+                .expiresAt(expiresAt)
+                .jws()
+                    .keyId("abstrauth-key-1")  // CRITICAL: Must match kid in JWKS
                 .sign();
     }
 
@@ -402,6 +444,35 @@ public class TokenResource {
         }
     }
 
+    /**
+     * Extract client credentials from HTTP Basic Auth header
+     * @param authHeader Authorization header value
+     * @return Array with [clientId, clientSecret] or null if invalid
+     */
+    private String[] extractBasicAuth(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Basic ")) {
+            return null;
+        }
+        
+        try {
+            String base64Credentials = authHeader.substring(6);
+            byte[] decodedBytes = Base64.getDecoder().decode(base64Credentials);
+            String credentials = new String(decodedBytes, StandardCharsets.UTF_8);
+            
+            int colonIndex = credentials.indexOf(':');
+            if (colonIndex == -1) {
+                return null;
+            }
+            
+            String clientId = credentials.substring(0, colonIndex);
+            String clientSecret = credentials.substring(colonIndex + 1);
+            
+            return new String[]{clientId, clientSecret};
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     private Response buildErrorResponse(Response.Status status, String error, String errorDescription) {
         ErrorResponse errorResponse = new ErrorResponse();
         errorResponse.error = error;
@@ -413,7 +484,7 @@ public class TokenResource {
      * Token Response DTO for OpenAPI documentation
      */
     @RegisterForReflection
-    @Schema(description = "OAuth 2.0 Token Response")
+    @Schema(description = "OAuth 2.0 / OpenID Connect Token Response")
     public static class TokenResponse {
         @Schema(description = "The access token issued by the authorization server", examples = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")
         public String access_token;
@@ -426,6 +497,9 @@ public class TokenResource {
 
         @Schema(description = "Refresh token for obtaining new access tokens", examples = "tGzv3JOkF0XG5Qx2TlKWIA")
         public String refresh_token;
+
+        @Schema(description = "OpenID Connect ID Token (only present when openid scope is requested)", examples = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")
+        public String id_token;
 
         @Schema(description = "Space-delimited list of granted scopes", examples = "openid profile email")
         public String scope;

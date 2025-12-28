@@ -1,45 +1,52 @@
-# Abstrauth OAuth 2.0 Client Example
+# Abstrauth OAuth 2.0 Client Example (BFF Pattern)
 
-This is a complete example implementation of an OAuth 2.0 client application that integrates with the Abstrauth authorization server using the **Authorization Code Flow with PKCE** (Proof Key for Code Exchange).
+This is a complete example implementation of an OAuth 2.0 **confidential client** application that integrates with the Abstrauth authorization server using the **Backend For Frontend (BFF)** pattern with **Authorization Code Flow + PKCE**.
 
 ## Overview
 
-This example demonstrates:
+This example demonstrates the **recommended architecture** for modern web applications:
 
-- ✅ OAuth 2.0 Authorization Code Flow with PKCE
-- ✅ CSRF protection using state parameter
-- ✅ Browser-side PKCE parameter generation
-- ✅ Stateless server architecture
-- ✅ HTTP-only cookie token storage
-- ✅ JWT token parsing
-- ✅ User information display
+- ✅ **Backend For Frontend (BFF) Pattern** - Backend handles all OAuth responsibilities
+- ✅ **Confidential Client** - Uses `client_secret` for authentication
+- ✅ **Authorization Code Flow with PKCE** - Server-side PKCE generation and validation
+- ✅ **Encrypted HTTP-only Cookies** - Tokens never exposed to JavaScript
+- ✅ **CSRF Protection** - State parameter validated server-side
+- ✅ **Zero Token Exposure** - Frontend never sees tokens or OAuth parameters
+- ✅ **Compliant with OAuth 2.0 Security Best Practices** - Follows [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749) and [OAuth 2.0 for Browser-Based Apps](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps)
 
 ## Architecture
 
-This is a **stateless server** architecture:
-- Browser generates PKCE parameters (`code_verifier`, `code_challenge`) and `state`
-- Browser stores `code_verifier` and `state` in `sessionStorage` (short-lived)
-- Server exchanges authorization code for token
-- Server stores access token in HTTP-only cookie (XSS-proof)
-- Server has NO sessions, NO in-memory storage
+This implements the **Backend For Frontend (BFF)** pattern:
 
 ```
-┌─────────────────────┐         ┌──────────────────┐         ┌─────────────────┐
-│   Browser (SPA)     │ ◄─────► │  Stateless Server│ ◄─────► │ Abstrauth       │
-│                     │         │  localhost:3333  │         │ Auth Server     │
-│ - PKCE generation   │         │  - Token exchange│         │ localhost:8080  │
-│ - sessionStorage    │         │  - HTTP-only     │         │                 │
-│ - OAuth flow        │         │    cookies       │         │                 │
-└─────────────────────┘         └──────────────────┘         └─────────────────┘
+┌─────────────────────┐         ┌──────────────────────────┐         ┌─────────────────┐
+│   Browser (SPA)     │ ◄─────► │  BFF (Node.js Backend)   │ ◄─────► │ Abstrauth       │
+│                     │         │  localhost:3333          │         │ Auth Server     │
+│ - No OAuth params   │         │  - PKCE generation       │         │ localhost:8080  │
+│ - No tokens         │         │  - State management      │         │                 │
+│ - Just UI           │         │  - Token exchange        │         │                 │
+│                     │         │  - Encrypted cookies     │         │                 │
+│                     │         │  - client_secret auth    │         │                 │
+└─────────────────────┘         └──────────────────────────┘         └─────────────────┘
 ```
+
+### Key Principles:
+
+1. **Frontend Never Handles OAuth** - No PKCE generation, no state, no tokens in JavaScript
+2. **Backend is Confidential Client** - Authenticates with `client_secret`
+3. **Encrypted Token Storage** - Tokens encrypted with AES-256-GCM before storing in cookies
+4. **Server-Side Sessions** - PKCE parameters stored in server memory during OAuth flow
+5. **HTTP-Only Cookies** - Tokens inaccessible to JavaScript (XSS protection)
 
 ## Prerequisites
 
 - Node.js 16+ installed
 - Abstrauth authorization server running on `http://localhost:8080`
 - OAuth client registered in Abstrauth with:
-  - **Client ID**: `anapp-acomp`
-  - **Redirect URI**: `http://localhost:3333`
+  - **Client ID**: `abstratium-abstrauth`
+  - **Client Type**: `confidential`
+  - **Client Secret**: Set via environment variable
+  - **Redirect URI**: `http://localhost:3333/oauth/callback`
   - **Scopes**: `openid profile email`
 
 ## Installation
@@ -49,12 +56,19 @@ This is a **stateless server** architecture:
    npm install
    ```
 
-2. Start the server:
+2. Set environment variables (or use defaults for development):
+   ```bash
+   export CLIENT_SECRET="dev-secret-CHANGE-IN-PROD"
+   export SESSION_SECRET="dev-session-secret-CHANGE-IN-PROD"
+   export COOKIE_SECRET="dev-cookie-secret-CHANGE-IN-PROD"
+   ```
+
+3. Start the server:
    ```bash
    npm start
    ```
 
-3. Open your browser and navigate to:
+4. Open your browser and navigate to:
    ```
    http://localhost:3333
    ```
@@ -65,44 +79,68 @@ The server can be configured using environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `3333` | Port to run the server on |
-| `CLIENT_ID` | `anapp-acomp` | OAuth client ID |
-| `REDIRECT_URI` | `http://localhost:3333` | OAuth redirect URI |
+| `PORT` | `3333` | Port to run the BFF server on |
+| `CLIENT_ID` | `abstratium-abstrauth` | OAuth client ID (must be confidential) |
+| `CLIENT_SECRET` | `dev-secret-CHANGE-IN-PROD` | OAuth client secret (REQUIRED) |
+| `REDIRECT_URI` | `http://localhost:3333/oauth/callback` | OAuth callback URI |
 | `AUTHORIZATION_ENDPOINT` | `http://localhost:8080/oauth2/authorize` | Authorization endpoint |
 | `TOKEN_ENDPOINT` | `http://localhost:8080/oauth2/token` | Token endpoint |
 | `SCOPE` | `openid profile email` | OAuth scopes to request |
+| `SESSION_SECRET` | `dev-session-secret-CHANGE-IN-PROD` | Secret for signing session cookies |
+| `COOKIE_SECRET` | `dev-cookie-secret-CHANGE-IN-PROD` | Secret for encrypting tokens (min 32 chars) |
 
-## How It Works
+**⚠️ IMPORTANT:** In production, use strong secrets and store them securely (e.g., environment variables, secrets manager).
+
+## How It Works (BFF Pattern)
 
 ### 1. User Visits Home Page
 
 When the user visits `http://localhost:3333`:
 
 1. Browser loads the SPA (`index.html` + `app.js`)
-2. Browser attempts to fetch user info from `/api/user`
-3. If not authenticated (no HTTP-only cookie), browser initiates OAuth flow
+2. JavaScript attempts to fetch user info from `/api/user`
+3. If not authenticated (no cookie), shows "Sign In" button
 
-### 2. Browser Initiates OAuth Flow
+### 2. User Clicks "Sign In"
 
-The browser JavaScript (`app.js`):
+The frontend JavaScript simply redirects to `/oauth/login`:
 
-1. Uses hard-coded OAuth configuration (client_id, redirect_uri, etc.)
-2. Generates a cryptographically secure `code_verifier` (32 bytes, base64url-encoded)
-3. Creates a `code_challenge` by hashing the `code_verifier` with SHA-256
-4. Generates a random `state` parameter for CSRF protection (16 bytes)
-5. **Stores `code_verifier` and `state` in `sessionStorage`** (short-lived, browser-side)
-6. Redirects the user to the authorization endpoint (`/oauth2/authorize`) with:
-   - `response_type=code`
-   - `client_id=anapp-acomp`
-   - `redirect_uri=http://localhost:3333`
-   - `scope=openid profile email`
-   - `state=<random_string>`
-   - `code_challenge=<SHA256_hash>`
-   - `code_challenge_method=S256`
+```javascript
+function initiateLogin() {
+    window.location.href = '/oauth/login';  // That's it!
+}
+```
 
-**IMPORTANT**: PKCE parameters are generated and stored **in the browser** (not on the server). This is the correct implementation for SPAs according to OAuth 2.0 best practices.
+**No PKCE generation, no OAuth parameters - the BFF handles everything.**
 
-### 3. User Authenticates
+### 3. BFF Initiates OAuth Flow
+
+The BFF (`/oauth/login` endpoint):
+
+1. Generates cryptographically secure PKCE parameters:
+   - `code_verifier`: Random 32-byte string (base64url-encoded)
+   - `code_challenge`: SHA-256 hash of `code_verifier`
+   - `state`: Random 16-byte string for CSRF protection
+2. **Stores `code_verifier` and `state` in server-side session** (in-memory)
+3. Builds authorization URL with all OAuth parameters
+4. Redirects browser to authorization server
+
+```javascript
+app.get('/oauth/login', (req, res) => {
+    const codeVerifier = generateRandomString(32);
+    const codeChallenge = generateCodeChallenge(codeVerifier);
+    const state = generateRandomString(16);
+    
+    // Store in server session (not browser!)
+    req.session.codeVerifier = codeVerifier;
+    req.session.state = state;
+    
+    // Redirect to authorization server
+    res.redirect(authUrl.toString());
+});
+```
+
+### 4. User Authenticates
 
 The user is redirected to the Abstrauth authorization server where they:
 
@@ -110,400 +148,325 @@ The user is redirected to the Abstrauth authorization server where they:
 2. Review the requested permissions (consent screen)
 3. Approve or deny the authorization request
 
-### 4. Authorization Code Returned
+### 5. Authorization Server Redirects to BFF Callback
 
-If the user approves, Abstrauth redirects back to the callback URL with:
+If the user approves, Abstrauth redirects to `http://localhost:3333/oauth/callback` with:
 - `code=<authorization_code>` - Single-use authorization code
 - `state=<same_random_string>` - For CSRF validation
 
-### 5. Browser Handles Callback
+**Important:** The callback goes to the **BFF**, not the frontend.
 
-The browser JavaScript (`app.js`):
+### 6. BFF Handles Callback and Exchanges Code
 
-1. Detects the callback URL with `code` and `state` parameters
-2. **Validates the `state` parameter** against the value in `sessionStorage` (CSRF protection)
-3. Retrieves the `code_verifier` from `sessionStorage`
-4. Sends a POST request to `/api/token` with:
-   - `code=<authorization_code>`
-   - `code_verifier=<original_code_verifier>`
+The BFF (`/oauth/callback` endpoint):
 
-### 6. Server Exchanges Code for Token
-
-The stateless server (`server.js`):
-
-1. Receives the authorization code and `code_verifier` from the browser
-2. Exchanges the authorization code for tokens by calling the token endpoint (`/oauth2/token`) with:
+1. Validates the `state` parameter against server session (CSRF protection)
+2. Retrieves `code_verifier` from server session
+3. Exchanges authorization code for access token by calling `/oauth2/token` with:
    - `grant_type=authorization_code`
    - `code=<authorization_code>`
-   - `redirect_uri=http://localhost:3333`
-   - `client_id=anapp-acomp`
+   - `redirect_uri=http://localhost:3333/oauth/callback`
+   - `client_id=abstratium-abstrauth`
+   - **`client_secret=<CLIENT_SECRET>`** (confidential client authentication)
    - `code_verifier=<code_verifier>` (PKCE verification)
-3. **Stores the access token in an HTTP-only cookie** (not accessible to JavaScript)
-4. Returns success to the browser (no token in response body)
+4. **Encrypts the access token** using AES-256-GCM
+5. **Stores encrypted token in HTTP-only cookie**
+6. Clears session data (no longer needed)
+7. Redirects browser to `/` (home page)
 
-### 7. Browser Clears PKCE Parameters
+```javascript
+app.get('/oauth/callback', async (req, res) => {
+    // Validate state (CSRF protection)
+    if (state !== req.session.state) {
+        return res.redirect('/?error=invalid_state');
+    }
+    
+    // Exchange code for token with client_secret
+    const tokenParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: REDIRECT_URI,
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,  // Confidential client
+        code_verifier: req.session.codeVerifier  // PKCE
+    });
+    
+    const tokens = await fetch(TOKEN_ENDPOINT, { ... });
+    
+    // Encrypt and store in HTTP-only cookie
+    const encryptedToken = encryptToken(tokens.access_token);
+    res.cookie('access_token', encryptedToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict'
+    });
+    
+    // Clean up session
+    delete req.session.codeVerifier;
+    delete req.session.state;
+    
+    res.redirect('/');
+});
+```
 
-After successful token exchange:
+### 7. Frontend Loads User Info
 
-1. Browser clears `code_verifier` and `state` from `sessionStorage`
-2. Browser redirects to `/` (clean URL)
-3. Browser fetches user info from `/api/user`
+After redirect to `/`, the frontend:
 
-### 8. User Information Displayed
+1. Calls `/api/user` to fetch user information
+2. Browser automatically sends the HTTP-only cookie with the request
+3. BFF decrypts token from cookie and parses JWT claims
+4. BFF returns user info (payload only, no signature)
+5. Frontend displays user information
 
-The server (`/api/user` endpoint):
-
-1. Reads the access token from the HTTP-only cookie
-2. Parses the JWT to extract user claims (sub, email, name, groups)
-3. Returns user information to the browser
-4. Browser displays the user information on the dashboard
+```javascript
+app.get('/api/user', (req, res) => {
+    const encryptedToken = req.cookies.access_token;
+    const accessToken = decryptToken(encryptedToken);
+    
+    // Parse JWT payload
+    const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+    
+    res.json({
+        user: {
+            sub: payload.sub,
+            email: payload.email,
+            name: payload.name,
+            groups: payload.groups
+        }
+    });
+});
+```
 
 ## Security Features
 
-### PKCE (Proof Key for Code Exchange)
+### 1. Backend For Frontend (BFF) Pattern
+
+**Why BFF?**
+- Tokens never exposed to browser (XSS protection)
+- Confidential client can use `client_secret`
+- PKCE parameters never in browser storage
+- Compliant with OAuth 2.0 Security Best Practices
+
+**What the Frontend Never Sees:**
+- ❌ PKCE parameters (`code_verifier`, `code_challenge`)
+- ❌ State parameter
+- ❌ Authorization code
+- ❌ Access tokens
+- ❌ Client secret
+
+### 2. Confidential Client Authentication
+
+This is a **confidential client** that authenticates with `client_secret`:
+
+```http
+POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+code=AUTH_CODE&
+client_id=abstratium-abstrauth&
+client_secret=SECRET&          ← Confidential client authentication
+code_verifier=VERIFIER
+```
+
+**Why Confidential?**
+- More secure than public clients
+- Required by Abstrauth for BFF pattern
+- Prevents unauthorized token requests
+
+### 3. PKCE (Proof Key for Code Exchange)
 
 PKCE prevents authorization code interception attacks:
 
-1. **Code Verifier**: Random string (43-128 characters) generated by the client
-2. **Code Challenge**: SHA-256 hash of the code verifier, sent to authorization server
-3. **Verification**: Authorization server verifies that SHA-256(code_verifier) matches the stored code_challenge
+1. **BFF generates** `code_verifier` (random 32-byte string)
+2. **BFF creates** `code_challenge` = SHA-256(`code_verifier`)
+3. **BFF sends** `code_challenge` to authorization server
+4. **BFF stores** `code_verifier` in server session
+5. **Authorization server** stores `code_challenge` with authorization code
+6. **BFF sends** `code_verifier` when exchanging code for token
+7. **Authorization server verifies** SHA-256(`code_verifier`) == stored `code_challenge`
 
-This ensures that even if an attacker intercepts the authorization code, they cannot exchange it for tokens without the original code_verifier.
+Even if an attacker intercepts the authorization code, they cannot exchange it without the `code_verifier`.
 
-### State Parameter (CSRF Protection)
+### 4. State Parameter (CSRF Protection)
 
 The `state` parameter prevents Cross-Site Request Forgery attacks:
 
-1. Client generates a random state value
-2. Stores it in the session
-3. Includes it in the authorization request
-4. Validates that the returned state matches the stored value
+1. BFF generates random `state` value
+2. BFF stores it in server session
+3. BFF includes it in authorization request
+4. Authorization server returns it in callback
+5. BFF validates returned `state` matches stored value
 
 If an attacker tricks a user into visiting a malicious callback URL, the state validation will fail.
 
-### PKCE Parameter Storage (Browser)
+### 5. Encrypted Token Storage
 
-- `code_verifier` and `state` are stored in browser `sessionStorage`
-- These are **short-lived** (seconds to minutes) and cleared after token exchange
-- This is the **correct and required** approach for SPAs per OAuth 2.0 best practices
-- OWASP concerns about `sessionStorage` apply to **long-lived tokens**, not PKCE parameters
+Tokens are encrypted before storing in cookies:
 
-### Token Storage (Server)
+- **Algorithm**: AES-256-GCM (authenticated encryption)
+- **Key**: Derived from `COOKIE_SECRET` environment variable
+- **Format**: `iv:authTag:encrypted` (all base64-encoded)
 
-- Access token is stored in an **HTTP-only cookie** (not accessible to JavaScript)
-- Protects against XSS attacks (even if XSS vulnerability exists, token cannot be stolen)
-- Cookie has `sameSite=Strict` for CSRF protection
-- Cookie has `secure=true` in production (HTTPS only)
-- Server is **completely stateless** - no sessions, no in-memory storage
+Even if an attacker gains access to the cookie, they cannot decrypt the token without the secret.
 
-## Why This Architecture?
+### 6. HTTP-Only Cookies
 
-This example uses a **hybrid architecture**: browser-side OAuth flow with server-side token exchange and HTTP-only cookie storage. This combines the benefits of both approaches.
+Tokens are stored in HTTP-only cookies:
 
-### Security Rationale
-
-#### ✅ PKCE Parameters in Browser Storage (Correct)
-
-**Why `code_verifier` and `state` are in `sessionStorage`:**
-
-1. **Required by OAuth 2.0 for SPAs**: PKCE was designed specifically for public clients (SPAs, mobile apps) that cannot securely store secrets on a backend
-2. **Short-lived**: These values exist for seconds to minutes, not hours or days
-3. **Cleared after use**: Immediately removed from `sessionStorage` after token exchange
-4. **Not the same as tokens**: OWASP warnings about `localStorage`/`sessionStorage` apply to **long-lived access tokens and refresh tokens**, not temporary PKCE parameters
-
-**From your research:**
-> "For SPAs and mobile apps, storing code_verifier and state in browser storage is not just acceptable—it's required by design. The critical distinction is that these are short-lived flow parameters, not the long-lived tokens that should never be in localStorage."
-
-#### ✅ Access Token in HTTP-Only Cookie (Secure)
-
-**Why the access token is in an HTTP-only cookie:**
-
-1. **XSS Protection**: Even if XSS vulnerability exists, JavaScript cannot access HTTP-only cookies
-2. **Equivalent to session-based**: Cookie gives access to server, which uses token - same security as session ID
-3. **Stateless server**: No server-side sessions needed, server remains stateless
-4. **CSRF Protection**: `sameSite=Strict` prevents CSRF attacks
-5. **HTTPS in production**: `secure=true` ensures cookie only sent over HTTPS
-
-#### ✅ PKCE Security
-
-**Why PKCE parameters CAN be in browser storage:**
-
-1. **Designed for public clients**: PKCE (RFC 7636) was specifically created for SPAs and mobile apps that cannot keep secrets
-2. **Short-lived**: `code_verifier` only exists for the duration of the OAuth flow (seconds to minutes)
-3. **Single-use**: Authorization code can only be exchanged once
-4. **Server validates**: The authorization server performs constant-time comparison of `code_challenge`
-5. **Cleared immediately**: Browser clears `code_verifier` from `sessionStorage` after token exchange
-
-**What PKCE protects against:**
-- Authorization code interception attacks
-- Attacker cannot exchange intercepted code without the original `code_verifier`
-- Even if attacker sees `code_challenge`, they cannot reverse SHA-256 to get `code_verifier`
-
-#### ✅ CSRF Protection
-
-**State Parameter Security:**
-
-The `state` parameter prevents Cross-Site Request Forgery attacks.
-
-**Browser-side state storage (Current):**
-- State stored in `sessionStorage` during OAuth flow
-- Browser validates state matches when receiving callback
-- State is short-lived (seconds to minutes)
-- Cleared immediately after validation
-
-**Why this is secure:**
-1. **Short-lived**: State only exists during the OAuth flow
-2. **Same-origin**: `sessionStorage` is isolated per origin
-3. **Validated immediately**: State is checked and cleared in callback
-4. **XSS risk is minimal**: Even if XSS exists, attacker would need to intercept the exact moment of OAuth callback
-5. **Additional protection**: HTTP-only cookie with `sameSite=Strict` provides defense in depth
-
-#### ✅ Token Storage Compliance
-
-**OAuth 2.0 and Web Security Best Practices:**
-
-1. ✅ **Access tokens NOT in `localStorage` or `sessionStorage`** (OWASP recommendation)
-2. ✅ **HTTP-only cookies for tokens** (immune to JavaScript/XSS)
-3. ✅ **PKCE parameters in `sessionStorage`** (short-lived, required for SPAs)
-4. ✅ **Stateless server** (no sessions, scalable)
-5. ✅ **RFC 8725**: Server validates issuer, subject, and audience claims in JWTs
-
-**This Implementation:**
 ```javascript
-// ✅ SECURE - Access token in HTTP-only cookie
-res.cookie('access_token', tokens.access_token, {
-    httpOnly: true,  // ← Not accessible to JavaScript
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: tokens.expires_in * 1000
+res.cookie('access_token', encryptedToken, {
+    httpOnly: true,        // Not accessible to JavaScript
+    secure: true,          // HTTPS only (production)
+    sameSite: 'Strict',    // CSRF protection
+    maxAge: 3600000        // 1 hour
 });
-
-// ✅ SECURE - PKCE parameters in sessionStorage (short-lived)
-sessionStorage.setItem('code_verifier', codeVerifier);
-sessionStorage.setItem('state', state);
-// Cleared immediately after token exchange
-```
-
-**What NOT to do:**
-```javascript
-// ❌ INSECURE - Long-lived tokens in browser storage
-localStorage.setItem('access_token', tokens.access_token);
-localStorage.setItem('refresh_token', tokens.refresh_token);
-// Any XSS vulnerability can steal these tokens
-```
-
-#### ✅ Authorization Code Replay Detection
-
-From Abstrauth's security audit:
-
-> **CRITICAL-2: Authorization Code Replay Attack Detection**
-> RFC 6749 requires: "If an authorization code is used more than once, the authorization server MUST deny the request and SHOULD revoke all tokens"
-
-**How this architecture handles it:**
-- Authorization server (Abstrauth) enforces single-use authorization codes
-- Authorization server revokes all tokens if code is replayed
-- This is enforced server-side (Abstrauth), not by the client
-- Client architecture (stateless vs stateful) doesn't affect this protection
-
-#### ✅ Defense in Depth
-
-**Security Layers:**
-
-| Security Aspect | This Architecture | Pure Browser (localStorage) |
-|----------------|-------------------|--------------------------|
-| XSS Protection for Tokens | ✅ HTTP-only cookies (JS cannot access) | ❌ Vulnerable (JS can access) |
-| PKCE Parameters | ✅ sessionStorage (short-lived, required) | ✅ Same |
-| CSRF Protection | ✅ State + sameSite cookie | ✅ State parameter |
-| Token Storage | ✅ HTTP-only cookie | ❌ localStorage risk |
-| Replay Detection | ✅ Server enforces | ✅ Server enforces |
-| DevTools Inspection | ⚠️ Visible in DevTools (but not to JS) | ❌ Visible in DevTools AND to JS |
-| Malicious Extensions | ✅ Protected (cannot use document.cookie) | ❌ Can steal via JS APIs |
-| Server Stateless | ✅ Fully stateless | ✅ Fully stateless |
-
-### Comparison with Other Architectures
-
-#### Pure Browser (Token in Memory)
-
-**Pros:**
-- No backend needed for token storage
-- Fully stateless
-
-**Cons:**
-- Token lost on page refresh (poor UX)
-- Must re-authenticate frequently
-- Cannot use refresh tokens securely
-
-#### Pure Browser (Token in localStorage)
-
-**Pros:**
-- Survives page refresh
-- No backend needed
-
-**Cons:**
-- ❌ **Violates OWASP recommendations**
-- ❌ **XSS can steal tokens**
-- ❌ **Malicious extensions can access**
-- Not recommended for production
-
-#### This Architecture (HTTP-only Cookie)
-
-**Pros:**
-- ✅ XSS-proof token storage
-- ✅ Survives page refresh
-- ✅ Stateless server
-- ✅ Can use refresh tokens
-- ✅ Follows OAuth 2.0 best practices
-
-**Cons:**
-- Requires minimal backend (just token exchange endpoint)
-
-### This Architecture (Recommended)
-
-For **production OAuth clients**, this hybrid architecture is recommended:
-
-```
-┌─────────────────────┐         ┌──────────────────┐         ┌─────────────────┐
-│   Browser (SPA)     │ ◄─────► │  Stateless Server│ ◄─────► │ OAuth Server    │
-│                     │         │  (Node/Java/etc) │         │ (Abstrauth)     │
-│                     │         │                  │         │                 │
-│  - PKCE generation  │         │  - Token exchange│         │  - Issues tokens│
-│  - OAuth flow       │         │  - HTTP-only     │         │  - Validates    │
-│  - sessionStorage   │         │    cookies       │         │  - PKCE verify  │
-│    (PKCE params)    │         │  - NO sessions   │         │                 │
-└─────────────────────┘         └──────────────────┘         └─────────────────┘
 ```
 
 **Benefits:**
-- ✅ Access tokens never exposed to JavaScript (HTTP-only cookies)
-- ✅ PKCE parameters in browser (required for SPAs, short-lived)
-- ✅ Stateless server (scalable, no session management)
-- ✅ Compliance with OAuth 2.0 and OWASP best practices
-- ✅ Defense in depth against XSS attacks
+- ✅ Protected against XSS attacks
+- ✅ Automatically sent with requests
+- ✅ `sameSite=Strict` prevents CSRF
+- ✅ `secure=true` ensures HTTPS only
 
-### Compliance Summary
+### 7. Server-Side Session Storage
 
-This hybrid implementation complies with:
+PKCE parameters are stored in server memory during OAuth flow:
 
-- ✅ **RFC 6749** (OAuth 2.0) - Authorization Code Flow
-- ✅ **RFC 7636** (PKCE) - PKCE parameters in browser (as designed for public clients)
-- ✅ **RFC 6819** (Security Considerations) - CSRF protection via state parameter
-- ✅ **RFC 9700** (Security Best Practices) - PKCE enforcement for public clients
-- ✅ **RFC 8725** (JWT Best Practices) - Server validates issuer, subject, and audience claims
-- ✅ **OWASP** - Access tokens in HTTP-only cookies, NOT in localStorage/sessionStorage
-- ✅ **OAuth 2.0 for Browser-Based Apps** - PKCE parameters in sessionStorage (short-lived)
+- **Storage**: In-memory (development) or Redis/PostgreSQL (production)
+- **Duration**: Short-lived (10 minutes max)
+- **Cleanup**: Deleted immediately after token exchange
+- **Session ID**: Stored in HTTP-only cookie
 
-**Key Distinction:**
-- ✅ **PKCE parameters** (`code_verifier`, `state`) in `sessionStorage` - **CORRECT** (short-lived, required)
-- ✅ **Access tokens** in HTTP-only cookies - **CORRECT** (XSS-proof)
-- ❌ **Access tokens** in `localStorage`/`sessionStorage` - **WRONG** (OWASP violation)
-
-## API Endpoints
-
-### Public Endpoints
-
-- `GET /` - Home page (serves SPA)
-- `POST /api/token` - Exchange authorization code for access token (sets HTTP-only cookie)
-
-### Protected Endpoints
-
-- `GET /api/user` - Get current user information (requires access_token cookie)
-- `POST /api/logout` - Clear authentication cookies
-
-## File Structure
-
-```
-client-example/
-├── server.js           # Express server with OAuth logic
-├── package.json        # Dependencies and scripts
-├── public/
-│   ├── index.html      # Protected dashboard page
-│   └── app.js          # Client-side JavaScript
-└── README.md           # This file
-```
-
-## Code Examples
-
-### Generating PKCE Parameters
-
-```javascript
-function generateRandomString(length) {
-  const bytes = crypto.randomBytes(length);
-  return base64URLEncode(bytes);
-}
-
-function generateCodeChallenge(codeVerifier) {
-  const hash = crypto.createHash('sha256').update(codeVerifier).digest();
-  return base64URLEncode(hash);
-}
-
-const codeVerifier = generateRandomString(32);
-const codeChallenge = generateCodeChallenge(codeVerifier);
-```
-
-### Building Authorization URL
-
-```javascript
-const authUrl = new URL('http://localhost:8080/oauth2/authorize');
-authUrl.searchParams.set('response_type', 'code');
-authUrl.searchParams.set('client_id', 'anapp-acomp');
-authUrl.searchParams.set('redirect_uri', 'http://localhost:3333');
-authUrl.searchParams.set('scope', 'openid profile email');
-authUrl.searchParams.set('state', state);
-authUrl.searchParams.set('code_challenge', codeChallenge);
-authUrl.searchParams.set('code_challenge_method', 'S256');
-```
-
-### Exchanging Code for Token
-
-```javascript
-const tokenParams = new URLSearchParams({
-  grant_type: 'authorization_code',
-  code: code,
-  redirect_uri: 'http://localhost:3333',
-  client_id: 'anapp-acomp',
-  code_verifier: codeVerifier
-});
-
-const response = await fetch('http://localhost:8080/oauth2/token', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  body: tokenParams.toString()
-});
-
-const tokens = await response.json();
-```
-
-## Testing
-
-This example is used in the e2e tests. To run the tests:
-
-```bash
-cd ../e2e-tests
-npm test tests-nosignup/client-integration.spec.ts
-```
+**Why Server-Side?**
+- PKCE parameters never exposed to browser
+- No risk of XSS stealing OAuth parameters
+- Proper separation of concerns
 
 ## Production Considerations
 
-This is a demonstration application. For production use, consider:
+### 1. Session Store
 
-1. **Session Storage**: Use Redis or a database instead of in-memory storage
-2. **HTTPS**: Always use HTTPS in production
-3. **Token Validation**: Verify JWT signatures using the JWKS endpoint
-4. **Refresh Tokens**: Implement token refresh logic
-5. **Error Handling**: Add comprehensive error handling and logging
-6. **Rate Limiting**: Implement rate limiting on endpoints
-7. **Security Headers**: Add security headers (CSP, HSTS, etc.)
-8. **Token Revocation**: Implement logout with token revocation
-9. **Environment Variables**: Use proper secret management (e.g., HashiCorp Vault)
-10. **Monitoring**: Add application monitoring and alerting
+The default in-memory session store is **NOT suitable for production**. Use a persistent store:
+
+```javascript
+const RedisStore = require('connect-redis')(session);
+const redis = require('redis');
+const redisClient = redis.createClient();
+
+app.use(session({
+    store: new RedisStore({ client: redisClient }),
+    secret: SESSION_SECRET,
+    // ... other options
+}));
+```
+
+### 2. Secrets Management
+
+Never hardcode secrets. Use environment variables or a secrets manager:
+
+```bash
+# Development
+export CLIENT_SECRET="$(openssl rand -base64 32)"
+export SESSION_SECRET="$(openssl rand -base64 32)"
+export COOKIE_SECRET="$(openssl rand -base64 32)"
+
+# Production
+# Use AWS Secrets Manager, HashiCorp Vault, etc.
+```
+
+### 3. HTTPS
+
+Always use HTTPS in production:
+
+```javascript
+cookie: {
+    secure: true,  // Enforce HTTPS
+    sameSite: 'Strict'
+}
+```
+
+### 4. Token Refresh
+
+This example doesn't implement token refresh. For production:
+
+1. Store `refresh_token` in encrypted cookie
+2. Implement `/api/refresh` endpoint
+3. Automatically refresh expired tokens
+4. Handle refresh token rotation
+
+## Comparison: BFF vs. Public Client
+
+| Feature | BFF Pattern (This Example) | Public Client (SPA) |
+|---------|---------------------------|---------------------|
+| **Client Type** | Confidential | Public |
+| **client_secret** | ✅ Yes | ❌ No |
+| **PKCE Generation** | Backend | Browser |
+| **Token Storage** | Encrypted HTTP-only cookie | localStorage/sessionStorage |
+| **XSS Protection** | ✅ Strong | ⚠️ Vulnerable |
+| **Token Visibility** | Never exposed to browser | Exposed to JavaScript |
+| **Recommended** | ✅ Yes (OAuth 2.0 BCP) | ⚠️ Legacy approach |
+
+## API Endpoints
+
+### Frontend Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Serves the SPA (index.html) |
+| `/api/user` | GET | Returns user info from JWT (requires auth cookie) |
+| `/api/logout` | POST | Clears authentication cookie |
+
+### OAuth Endpoints (BFF)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/oauth/login` | GET | Initiates OAuth flow (generates PKCE, redirects to auth server) |
+| `/oauth/callback` | GET | OAuth callback (exchanges code for token, sets cookie) |
+
+## Troubleshooting
+
+### "Not authenticated" Error
+
+**Cause:** No valid access token in cookie.
+
+**Solution:** Click "Sign In" to initiate OAuth flow.
+
+### "Invalid state" Error
+
+**Cause:** CSRF validation failed (state mismatch).
+
+**Possible reasons:**
+- Session expired (10 minute timeout)
+- Multiple concurrent login attempts
+- Browser cleared cookies mid-flow
+
+**Solution:** Try logging in again.
+
+### "Token exchange failed" Error
+
+**Cause:** Authorization server rejected token exchange.
+
+**Possible reasons:**
+- Invalid `client_secret`
+- PKCE verification failed
+- Authorization code already used
+- Authorization code expired
+
+**Solution:** Check server logs and environment variables.
 
 ## References
 
 - [RFC 6749 - OAuth 2.0 Authorization Framework](https://datatracker.ietf.org/doc/html/rfc6749)
-- [RFC 7636 - Proof Key for Code Exchange (PKCE)](https://datatracker.ietf.org/doc/html/rfc7636)
-- [RFC 6819 - OAuth 2.0 Threat Model and Security Considerations](https://datatracker.ietf.org/doc/html/rfc6819)
-- [RFC 9700 - OAuth 2.0 Security Best Current Practice](https://datatracker.ietf.org/doc/html/rfc9700)
+- [RFC 7636 - PKCE](https://datatracker.ietf.org/doc/html/rfc7636)
+- [OAuth 2.0 for Browser-Based Apps](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps)
+- [OAuth 2.0 Security Best Current Practice](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics)
 
 ## License
 
-Apache License 2.0
+Apache-2.0
+
+## Author
+
+abstratium informatique sàrl

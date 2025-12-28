@@ -19,7 +19,7 @@ public class OAuthClient {
     private String clientName;
 
     @Column(name = "client_type", nullable = false, length = 20)
-    private String clientType; // 'public' or 'confidential'
+    private String clientType; // 'confidential' only (BFF pattern required)
 
     @Column(name = "redirect_uris", nullable = false, columnDefinition = "TEXT")
     private String redirectUris; // JSON array

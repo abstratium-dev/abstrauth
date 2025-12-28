@@ -1,13 +1,20 @@
 /**
- * Client-side OAuth 2.0 Application Logic
+ * Client-side Application Logic (Backend For Frontend Pattern)
  * 
- * This handles the complete OAuth flow in the browser:
- * 1. Generate PKCE parameters (code_verifier, code_challenge) and state
- * 2. Store code_verifier and state in sessionStorage
- * 3. Redirect to authorization server
- * 4. Handle callback with authorization code
- * 5. Exchange code for token via server endpoint
- * 6. Display user info from token in HTTP-only cookie
+ * In the BFF pattern, the frontend does NOT handle OAuth parameters:
+ * 1. User clicks "Sign In" - redirect to /oauth/login (BFF endpoint)
+ * 2. BFF generates PKCE parameters and redirects to authorization server
+ * 3. User authenticates at authorization server
+ * 4. Authorization server redirects to /oauth/callback (BFF endpoint)
+ * 5. BFF exchanges code for token and stores in encrypted HTTP-only cookie
+ * 6. BFF redirects to / (home page)
+ * 7. Frontend loads user info from /api/user (cookie sent automatically)
+ * 
+ * The frontend NEVER sees or handles:
+ * - PKCE parameters (code_verifier, code_challenge)
+ * - State parameter
+ * - Authorization code
+ * - Access tokens
  */
 
 (function () {
@@ -25,133 +32,30 @@
     const userGroupsEl = document.getElementById('user-groups');
 
     /**
-     * Generate a cryptographically random string
+     * Initiate OAuth flow - redirect to BFF login endpoint
+     * BFF handles all OAuth parameters (PKCE, state, etc.)
      */
-    function generateRandomString(length) {
-        const array = new Uint8Array(length);
-        crypto.getRandomValues(array);
-        return base64URLEncode(array);
+    function initiateLogin() {
+        // Simply redirect to BFF login endpoint
+        // BFF will generate PKCE parameters and redirect to authorization server
+        window.location.href = '/oauth/login';
     }
 
     /**
-     * Base64URL encode (without padding)
+     * Check for OAuth errors in URL
+     * BFF redirects here with error parameters if something went wrong
      */
-    function base64URLEncode(buffer) {
-        const base64 = btoa(String.fromCharCode(...buffer));
-        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    }
-
-    /**
-     * Generate PKCE code challenge from code verifier
-     */
-    async function generateCodeChallenge(codeVerifier) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(codeVerifier);
-        const hash = await crypto.subtle.digest('SHA-256', data);
-        return base64URLEncode(new Uint8Array(hash));
-    }
-
-    /**
-     * Initiate OAuth flow - generate PKCE params and redirect
-     */
-    async function initiateLogin() {
-        try {
-            // Fetch OAuth configuration from server
-            const configResponse = await fetch('/api/oauth-config');
-            const config = await configResponse.json();
-
-            // Generate PKCE parameters
-            const codeVerifier = generateRandomString(32);
-            const codeChallenge = await generateCodeChallenge(codeVerifier);
-            const state = generateRandomString(16);
-
-            // Store in sessionStorage (short-lived, cleared after token exchange)
-            sessionStorage.setItem('code_verifier', codeVerifier);
-            sessionStorage.setItem('state', state);
-
-            // Build authorization URL
-            const authUrl = new URL(config.authorization_endpoint);
-            authUrl.searchParams.set('response_type', 'code');
-            authUrl.searchParams.set('client_id', config.client_id);
-            authUrl.searchParams.set('redirect_uri', config.redirect_uri);
-            authUrl.searchParams.set('scope', config.scope);
-            authUrl.searchParams.set('state', state);
-            authUrl.searchParams.set('code_challenge', codeChallenge);
-            authUrl.searchParams.set('code_challenge_method', 'S256');
-
-            // Redirect to authorization server
-            window.location.href = authUrl.toString();
-        } catch (error) {
-            console.error('Error initiating login:', error);
-            showError('Failed to initiate login: ' + error.message);
-        }
-    }
-
-    /**
-     * Handle OAuth callback - exchange code for token
-     */
-    async function handleCallback() {
+    function checkForErrors() {
         const params = new URLSearchParams(window.location.search);
-        const code = params.get('code');
-        const state = params.get('state');
         const error = params.get('error');
-
-        // Check for errors from authorization server
+        
         if (error) {
             const errorDescription = params.get('error_description');
-            showError(`Authorization error: ${error} - ${errorDescription || 'No description'}`);
-            return;
-        }
-
-        if (!code) {
-            // No code in URL, not a callback
-            return false;
-        }
-
-        // Validate state parameter (CSRF protection)
-        const storedState = sessionStorage.getItem('state');
-        if (state !== storedState) {
-            showError('Invalid state parameter - possible CSRF attack');
+            showError(`Authentication error: ${error} - ${errorDescription || 'No description'}`);
             return true;
         }
-
-        // Get code_verifier from sessionStorage
-        const codeVerifier = sessionStorage.getItem('code_verifier');
-        if (!codeVerifier) {
-            showError('Missing code_verifier - please try logging in again');
-            return true;
-        }
-
-        try {
-            // Exchange code for token via server endpoint
-            const response = await fetch('/api/token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    code: code,
-                    code_verifier: codeVerifier
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error_description || errorData.error);
-            }
-
-            // Clear PKCE parameters from sessionStorage
-            sessionStorage.removeItem('code_verifier');
-            sessionStorage.removeItem('state');
-
-            // Redirect to home (clean URL, token is in HTTP-only cookie)
-            window.location.href = '/';
-        } catch (error) {
-            console.error('Error exchanging code for token:', error);
-            showError('Failed to exchange code for token: ' + error.message);
-        }
-
-        return true;
+        
+        return false;
     }
 
     /**
@@ -222,12 +126,12 @@
     window.logout = logout;
 
     // Initialize
-    (async function init() {
-        // Check if this is an OAuth callback
-        const isCallback = await handleCallback();
+    (function init() {
+        // Check for OAuth errors in URL
+        const hasError = checkForErrors();
         
-        // If not a callback, fetch user info
-        if (!isCallback) {
+        // If no errors, fetch user info
+        if (!hasError) {
             fetchUserInfo();
         }
     })();
