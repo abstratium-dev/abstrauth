@@ -21,12 +21,16 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
+import org.jboss.logging.Logger;
+
 /**
  * Google OAuth 2.0 Callback Endpoint
  */
 @Path("/oauth2/callback/google")
 @Tag(name = "OAuth 2.0 Federated Login", description = "Federated login with external identity providers")
 public class GoogleCallbackResource {
+
+    private static final Logger log = Logger.getLogger(GoogleCallbackResource.class); 
 
     @Inject
     GoogleOAuthService googleOAuthService;
@@ -72,6 +76,7 @@ public class GoogleCallbackResource {
     ) {
         // Handle error from Google
         if (error != null) {
+            log.info("Google callback received with error: " + error);
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>Google authentication failed: " + error + "</p></body></html>")
                     .build();
@@ -79,12 +84,14 @@ public class GoogleCallbackResource {
 
         // Validate required parameters
         if (code == null || code.isBlank()) {
+            log.info("Google callback received with missing authorization code");
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>Missing authorization code</p></body></html>")
                     .build();
         }
 
         if (state == null || state.isBlank()) {
+            log.info("Google callback received with missing state parameter");
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>Missing state parameter</p></body></html>")
                     .build();
@@ -93,10 +100,13 @@ public class GoogleCallbackResource {
         // Find the original authorization request using the state parameter
         Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(state);
         if (requestOpt.isEmpty() || !"pending".equals(requestOpt.get().getStatus())) {
+            log.info("Google callback received with invalid or expired authorization request");
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>Invalid or expired authorization request</p></body></html>")
                     .build();
         }
+
+        log.info("Google callback received with valid authorization request");
 
         AuthorizationRequest authRequest = requestOpt.get();
 
@@ -122,6 +132,7 @@ public class GoogleCallbackResource {
             return Response.seeOther(URI.create(redirectUrl)).build();
 
         } catch (Exception e) {
+            log.error("Google callback had an exception: " + e.getMessage(), e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("<html><body><h1>Error</h1><p>Failed to process Google authentication: " + 
                             e.getMessage() + "</p><a href='/'>Try again</a></body></html>")

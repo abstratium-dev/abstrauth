@@ -46,19 +46,18 @@
             <label for="clientType">Client Type *</label>
             <select id="clientType" name="clientType" [(ngModel)]="formData.clientType" required
               [disabled]="formSubmitting">
-              <option value="public">Public</option>
               <option value="confidential">Confidential</option>
             </select>
-            <small class="form-hint">Public for SPAs/mobile apps, Confidential for server-side apps</small>
+            <small class="form-hint">Confidential for server-side apps or SPAs with BFF</small>
           </div>
 
           <div class="form-group">
             <label for="requirePkce">
-              <input type="checkbox" id="requirePkce" name="requirePkce" [(ngModel)]="formData.requirePkce"
-                [disabled]="formSubmitting">
               Require PKCE
             </label>
-            <small class="form-hint">Recommended for public clients</small>
+            <input type="checkbox" id="requirePkce" name="requirePkce" [(ngModel)]="formData.requirePkce"
+                [disabled]="true">
+            <small class="form-hint">Required by abstrauth</small>
           </div>
         </div>
 
@@ -151,17 +150,14 @@
                 <label for="edit-clientType">Client Type *</label>
                 <select id="edit-clientType" name="clientType" [(ngModel)]="formData.clientType" required
                   [disabled]="formSubmitting">
-                  <option value="public">Public</option>
                   <option value="confidential">Confidential</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label for="edit-requirePkce">
-                  <input type="checkbox" id="edit-requirePkce" name="requirePkce" [(ngModel)]="formData.requirePkce"
-                    [disabled]="formSubmitting">
-                  Require PKCE
-                </label>
+                <label for="edit-requirePkce">Require PKCE</label>
+                <input type="checkbox" id="edit-requirePkce" name="requirePkce" [(ngModel)]="formData.requirePkce"
+                  [disabled]="true">
               </div>
 
               <div class="form-group">

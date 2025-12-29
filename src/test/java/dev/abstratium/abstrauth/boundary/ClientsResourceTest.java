@@ -105,7 +105,7 @@ public class ClientsResourceTest {
             .statusCode(200)
             .body("clientId", hasItem("abstratium-abstrauth"))
             .body("clientName", hasItem("abstratium abstrauth"))
-            .body("clientType", hasItem("public"));
+            .body("clientType", hasItem("confidential"));
     }
 
     @Test
@@ -242,7 +242,7 @@ public class ClientsResourceTest {
             {
                 "clientId": "%s",
                 "clientName": "Test Client",
-                "clientType": "public",
+                "clientType": "confidential",
                 "redirectUris": "[\\"http://localhost:3000/callback\\"]",
                 "allowedScopes": "[\\"openid\\", \\"profile\\"]",
                 "requirePkce": true
@@ -259,7 +259,7 @@ public class ClientsResourceTest {
             .statusCode(201)
             .body("clientId", equalTo(uniqueClientId))
             .body("clientName", equalTo("Test Client"))
-            .body("clientType", equalTo("public"))
+            .body("clientType", equalTo("confidential"))
             .body("requirePkce", equalTo(true))
             .body("id", notNullValue())
             .body("createdAt", notNullValue());
@@ -422,7 +422,7 @@ public class ClientsResourceTest {
                 "clientType": "confidential",
                 "redirectUris": "[\\"http://localhost:5000/callback\\"]",
                 "allowedScopes": "[\\"openid\\", \\"email\\"]",
-                "requirePkce": false
+                "requirePkce": true
             }
             """;
         
@@ -436,7 +436,7 @@ public class ClientsResourceTest {
             .statusCode(200)
             .body("clientName", equalTo("Updated Client Name"))
             .body("clientType", equalTo("confidential"))
-            .body("requirePkce", equalTo(false));
+            .body("requirePkce", equalTo(true));
     }
 
     @Test
@@ -536,7 +536,7 @@ public class ClientsResourceTest {
             {
                 "clientId": "%s",
                 "clientName": "Client to Delete",
-                "clientType": "public",
+                "clientType": "confidential",
                 "redirectUris": "[\\"http://localhost:3000/callback\\"]",
                 "allowedScopes": "[\\"openid\\"]"
             }
@@ -615,7 +615,7 @@ public class ClientsResourceTest {
             {
                 "clientId": "%s",
                 "clientName": "Test Client PKCE",
-                "clientType": "public",
+                "clientType": "confidential",
                 "redirectUris": "[\\"http://localhost:3000/callback\\"]",
                 "allowedScopes": "[\\"openid\\", \\"profile\\"]"
             }
@@ -633,7 +633,33 @@ public class ClientsResourceTest {
     }
 
     @Test
-    public void testCreateClientCanSetRequirePkceToFalse() {
+    public void testCreateClientWithPublicTypeReturns400() {
+        String token = generateValidToken();
+        String uniqueClientId = "test-client-public-" + System.currentTimeMillis();
+        String requestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Public Client",
+                "clientType": "public",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\", \\"profile\\"]",
+                "requirePkce": true
+            }
+            """, uniqueClientId);
+        
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("Only confidential clients are allowed"));
+    }
+
+    @Test
+    public void testCreateClientWithRequirePkceFalseReturns400() {
         String token = generateValidToken();
         String uniqueClientId = "test-client-no-pkce-" + System.currentTimeMillis();
         String requestBody = String.format("""
@@ -654,8 +680,76 @@ public class ClientsResourceTest {
             .when()
             .post("/api/clients")
             .then()
-            .statusCode(201)
-            .body("requirePkce", equalTo(false));
+            .statusCode(400)
+            .body("error", equalTo("PKCE is required for all clients"));
+    }
+
+    @Test
+    public void testUpdateClientWithPublicTypeReturns400() {
+        String token = generateValidToken();
+        String clientId = given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .get("/api/clients")
+            .then()
+            .statusCode(200)
+            .extract()
+            .jsonPath()
+            .getString("[0].id");
+
+        String requestBody = """
+            {
+                "clientName": "Updated Name",
+                "clientType": "public",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\"]",
+                "requirePkce": true
+            }
+            """;
+        
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .put("/api/clients/" + clientId)
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("Only confidential clients are allowed"));
+    }
+
+    @Test
+    public void testUpdateClientWithRequirePkceFalseReturns400() {
+        String token = generateValidToken();
+        String clientId = given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .get("/api/clients")
+            .then()
+            .statusCode(200)
+            .extract()
+            .jsonPath()
+            .getString("[0].id");
+
+        String requestBody = """
+            {
+                "clientName": "Updated Name",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\"]",
+                "requirePkce": false
+            }
+            """;
+        
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .put("/api/clients/" + clientId)
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("PKCE is required for all clients"));
     }
 
     @Test

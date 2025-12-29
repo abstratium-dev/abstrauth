@@ -348,36 +348,47 @@ describe('Controller', () => {
     });
   });
 
-  describe('loadSignupAllowed', () => {
-    it('should load signup allowed flag and update model service', () => {
-      controller.loadSignupAllowed();
+  describe('loadConfig', () => {
+    it('should load config and update model service', () => {
+      controller.loadConfig();
 
-      const req = httpMock.expectOne('/api/signup/allowed');
+      const req = httpMock.expectOne('/api/config');
       expect(req.request.method).toBe('GET');
-      req.flush({ allowed: true, allowNativeSignin: true });
+      req.flush({ signupAllowed: true, allowNativeSignin: true, sessionTimeoutSeconds: 900 });
 
       expect(modelService.signupAllowed$()).toBe(true);
       expect(modelService.allowNativeSignin$()).toBe(true);
+      expect(modelService.sessionTimeoutSeconds$()).toBe(900);
     });
 
     it('should handle false signup allowed', () => {
-      controller.loadSignupAllowed();
+      controller.loadConfig();
 
-      const req = httpMock.expectOne('/api/signup/allowed');
-      req.flush({ allowed: false, allowNativeSignin: false });
+      const req = httpMock.expectOne('/api/config');
+      req.flush({ signupAllowed: false, allowNativeSignin: false, sessionTimeoutSeconds: 1800 });
 
       expect(modelService.signupAllowed$()).toBe(false);
       expect(modelService.allowNativeSignin$()).toBe(false);
+      expect(modelService.sessionTimeoutSeconds$()).toBe(1800);
     });
 
-    it('should handle error when loading signup allowed', () => {
-      controller.loadSignupAllowed();
+    it('should handle error when loading config', () => {
+      controller.loadConfig();
 
-      const req = httpMock.expectOne('/api/signup/allowed');
+      const req = httpMock.expectOne('/api/config');
       req.error(new ProgressEvent('error'));
 
       expect(modelService.signupAllowed$()).toBe(false);
       expect(modelService.allowNativeSignin$()).toBe(false);
+      expect(modelService.sessionTimeoutSeconds$()).toBe(900); // Default fallback
+    });
+  });
+
+  describe('loadSignupAllowed (deprecated)', () => {
+    it('should call loadConfig', () => {
+      spyOn(controller, 'loadConfig');
+      controller.loadSignupAllowed();
+      expect(controller.loadConfig).toHaveBeenCalled();
     });
   });
 
@@ -385,7 +396,7 @@ describe('Controller', () => {
     const mockClientData = {
       clientId: 'new-client',
       clientName: 'New Client',
-      clientType: 'public',
+      clientType: 'confidential',
       redirectUris: '["http://localhost:3000/callback"]',
       allowedScopes: '["openid", "profile"]',
       requirePkce: true
@@ -641,7 +652,7 @@ describe('Controller', () => {
     it('should send correct data format', async () => {
       const updateData = {
         clientName: 'New Name',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: '["https://example.com/callback"]',
         allowedScopes: '["openid"]',
         requirePkce: true
@@ -651,7 +662,7 @@ describe('Controller', () => {
 
       const updateReq = httpMock.expectOne(`/api/clients/${mockClientId}`);
       expect(updateReq.request.body.clientName).toBe('New Name');
-      expect(updateReq.request.body.clientType).toBe('public');
+      expect(updateReq.request.body.clientType).toBe('confidential');
       expect(updateReq.request.body.redirectUris).toBe('["https://example.com/callback"]');
       expect(updateReq.request.body.allowedScopes).toBe('["openid"]');
       expect(updateReq.request.body.requirePkce).toBe(true);
@@ -691,7 +702,7 @@ describe('Controller', () => {
           id: '456',
           clientId: 'remaining-client',
           clientName: 'Remaining Client',
-          clientType: 'public',
+          clientType: 'confidential',
           redirectUris: '["http://localhost:3000/callback"]',
           allowedScopes: '["openid"]',
           requirePkce: true,

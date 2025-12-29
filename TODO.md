@@ -43,6 +43,9 @@ in the user guide AND where i describe how to run the native image
 - check SECURITY.md - how much of this section is still true? "Content Security Policy (CSP)"
 - do we inforce confidential clients? that is the result of the design decision
 - is it right that the initial authorization request sends the client_secret, or is the client_secret only normally sent when exchanging the token?
+- signin.component.html has 4 scopes, not 3 and debug code that needs deleting
+- check that signin will go to the page originally requested if the user enters a URL into the browser
+- test if an error path has been properly configured. test with url http://localhost:8080/api/auth/callback?error=invalid_scope&error_description=Requested+scope+is+not+allowed&state=88b70691-df79-4b15-a68e-d317bad3a8dc
 
 - refactor all ErrorResponse classes into a common class with its own file
 - docs - describe how to run as a docker image

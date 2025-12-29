@@ -25,7 +25,7 @@
             &nbsp;|&nbsp;
             🥷 <a id="user-link" routerLink="/user" routerLinkActive="inactive-link">{{ token.name }}</a>
             &nbsp;|&nbsp;
-            <a id="signout-link" class="alink" routerLink="/signout">Sign out</a>
+            <a id="signout-link" class="alink" (click)="signout()">Sign out</a>
         }
     </div>
 </div>

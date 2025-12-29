@@ -46,14 +46,14 @@ public class UserInfoResource {
         userInfo.put("sub", idToken.getSubject());
         userInfo.put("email", idToken.getClaim("email"));
         userInfo.put("email_verified", idToken.getClaim("email_verified"));
-        userInfo.put("name", idToken.getName());
+        userInfo.put("name", idToken.getClaim("name"));  // Use claim directly, not getName()
         userInfo.put("groups", idToken.getGroups());
-        userInfo.put("scope", idToken.getClaim("scope"));
         userInfo.put("iat", idToken.getIssuedAtTime());
         userInfo.put("exp", idToken.getExpirationTime());
-        userInfo.put("client_id", idToken.getClaim("client_id"));
+        userInfo.put("client_id", idToken.getAudience() != null && !idToken.getAudience().isEmpty() 
+            ? idToken.getAudience().iterator().next() : null);
         userInfo.put("jti", idToken.getClaim("jti"));
-        userInfo.put("upn", idToken.getClaim("upn"));
+        userInfo.put("upn", idToken.getName());  // getName() returns upn claim
         userInfo.put("auth_method", idToken.getClaim("auth_method"));
         userInfo.put("isAuthenticated", true);
         

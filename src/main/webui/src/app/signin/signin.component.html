@@ -79,7 +79,7 @@
     
                 <p>Hi {{ name }}, <strong>{{ clientName }}</strong> wants to access:</p>
                 <ul class="bullet-list">
-                    @for(scope of scopes; track scope){
+                    @for(scope of scopes; track $index){
                         <li>{{ scope }}</li>
                     }
                 </ul>

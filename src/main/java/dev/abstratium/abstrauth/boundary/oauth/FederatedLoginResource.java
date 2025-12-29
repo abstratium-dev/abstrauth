@@ -11,6 +11,7 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 
 import java.net.URI;
 import java.util.Optional;
@@ -21,6 +22,8 @@ import java.util.Optional;
 @Path("/oauth2/federated")
 @Tag(name = "OAuth 2.0 Federated Login", description = "Federated login with external identity providers")
 public class FederatedLoginResource {
+
+    private static final Logger log = Logger.getLogger(FederatedLoginResource.class); 
 
     @Inject
     GoogleOAuthService googleOAuthService;
@@ -54,6 +57,7 @@ public class FederatedLoginResource {
     ) {
         // Validate request_id
         if (requestId == null || requestId.isBlank()) {
+            log.info("Missing request_id parameter");
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Missing request_id parameter")
                     .build();
@@ -62,6 +66,7 @@ public class FederatedLoginResource {
         // Verify the authorization request exists and is pending
         Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
         if (requestOpt.isEmpty() || !"pending".equals(requestOpt.get().getStatus())) {
+            log.info("Invalid or expired authorization request");
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Invalid or expired authorization request")
                     .build();
@@ -70,6 +75,7 @@ public class FederatedLoginResource {
         // Generate Google authorization URL with request_id as state
         String googleAuthUrl = googleOAuthService.getAuthorizationUrl(requestId);
 
+        log.info("Redirecting to Google authorization URL");
         return Response.seeOther(URI.create(googleAuthUrl)).build();
     }
 }

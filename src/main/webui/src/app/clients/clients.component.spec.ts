@@ -18,7 +18,7 @@ describe('ClientsComponent', () => {
       id: '1',
       clientId: 'test-client-1',
       clientName: 'Test Client 1',
-      clientType: 'public',
+      clientType: 'confidential',
       redirectUris: '["http://localhost:3000/callback"]',
       allowedScopes: '["openid", "profile", "email"]',
       requirePkce: true,
@@ -31,7 +31,7 @@ describe('ClientsComponent', () => {
       clientType: 'confidential',
       redirectUris: '["http://localhost:4000/callback", "http://localhost:4000/auth"]',
       allowedScopes: '["openid", "admin"]',
-      requirePkce: false,
+      requirePkce: true,
       createdAt: '2024-01-02T00:00:00Z'
     }
   ];
@@ -157,7 +157,7 @@ describe('ClientsComponent', () => {
       expect(compiled.textContent).toContain('Yes'); // requirePkce
     });
 
-    it('should display correct badge for public client', () => {
+    it('should display correct badge for confidential client', () => {
       fixture.detectChanges();
       
       const req = httpMock.expectOne('/api/clients');
@@ -165,10 +165,10 @@ describe('ClientsComponent', () => {
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
-      const badge = compiled.querySelector('.badge-primary');
+      const badge = compiled.querySelector('.badge-secondary');
       
       expect(badge).toBeTruthy();
-      expect(badge.textContent).toContain('public');
+      expect(badge.textContent).toContain('confidential');
     });
 
     it('should display correct badge for confidential client', () => {
@@ -388,7 +388,7 @@ describe('ClientsComponent', () => {
       component.resetForm();
       expect(component.formData.clientId).toBe('');
       expect(component.formData.clientName).toBe('');
-      expect(component.formData.clientType).toBe('public');
+      expect(component.formData.clientType).toBe('confidential');
       expect(component.formData.redirectUris).toBe('');
       expect(component.formData.allowedScopes).toBe('');
       expect(component.formData.requirePkce).toBe(true);
@@ -408,7 +408,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'new-client',
         clientName: 'New Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid profile',
         requirePkce: true
@@ -426,7 +426,7 @@ describe('ClientsComponent', () => {
         id: '3',
         clientId: 'new-client',
         clientName: 'New Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: '["http://localhost:3000/callback"]',
         allowedScopes: '["openid", "profile"]',
         requirePkce: true,
@@ -450,7 +450,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'multi-uri-client',
         clientName: 'Multi URI Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback\nhttp://localhost:4000/callback',
         allowedScopes: 'openid',
         requirePkce: true
@@ -474,7 +474,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'comma-scopes-client',
         clientName: 'Comma Scopes Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid, profile, email',
         requirePkce: true
@@ -498,7 +498,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'test-client',
         clientName: 'Test Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: '',
         allowedScopes: 'openid',
         requirePkce: true
@@ -514,7 +514,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'test-client',
         clientName: 'Test Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: '',
         requirePkce: true
@@ -531,7 +531,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'existing-client',
         clientName: 'Existing Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid',
         requirePkce: true
@@ -552,7 +552,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'test-client',
         clientName: 'Test Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid',
         requirePkce: true
@@ -572,7 +572,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'test-client',
         clientName: 'Test Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid',
         requirePkce: true
@@ -592,7 +592,7 @@ describe('ClientsComponent', () => {
       component.formData = {
         clientId: 'test-client',
         clientName: 'Test Client',
-        clientType: 'public',
+        clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid',
         requirePkce: true
@@ -642,7 +642,7 @@ describe('ClientsComponent', () => {
       expect(component.showForm).toBe(false);
       expect(component.formData.clientId).toBe('test-client-1');
       expect(component.formData.clientName).toBe('Test Client 1');
-      expect(component.formData.clientType).toBe('public');
+      expect(component.formData.clientType).toBe('confidential');
       expect(component.formData.redirectUris).toBe('http://localhost:3000/callback');
       expect(component.formData.allowedScopes).toBe('openid profile email');
       expect(component.formData.requirePkce).toBe(true);

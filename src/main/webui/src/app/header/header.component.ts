@@ -1,7 +1,7 @@
+import { CommonModule } from '@angular/common';
 import { Component, effect, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { AuthService, ROLE_MANAGE_ACCOUNTS, ROLE_MANAGE_CLIENTS, Token } from '../auth.service';
-import { CommonModule } from '@angular/common';
+import { AuthService, Token } from '../auth.service';
 import { Controller } from '../controller';
 import { ThemeService } from '../theme.service';
 
@@ -27,10 +27,14 @@ export class HeaderComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        this.controller.loadSignupAllowed();
+        this.controller.loadConfig();
     }
 
     toggleTheme(): void {
         this.themeService.toggleTheme();
+    }
+
+    signout() {
+        this.authService.signout();
     }
 }

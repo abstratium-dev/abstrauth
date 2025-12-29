@@ -23,9 +23,19 @@ export async function signout(page: Page) {
     // Dismiss any toast notifications that might block the signout link
     await dismissToasts(page);
     
-    await _getSignoutLink(page).click();
+    // Click signout and wait for the logout request to complete
+    // In BFF pattern, this calls /api/auth/logout which clears the session cookie
+    // and redirects to the post-logout path (/)
+    await Promise.all([
+        page.waitForResponse(response => 
+            response.url().includes('/api/auth/logout') && 
+            (response.status() === 302 || response.status() === 200)
+        ),
+        _getSignoutLink(page).click()
+    ]);
+    
     // Wait for navigation to complete to avoid race conditions with subsequent page.goto()
-    await page.waitForTimeout(300);
+    await page.waitForLoadState('networkidle');
 }
 
 export async function navigateToAccounts(page: Page) {

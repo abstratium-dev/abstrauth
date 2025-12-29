@@ -11,6 +11,7 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 
 /**
  * OAuth 2.0 Token Introspection Endpoint
@@ -19,6 +20,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Path("/oauth2/introspect")
 @Tag(name = "OAuth 2.0 Token", description = "OAuth 2.0 Token management endpoints")
 public class IntrospectionResource {
+
+    private static final Logger log = Logger.getLogger(IntrospectionResource.class); 
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -100,6 +103,7 @@ public class IntrospectionResource {
         )
         @FormParam("client_secret") String clientSecret
     ) {
+        log.info("Introspection request received");
         // Implementation pending
         throw new UnsupportedOperationException("Not implemented yet");
     }

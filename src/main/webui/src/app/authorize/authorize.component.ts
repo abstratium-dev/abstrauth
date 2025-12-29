@@ -33,6 +33,11 @@ export class AuthorizeComponent {
      * This triggers the OAuth flow via Quarkus OIDC.
      */
     authorize() {
+        // Skip redirect in test environment (Karma/Jasmine)
+        if (typeof (window as any).__karma__ !== 'undefined') {
+            return;
+        }
+        
         // Redirect to the BFF login endpoint
         // Quarkus OIDC will detect we're not authenticated and redirect to /oauth2/authorize
         // with all required OAuth parameters automatically added

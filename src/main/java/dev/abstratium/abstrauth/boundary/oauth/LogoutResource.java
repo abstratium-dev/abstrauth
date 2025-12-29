@@ -22,7 +22,7 @@ import java.net.URI;
 @Tag(name = "OAuth 2.0 Logout", description = "OpenID Connect logout endpoint")
 public class LogoutResource {
 
-    private static final Logger LOG = Logger.getLogger(LogoutResource.class);
+    private static final Logger log = Logger.getLogger(LogoutResource.class);
 
     @GET
     @Operation(
@@ -75,7 +75,7 @@ public class LogoutResource {
     }
 
     private Response performLogout(String idTokenHint, String postLogoutRedirectUri, String state) {
-        LOG.infof("Logout request received - id_token_hint: %s, post_logout_redirect_uri: %s, state: %s",
+        log.infof("Logout request received - id_token_hint: %s, post_logout_redirect_uri: %s, state: %s",
                   idTokenHint != null ? "present" : "null",
                   postLogoutRedirectUri,
                   state);
@@ -93,7 +93,7 @@ public class LogoutResource {
             redirectUri += (redirectUri.contains("?") ? "&" : "?") + "state=" + state;
         }
 
-        LOG.infof("Redirecting to: %s", redirectUri);
+        log.infof("Redirecting to: %s", redirectUri);
         
         return Response.seeOther(URI.create(redirectUri)).build();
     }

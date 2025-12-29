@@ -1,27 +1,34 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
+import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-
-import org.eclipse.microprofile.jwt.JsonWebToken;
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Path("/api/clients")
 @Tag(name = "Clients", description = "OAuth client management endpoints")
@@ -37,7 +44,8 @@ public class ClientsResource {
     SecurityIdentity securityIdentity;
 
     @Inject
-    JsonWebToken accessToken;    
+    @IdToken
+    JsonWebToken token;    
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -45,7 +53,7 @@ public class ClientsResource {
     @RolesAllowed(Roles.USER)
     public List<ClientResponse> listClients() {
         // Get the current user's ID from the JWT token (sub claim)
-        String accountId = accessToken.getSubject();
+        String accountId = token.getSubject();
 
         if (securityIdentity.hasRole(Roles.MANAGE_CLIENTS)) {
             return oauthClientService.findAll().stream()
@@ -72,14 +80,28 @@ public class ClientsResource {
                     .build();
         }
 
+        // Enforce confidential clients only
+        if (!"confidential".equals(request.clientType)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Only confidential clients are allowed"))
+                    .build();
+        }
+
+        // Enforce PKCE requirement
+        if (request.requirePkce != null && !request.requirePkce) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("PKCE is required for all clients"))
+                    .build();
+        }
+
         // Create new client
         OAuthClient client = new OAuthClient();
         client.setClientId(request.clientId);
         client.setClientName(request.clientName);
-        client.setClientType(request.clientType);
+        client.setClientType("confidential");  // Always confidential
         client.setRedirectUris(request.redirectUris);
         client.setAllowedScopes(request.allowedScopes);
-        client.setRequirePkce(request.requirePkce != null ? request.requirePkce : true);
+        client.setRequirePkce(true);  // Always require PKCE
 
         OAuthClient created = oauthClientService.create(client);
         return Response.status(Response.Status.CREATED)
@@ -106,12 +128,26 @@ public class ClientsResource {
                     .build();
         }
 
+        // Enforce confidential clients only
+        if (!"confidential".equals(request.clientType)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Only confidential clients are allowed"))
+                    .build();
+        }
+
+        // Enforce PKCE requirement
+        if (request.requirePkce != null && !request.requirePkce) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("PKCE is required for all clients"))
+                    .build();
+        }
+
         // Update client fields
         existing.setClientName(request.clientName);
-        existing.setClientType(request.clientType);
+        existing.setClientType("confidential");  // Always confidential
         existing.setRedirectUris(request.redirectUris);
         existing.setAllowedScopes(request.allowedScopes);
-        existing.setRequirePkce(request.requirePkce != null ? request.requirePkce : true);
+        existing.setRequirePkce(true);  // Always require PKCE
 
         OAuthClient updated = oauthClientService.update(existing);
         return Response.ok(toClientResponse(updated)).build();

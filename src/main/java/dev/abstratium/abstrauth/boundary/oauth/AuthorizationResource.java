@@ -18,6 +18,7 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
 
 import java.net.URI;
@@ -35,6 +36,8 @@ import java.util.Set;
 @Path("/oauth2/authorize")
 @Tag(name = "OAuth 2.0 Authorization", description = "OAuth 2.0 Authorization Code Flow endpoints")
 public class AuthorizationResource {
+
+    private static final Logger log = Logger.getLogger(AuthorizationResource.class); 
 
     @Inject
     OAuthClientService clientService;
@@ -373,6 +376,7 @@ public class AuthorizationResource {
 
     private Response buildErrorRedirect(String redirectUri, String error, String errorDescription, String state) {
         if (redirectUri == null || redirectUri.isBlank()) {
+            log.info("Authorization callback received with missing redirect URI");
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>" + error + ": " + errorDescription + "</p></body></html>")
                     .build();
@@ -382,6 +386,9 @@ public class AuthorizationResource {
                 (redirectUri.contains("?") ? "&" : "?") +
                 "error=" + URLEncoder.encode(error, StandardCharsets.UTF_8) +
                 "&error_description=" + URLEncoder.encode(errorDescription, StandardCharsets.UTF_8);
+
+        // log before state is added, since state shouldn't be logged
+        log.info("Authorization callback redirecting to: " + redirectUrl);
 
         if (state != null && !state.isBlank()) {
             redirectUrl += "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);

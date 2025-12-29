@@ -255,16 +255,4 @@ public class SignupResourceTest {
             .then()
             .contentType(containsString("application/json"));
     }
-
-    @Test
-    public void testSignupAllowedEndpoint() {
-        given()
-            .when()
-            .get("/api/signup/allowed")
-            .then()
-            .statusCode(200)
-            .contentType(containsString("application/json"))
-            .body("allowed", notNullValue())
-            .body("allowNativeSignin", notNullValue());
-    }
 }

@@ -143,7 +143,7 @@ public class GoogleOAuthFlowTest {
         tokenResponse.then()
                 .body("access_token", notNullValue())
                 .body("token_type", is("Bearer"))
-                .body("expires_in", is(900));
+                .body("expires_in", is(900)); // Default from abstrauth.session.timeout.seconds
 
         // Verify WireMock was called
         verify(postRequestedFor(urlEqualTo("/oauth2/v4/token")));

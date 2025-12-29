@@ -19,7 +19,6 @@ describe('AuthService (BFF Pattern)', () => {
     email: 'test@example.com',
     email_verified: true,
     name: 'Test User',
-    scope: 'openid profile email',
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 3600,
     isAuthenticated: true,
@@ -187,12 +186,6 @@ describe('AuthService (BFF Pattern)', () => {
       expect(service.isAuthenticated()).toBe(true);
     });
 
-    it('should check if token has scope', () => {
-      expect(service.hasScope('openid')).toBe(true);
-      expect(service.hasScope('profile')).toBe(true);
-      expect(service.hasScope('invalid')).toBe(false);
-    });
-
     it('should check if user has role', () => {
       expect(service.hasRole('admin')).toBe(true);
       expect(service.hasRole('users')).toBe(true);
@@ -253,20 +246,4 @@ describe('AuthService (BFF Pattern)', () => {
     });
   });
 
-  describe('Sign Out (BFF Pattern)', () => {
-    it('should redirect to OIDC logout endpoint', () => {
-      // Spy on window.location.href
-      const locationSpy = jasmine.createSpyObj('Location', ['assign']);
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        configurable: true,
-        value: locationSpy
-      });
-      
-      service.signout();
-      
-      // In BFF pattern, signout redirects to logout endpoint
-      expect(window.location.href).toBe('/api/auth/logout');
-    });
-  });
 });

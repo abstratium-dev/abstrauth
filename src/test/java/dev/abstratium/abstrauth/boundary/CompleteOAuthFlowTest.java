@@ -119,7 +119,7 @@ public class CompleteOAuthFlowTest {
             .statusCode(200)
             .body("access_token", notNullValue())
             .body("token_type", equalTo("Bearer"))
-            .body("expires_in", equalTo(900))
+            .body("expires_in", equalTo(900)) // Default from abstrauth.session.timeout.seconds
             .body("scope", equalTo("openid profile email"))
             .extract()
             .response();

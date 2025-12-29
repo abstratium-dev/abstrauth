@@ -53,18 +53,25 @@ export class Controller {
     });
   }
 
-  loadSignupAllowed() {
-    this.http.get<{ allowed: boolean, allowNativeSignin: boolean }>('/api/signup/allowed').subscribe({
+  loadConfig() {
+    this.http.get<{ signupAllowed: boolean, allowNativeSignin: boolean, sessionTimeoutSeconds: number }>('/api/config').subscribe({
       next: (response) => {
-        this.modelService.setSignupAllowed(response.allowed);
+        this.modelService.setSignupAllowed(response.signupAllowed);
         this.modelService.setAllowNativeSignin(response.allowNativeSignin);
+        this.modelService.setSessionTimeoutSeconds(response.sessionTimeoutSeconds);
       },
       error: (err) => {
-        console.error('Error loading signup allowed flag:', err);
+        console.error('Error loading config:', err);
         this.modelService.setSignupAllowed(false);
         this.modelService.setAllowNativeSignin(false);
+        this.modelService.setSessionTimeoutSeconds(900); // Default to 15 minutes
       }
     });
+  }
+
+  // Deprecated: Use loadConfig() instead
+  loadSignupAllowed() {
+    this.loadConfig();
   }
 
   async createClient(clientData: {

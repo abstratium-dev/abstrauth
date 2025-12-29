@@ -14,6 +14,7 @@ import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.Roles;
+import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
@@ -46,7 +47,8 @@ public class AccountsResource {
     SecurityIdentity securityIdentity;
     
     @Inject
-    JsonWebToken accessToken;    
+    @IdToken
+    JsonWebToken token;    
     
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -54,7 +56,7 @@ public class AccountsResource {
     @RolesAllowed({Roles.USER})
     public List<AccountResponse> listAccounts() {
         // Get the current user's ID from the JWT token (sub claim)
-        String accountId = accessToken.getSubject();
+        String accountId = token.getSubject();
 
         // If user is admin, return all accounts
         if (securityIdentity.hasRole(Roles.ADMIN)) {
@@ -220,7 +222,7 @@ public class AccountsResource {
     @Operation(summary = "Reset password", description = "Resets password for a native account after verifying old password")
     public Response resetPassword(@Valid ResetPasswordRequest request) {
         // Get account ID from JWT token
-        String accountId = accessToken.getSubject();
+        String accountId = token.getSubject();
         
         // Verify account exists
         if (accountService.findById(accountId).isEmpty()) {

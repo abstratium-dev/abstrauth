@@ -44,6 +44,7 @@ export class ModelService {
   private clients = signal<OAuthClient[]>([]);
   private signupAllowed = signal<boolean>(false);
   private allowNativeSignin = signal<boolean>(false);
+  private sessionTimeoutSeconds = signal<number>(900);
   private clientsLoading = signal<boolean>(false);
   private clientsError = signal<string | null>(null);
 
@@ -54,6 +55,7 @@ export class ModelService {
   clients$: Signal<OAuthClient[]> = this.clients.asReadonly();
   signupAllowed$: Signal<boolean> = this.signupAllowed.asReadonly();
   allowNativeSignin$: Signal<boolean> = this.allowNativeSignin.asReadonly();
+  sessionTimeoutSeconds$: Signal<number> = this.sessionTimeoutSeconds.asReadonly();
   clientsLoading$: Signal<boolean> = this.clientsLoading.asReadonly();
   clientsError$: Signal<string | null> = this.clientsError.asReadonly();
 
@@ -91,5 +93,9 @@ export class ModelService {
 
   setAllowNativeSignin(allowNativeSignin: boolean) {
     this.allowNativeSignin.set(allowNativeSignin);
+  }
+
+  setSessionTimeoutSeconds(seconds: number) {
+    this.sessionTimeoutSeconds.set(seconds);
   }
 }

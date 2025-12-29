@@ -29,16 +29,6 @@ public class SignupResource {
     @Inject
     AuthorizationService authorizationService;
 
-    @GET
-    @Path("/allowed")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Check if signup is allowed", description = "Returns whether signup is currently allowed")
-    public Response isSignupAllowed() {
-        boolean allowed = authorizationService.isSignupAllowed();
-        boolean allowNativeSignin = authorizationService.isNativeSigninAllowed();
-        return Response.ok(new SignupAllowedResponse(allowed, allowNativeSignin)).build();
-    }
-
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     @Produces(MediaType.APPLICATION_JSON)

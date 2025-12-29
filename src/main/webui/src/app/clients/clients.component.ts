@@ -33,7 +33,7 @@ export class ClientsComponent implements OnInit {
   formData = {
     clientId: '',
     clientName: '',
-    clientType: 'public',
+    clientType: 'confidential',
     redirectUris: '',
     allowedScopes: '',
     requirePkce: true
@@ -160,6 +160,8 @@ export class ClientsComponent implements OnInit {
         this.toastService.error('Client not found. It may have already been deleted.');
       } else if (err.status === 403) {
         this.toastService.error('You do not have permission to delete clients.');
+      } else if (err.status === 400) {
+        this.toastService.error(err.error?.error);
       } else {
         this.toastService.error('Failed to delete client. Please try again.');
       }
@@ -171,7 +173,7 @@ export class ClientsComponent implements OnInit {
     this.formData = {
       clientId: '',
       clientName: '',
-      clientType: 'public',
+      clientType: 'confidential',
       redirectUris: '',
       allowedScopes: '',
       requirePkce: true

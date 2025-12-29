@@ -49,8 +49,6 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "OAuth 2.0 Token", description = "OAuth 2.0 Token management endpoints")
 public class TokenResource {
 
-    public static final int ACCESS_TOKEN_TIMEOUT = 900; // 15 minutes
-
     @Inject
     AuthorizationService authorizationService;
 
@@ -68,6 +66,9 @@ public class TokenResource {
 
     @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
+
+    @ConfigProperty(name = "abstrauth.session.timeout.seconds", defaultValue = "900")
+    int sessionTimeoutSeconds;
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -318,7 +319,7 @@ public class TokenResource {
         TokenResponse response = new TokenResponse();
         response.access_token = accessToken;
         response.token_type = "Bearer";
-        response.expires_in = ACCESS_TOKEN_TIMEOUT;
+        response.expires_in = sessionTimeoutSeconds;
         response.scope = authCode.getScope();
         response.id_token = idToken;
         // TODO only allow confidential clients to have refresh tokens, never allow SPAs to have them as they can be used for continuous access
@@ -356,7 +357,7 @@ public class TokenResource {
 
     private String generateAccessToken(Account account, String scope, String clientId, String authMethod) {
         Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(ACCESS_TOKEN_TIMEOUT);
+        Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
 
         // Generate unique JTI (JWT ID) for token revocation support
         String jti = UUID.randomUUID().toString();
@@ -393,16 +394,25 @@ public class TokenResource {
      */
     private String generateIdToken(Account account, String clientId, String authMethod) {
         Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(ACCESS_TOKEN_TIMEOUT);
+        Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
+
+        // Get roles (groups) for this account and client
+        Set<String> dbRoles = accountRoleService.findRolesByAccountIdAndClientId(account.getId(), clientId);
+        Set<String> groups = new HashSet<>();
+        for (String role : dbRoles) {
+            groups.add(clientId + "_" + role);
+        }
 
         return Jwt.issuer(issuer)
                 .subject(account.getId())
                 .audience(clientId)  // ID token audience is the client_id
+                .upn(account.getEmail())  // User principal name for MicroProfile JWT
                 .claim("jti", UUID.randomUUID().toString())  // Add unique token ID
                 .claim("email", account.getEmail())
                 .claim("name", account.getName())
                 .claim("email_verified", account.getEmailVerified())
                 .claim("auth_method", authMethod)
+                .groups(groups)  // Add groups/roles to ID token
                 .issuedAt(now)
                 .expiresAt(expiresAt)
                 .jws()

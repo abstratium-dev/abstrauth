@@ -18,7 +18,6 @@ describe('UserComponent', () => {
     email: 'test@example.com',
     email_verified: true,
     name: 'Test User',
-    scope: 'openid profile email',
     iat: 1609459200, // 2021-01-01 00:00:00
     exp: 1609545600, // 2021-01-02 00:00:00
     isAuthenticated: true,
@@ -154,7 +153,6 @@ describe('UserComponent', () => {
       expect(claimKeys).toContain('email');
       expect(claimKeys).toContain('name');
       expect(claimKeys).toContain('groups');
-      expect(claimKeys).toContain('scope');
     });
 
     it('should display all claims in the UI', () => {
