@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { WINDOW } from '../window.token';
 
 export const CLIENT_ID = 'abstratium-abstrauth';
 
@@ -23,6 +24,7 @@ export const CLIENT_ID = 'abstratium-abstrauth';
     styleUrl: './authorize.component.scss',
 })
 export class AuthorizeComponent {
+    private window = inject(WINDOW);
 
     ngOnInit(): void {
         this.authorize()
@@ -33,15 +35,10 @@ export class AuthorizeComponent {
      * This triggers the OAuth flow via Quarkus OIDC.
      */
     authorize() {
-        // Skip redirect in test environment (Karma/Jasmine)
-        if (typeof (window as any).__karma__ !== 'undefined') {
-            return;
-        }
-        
         // Redirect to the BFF login endpoint
         // Quarkus OIDC will detect we're not authenticated and redirect to /oauth2/authorize
         // with all required OAuth parameters automatically added
-        window.location.href = '/api/auth/login';
+        this.window.location.href = '/api/auth/login';
     }
 
 }

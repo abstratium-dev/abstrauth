@@ -1,14 +1,12 @@
 package dev.abstratium.abstrauth.boundary;
 
-import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
 
 /**
  * Maps TimedOutException to HTTP 410 Gone responses.
- * This allows service layer validation to throw TimedOutException
- * and have it automatically converted to appropriate HTTP error responses.
+ * Used when authorization codes or other time-sensitive tokens have expired.
  */
 @Provider
 public class TimedOutExceptionMapper implements ExceptionMapper<TimedOutException> {
@@ -18,17 +16,5 @@ public class TimedOutExceptionMapper implements ExceptionMapper<TimedOutExceptio
         return Response.status(Response.Status.GONE)
                 .entity(new ErrorResponse(exception.getMessage()))
                 .build();
-    }
-
-    /**
-     * Simple error response structure
-     */
-    @RegisterForReflection
-    public static class ErrorResponse {
-        public String error;
-
-        public ErrorResponse(String error) {
-            this.error = error;
-        }
     }
 }

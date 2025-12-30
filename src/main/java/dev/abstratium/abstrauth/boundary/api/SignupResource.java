@@ -1,17 +1,17 @@
 package dev.abstratium.abstrauth.boundary.api;
 
-import io.quarkus.runtime.annotations.RegisterForReflection;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.FormParam;
-import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -85,17 +85,6 @@ public class SignupResource {
             this.id = id;
             this.email = email;
             this.name = name;
-        }
-    }
-
-    @RegisterForReflection
-    public static class ErrorResponse {
-        public String error;
-        public String error_description;
-
-        public ErrorResponse(String error, String errorDescription) {
-            this.error = error;
-            this.error_description = errorDescription;
         }
     }
 

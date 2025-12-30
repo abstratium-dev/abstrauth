@@ -20,6 +20,7 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
@@ -515,30 +516,4 @@ public class TokenResource {
         public String scope;
     }
 
-    /**
-     * Error Response DTO for OpenAPI documentation
-     */
-    @RegisterForReflection
-    @Schema(description = "OAuth 2.0 Error Response")
-    public static class ErrorResponse {
-        @Schema(
-            description = "Error code",
-            examples = "invalid_grant",
-            enumeration = {
-                "invalid_request",
-                "invalid_client",
-                "invalid_grant",
-                "unauthorized_client",
-                "unsupported_grant_type",
-                "invalid_scope"
-            }
-        )
-        public String error;
-
-        @Schema(description = "Human-readable error description", examples = "Authorization code is invalid or expired")
-        public String error_description;
-
-        @Schema(description = "URI identifying a human-readable web page with error information", examples = "https://auth.example.com/error/invalid_grant")
-        public String error_uri;
-    }
 }

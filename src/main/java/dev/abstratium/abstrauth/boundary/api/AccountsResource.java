@@ -9,6 +9,7 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.service.AccountRoleService;
@@ -319,15 +320,6 @@ public class AccountsResource {
         @NotBlank(message = "Role is required")
         @Pattern(regexp = "[a-zA-Z0-9\\-]+", message = "Role must contain only alphanumeric characters and hyphens")
         public String role;
-    }
-
-    @RegisterForReflection
-    public static class ErrorResponse {
-        public String error;
-
-        public ErrorResponse(String error) {
-            this.error = error;
-        }
     }
 
     @RegisterForReflection

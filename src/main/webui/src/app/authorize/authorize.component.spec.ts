@@ -1,13 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AuthorizeComponent } from './authorize.component';
+import { WINDOW } from '../window.token';
 
 describe('AuthorizeComponent (BFF Pattern)', () => {
   let component: AuthorizeComponent;
   let fixture: ComponentFixture<AuthorizeComponent>;
+  let mockWindow: { location: { pathname: string; search: string; href: string } };
 
   beforeEach(async () => {
+    // Create mock window
+    mockWindow = {
+      location: {
+        pathname: '/authorize',
+        search: '',
+        href: ''
+      }
+    };
+
     await TestBed.configureTestingModule({
-      imports: [AuthorizeComponent]
+      imports: [AuthorizeComponent],
+      providers: [
+        { provide: WINDOW, useValue: mockWindow }
+      ]
     })
     .compileComponents();
 
@@ -19,12 +33,12 @@ describe('AuthorizeComponent (BFF Pattern)', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should initialize without redirecting in test environment', () => {
-    // In test environment, authorize() should not redirect
+  it('should set window.location.href to login endpoint on init', () => {
+    // Trigger ngOnInit
     fixture.detectChanges();
     
-    // Component should be created successfully without page reload
-    expect(component).toBeTruthy();
+    // Verify redirect was attempted (href was set)
+    expect(mockWindow.location.href).toBe('/api/auth/login');
   });
 
   it('should not use sessionStorage in BFF pattern', () => {

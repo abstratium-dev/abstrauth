@@ -2,52 +2,19 @@
 
 ## Today
 
-- describe the cpu/memory/etc. footprint in README.md
+- app.config.ts uses deprecated animation stuff
+- refactor all ErrorResponse classes into a common class with its own file
+- check SECURITY.md - how much of this section is still true? "OAuth2 State Parameter and CSRF Protection"
 
 
-https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26#section-6.3.4.3 :
-This architecture is not recommended for business applications, sensitive applications, and applications that handle personal data.
 
-
-=> we need a BFF
-
-    Wait, I just realised something. When the authorization server responds to the consent request, it redirects the browser back to my application using http 302. the url contains the code and state. the browser then makes the request to the application server. 
-
-    so in all cases, the browser has the code and state.
-
-    are you saying that it is still safer for the bff to do the token exchange than it is for the client to do it, because if javascript were say injected by a dependency, that javascript would have access to the code and state. but in the case of using a bff, the browser doesn't have access to things like the code verifier and will never see the token, so it is safer for that reason?
-
-
-make the abstrauth client create a session. document the decision. state that it is more correct to create a session, rather than push the token into the client.  or at least have an api that turns the token that is received, into a cookie.
-
-update the client example to use the cookie instead of leaking the token to the ui. or is that already done?
-
-update arch decisions for BFFs, if i decide that the token can be a cookie.
-
-- `auth-callback.component.ts` should fetch the http only cookie from the server, since it cannot set it to http only itself. see `document.cookie` => actually simply make `POST /oauth2/token` return the cookie as http only and secure if prod
-see https://quarkus.io/guides/security-jwt#:~:text=issued%20at)%20time.-,mp.jwt.token.header,-Authorization
-
-# Tell Quarkus to look for JWT in Cookie header instead of Authorization
-mp.jwt.token.header=Cookie
-
-# Specify the cookie name containing the JWT
-mp.jwt.token.cookie=access_token
-
-- use https://quarkus.io/guides/security-oidc-code-flow-authentication#proof-key-for-code-exchange-pkce for other applications - see pkce section. 
 - set a value in application.properties for quarkus.oidc.credentials.secret=${ABSTRAUTH_CLIENT_SECRET:dev-secret-CHANGE-IN-PROD}
 in the user guide AND where i describe how to run the native image
 - see V01.010...sql need to work out a way to set the client secret of the default client! perhaps set and show it when you are the first admin. or let admin reset it! yeah. and stick that in the userguide that it needs to be reset.
-- app.config.ts uses deprecated animation stuff
-- is this statement true? "JWT tokens are signed using PS256 (RSA-PSS with SHA-256) algorithm"
-- check SECURITY.md - how much of this section is still true? "OAuth2 State Parameter and CSRF Protection"
-- check SECURITY.md - how much of this section is still true? "Content Security Policy (CSP)"
-- do we inforce confidential clients? that is the result of the design decision
-- is it right that the initial authorization request sends the client_secret, or is the client_secret only normally sent when exchanging the token?
-- signin.component.html has 4 scopes, not 3 and debug code that needs deleting
-- check that signin will go to the page originally requested if the user enters a URL into the browser
+
 - test if an error path has been properly configured. test with url http://localhost:8080/api/auth/callback?error=invalid_scope&error_description=Requested+scope+is+not+allowed&state=88b70691-df79-4b15-a68e-d317bad3a8dc
 
-- refactor all ErrorResponse classes into a common class with its own file
+- describe the cpu/memory/etc. footprint in README.md
 - docs - describe how to run as a docker image
 - docs - link to native build and other docs
 - improve branch coverage of ui

@@ -1,6 +1,5 @@
 package dev.abstratium.abstrauth.boundary;
 
-import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
@@ -16,14 +15,5 @@ public class ConflictExceptionMapper implements ExceptionMapper<ConflictExceptio
         return Response.status(Response.Status.CONFLICT)
                 .entity(new ErrorResponse(exception.getMessage()))
                 .build();
-    }
-
-    @RegisterForReflection
-    public static class ErrorResponse {
-        public String error;
-
-        public ErrorResponse(String error) {
-            this.error = error;
-        }
     }
 }

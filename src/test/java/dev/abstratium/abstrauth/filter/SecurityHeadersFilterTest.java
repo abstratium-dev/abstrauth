@@ -82,6 +82,7 @@ class SecurityHeadersFilterTest {
             .when()
             .get("/api/clients")
             .then()
+            .log().all()
             .statusCode(anyOf(is(200), is(401), is(403)))
             .header("Strict-Transport-Security", nullValue());
     }

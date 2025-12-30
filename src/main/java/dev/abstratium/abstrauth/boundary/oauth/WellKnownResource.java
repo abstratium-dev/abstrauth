@@ -181,17 +181,6 @@ public class WellKnownResource {
         
         throw new IllegalArgumentException("Private key is not an RSA CRT key");
     }
-    
-    @RegisterForReflection
-    public static class ErrorResponse {
-        public String error;
-        public String error_description;
-        
-        public ErrorResponse(String error, String errorDescription) {
-            this.error = error;
-            this.error_description = errorDescription;
-        }
-    }
 
     @RegisterForReflection
     @Schema(description = "OAuth 2.0 Authorization Server Metadata")

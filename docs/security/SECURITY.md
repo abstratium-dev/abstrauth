@@ -455,7 +455,7 @@ Content Security Policy is an HTTP header that helps prevent Cross-Site Scriptin
 ```
 Content-Security-Policy: 
   default-src 'self'; 
-  script-src 'self' 'unsafe-inline'; 
+  script-src 'self'; 
   style-src 'self' 'unsafe-inline'; 
   img-src 'self' data: https:; 
   font-src 'self' data:; 
@@ -470,9 +470,9 @@ Content-Security-Policy:
 | Directive | Value | Purpose |
 |-----------|-------|---------|
 | `default-src` | `'self'` | Default policy: only load resources from same origin |
-| `script-src` | `'self' 'unsafe-inline'` | Allow scripts from same origin and inline scripts (Angular requires this) |
-| `style-src` | `'self' 'unsafe-inline'` | Allow styles from same origin and inline styles (Angular requires this) |
-| `img-src` | `'self' data: https:` | Allow images from same origin, data URIs, and HTTPS sources (for Google profile pictures) |
+| `script-src` | `'self'` | Allow scripts only from same origin (no inline scripts for better XSS protection) |
+| `style-src` | `'self' 'unsafe-inline'` | Allow styles from same origin and inline styles (required for component styles) |
+| `img-src` | `'self' data: https:` | Allow images from same origin, data URIs, and HTTPS sources |
 | `font-src` | `'self' data:` | Allow fonts from same origin and data URIs |
 | `connect-src` | `'self'` | Allow AJAX/fetch requests only to same origin |
 | `frame-ancestors` | `'none'` | Prevent page from being embedded in iframes (clickjacking protection) |

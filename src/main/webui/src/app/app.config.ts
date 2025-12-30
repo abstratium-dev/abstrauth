@@ -1,6 +1,5 @@
 import { HttpClient, provideHttpClient } from '@angular/common/http';
 import { ApplicationConfig, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
@@ -12,7 +11,6 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(),
-    provideAnimations(),
     provideAppInitializer(() => {
       const authService = inject(AuthService);
       // Convert Observable to Promise so Angular waits for initialization

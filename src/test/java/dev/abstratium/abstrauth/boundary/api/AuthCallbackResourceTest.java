@@ -4,7 +4,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.equalTo;;
 
 /**
  * Tests for AuthCallbackResource
@@ -19,7 +19,8 @@ public class AuthCallbackResourceTest {
                 .redirects().follow(false)  // Don't follow redirects
                 .get("/api/auth/callback")
                 .then()
+                .log().all()
                 .statusCode(303)  // See Other
-                .header("Location", equalTo("/"));
+                .header("Location", equalTo("http://localhost:8081/"));
     }
 }
