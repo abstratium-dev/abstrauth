@@ -1,6 +1,22 @@
 
 <header></header>
 
+<!-- Security Warning Banner -->
+@if (insecureClientSecret() && showSecurityWarning) {
+  <div class="alert alert-warning security-warning">
+    <strong>⚠️ SECURITY WARNING</strong>
+    <p>
+      The OAuth client secret is using the default or an insecure value.
+      Please set a secure <code>ABSTRAUTH_CLIENT_SECRET</code> environment variable 
+      (minimum 32 characters) and restart the application.
+    </p>
+    <p>
+      Generate a secure secret: <code>openssl rand -base64 32</code>
+    </p>
+    <button class="btn-secondary" (click)="dismissWarning()">Dismiss</button>
+  </div>
+}
+
 <router-outlet />
 
 <ux-toast></ux-toast>

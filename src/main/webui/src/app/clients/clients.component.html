@@ -1,4 +1,48 @@
 <div>
+  <!-- Client Secret Modal -->
+  <div *ngIf="newClientSecret" class="modal-overlay" (click)="closeSecretDialog()">
+    <div class="modal-content secret-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>⚠️ Client Secret Created</h2>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <strong>Important:</strong> This is the only time you will see this client secret. 
+          Please copy it now and store it securely. You will not be able to retrieve it again.
+        </div>
+        
+        <div class="form-group">
+          <label><strong>Client Name:</strong></label>
+          <p>{{ newClientName }}</p>
+        </div>
+
+        <div class="form-group">
+          <label><strong>Client Secret:</strong></label>
+          <div class="secret-display">
+            <code class="secret-value">{{ newClientSecret }}</code>
+            <button type="button" class="btn-copy" (click)="copySecret()" [class.copied]="secretCopied">
+              {{ secretCopied ? '✓ Copied' : '📋 Copy' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="alert alert-info">
+          <strong>Next steps:</strong>
+          <ul>
+            <li>Store this secret in a secure location (e.g., password manager, environment variables)</li>
+            <li>Use this secret when configuring your OAuth client application</li>
+            <li>Never commit this secret to version control</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" (click)="closeSecretDialog()" [disabled]="!secretCopied">
+          I have saved the secret
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
     <div class="page-header">
       <h1>OAuth Clients</h1>

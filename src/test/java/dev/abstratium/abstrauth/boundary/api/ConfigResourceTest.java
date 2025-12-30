@@ -32,7 +32,8 @@ public class ConfigResourceTest {
             .statusCode(200)
             .body("signupAllowed", notNullValue())
             .body("allowNativeSignin", notNullValue())
-            .body("sessionTimeoutSeconds", notNullValue());
+            .body("sessionTimeoutSeconds", notNullValue())
+            .body("insecureClientSecret", notNullValue());
     }
 
     @Test
@@ -53,7 +54,8 @@ public class ConfigResourceTest {
             .then()
             .statusCode(200)
             .body("signupAllowed", instanceOf(Boolean.class))
-            .body("allowNativeSignin", instanceOf(Boolean.class));
+            .body("allowNativeSignin", instanceOf(Boolean.class))
+            .body("insecureClientSecret", instanceOf(Boolean.class));
     }
 
     @Test
@@ -74,5 +76,16 @@ public class ConfigResourceTest {
             .get("/api/config")
             .then()
             .statusCode(200);
+    }
+
+    @Test
+    public void testInsecureClientSecretDetectsDefaultSecret() {
+        // With default secret "dev-secret-CHANGE-IN-PROD", insecureClientSecret should be true
+        given()
+            .when()
+            .get("/api/config")
+            .then()
+            .statusCode(200)
+            .body("insecureClientSecret", equalTo(true));
     }
 }

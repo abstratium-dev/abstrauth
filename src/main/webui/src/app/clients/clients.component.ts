@@ -41,6 +41,11 @@ export class ClientsComponent implements OnInit {
   formError: string | null = null;
   formSubmitting = false;
 
+  // Client secret display state
+  newClientSecret: string | null = null;
+  newClientName: string | null = null;
+  secretCopied = false;
+
   constructor() {
     effect(() => {
       this.clients = this.modelService.clients$();
@@ -181,6 +186,24 @@ export class ClientsComponent implements OnInit {
     this.formError = null;
   }
 
+  copySecret(): void {
+    if (this.newClientSecret) {
+      navigator.clipboard.writeText(this.newClientSecret).then(() => {
+        this.secretCopied = true;
+        this.toastService.success('Client secret copied to clipboard');
+      }).catch(err => {
+        console.error('Failed to copy secret:', err);
+        this.toastService.error('Failed to copy secret to clipboard');
+      });
+    }
+  }
+
+  closeSecretDialog(): void {
+    this.newClientSecret = null;
+    this.newClientName = null;
+    this.secretCopied = false;
+  }
+
   async onSubmit(): Promise<void> {
     this.formError = null;
     this.formSubmitting = true;
@@ -233,11 +256,19 @@ export class ClientsComponent implements OnInit {
         this.toastService.success(`Client "${clientName}" updated successfully`);
       } else {
         // Create new client
-        await this.controller.createClient(clientData);
+        const response = await this.controller.createClient(clientData);
         const clientName = this.formData.clientName;
         this.showForm = false;
         this.resetForm();
-        this.toastService.success(`Client "${clientName}" created successfully`);
+        
+        // Show the client secret if present
+        if (response.clientSecret) {
+          this.newClientSecret = response.clientSecret;
+          this.newClientName = clientName;
+          this.secretCopied = false;
+        } else {
+          this.toastService.success(`Client "${clientName}" created successfully`);
+        }
       }
     } catch (err: any) {
       if (err.status === 400) {

@@ -5,6 +5,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { CommonModule } from '@angular/common';
 import { ModelService } from '../model.service';
 import { Controller } from '../controller';
+import { AutofocusDirective } from '../autofocus.directive';
 
 interface AuthRequestDetails {
     clientName: string;
@@ -23,7 +24,7 @@ interface InviteData {
 
 @Component({
     selector: 'signin',
-    imports: [CommonModule, ReactiveFormsModule, RouterLink],
+    imports: [CommonModule, ReactiveFormsModule, RouterLink, AutofocusDirective],
     templateUrl: './signin.component.html',
     styleUrl: './signin.component.scss',
 })

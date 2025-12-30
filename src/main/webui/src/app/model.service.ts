@@ -25,6 +25,7 @@ export interface OAuthClient {
   allowedScopes: string;
   requirePkce: boolean;
   createdAt: string;
+  clientSecret?: string;  // Only present on creation response
 }
 
 export interface CreateAccountResponse {
@@ -45,6 +46,7 @@ export class ModelService {
   private signupAllowed = signal<boolean>(false);
   private allowNativeSignin = signal<boolean>(false);
   private sessionTimeoutSeconds = signal<number>(900);
+  private insecureClientSecret = signal<boolean>(false);
   private clientsLoading = signal<boolean>(false);
   private clientsError = signal<string | null>(null);
 
@@ -56,6 +58,7 @@ export class ModelService {
   signupAllowed$: Signal<boolean> = this.signupAllowed.asReadonly();
   allowNativeSignin$: Signal<boolean> = this.allowNativeSignin.asReadonly();
   sessionTimeoutSeconds$: Signal<number> = this.sessionTimeoutSeconds.asReadonly();
+  insecureClientSecret$: Signal<boolean> = this.insecureClientSecret.asReadonly();
   clientsLoading$: Signal<boolean> = this.clientsLoading.asReadonly();
   clientsError$: Signal<string | null> = this.clientsError.asReadonly();
 
@@ -97,5 +100,9 @@ export class ModelService {
 
   setSessionTimeoutSeconds(seconds: number) {
     this.sessionTimeoutSeconds.set(seconds);
+  }
+
+  setInsecureClientSecret(insecure: boolean) {
+    this.insecureClientSecret.set(insecure);
   }
 }

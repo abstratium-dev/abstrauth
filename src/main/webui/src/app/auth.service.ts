@@ -82,8 +82,8 @@ export class AuthService {
                 this.initialized = true;
                 this.setupTokenExpiryTimer(token.exp);
                 
-                // Handle post-authentication navigation
-                this.routeRestoration.handlePostAuthenticationNavigation(initialUrl);
+                // Handle post-authentication navigation (includes invite validation)
+                this.routeRestoration.handlePostAuthenticationNavigation(initialUrl, token.email);
             }),
             catchError((err) => {
                 console.debug('[AUTH] User is NOT authenticated, error:', err.status);

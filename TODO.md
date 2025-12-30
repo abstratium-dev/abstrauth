@@ -2,15 +2,6 @@
 
 ## Today
 
-- app.config.ts uses deprecated animation stuff
-- refactor all ErrorResponse classes into a common class with its own file
-- check SECURITY.md - how much of this section is still true? "OAuth2 State Parameter and CSRF Protection"
-
-
-
-- set a value in application.properties for quarkus.oidc.credentials.secret=${ABSTRAUTH_CLIENT_SECRET:dev-secret-CHANGE-IN-PROD}
-in the user guide AND where i describe how to run the native image
-- see V01.010...sql need to work out a way to set the client secret of the default client! perhaps set and show it when you are the first admin. or let admin reset it! yeah. and stick that in the userguide that it needs to be reset.
 
 - test if an error path has been properly configured. test with url http://localhost:8080/api/auth/callback?error=invalid_scope&error_description=Requested+scope+is+not+allowed&state=88b70691-df79-4b15-a68e-d317bad3a8dc
 

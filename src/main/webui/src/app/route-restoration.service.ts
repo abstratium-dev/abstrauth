@@ -120,13 +120,54 @@ export class RouteRestorationService {
 
   /**
    * Handle post-authentication navigation.
-   * Determines the target route and navigates if needed.
+   * Checks for password change requirement and email mismatch before normal navigation.
    * 
    * @param initialUrl The URL captured from window.location at initialization
+   * @param authenticatedEmail The email of the authenticated user
    */
-  handlePostAuthenticationNavigation(initialUrl: string): void {
+  handlePostAuthenticationNavigation(initialUrl: string, authenticatedEmail: string): void {
     console.debug('[ROUTE RESTORATION] handlePostAuthenticationNavigation called with initialUrl:', initialUrl);
     
+    // Check if password change is required (for native invite flow)
+    const requirePasswordChange = sessionStorage.getItem('requirePasswordChange');
+    if (requirePasswordChange) {
+      console.debug('[ROUTE RESTORATION] Password change required, navigating to /change-password');
+      this.router.navigate(['/change-password']);
+      return;
+    }
+
+    // Check for email mismatch with invite
+    const inviteDataStr = sessionStorage.getItem('inviteData');
+    if (inviteDataStr) {
+      try {
+        const inviteData = JSON.parse(inviteDataStr);
+        
+        if (inviteData.email && authenticatedEmail && inviteData.email !== authenticatedEmail) {
+          console.warn(
+            `[ROUTE RESTORATION] Email mismatch: Invite was for '${inviteData.email}' but authenticated as '${authenticatedEmail}'`
+          );
+          
+          // Store mismatch info and navigate to home with error state
+          sessionStorage.setItem('emailMismatchWarning', 
+            `You signed in with ${authenticatedEmail}, but the invite was for ${inviteData.email}. The invitation has not been applied.`
+          );
+          sessionStorage.removeItem('inviteData');
+          
+          // Navigate to home page where the warning will be displayed
+          this.router.navigate(['/']);
+          return;
+        }
+        
+        // Emails match - clean up invite data
+        sessionStorage.removeItem('inviteData');
+        sessionStorage.removeItem('requirePasswordChange');
+      } catch (err) {
+        console.error('[ROUTE RESTORATION] Error parsing invite data:', err);
+        sessionStorage.removeItem('inviteData');
+      }
+    }
+    
+    // Normal navigation flow
     const targetRoute = this.determineTargetRoute(initialUrl);
     const savedRoute = this.getSavedRoute();
     

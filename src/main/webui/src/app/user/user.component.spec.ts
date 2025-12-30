@@ -366,7 +366,7 @@ describe('UserComponent', () => {
       const description = compiled.querySelector('.description');
       
       expect(description).toBeTruthy();
-      expect(description.textContent).toContain('JWT access token');
+      expect(description.textContent).toContain('JWT identity token');
     });
 
     it('should use data-table for claims display', () => {

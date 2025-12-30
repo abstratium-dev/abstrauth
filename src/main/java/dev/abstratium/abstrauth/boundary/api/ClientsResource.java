@@ -95,7 +95,7 @@ public class ClientsResource {
                     .build();
         }
 
-        // Create new client
+        // Create new client with generated secret
         OAuthClient client = new OAuthClient();
         client.setClientId(request.clientId);
         client.setClientName(request.clientName);
@@ -104,9 +104,9 @@ public class ClientsResource {
         client.setAllowedScopes(request.allowedScopes);
         client.setRequirePkce(true);  // Always require PKCE
 
-        OAuthClient created = oauthClientService.create(client);
+        OAuthClientService.ClientWithSecret result = oauthClientService.createWithSecret(client);
         return Response.status(Response.Status.CREATED)
-                .entity(toClientResponse(created))
+                .entity(toClientResponseWithSecret(result.getClient(), result.getPlainSecret()))
                 .build();
     }
 
@@ -185,7 +185,22 @@ public class ClientsResource {
                 client.getRedirectUris(),
                 client.getAllowedScopes(),
                 client.getRequirePkce(),
-                client.getCreatedAt() != null ? client.getCreatedAt().toString() : null
+                client.getCreatedAt() != null ? client.getCreatedAt().toString() : null,
+                null  // No secret in normal responses
+        );
+    }
+
+    private ClientResponse toClientResponseWithSecret(OAuthClient client, String plainSecret) {
+        return new ClientResponse(
+                client.getId(),
+                client.getClientId(),
+                client.getClientName(),
+                client.getClientType(),
+                client.getRedirectUris(),
+                client.getAllowedScopes(),
+                client.getRequirePkce(),
+                client.getCreatedAt() != null ? client.getCreatedAt().toString() : null,
+                plainSecret  // Include plain secret for one-time display
         );
     }
 
@@ -199,9 +214,11 @@ public class ClientsResource {
         public String allowedScopes;
         public Boolean requirePkce;
         public String createdAt;
+        public String clientSecret;  // Only populated on creation, null otherwise
 
         public ClientResponse(String id, String clientId, String clientName, String clientType,
-                            String redirectUris, String allowedScopes, Boolean requirePkce, String createdAt) {
+                            String redirectUris, String allowedScopes, Boolean requirePkce, String createdAt,
+                            String clientSecret) {
             this.id = id;
             this.clientId = clientId;
             this.clientName = clientName;
@@ -210,6 +227,7 @@ public class ClientsResource {
             this.allowedScopes = allowedScopes;
             this.requirePkce = requirePkce;
             this.createdAt = createdAt;
+            this.clientSecret = clientSecret;
         }
     }
 

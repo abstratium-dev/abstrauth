@@ -1,4 +1,10 @@
 <div>
+    @if (emailMismatchWarning) {
+        <div class="warning-box" style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+            <strong>⚠️ Warning:</strong> {{ emailMismatchWarning }}
+        </div>
+    }
+    
     <h1>Welcome to Abstrauth</h1>
     Use the links above to navigate.
 </div>

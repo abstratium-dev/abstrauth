@@ -240,4 +240,100 @@ public class OAuthClientServiceTest {
         Optional<OAuthClient> deleted = oauthClientService.findByClientId(created.getClientId());
         assertFalse(deleted.isPresent());
     }
+
+    @Test
+    public void testHashClientSecret() {
+        String plainSecret = "my-secret-password";
+        String hash = oauthClientService.hashClientSecret(plainSecret);
+        
+        assertNotNull(hash);
+        assertNotEquals(plainSecret, hash);
+        assertTrue(hash.startsWith("$2a$") || hash.startsWith("$2b$"), "Should be a BCrypt hash");
+    }
+
+    @Test
+    public void testVerifyClientSecret() {
+        String plainSecret = "my-secret-password";
+        String hash = oauthClientService.hashClientSecret(plainSecret);
+        
+        assertTrue(oauthClientService.verifyClientSecret(plainSecret, hash));
+        assertFalse(oauthClientService.verifyClientSecret("wrong-password", hash));
+    }
+
+    @Test
+    @Transactional
+    public void testUpdateClientSecretHash() {
+        // Create a test client
+        OAuthClient client = new OAuthClient();
+        client.setClientId("test-secret-update-" + System.currentTimeMillis());
+        client.setClientName("Test Secret Update");
+        client.setClientType("confidential");
+        client.setRedirectUris("[\"http://localhost:3000/callback\"]");
+        client.setAllowedScopes("[\"openid\"]");
+        client.setRequirePkce(true);
+        
+        OAuthClient created = oauthClientService.create(client);
+        String clientId = created.getClientId();
+        
+        // Update the secret
+        String newSecret = "new-secret-value";
+        oauthClientService.updateClientSecretHash(clientId, newSecret);
+        
+        // Verify the hash was updated
+        Optional<OAuthClient> updated = oauthClientService.findByClientId(clientId);
+        assertTrue(updated.isPresent());
+        assertNotNull(updated.get().getClientSecretHash());
+        assertTrue(oauthClientService.verifyClientSecret(newSecret, updated.get().getClientSecretHash()));
+    }
+
+    @Test
+    public void testUpdateClientSecretHashThrowsForNonExistentClient() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            oauthClientService.updateClientSecretHash("non-existent-client", "some-secret");
+        });
+    }
+
+    @Test
+    @Transactional
+    public void testClientSecretMatches() {
+        // Create a test client with a secret
+        OAuthClient client = new OAuthClient();
+        client.setClientId("test-secret-match-" + System.currentTimeMillis());
+        client.setClientName("Test Secret Match");
+        client.setClientType("confidential");
+        client.setRedirectUris("[\"http://localhost:3000/callback\"]");
+        client.setAllowedScopes("[\"openid\"]");
+        client.setRequirePkce(true);
+        
+        String secret = "test-secret-123";
+        client.setClientSecretHash(oauthClientService.hashClientSecret(secret));
+        
+        OAuthClient created = oauthClientService.create(client);
+        
+        // Test matching
+        assertTrue(oauthClientService.clientSecretMatches(created.getClientId(), secret));
+        assertFalse(oauthClientService.clientSecretMatches(created.getClientId(), "wrong-secret"));
+    }
+
+    @Test
+    public void testClientSecretMatchesReturnsFalseForNonExistentClient() {
+        assertFalse(oauthClientService.clientSecretMatches("non-existent-client", "any-secret"));
+    }
+
+    @Test
+    @Transactional
+    public void testClientSecretMatchesReturnsFalseForNullHash() {
+        // Create a client without a secret hash
+        OAuthClient client = new OAuthClient();
+        client.setClientId("test-no-hash-" + System.currentTimeMillis());
+        client.setClientName("Test No Hash");
+        client.setClientType("public");
+        client.setRedirectUris("[\"http://localhost:3000/callback\"]");
+        client.setAllowedScopes("[\"openid\"]");
+        client.setRequirePkce(true);
+        
+        OAuthClient created = oauthClientService.create(client);
+        
+        assertFalse(oauthClientService.clientSecretMatches(created.getClientId(), "any-secret"));
+    }
 }

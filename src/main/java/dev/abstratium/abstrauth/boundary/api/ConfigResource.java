@@ -14,6 +14,8 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.OAuthClientService;
+import dev.abstratium.abstrauth.service.Roles;
 
 @Path("/api/config")
 @Tag(name = "Config", description = "Application configuration endpoints")
@@ -23,16 +25,40 @@ public class ConfigResource {
     @Inject
     AuthorizationService authorizationService;
 
+    @Inject
+    OAuthClientService clientService;
+
     @ConfigProperty(name = "abstrauth.session.timeout.seconds", defaultValue = "900")
     int sessionTimeoutSeconds;
 
+    @ConfigProperty(name = "quarkus.oidc.bff.credentials.secret")
+    String clientSecret;
+
+    private static final int MIN_SECRET_LENGTH = 32;
+    private static final String DEFAULT_SECRET = "dev-secret-CHANGE-IN-PROD";
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Get application configuration", description = "Returns public application configuration including signup settings and session timeout")
+    @Operation(summary = "Get application configuration", description = "Returns public application configuration including signup settings, session timeout, and client secret security status")
     public Response getConfig() {
         boolean signupAllowed = authorizationService.isSignupAllowed();
         boolean allowNativeSignin = authorizationService.isNativeSigninAllowed();
-        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, sessionTimeoutSeconds)).build();
+        boolean insecureClientSecret = isClientSecretInsecure();
+        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, sessionTimeoutSeconds, insecureClientSecret)).build();
+    }
+
+    /**
+     * Checks if the client secret is insecure (too short or using default value).
+     * @return true if the secret is insecure, false otherwise
+     */
+    private boolean isClientSecretInsecure() {
+        // Check length
+        if (clientSecret.length() < MIN_SECRET_LENGTH) {
+            return true;
+        }
+        
+        // Check if hash matches default secret using the service
+        return clientService.clientSecretMatches(Roles.CLIENT_ID, DEFAULT_SECRET);
     }
 
     @RegisterForReflection
@@ -40,11 +66,13 @@ public class ConfigResource {
         public boolean signupAllowed;
         public boolean allowNativeSignin;
         public int sessionTimeoutSeconds;
+        public boolean insecureClientSecret;
 
-        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, int sessionTimeoutSeconds) {
+        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, int sessionTimeoutSeconds, boolean insecureClientSecret) {
             this.signupAllowed = signupAllowed;
             this.allowNativeSignin = allowNativeSignin;
             this.sessionTimeoutSeconds = sessionTimeoutSeconds;
+            this.insecureClientSecret = insecureClientSecret;
         }
     }
 }

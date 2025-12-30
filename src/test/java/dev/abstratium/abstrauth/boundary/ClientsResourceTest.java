@@ -123,7 +123,8 @@ public class ClientsResourceTest {
             .body("[0].clientType", notNullValue())
             .body("[0].redirectUris", notNullValue())
             .body("[0].allowedScopes", notNullValue())
-            .body("[0].requirePkce", notNullValue());
+            .body("[0].requirePkce", notNullValue())
+            .body("[0].clientSecret", nullValue());  // clientSecret should NOT be present in list responses
     }
 
     @Test
@@ -262,7 +263,8 @@ public class ClientsResourceTest {
             .body("clientType", equalTo("confidential"))
             .body("requirePkce", equalTo(true))
             .body("id", notNullValue())
-            .body("createdAt", notNullValue());
+            .body("createdAt", notNullValue())
+            .body("clientSecret", notNullValue());  // Verify secret is returned
     }
 
     @Test
@@ -785,5 +787,76 @@ public class ClientsResourceTest {
             .then()
             .statusCode(200)
             .body("clientId", hasItem("abstratium-abstrauth"));
+    }
+
+    @Test
+    public void testCreateClientGeneratesValidSecret() {
+        String token = generateValidToken();
+        String uniqueClientId = "test-client-secret-" + System.currentTimeMillis();
+        String requestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client Secret",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\", \\"profile\\"]",
+                "requirePkce": true
+            }
+            """, uniqueClientId);
+        
+        String clientSecret = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .body("clientSecret", notNullValue())
+            .extract()
+            .jsonPath()
+            .getString("clientSecret");
+
+        // Verify the secret is a base64-encoded string with reasonable length
+        // Base64 encoding of 32 bytes should be 43 characters (without padding)
+        assert clientSecret != null;
+        assert clientSecret.length() >= 40; // At least 40 characters
+        assert clientSecret.matches("[A-Za-z0-9_-]+"); // URL-safe base64 pattern
+    }
+
+    @Test
+    public void testListClientsDoesNotIncludeSecret() {
+        String token = generateValidToken();
+        
+        // Create a client first
+        String uniqueClientId = "test-client-no-secret-" + System.currentTimeMillis();
+        String requestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client No Secret",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\"]"
+            }
+            """, uniqueClientId);
+        
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .body("clientSecret", notNullValue());
+
+        // List clients and verify secret is NOT included
+        given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .get("/api/clients")
+            .then()
+            .statusCode(200)
+            .body("find { it.clientId == '" + uniqueClientId + "' }.clientSecret", nullValue());
     }
 }
