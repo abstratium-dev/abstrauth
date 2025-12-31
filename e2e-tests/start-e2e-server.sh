@@ -5,20 +5,22 @@ set -x  # Enable debug output
 echo "Starting Quarkus for e2e tests..."
 echo "Working directory: $(pwd)"
 echo "ALLOW_SIGNUP: ${ALLOW_SIGNUP:-false}"
-echo "Checking if jar exists: target/quarkus-app/quarkus-run.jar"
-ls -lh target/quarkus-app/quarkus-run.jar || echo "JAR NOT FOUND!"
 
 # Start the example OAuth client in the background
 echo "Starting example OAuth client on port 3333..."
-cd client-example
+cd ../client-example
+
 if [ ! -d "node_modules" ]; then
   echo "Installing client-example dependencies..."
   npm install
 fi
-PORT=3333 node server.js > ../e2e-tests/client-example.log 2>&1 &
+PORT=3333 node server.js > ../e2e-tests/client-example.log 2>&1 > /tmp/client-example.log &
 CLIENT_PID=$!
 echo "Example client started with PID: $CLIENT_PID"
 cd ..
+
+echo "Checking if jar exists: target/quarkus-app/quarkus-run.jar"
+ls -lh target/quarkus-app/quarkus-run.jar || echo "JAR NOT FOUND!"
 
 # Function to cleanup on exit
 cleanup() {

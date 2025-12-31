@@ -34,8 +34,12 @@ export async function signout(page: Page) {
         _getSignoutLink(page).click()
     ]);
     
-    // Wait for navigation to complete to avoid race conditions with subsequent page.goto()
-    await page.waitForLoadState('networkidle');
+    // Wait for navigation to complete - use 'load' instead of 'networkidle' to avoid timeout issues
+    await page.waitForLoadState('load');
+    
+    // Clear all cookies after signout to prevent WebKit from reusing stale state cookies
+    // This is especially important for WebKit which caches cookies more aggressively
+    await page.context().clearCookies();
 }
 
 export async function navigateToAccounts(page: Page) {

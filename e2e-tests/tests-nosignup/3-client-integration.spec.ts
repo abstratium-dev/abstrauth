@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
-import { signInAsAdmin, ADMIN_EMAIL, ADMIN_PASSWORD } from '../pages/signin.page';
-import { navigateToAccounts, navigateToClients } from '../pages/header';
+import { signInAsAdmin, ADMIN_EMAIL, ADMIN_PASSWORD, navigateWithRetry } from '../pages/signin.page';
+import { navigateToAccounts, navigateToClients, signout } from '../pages/header';
 import { addClient, deleteClientIfExists } from '../pages/clients.page';
 import { addRoleToAccount } from '../pages/accounts.page';
 import { approveAuthorization } from '../pages/authorize.page';
@@ -40,7 +40,7 @@ async function signInOnOAuthPage(page: Page, email: string, password: string) {
 
 const CLIENT_ID = 'test-oauth-client';
 const CLIENT_NAME = 'Test OAuth Client';
-const REDIRECT_URI = 'http://localhost:3333';
+const REDIRECT_URI = 'http://localhost:3333/oauth/callback';
 const SCOPES = 'openid profile email';
 const ROLE_NAME = 'aRole';
 
@@ -57,10 +57,11 @@ test('Admin creates OAuth client and signs in via example client application', a
     await navigateToClients(page);
     await deleteClientIfExists(page, CLIENT_ID);
     
-    // Step 3: Create new client
+    // Step 3: Create new client and capture the client secret
     console.log("Step 3: Creating new OAuth client...");
-    await addClient(page, CLIENT_ID, CLIENT_NAME, REDIRECT_URI, SCOPES);
+    const clientSecret = await addClient(page, CLIENT_ID, CLIENT_NAME, REDIRECT_URI, SCOPES);
     console.log(`✓ Created client '${CLIENT_ID}' with redirect URI '${REDIRECT_URI}'`);
+    console.log(`✓ Captured client secret: ${clientSecret.substring(0, 10)}...`);
     
     // Step 4: Navigate to accounts page and add role to admin
     console.log("Step 4: Adding role to admin account...");
@@ -68,12 +69,35 @@ test('Admin creates OAuth client and signs in via example client application', a
     await addRoleToAccount(page, ADMIN_EMAIL, CLIENT_ID, ROLE_NAME);
     console.log(`✓ Added role '${ROLE_NAME}' for client '${CLIENT_ID}' to admin account`);
     
+    // Step 4.5: Sign out from port 8080 to clear session
+    console.log("Step 4.5: Signing out from authorization server...");
+    await signout(page);
+    console.log("✓ Signed out from authorization server");
+    
+    // Step 4.6: Configure the example client server with the captured client secret
+    console.log("Step 4.6: Configuring example client server with client secret...");
+    const configResponse = await page.request.post('http://localhost:3333/test/configure', {
+        data: {
+            clientId: CLIENT_ID,
+            clientSecret: clientSecret
+        },
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+    
+    if (!configResponse.ok()) {
+        throw new Error(`Failed to configure client server: ${configResponse.status()} ${await configResponse.text()}`);
+    }
+    
+    console.log(`✓ Configured example client server with CLIENT_ID=${CLIENT_ID}`);
+    
     // Step 5: Visit the example client application on port 3333
     console.log("Step 5: Visiting example client application at http://localhost:3333");
-    await page.goto('http://localhost:3333');
+    await navigateWithRetry(page, 'http://localhost:3333');
     
     // Step 6: Check if already signed in (Sign Out button present) or need to sign in
-    console.log("Step 6: Checking authentication state...");
+    console.log("Step 6: Checking authentication state on client app...");
     const signOutButton = page.locator('button').filter({ hasText: /Sign Out/i });
     const signInButton = page.locator('button').filter({ hasText: /Sign In/i });
     

@@ -54,7 +54,7 @@ export class Controller {
   }
 
   loadConfig() {
-    this.http.get<{ signupAllowed: boolean, allowNativeSignin: boolean, sessionTimeoutSeconds: number, insecureClientSecret: boolean }>('/api/config').subscribe({
+    this.http.get<{ signupAllowed: boolean, allowNativeSignin: boolean, sessionTimeoutSeconds: number, insecureClientSecret: boolean }>('/public/config').subscribe({
       next: (response) => {
         this.modelService.setSignupAllowed(response.signupAllowed);
         this.modelService.setAllowNativeSignin(response.allowNativeSignin);

@@ -38,10 +38,12 @@ Tests that run when signup is **disabled** (`ALLOW_SIGNUP=false`). These tests a
 - Accounts must be created by administrators via invite links
 - Tests focus on invite-based account creation, role management, and authorization flows
 
-**Files:**
-- `happy.spec.ts` - Basic sign-up and sign-in flow (creates first admin account)
-- `happy2.spec.ts` - Complete admin/manager workflow with role-based access control (see `happy.md` for details)
-- `signin-failures.spec.ts` - Sign-in failure scenarios (wrong credentials, denied authorization)
+⚠️ **IMPORTANT**: Tests in this folder **must run in order** (see `tests-nosignup/README.md`):
+1. `1-happy2.spec.ts` - Creates admin account and sets up initial state
+2. `2-signin-failures.spec.ts` - Tests authentication errors with existing admin
+3. `3-client-integration.spec.ts` - Tests complete OAuth flow
+
+The numeric prefixes ensure Playwright runs them alphabetically in the correct order.
 
 ### `/tests-signup`
 Tests that run when signup is **enabled** (`ALLOW_SIGNUP=true`). These tests verify:

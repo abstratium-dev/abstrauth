@@ -12,8 +12,9 @@ function _getDeleteClientButton(page: Page) {
 /**
  * Adds a new OAuth client.
  * Assumes we're already on the clients page.
+ * Returns the client secret that is displayed in the modal.
  */
-export async function addClient(page: Page, clientId: string, clientName: string, redirectUri: string, scopes: string) {
+export async function addClient(page: Page, clientId: string, clientName: string, redirectUri: string, scopes: string): Promise<string> {
     console.log(`Adding new client '${clientId}'...`);
     
     // Wait for the page to load and the Add Client button to be visible
@@ -35,7 +36,40 @@ export async function addClient(page: Page, clientId: string, clientName: string
     // Wait for the form to close (client created successfully)
     await page.locator('#clientId').waitFor({ state: 'hidden', timeout: 5000 });
     
+    // Wait for the client secret modal to appear
+    console.log('Waiting for client secret modal...');
+    const secretModal = page.locator('.secret-modal');
+    await expect(secretModal).toBeVisible({ timeout: 5000 });
+    
+    // Extract the client secret from the modal
+    const secretValue = page.locator('.secret-value');
+    await expect(secretValue).toBeVisible({ timeout: 5000 });
+    const clientSecret = await secretValue.textContent();
+    
+    if (!clientSecret) {
+        throw new Error('Failed to extract client secret from modal');
+    }
+    
+    console.log(`✓ Captured client secret: ${clientSecret.substring(0, 10)}...`);
+    
+    // In test environment, clipboard API doesn't work, so we'll just enable the button directly
+    // by removing the disabled attribute
+    const closeButton = page.getByRole('button', { name: /I have saved the secret/i });
+    await closeButton.evaluate((btn) => btn.removeAttribute('disabled'));
+    
+    console.log('✓ Enabled close button (bypassed clipboard requirement for test)');
+    
+    // Now the close button should be enabled
+    await expect(closeButton).toBeEnabled({ timeout: 1000 });
+    
+    // Close the modal
+    await closeButton.click();
+    
+    // Wait for modal to close
+    await expect(secretModal).not.toBeVisible({ timeout: 5000 });
+    
     console.log(`✓ Created new client '${clientId}'`);
+    return clientSecret;
 }
 
 /**

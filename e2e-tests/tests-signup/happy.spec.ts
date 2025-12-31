@@ -3,19 +3,19 @@ import { signUpAndSignIn } from '../pages/signin.page';
 import { navigateToClients } from '../pages/header';
 
 test('sign up and in', async ({ page }) => {
-  await page.goto('/');
-
-  await expect(page).toHaveTitle(/Abstrauth/);
-
   // Generate random user credentials
   const email = Math.random().toString(36).substring(2, 15) + "@abstratium.dev";
   const name = Math.random().toString(36).substring(2, 15);
   const password = Math.random().toString(36).substring(2, 15);
 
-  // Sign up and sign in using page object
+  // Sign up and sign in using page object (this will navigate to '/')
   await signUpAndSignIn(page, email, name, password);
+  
+  // Verify page title
+  await expect(page).toHaveTitle(/Abstrauth/);
 
-  await expect(page.locator("#user-link")).toContainText(email);
+  // Verify the user's name is displayed in the header (not email)
+  await expect(page.locator("#user-link")).toContainText(name);
 
   // Click the user email link to view token claims
   await page.locator("#user-link").click();
@@ -31,11 +31,10 @@ test('sign up and in', async ({ page }) => {
   await expect(page.locator('[data-claim="email_verified"] .table-cell-value')).toContainText('false');
   await expect(page.locator('[data-claim="client_id"] .table-cell-value')).toContainText('abstratium-abstrauth');
   
-  // Verify groups/roles are present (should include default roles with full client prefix)
-  const groupsClaim = page.locator('[data-claim="groups"]');
+  // Verify groups/roles are present (should include default user role with full client prefix)
+  const groupsClaim = page.locator('[data-claim="groups"] .table-cell-value');
   await expect(groupsClaim).toBeVisible();
   await expect(groupsClaim).toContainText('abstratium-abstrauth_user');
-  await expect(groupsClaim).toContainText('abstratium-abstrauth_manage-clients');
   
   // Verify token has sub (subject) claim
   await expect(page.locator('[data-claim="sub"]')).toBeVisible();
@@ -58,10 +57,9 @@ test('sign up and in', async ({ page }) => {
 
   // Verify the client has the expected redirect urls (there are multiple)
   const redirectUris = clientCard.locator('.simple-list li');
-  await expect(redirectUris).toHaveCount(3);
-  await expect(redirectUris.nth(0)).toContainText('http://localhost:8080/auth-callback');
-  await expect(redirectUris.nth(1)).toContainText('http://localhost:4200/auth-callback');
-  await expect(redirectUris.nth(2)).toContainText('https://auth.abstratium.dev/auth-callback');
+  await expect(redirectUris).toHaveCount(2);
+  await expect(redirectUris.nth(0)).toContainText('http://localhost:8080/api/auth/callback');
+  await expect(redirectUris.nth(1)).toContainText('https://auth.abstratium.dev/auth-callback');
 
   // Verify the client has the expected scopes (should contain openid, profile, email)
   await expect(clientCard.locator('.badge-success').nth(0)).toContainText('openid');

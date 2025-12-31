@@ -465,6 +465,15 @@ export async function tryDeleteAccount(page: Page, accountEmail: string): Promis
         if (finalToastCount > 0) {
             const toastMessages = await page.locator('.toast-message').allTextContents();
             console.log(`Toast messages found: ${JSON.stringify(toastMessages)}`);
+            
+            // Check if any of the existing toasts contains the expected error message
+            // This handles the case where the toast appeared but didn't increase the count
+            const expectedError = 'Cannot delete the account with the only admin role';
+            const matchingToast = toastMessages.find(msg => msg.includes(expectedError));
+            if (matchingToast) {
+                console.log(`Found expected error in existing toasts: ${matchingToast}`);
+                return matchingToast;
+            }
         }
         
         return null;

@@ -24,8 +24,8 @@ describe('HeaderComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
     
-    // Mock the /api/config request that's called in ngOnInit
-    const configReq = httpMock.expectOne('/api/config');
+    // Mock the /public/config request that's called in ngOnInit
+    const configReq = httpMock.expectOne('/public/config');
     configReq.flush({ signupAllowed: false, allowNativeSignin: false, sessionTimeoutSeconds: 900 });
   });
 

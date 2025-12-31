@@ -16,8 +16,9 @@ That file should contain:
     export OAUTH_GOOGLE_CLIENT_ID=...
     export OAUTH_GOOGLE_CLIENT_SECRET=GOCSPX-...
     export PASSWORD_PEPPER=... created using `openssl rand -base64 32`
+    export ABSTRAUTH_CLIENT_SECRET=... also created using `openssl rand -base64 32`
 
-The values are what you get when you configure a Google OAuth client in the Google Cloud Console. See the following website for details: https://developers.google.com/identity/protocols/oauth2
+The first couple of values are what you get when you configure a Google OAuth client in the Google Cloud Console. See the following website for details: https://developers.google.com/identity/protocols/oauth2
 
 The application uses Quarkus. Run it with either `./mvnw quarkus:dev` or `quarkus dev` if you have installed the Quarkus CLI.
 

@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary.api;
+package dev.abstratium.abstrauth.boundary.publik;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.PermitAll;
@@ -17,7 +17,7 @@ import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 
-@Path("/api/config")
+@Path("/public/config")
 @Tag(name = "Config", description = "Application configuration endpoints")
 @PermitAll
 public class ConfigResource {

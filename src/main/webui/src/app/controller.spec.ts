@@ -352,7 +352,7 @@ describe('Controller', () => {
     it('should load config and update model service', () => {
       controller.loadConfig();
 
-      const req = httpMock.expectOne('/api/config');
+      const req = httpMock.expectOne('/public/config');
       expect(req.request.method).toBe('GET');
       req.flush({ signupAllowed: true, allowNativeSignin: true, sessionTimeoutSeconds: 900 });
 
@@ -364,7 +364,7 @@ describe('Controller', () => {
     it('should handle false signup allowed', () => {
       controller.loadConfig();
 
-      const req = httpMock.expectOne('/api/config');
+      const req = httpMock.expectOne('/public/config');
       req.flush({ signupAllowed: false, allowNativeSignin: false, sessionTimeoutSeconds: 1800 });
 
       expect(modelService.signupAllowed$()).toBe(false);
@@ -375,7 +375,7 @@ describe('Controller', () => {
     it('should handle error when loading config', () => {
       controller.loadConfig();
 
-      const req = httpMock.expectOne('/api/config');
+      const req = httpMock.expectOne('/public/config');
       req.error(new ProgressEvent('error'));
 
       expect(modelService.signupAllowed$()).toBe(false);

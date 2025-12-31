@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary.api;
+package dev.abstratium.abstrauth.boundary.publik;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
@@ -8,7 +8,7 @@ import static org.hamcrest.CoreMatchers.*;
 
 /**
  * Tests for ConfigResource
- * Tests the /api/config endpoint
+ * Tests the /public/config endpoint
  */
 @QuarkusTest
 public class ConfigResourceTest {
@@ -17,7 +17,7 @@ public class ConfigResourceTest {
     public void testGetConfigReturnsOk() {
         given()
             .when()
-            .get("/api/config")
+            .get("/public/config")
             .then()
             .statusCode(200)
             .contentType(containsString("application/json"));
@@ -27,7 +27,7 @@ public class ConfigResourceTest {
     public void testGetConfigReturnsAllFields() {
         given()
             .when()
-            .get("/api/config")
+            .get("/public/config")
             .then()
             .statusCode(200)
             .body("signupAllowed", notNullValue())
@@ -40,7 +40,7 @@ public class ConfigResourceTest {
     public void testGetConfigReturnsDefaultSessionTimeout() {
         given()
             .when()
-            .get("/api/config")
+            .get("/public/config")
             .then()
             .statusCode(200)
             .body("sessionTimeoutSeconds", equalTo(900)); // Default value
@@ -50,7 +50,7 @@ public class ConfigResourceTest {
     public void testGetConfigReturnsBooleansForSignupFlags() {
         given()
             .when()
-            .get("/api/config")
+            .get("/public/config")
             .then()
             .statusCode(200)
             .body("signupAllowed", instanceOf(Boolean.class))
@@ -62,7 +62,7 @@ public class ConfigResourceTest {
     public void testGetConfigReturnsIntegerForSessionTimeout() {
         given()
             .when()
-            .get("/api/config")
+            .get("/public/config")
             .then()
             .statusCode(200)
             .body("sessionTimeoutSeconds", instanceOf(Integer.class));
@@ -73,7 +73,7 @@ public class ConfigResourceTest {
         // This endpoint should be accessible without authentication
         given()
             .when()
-            .get("/api/config")
+            .get("/public/config")
             .then()
             .statusCode(200);
     }
@@ -83,7 +83,7 @@ public class ConfigResourceTest {
         // With default secret "dev-secret-CHANGE-IN-PROD", insecureClientSecret should be true
         given()
             .when()
-            .get("/api/config")
+            .get("/public/config")
             .then()
             .statusCode(200)
             .body("insecureClientSecret", equalTo(true));

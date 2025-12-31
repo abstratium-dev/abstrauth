@@ -33,8 +33,8 @@ const app = express();
 const PORT = process.env.PORT || 3333;
 
 // Configuration - these should match your OAuth client registration
-const CLIENT_ID = process.env.CLIENT_ID || 'abstratium-abstrauth';
-const CLIENT_SECRET = process.env.CLIENT_SECRET || 'dev-secret-CHANGE-IN-PROD';
+let CLIENT_ID = process.env.CLIENT_ID || 'abstratium-abstrauth';
+let CLIENT_SECRET = process.env.CLIENT_SECRET || 'dev-secret-CHANGE-IN-PROD';
 const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3333/oauth/callback';
 const AUTHORIZATION_ENDPOINT = process.env.AUTHORIZATION_ENDPOINT || 'http://localhost:8080/oauth2/authorize';
 const TOKEN_ENDPOINT = process.env.TOKEN_ENDPOINT || 'http://localhost:8080/oauth2/token';
@@ -306,6 +306,28 @@ app.get('/api/user', (req, res) => {
 app.post('/api/logout', (req, res) => {
     res.clearCookie('access_token');
     res.json({ success: true });
+});
+
+/**
+ * Test endpoint to configure client credentials dynamically
+ * This is ONLY for E2E testing. It is required because without it
+ * we cannot create a test client, and then configure this server to use it.
+ * In production, one would create a client, copy the secret and provide it 
+ * to a server like this one using an environment variable or similar.
+ */
+app.post('/test/configure', (req, res) => {
+    const { clientId, clientSecret } = req.body;
+    
+    if (!clientId || !clientSecret) {
+        return res.status(400).json({ error: 'clientId and clientSecret are required' });
+    }
+    
+    CLIENT_ID = clientId;
+    CLIENT_SECRET = clientSecret;
+    
+    console.log(`Test configuration updated: CLIENT_ID=${CLIENT_ID}, CLIENT_SECRET=${clientSecret.substring(0, 10)}...`);
+    
+    res.json({ success: true, clientId: CLIENT_ID });
 });
 
 // Serve static files from public directory (must be AFTER route definitions)

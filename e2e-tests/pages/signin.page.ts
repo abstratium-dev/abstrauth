@@ -49,6 +49,30 @@ function _getUserLink(page: Page) {
     return page.locator("#user-link");
 }
 
+/**
+ * Navigate to a URL with retry logic to handle flaky connections.
+ * Retries up to 3 times with 1-second delays between attempts.
+ */
+export async function navigateWithRetry(page: Page, url: string) {
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            await page.goto(url, { waitUntil: 'commit', timeout: 10000 });
+            // Wait for load state to ensure page is ready (important for WebKit)
+            await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+            break;
+        } catch (error) {
+            retries--;
+            if (retries === 0) {
+                console.error(`Failed to navigate to ${url} after 3 attempts`);
+                throw error;
+            }
+            console.log(`Navigation to ${url} failed, retrying... (${retries} attempts left)`);
+            await page.waitForTimeout(1000);
+        }
+    }
+}
+
 function _getInvalidCredentialsError(page: Page) {
     return page.getByText('Invalid username or password');
 }
@@ -68,10 +92,14 @@ function _getDenyButton(page: Page) {
  * @param name - User display name (used for signup if needed)
  */
 async function ensureAuthenticated(page: Page, email: string, password: string, name: string) {
-    await page.goto('/');
+    await navigateWithRetry(page, '/');
 
+    // Wait for the signin page to be ready
+    const usernameInput = _getUsernameInput(page);
+    await usernameInput.waitFor({ state: 'visible', timeout: 10000 });
+    
     // Try to sign in first
-    await _getUsernameInput(page).fill(email);
+    await usernameInput.fill(email);
     await _getPasswordInput(page).fill(password);
     await _getSigninButton(page).click();
 
@@ -98,8 +126,18 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
     
     if (isErrorVisible) {
         // Sign in failed, need to sign up
-        await page.goto('/');
+        await navigateWithRetry(page, '/');
+        
+        // WebKit enforces form validation on link clicks inside forms
+        // Clear the form fields first to prevent validation errors
+        await _getUsernameInput(page).clear();
+        await _getPasswordInput(page).clear();
+        
+        // Click the signup link
         await _getSignupLink(page).click();
+        
+        // Wait for the signup form to appear
+        await _getEmailInput(page).waitFor({ state: 'visible', timeout: 10000 });
 
         // Fill signup form
         await _getEmailInput(page).fill(email);
@@ -118,8 +156,11 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
     // At this point we should be at the authorization page
     await approveButton.click();
 
+    // Wait for navigation and page load (important for WebKit)
+    await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+
     // Verify we're authenticated
-    await expect(_getUserLink(page)).toBeVisible();
+    await expect(_getUserLink(page)).toBeVisible({ timeout: 10000 });
     await expect(_getUserLink(page)).toContainText(name);
 }
 
@@ -135,10 +176,10 @@ export async function signInAsAdmin(page: Page) {
     
     console.log("Signing in as admin...");
     
-    // Navigate to home page
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    console.log("Navigated to home page");
-    
+    await _waitForSigninPage(page);
+
+    await _clearLocalStorage(page);
+
     // Wait for the username input to be visible and editable
     // This implicitly waits for Angular to initialize
     const usernameInput = _getUsernameInput(page);
@@ -199,6 +240,9 @@ export async function signInAsAdmin(page: Page) {
         // URL might not change if already on callback page
     });
     
+    // Wait for page to be fully loaded (important for WebKit)
+    await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+    
     // Verify signed in
     await expect(_getUserLink(page)).toBeVisible({ timeout: 10000 });
     await expect(_getUserLink(page)).toContainText(ADMIN_NAME);
@@ -206,12 +250,45 @@ export async function signInAsAdmin(page: Page) {
     console.log("Signed in as admin successfully");
 }
 
+async function _waitForSigninPage(page: Page) {
+    // Check if we're already on a signin page (e.g., after logout)
+    const currentUrl = page.url();
+    if (!currentUrl.includes('/signin/')) {
+        // Navigate to home page which will redirect to signin
+        await navigateWithRetry(page, '/');
+    }
+    
+    // Wait for the signin page to be ready by checking for the username input
+    // This ensures Angular has initialized and the page is interactive
+    try {
+        await page.locator('#username').waitFor({ state: 'visible', timeout: 10000 });
+        console.log("On signin page - ready");
+    } catch (error) {
+        console.error("Signin page not ready after navigation");
+        throw error;
+    }
+}
+
+async function _clearLocalStorage(page: Page) {
+    // Clear both localStorage and sessionStorage - use a try-catch in case of navigation race
+    try {
+        await page.evaluate(() => {
+            localStorage.clear();
+            sessionStorage.clear();
+        });
+    } catch (e) {
+        // Ignore if context was destroyed due to navigation
+        console.log("Note: storage.clear() skipped due to navigation");
+    }
+}
+
 export async function signInAsManager(page: Page) {
     
     console.log("Signing in as manager...");
-    
-    // Navigate to home page
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    await _waitForSigninPage(page);
+
+    await _clearLocalStorage(page);
     
     // Wait for the username input to be visible and editable
     // This implicitly waits for Angular to initialize
@@ -271,7 +348,7 @@ export async function ensureManagerIsAuthenticated(page: Page) {
  */
 export async function trySignInAsAdmin(page: Page): Promise<boolean> {
     
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await navigateWithRetry(page, '/');
     await _getUsernameInput(page).fill(ADMIN_EMAIL);
     await _getPasswordInput(page).fill(ADMIN_PASSWORD);
     await _getSigninButton(page).click();
@@ -310,10 +387,24 @@ export async function trySignInAsAdmin(page: Page): Promise<boolean> {
 export async function signInViaInviteLink(page: Page, inviteLink: string, expectedEmail: string) {
     console.log("Signing in via invite link...");
     
-    // Navigate to invite link
+    // Navigate to invite link with retry logic
     // The page will immediately redirect to /authorize, so we use waitUntil: 'commit'
     // to avoid waiting for the full page load that will be aborted by the redirect
-    await page.goto(inviteLink, { waitUntil: 'commit' });
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            await page.goto(inviteLink, { waitUntil: 'commit', timeout: 10000 });
+            break;
+        } catch (error) {
+            retries--;
+            if (retries === 0) {
+                console.error(`Failed to navigate to invite link after 3 attempts`);
+                throw error;
+            }
+            console.log(`Navigation to invite link failed, retrying... (${retries} attempts left)`);
+            await page.waitForTimeout(1000);
+        }
+    }
     
     // The invite link will redirect to /authorize and auto-fill credentials
     // Wait for the signin page to load with pre-filled credentials
@@ -337,7 +428,7 @@ export async function signInViaInviteLink(page: Page, inviteLink: string, expect
 export async function signUpAndSignIn(page: Page, email: string, name: string, password: string) {
     console.log(`Signing up new user: ${email}`);
     
-    await page.goto('/');
+    await navigateWithRetry(page, '/');
     await _getSignupLink(page).click();
     
     await _getEmailInput(page).fill(email);

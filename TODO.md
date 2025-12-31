@@ -3,9 +3,8 @@
 ## Today
 
 
-- test if an error path has been properly configured. test with url http://localhost:8080/api/auth/callback?error=invalid_scope&error_description=Requested+scope+is+not+allowed&state=88b70691-df79-4b15-a68e-d317bad3a8dc
-
 - describe the cpu/memory/etc. footprint in README.md
+- entire build cycle including native
 - docs - describe how to run as a docker image
 - docs - link to native build and other docs
 - improve branch coverage of ui
@@ -16,7 +15,6 @@
   - actually make it only possible once they have changed their password, if native.
   - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
 - allow to disable sign in with native - needs a test
-- entire build cycle including native
 - review tests
 - complete other open points from first security audit
 - security audit for CRUD operations on clients and accounts "using any trick in the book" for accessing the server via its web API (no direct access of the database, no access to the file system) - try to CRUD accounts, clients and roles!

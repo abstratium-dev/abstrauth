@@ -77,7 +77,13 @@ export class SignupComponent {
         this.signupForm.reset();
         
         // Redirect to signin page
-        this.router.navigate(['/signin', this.requestId]);
+        // If there's no requestId (e.g., user navigated directly to /signup),
+        // redirect to home which will create a new signin request
+        if (this.requestId) {
+          this.router.navigate(['/signin', this.requestId]);
+        } else {
+          this.router.navigate(['/']);
+        }
       },
       error: (error) => {
         this.messageType = 'error';

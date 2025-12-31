@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ensureAdminIsAuthenticated, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, denyAuthorization } from '../pages/signin.page';
+import { ensureAdminIsAuthenticated, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, denyAuthorization, navigateWithRetry } from '../pages/signin.page';
 import { signout } from '../pages/header';
 
 test('user denies access', async ({ page }) => {
@@ -13,7 +13,7 @@ test('user denies access', async ({ page }) => {
   
   // Step 3: Sign in as admin again
   console.log("Step 3: Signing in as admin to test deny flow...");
-  await page.goto('/');
+  await navigateWithRetry(page, '/');
   
   // Wait for page to load
   await page.locator("#username").waitFor({ state: 'visible', timeout: 10000 });
@@ -27,16 +27,23 @@ test('user denies access', async ({ page }) => {
   console.log("Step 4: Denying authorization...");
   await denyAuthorization(page);
   
-  // Step 5: Verify error message and URL
-  console.log("Step 5: Verifying error...");
-  await expect(page.locator(".error-box")).toContainText("Error: access_denied - User denied authorization");
-  await expect(page.url()).toContain("/auth-callback?error=access_denied&error_description=User%20denied%20authorization");
+  // Step 5: Wait for navigation to error page and verify
+  console.log("Step 5: Waiting for error page...");
+  await page.waitForURL('**/api/auth/error**', { timeout: 10000 });
+  
+  // Wait for error page elements to be visible
+  await page.locator("#error-message").waitFor({ state: 'visible', timeout: 10000 });
+  
+  console.log("Step 6: Verifying error...");
+  await expect(page.locator("#error-message")).toContainText("User denied authorization");
+  await expect(page.locator("#error-code")).toContainText("access_denied");
+  await expect(page.url()).toContain("/api/auth/error?error=access_denied");
   
   console.log("✓ Test completed successfully");
 });
 
 test('wrong username or password', async ({ page }) => {
-  await page.goto('/');
+  await navigateWithRetry(page, '/');
 
   // Wait for the page to load and inputs to be visible
   await page.locator("#username").waitFor({ state: 'visible', timeout: 10000 });

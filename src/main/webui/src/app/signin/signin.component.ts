@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Component, effect, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ModelService } from '../model.service';
 import { Controller } from '../controller';
@@ -24,7 +24,7 @@ interface InviteData {
 
 @Component({
     selector: 'signin',
-    imports: [CommonModule, ReactiveFormsModule, RouterLink, AutofocusDirective],
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink, AutofocusDirective],
     templateUrl: './signin.component.html',
     styleUrl: './signin.component.scss',
 })
@@ -49,6 +49,8 @@ export class SigninComponent implements OnInit {
     inviteData: InviteData | null = null;
     showNativeSignin = true;
     showGoogleSignin = true;
+    rememberApproval = false;
+    shouldShowApproval = true;
 
     constructor(
     ) {
@@ -145,7 +147,11 @@ export class SigninComponent implements OnInit {
                 if (this.inviteData?.authProvider === 'native' && this.inviteData?.password) {
                     // Mark that password change is needed
                     sessionStorage.setItem('requirePasswordChange', 'true');
+                    console.debug("[SIGNIN] Marked password change required");
                 }
+                
+                // Check for stored approval after successful authentication
+                setTimeout(() => this.checkStoredApproval(), 100);
             },
             error: (error) => {
                 if(error.status === 410) {
@@ -162,4 +168,77 @@ export class SigninComponent implements OnInit {
         window.location.href = `/oauth2/federated/google?request_id=${this.requestId}`;
     }
 
+    checkStoredApproval() {
+        const key = `approval_${this.clientName}`;
+        const stored = localStorage.getItem(key);
+        console.debug("[SIGNIN] Checking stored approval: " + stored);
+        
+        if (!stored) {
+            this.shouldShowApproval = true;
+            console.debug("[SIGNIN] No stored approval found");
+            return;
+        }
+        
+        try {
+            const approval = JSON.parse(stored);
+            const approvalDate = new Date(approval.date);
+            const now = new Date();
+            const daysDiff = (now.getTime() - approvalDate.getTime()) / (1000 * 60 * 60 * 24);
+            
+            // Check if approval is older than 30 days
+            if (daysDiff > 30) {
+                this.shouldShowApproval = true;
+                localStorage.removeItem(key);
+                console.debug("[SIGNIN] Approval is older than 30 days");
+                return;
+            }
+            
+            // Check if scopes match
+            const storedScopes = approval.scopes.sort().join(',');
+            const currentScopes = this.scopes.sort().join(',');
+            
+            if (storedScopes !== currentScopes) {
+                this.shouldShowApproval = true;
+                localStorage.removeItem(key);
+                console.debug("[SIGNIN] Scopes do not match");
+                return;
+            }
+            
+            // Approval is valid, auto-approve
+            this.shouldShowApproval = false;
+            this.autoApprove();
+        } catch (err) {
+            console.error('Error checking stored approval:', err);
+            this.shouldShowApproval = true;
+            localStorage.removeItem(key);
+        }
+    }
+
+    autoApprove() {
+        // Automatically submit the approval form
+        const form = document.querySelector('form[action="/oauth2/authorize"]') as HTMLFormElement;
+        if (form) {
+            form.submit();
+        }
+    }
+
+    onApproveClick(form: HTMLFormElement, consent: HTMLInputElement) {
+        // Save approval to localStorage if checkbox is checked
+        // This runs BEFORE the form submits (button click happens before form submit)
+        if (this.rememberApproval) {
+            const key = `approval_${this.clientName}`;
+            const approval = {
+                date: new Date().toISOString(),
+                scopes: this.scopes
+            };
+            localStorage.setItem(key, JSON.stringify(approval));
+        }
+        consent.value = "approve";
+        form.submit();
+    }
+
+    onDenyClick(form: HTMLFormElement, consent: HTMLInputElement) {
+        consent.value = "deny";
+        form.submit();
+    }
 }

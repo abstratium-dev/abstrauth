@@ -61,13 +61,11 @@ public class AuthErrorResource {
                 <title>%s</title>
                 <style>
                     body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
                         display: flex;
                         justify-content: center;
                         align-items: center;
                         min-height: 100vh;
                         margin: 0;
-                        background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
                     }
                     .error-container {
                         background: white;
@@ -110,9 +108,9 @@ public class AuthErrorResource {
             </head>
             <body>
                 <div class="error-container">
-                    <h1>%s</h1>
-                    <p>%s</p>
-                    <div class="error-code">%s</div>
+                    <h1 id="error-title">%s</h1>
+                    <p id="error-message">%s</p>
+                    <div class="error-code" id="error-code">%s</div>
                     <a href="/">Return to Home</a>
                 </div>
             </body>
