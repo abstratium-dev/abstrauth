@@ -356,7 +356,7 @@ For detailed security information, see:
 - `SECURITY_AUDIT_FINDINGS.md` - Detailed vulnerability analysis
 - `SECURITY_AUDIT_SUMMARY.md` - Executive summary
 - `SECURITY_FIXES_GUIDE.md` - Implementation guide
-- `SECURITY.md` - General security documentation
+- `SECURITY_DESIGN.md` - General security documentation
 
 ---
 

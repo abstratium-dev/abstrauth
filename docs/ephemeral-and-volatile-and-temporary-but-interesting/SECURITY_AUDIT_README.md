@@ -300,7 +300,7 @@ mvn verify
 ### For Implementation Help
 - Follow the step-by-step guide in **SECURITY_FIXES_GUIDE.md**
 - Test each fix with the security test suite
-- Refer to existing security documentation in **SECURITY.md**
+- Refer to existing security documentation in **SECURITY_DESIGN.md**
 
 ### For Management Questions
 - Review **SECURITY_AUDIT_SUMMARY.md** for executive overview
@@ -345,7 +345,7 @@ mvn verify
 ## 📚 Additional Documentation
 
 ### Existing Security Documentation
-- **SECURITY.md** - Security implementation details
+- **SECURITY_DESIGN.md** - Security implementation details
 - **FLOWS.md** - OAuth2 flow documentation
 - **CSRF_AND_STATE_SUMMARY.md** - CSRF protection
 - **RATE_LIMITING_SUMMARY.md** - Rate limiting implementation

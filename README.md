@@ -32,9 +32,9 @@ Abstrauth uses itself as an authorization server for users signing into the admi
 
 ## Security
 
-🔒 **Found a security vulnerability?** Please read our [Security Policy](SECURITY_POLICY.md) for responsible disclosure guidelines.
+🔒 **Found a security vulnerability?** Please read our [Security Policy](SECURITY.md) for responsible disclosure guidelines.
 
-For information about the security implementation and features, see [SECURITY.md](docs/security/SECURITY.md).
+For information about the security implementation and features, see [SECURITY_DESIGN.md](docs/security/SECURITY_DESIGN.md).
 
 ## Documentation
 

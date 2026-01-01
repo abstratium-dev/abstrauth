@@ -337,7 +337,7 @@ The following security measures are correctly implemented:
 3. **This summary** - Executive overview
 
 ### Existing Documentation
-1. **SECURITY.md** - Security implementation details
+1. **SECURITY_DESIGN.md** - Security implementation details
 2. **FLOWS.md** - OAuth2 flow documentation
 3. **CSRF_AND_STATE_SUMMARY.md** - CSRF protection details
 4. **RATE_LIMITING_SUMMARY.md** - Rate limiting implementation

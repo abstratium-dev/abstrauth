@@ -40,7 +40,9 @@ echo "Successfully pushed:"
 echo "  - ghcr.io/abstratium-dev/abstrauth:$VERSION"
 echo "  - ghcr.io/abstratium-dev/abstrauth:latest"
 
-# Tag the git commit with the version from application.properties
-git tag $VERSION
-git push origin $VERSION
-
+echo ""
+echo "Tag the git commit with the version from application.properties"
+echo "git add --all"
+echo "git commit -a -m'building version $VERSION'"
+echo "git tag $VERSION"
+echo "git push origin $VERSION"

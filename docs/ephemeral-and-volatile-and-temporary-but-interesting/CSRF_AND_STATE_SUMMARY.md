@@ -18,7 +18,7 @@
 **Fix Applied**:
 1. ✅ Added `state` parameter to authorization request (`authorize.component.ts`)
 2. ✅ Added state validation in callback (`auth-callback.component.ts`)
-3. ✅ Updated documentation (`SECURITY.md`, `FLOWS.md`)
+3. ✅ Updated documentation (`SECURITY_DESIGN.md`, `FLOWS.md`)
 
 ## Understanding OAuth2 State Parameter
 
@@ -266,7 +266,7 @@ test('rejects callback with invalid state', async ({ page }) => {
 - [RFC 9700](https://datatracker.ietf.org/doc/html/rfc9700) - OAuth 2.0 Security Best Current Practice
 
 ### Project Documentation
-- `SECURITY.md` - Comprehensive security implementation guide
+- `SECURITY_DESIGN.md` - Comprehensive security implementation guide
 - `FLOWS.md` - OAuth2 flow diagrams with security annotations
 - `FEDERATED_LOGIN.md` - Federated login security considerations
 

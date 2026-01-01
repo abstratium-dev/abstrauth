@@ -440,7 +440,7 @@ initiateOAuthFlow() {
 
 ### 6. Documentation Updates
 
-#### 6.1 Update docs/security/SECURITY.md
+#### 6.1 Update docs/security/SECURITY_DESIGN.md
 
 **Replace section "Angular HTTP Interceptor":**
 
@@ -711,7 +711,7 @@ test('should login and access protected pages', async ({ page, context }) => {
 6. Run Angular tests: `cd src/main/webui && npm test`
 
 ### Phase 3: Documentation
-1. Update `SECURITY.md`
+1. Update `SECURITY_DESIGN.md`
 2. Update `FLOWS.md`
 3. Update `client-example/README.md`
 4. Update `client-example/server.js`

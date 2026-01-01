@@ -100,7 +100,7 @@ abstrauth includes the following security features:
 - **Security headers** - HSTS, X-Frame-Options, etc.
 - **Account lockout** - After failed login attempts
 
-For more details, see [SECURITY.md](SECURITY.md).
+For more details, see [SECURITY_DESIGN.md](docs/security/SECURITY_DESIGN.md).
 
 ### Recognition and Gratitude
 

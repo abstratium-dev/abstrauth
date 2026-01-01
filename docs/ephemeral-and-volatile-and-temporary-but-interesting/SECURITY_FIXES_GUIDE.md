@@ -541,6 +541,6 @@ Set up alerts for:
 For questions about these fixes, refer to:
 - **SECURITY_AUDIT_FINDINGS.md** - Detailed vulnerability analysis
 - **SECURITY_AUDIT_SUMMARY.md** - Executive summary
-- **SECURITY.md** - General security documentation
+- **SECURITY_DESIGN.md** - General security documentation
 
 Or contact the security team.
