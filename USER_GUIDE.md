@@ -105,6 +105,9 @@ Abstrauth uses RSA keys for signing and verifying JWT tokens. You need to genera
    ```
 
 2. **Run the container**:
+
+_Replace all `TODO_...` values with the values generated above.
+
    ```bash
    docker run -d \
      --name abstrauth \
@@ -113,14 +116,14 @@ Abstrauth uses RSA keys for signing and verifying JWT tokens. You need to genera
      -p 127.0.0.1:9002:9002 \
      -e QUARKUS_DATASOURCE_JDBC_URL="jdbc:mysql://your-mysql-host:3306/abstrauth" \
      -e QUARKUS_DATASOURCE_USERNAME="abstrauth" \
-     -e QUARKUS_DATASOURCE_PASSWORD="your_secure_password" \
-     -e SMALLRYE_JWT_SIGN_KEY="your_base64_private_key_here" \
-     -e MP_JWT_VERIFY_PUBLICKEY="your_base64_public_key_here" \
-     -e ABSTRAUTH_CLIENT_SECRET="your_generated_client_secret" \
-     -e COOKIE_ENCRYPTION_SECRET="your_generated_cookie_encryption_key" \
-     -e OAUTH_GOOGLE_CLIENT_ID="your_google_client_id" \
-     -e OAUTH_GOOGLE_CLIENT_SECRET="your_google_client_secret" \
-     -e ALLOW_SIGNUP="false" \
+     -e QUARKUS_DATASOURCE_PASSWORD="TODO_YOUR_SECURE_PASSWORD" \
+     -e SMALLRYE_JWT_SIGN_KEY="TODO_YOUR_BASE64_PRIVATE_KEY_HERE" \
+     -e MP_JWT_VERIFY_PUBLICKEY="TODO_YOUR_BASE64_PUBLIC_KEY_HERE" \
+     -e ABSTRAUTH_CLIENT_SECRET="TODO_YOUR_GENERATED_CLIENT_SECRET" \
+     -e COOKIE_ENCRYPTION_SECRET="TODO_YOUR_GENERATED_COOKIE_ENCRYPTION_KEY" \
+     -e OAUTH_GOOGLE_CLIENT_ID="TODO_YOUR_GOOGLE_CLIENT_ID" \
+     -e OAUTH_GOOGLE_CLIENT_SECRET="TODO_YOUR_GOOGLE_CLIENT_SECRET" \
+     -e ALLOW_SIGNUP="TODO_TRUE_OR_FALSE" \
      ghcr.io/abstratium-dev/abstrauth:latest
    ```
 

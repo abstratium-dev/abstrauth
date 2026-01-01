@@ -19,7 +19,7 @@ public class AuthCallbackResourceTest {
                 .redirects().follow(false)  // Don't follow redirects
                 .get("/api/auth/callback")
                 .then()
-                .log().all()
+                //.log().all()
                 .statusCode(303)  // See Other
                 .header("Location", equalTo("http://localhost:8081/"));
     }

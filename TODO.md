@@ -6,12 +6,9 @@
 - why doesn't webkit e2e and manual browser tests work? sign out and try and sign in again and it doesn't pass the cookies properly
 
 - describe the cpu/memory/etc. footprint in README.md
-- entire build cycle including native
-- docs - describe how to run as a docker image
-- docs - link to native build and other docs
+- docs - describe how to run as a docker image on main readme
 - improve branch coverage of ui
-- use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
- in a test somewhere
+
 - if native sign in is disabled, don't add the option to create an account with native sign in
 - make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.
@@ -24,6 +21,8 @@
 
 ## Tomorrow
 
+- use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
+ in a test somewhere
 - csrf cookie for normal use? gitea seems to have one
 - track ip address and browser info. if a new sign in is detected, inform the user via email
 - MFA

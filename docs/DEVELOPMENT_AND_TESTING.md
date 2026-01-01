@@ -96,6 +96,10 @@ See the [E2E Testing Documentation](../e2e-tests/README.md) for detailed instruc
 ```bash
 jbang version --update
 quarkus update
+
+ng update
+# or 
+ng update @angular/cli @angular/core
 ```
 
 # Building

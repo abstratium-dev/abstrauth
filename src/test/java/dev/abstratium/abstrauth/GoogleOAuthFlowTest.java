@@ -46,11 +46,15 @@ public class GoogleOAuthFlowTest {
                 .queryParam("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
                 .queryParam("code_challenge_method", "S256")
                 .redirects().follow(false)
+                .log().all()
                 .when()
-                .get("/oauth2/authorize");
+                .get("/oauth2/authorize")
+                .then()
+                .log().all()
+                .statusCode(303)
+                .extract().response();
 
         // Should redirect to signin page
-        assertEquals(303, authResponse.statusCode());
         String location = authResponse.header("Location");
         assertNotNull(location, "Location header should not be null");
         assertTrue(location.contains("/signin/"), "Location should contain /signin/, but was: " + location);
@@ -63,11 +67,15 @@ public class GoogleOAuthFlowTest {
         Response googleInitResponse = given()
                 .queryParam("request_id", requestId)
                 .redirects().follow(false)
+                .log().all()
                 .when()
-                .get("/oauth2/federated/google");
+                .get("/oauth2/federated/google")
+                .then()
+                .log().all()
+                .statusCode(303)
+                .extract().response();
 
         // Should redirect to Google (mocked)
-        assertEquals(303, googleInitResponse.statusCode());
         String googleAuthUrl = googleInitResponse.header("Location");
         assertNotNull(googleAuthUrl, "Location header should not be null");
         assertTrue(googleAuthUrl.contains("accounts.google.com/o/oauth2/v2/auth"), "URL should contain Google auth endpoint");
@@ -112,11 +120,15 @@ public class GoogleOAuthFlowTest {
                 .queryParam("code", "google-auth-code-123")
                 .queryParam("state", requestId)
                 .redirects().follow(false)
+                .log().all()
                 .when()
-                .get("/oauth2/callback/google");
+                .get("/oauth2/callback/google")
+                .then()
+                .log().all()
+                .statusCode(303)
+                .extract().response();
 
         // Should redirect back to client with authorization code
-        assertEquals(303, callbackResponse.statusCode());
         String callbackLocation = callbackResponse.header("Location");
         assertTrue(callbackLocation.startsWith("http://localhost:8080/api/auth/callback"));
         assertTrue(callbackLocation.contains("code="));
@@ -127,7 +139,7 @@ public class GoogleOAuthFlowTest {
         assertNotNull(authCode);
 
         // Step 6: Exchange authorization code for access token
-        Response tokenResponse = given()
+        given()
                 .contentType("application/x-www-form-urlencoded")
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", authCode)
@@ -135,12 +147,12 @@ public class GoogleOAuthFlowTest {
                 .formParam("client_id", "abstratium-abstrauth")
                 .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+                .log().all()
                 .when()
-                .post("/oauth2/token");
-
-        // Should return access token
-        assertEquals(200, tokenResponse.statusCode());
-        tokenResponse.then()
+                .post("/oauth2/token")
+                .then()
+                .log().all()
+                .statusCode(200)
                 .body("access_token", notNullValue())
                 .body("token_type", is("Bearer"))
                 .body("expires_in", is(900)); // Default from abstrauth.session.timeout.seconds
