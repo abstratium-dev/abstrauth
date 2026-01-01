@@ -60,7 +60,7 @@ export CR_PAT=your_token_here
 
 (alternatively add it to `/w/abstratium-abstrauth.env`)
 
-Run the script named `push-docker-image.sh`.
+Run the script named `push-docker-image.sh`, which also tags the source code and pushes it to GitHub.
 
 ----
 

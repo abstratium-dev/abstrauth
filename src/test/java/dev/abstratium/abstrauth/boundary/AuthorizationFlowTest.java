@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AuthorizationFlowTest {
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
-    private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
     private static final String TEST_USERNAME = "testuser_" + System.currentTimeMillis();
     private static final String TEST_EMAIL = "test_" + System.currentTimeMillis() + "@example.com";
     private static final String TEST_PASSWORD = "SecurePassword123";

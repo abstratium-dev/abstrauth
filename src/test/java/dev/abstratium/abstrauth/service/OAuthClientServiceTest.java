@@ -73,7 +73,7 @@ public class OAuthClientServiceTest {
         assertTrue(clientOpt.isPresent());
         
         OAuthClient client = clientOpt.get();
-        assertTrue(oauthClientService.isRedirectUriAllowed(client, "http://localhost:8080/auth-callback"));
+        assertTrue(oauthClientService.isRedirectUriAllowed(client, "http://localhost:8080/api/auth/callback"));
         assertFalse(oauthClientService.isRedirectUriAllowed(client, "http://evil.com/callback"));
     }
 

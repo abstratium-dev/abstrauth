@@ -14,7 +14,7 @@ import static org.hamcrest.Matchers.*;
 public class AuthorizationResourceTest {
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
-    private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
 
     // ========== Response Type Validation ==========
 

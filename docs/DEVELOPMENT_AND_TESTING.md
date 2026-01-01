@@ -91,6 +91,13 @@ The E2E tests are in `e2e-tests/` and use Playwright to test the full applicatio
 
 See the [E2E Testing Documentation](../e2e-tests/README.md) for detailed instructions.
 
+# Upgrading
+
+```bash
+jbang version --update
+quarkus update
+```
+
 # Building
 
 See [NATIVE_IMAGE_BUILD.md](NATIVE_IMAGE_BUILD.md) for instructions on building a native image.

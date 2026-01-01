@@ -3,6 +3,8 @@
 ## Today
 
 
+- why doesn't webkit e2e and manual browser tests work? sign out and try and sign in again and it doesn't pass the cookies properly
+
 - describe the cpu/memory/etc. footprint in README.md
 - entire build cycle including native
 - docs - describe how to run as a docker image

@@ -137,7 +137,7 @@ public class ClientsResourceTest {
             .then()
             .statusCode(200)
             .body("find { it.clientId == 'abstratium-abstrauth' }.redirectUris", 
-                  containsString("http://localhost:8080/auth-callback"));
+                  containsString("http://localhost:8080/api/auth/callback"));
     }
 
     @Test

@@ -25,7 +25,7 @@ public class WellKnownResourceTest {
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
-    private static final String REDIRECT_URI = "http://localhost:8080/auth-callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
 
     @Test
     public void testServerMetadataEndpoint() {

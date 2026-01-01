@@ -39,3 +39,8 @@ rm /home/ant/.docker/config.json
 echo "Successfully pushed:"
 echo "  - ghcr.io/abstratium-dev/abstrauth:$VERSION"
 echo "  - ghcr.io/abstratium-dev/abstrauth:latest"
+
+# Tag the git commit with the version from application.properties
+git tag $VERSION
+git push origin $VERSION
+

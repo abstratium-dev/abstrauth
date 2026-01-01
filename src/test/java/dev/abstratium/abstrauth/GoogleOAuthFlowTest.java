@@ -40,7 +40,7 @@ public class GoogleOAuthFlowTest {
         Response authResponse = given()
                 .queryParam("response_type", "code")
                 .queryParam("client_id", "abstratium-abstrauth")
-                .queryParam("redirect_uri", "http://localhost:4200/auth-callback")
+                .queryParam("redirect_uri", "http://localhost:8080/api/auth/callback")
                 .queryParam("scope", "openid profile email")
                 .queryParam("state", "client-state-123")
                 .queryParam("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
@@ -118,7 +118,7 @@ public class GoogleOAuthFlowTest {
         // Should redirect back to client with authorization code
         assertEquals(303, callbackResponse.statusCode());
         String callbackLocation = callbackResponse.header("Location");
-        assertTrue(callbackLocation.startsWith("http://localhost:4200/auth-callback"));
+        assertTrue(callbackLocation.startsWith("http://localhost:8080/api/auth/callback"));
         assertTrue(callbackLocation.contains("code="));
         assertTrue(callbackLocation.contains("state=client-state-123"));
 
@@ -131,7 +131,7 @@ public class GoogleOAuthFlowTest {
                 .contentType("application/x-www-form-urlencoded")
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", authCode)
-                .formParam("redirect_uri", "http://localhost:4200/auth-callback")
+                .formParam("redirect_uri", "http://localhost:8080/api/auth/callback")
                 .formParam("client_id", "abstratium-abstrauth")
                 .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
@@ -170,7 +170,7 @@ public class GoogleOAuthFlowTest {
         Response authResponse = given()
                 .queryParam("response_type", "code")
                 .queryParam("client_id", "abstratium-abstrauth")
-                .queryParam("redirect_uri", "http://localhost:4200/auth-callback")
+                .queryParam("redirect_uri", "http://localhost:8080/api/auth/callback")
                 .queryParam("scope", "openid profile email")
                 .queryParam("state", "client-state-456")
                 .queryParam("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")

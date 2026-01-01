@@ -39,7 +39,7 @@ public class AuthorizationServiceTest {
             client.setClientId("test_client");
             client.setClientName("Test Client");
             client.setClientType("confidential");
-            client.setRedirectUris("[\"http://localhost:8080/callback\"]");
+            client.setRedirectUris("[\"http://localhost:8080/callback\",\"http://localhost:8080/auth-callback\"]");
             client.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
             client.setRequirePkce(false);
             client.setClientSecretHash("$2a$10$dummyhash");
