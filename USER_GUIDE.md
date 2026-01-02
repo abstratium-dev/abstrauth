@@ -128,18 +128,25 @@ _Replace all `TODO_...` values with the values generated above.
    ```
 
    **Required Environment Variables:**
-   - `QUARKUS_DATASOURCE_JDBC_URL`: Database connection URL
+   - `QUARKUS_DATASOURCE_JDBC_URL`: Database connection URL (format: `jdbc:mysql://<host>:<port>/<database>`)
    - `QUARKUS_DATASOURCE_USERNAME`: Database username
-   - `QUARKUS_DATASOURCE_PASSWORD`: Database password
-   - `SMALLRYE_JWT_SIGN_KEY`: Base64-encoded private key for signing JWTs
-   - `MP_JWT_VERIFY_PUBLICKEY`: Base64-encoded public key for verifying JWTs
-   - `ABSTRAUTH_CLIENT_SECRET`: Client secret for the default OAuth client (BFF pattern)
-   - `COOKIE_ENCRYPTION_SECRET`: Encryption key for HTTP-only cookies (min 32 chars)
+   - `QUARKUS_DATASOURCE_PASSWORD`: Database password (use strong, unique password)
+   - `SMALLRYE_JWT_SIGN_KEY`: Base64-encoded RSA private key for signing JWTs (min 2048 bits for PS256)
+   - `MP_JWT_VERIFY_PUBLICKEY`: Base64-encoded RSA public key for verifying JWTs (must match private key)
+   - `ABSTRAUTH_CLIENT_SECRET`: Client secret for the default OAuth client (BFF pattern, generate with `openssl rand -base64 32`)
+   - `COOKIE_ENCRYPTION_SECRET`: Encryption key for HTTP-only cookies (min 32 chars, generate with `openssl rand -base64 32`)
    
    **Optional Environment Variables:**
-   - `OAUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID (for federated login)
-   - `OAUTH_GOOGLE_CLIENT_SECRET`: Google OAuth client secret
-   - `ALLOW_SIGNUP`: Allow new user registration (`true` in dev, `false` in prod)
+   - `OAUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID (required only for "Sign in with Google")
+   - `OAUTH_GOOGLE_CLIENT_SECRET`: Google OAuth client secret (required only for "Sign in with Google")
+   - `ALLOW_SIGNUP`: Allow user self-registration (`true` in dev, `false` in prod, default: `false`)
+   - `PASSWORD_PEPPER`: Application-wide secret for password security (generate with `openssl rand -base64 32`, WARNING: changing requires re-hashing all passwords)
+   - `RATE_LIMIT_ENABLED`: Enable rate limiting on OAuth endpoints (default: `true`)
+   - `RATE_LIMIT_OAUTH_MAX_REQUESTS`: Max requests per IP per window (default: `100`)
+   - `RATE_LIMIT_OAUTH_WINDOW_SECONDS`: Rate limit time window in seconds (default: `60`)
+   - `RATE_LIMIT_OAUTH_BAN_DURATION_SECONDS`: Ban duration after exceeding limits (default: `300`)
+   - `QUARKUS_MANAGEMENT_ENABLED`: Enable management interface (default: `true`)
+   - `QUARKUS_MANAGEMENT_PORT`: Management interface port (default: `9002`)
 
 3. **Verify the container is running**:
    ```bash
@@ -238,58 +245,6 @@ Abstrauth provides several endpoints for monitoring:
 8. **Limit network access** to database and management interface
 9. **Rotate JWT keys periodically** (requires user re-authentication)
 10. **Keep `ALLOW_SIGNUP=false`** unless you need public registration
-
-## Environment Variables Reference
-
-The application uses several environment variables for configuration:
-
-### Required Variables
-
-- **`QUARKUS_DATASOURCE_JDBC_URL`** - Database connection string
-  - Format: `jdbc:mysql://<host>:<port>/<databasename>`
-  - Example: `jdbc:mysql://abstrauth-db:3306/abstrauth`
-  - Currently only MySQL is supported
-
-- **`QUARKUS_DATASOURCE_USERNAME`** - Database user
-  - Example: `abstrauth`
-
-- **`QUARKUS_DATASOURCE_PASSWORD`** - Database password
-  - Use a strong, unique password
-  - Never commit this to version control
-
-- **`SMALLRYE_JWT_SIGN_KEY`** - Base64-encoded RSA private key for signing JWT tokens
-  - Must be at least 2048 bits for PS256 algorithm
-  - Generate using OpenSSL (see "Generate JWT Keys" section)
-  - Keep this secret and secure
-
-- **`MP_JWT_VERIFY_PUBLICKEY`** - Base64-encoded RSA public key for verifying JWT tokens
-  - Must match the private key
-  - Extract from private key using `extract-public-key.sh` or OpenSSL
-
-### Optional Variables
-
-- **`ALLOW_SIGNUP`** - Boolean flag to enable/disable user self-registration
-  - `true` - Allow users to create accounts via signup
-  - `false` - Only admins can create accounts (default)
-  - Default: `false` (disabled for security)
-
-- **`OAUTH_GOOGLE_CLIENT_ID`** - Google OAuth client ID for federated login
-  - Required only if using "Sign in with Google"
-  - Obtain from Google Cloud Console
-
-- **`OAUTH_GOOGLE_CLIENT_SECRET`** - Google OAuth client secret
-  - Required only if using "Sign in with Google"
-  - Keep this secret and secure
-
-- **`PASSWORD_PEPPER`** - Application-wide secret for additional password security
-  - Generate using: `openssl rand -base64 32`
-  - WARNING: Changing this requires re-hashing all passwords
-  - Default: Development value (change in production)
-
-### Management Interface Variables
-
-- **`QUARKUS_MANAGEMENT_ENABLED`** - Enable management interface (default: `true`)
-- **`QUARKUS_MANAGEMENT_PORT`** - Management interface port (default: `9002`)
 
 ## Integrating Abstrauth into Your Application
 

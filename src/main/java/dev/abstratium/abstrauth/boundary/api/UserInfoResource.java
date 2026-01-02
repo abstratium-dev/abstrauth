@@ -1,12 +1,15 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import dev.abstratium.abstrauth.util.ClientIpUtil;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
@@ -42,7 +45,7 @@ public class UserInfoResource {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Map<String, Object> getUserInfo() {
+    public Map<String, Object> getUserInfo(@Context ContainerRequestContext requestContext) {
         Map<String, Object> userInfo = new HashMap<>();
         
         String email = idToken.getClaim("email");
@@ -63,7 +66,8 @@ public class UserInfoResource {
         userInfo.put("auth_method", idToken.getClaim("auth_method"));
         userInfo.put("isAuthenticated", true);
         
-        log.info("User with ID " + idToken.getSubject() + " and email " + email + " has been read for client_id " + clientId);
+        String clientIp = ClientIpUtil.getClientIp(requestContext);
+        log.info("User with ID " + idToken.getSubject() + " and email " + email + " has been read for client_id " + clientId + " from IP " + clientIp);
         return userInfo;
     }
 }

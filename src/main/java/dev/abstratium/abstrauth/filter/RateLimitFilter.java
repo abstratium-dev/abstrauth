@@ -1,18 +1,20 @@
 package dev.abstratium.abstrauth.filter;
 
+import java.io.IOException;
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
 import jakarta.annotation.Priority;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.container.PreMatching;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-
-import java.io.IOException;
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Rate Limiting Filter for OAuth endpoints.
@@ -27,6 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @PreMatching
 @Priority(1000) // Run early in the filter chain
 public class RateLimitFilter implements ContainerRequestFilter {
+
+    private static final Logger log = Logger.getLogger(RateLimitFilter.class); 
 
     @ConfigProperty(name = "rate-limit.enabled", defaultValue = "true")
     boolean rateLimitEnabled;
@@ -73,6 +77,9 @@ public class RateLimitFilter implements ContainerRequestFilter {
         
         // Check if IP is banned
         if (isBanned(clientIp)) {
+
+            log.info("IP " + clientIp + " is banned, blocking request");
+
             requestContext.abortWith(
                 Response.status(429) // Too Many Requests
                     .entity("Rate limit exceeded. Please try again later.")
@@ -86,6 +93,8 @@ public class RateLimitFilter implements ContainerRequestFilter {
         if (isRateLimited(clientIp)) {
             // Ban the IP temporarily for repeated violations
             bannedIps.put(clientIp, Instant.now().plusSeconds(banDurationSeconds));
+
+            log.info("Rate limit exceeded for IP: " + clientIp + ", temporarily banning");
             
             requestContext.abortWith(
                 Response.status(429) // Too Many Requests

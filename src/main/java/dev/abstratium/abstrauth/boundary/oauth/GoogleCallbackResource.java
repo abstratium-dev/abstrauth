@@ -6,8 +6,11 @@ import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.GoogleOAuthService;
+import dev.abstratium.abstrauth.util.ClientIpUtil;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -72,7 +75,9 @@ public class GoogleCallbackResource {
             description = "Error code if Google authentication failed",
             required = false
         )
-        @QueryParam("error") String error
+        @QueryParam("error") String error,
+
+        @Context ContainerRequestContext requestContext
     ) {
         // Handle error from Google
         if (error != null) {
@@ -129,7 +134,8 @@ public class GoogleCallbackResource {
                 redirectUrl += "&state=" + URLEncoder.encode(authRequest.getState(), StandardCharsets.UTF_8);
             }
 
-            log.info("User " + account.getEmail() + " has been approved by Google for authorization request " + authRequest.getId());
+            String clientIp = ClientIpUtil.getClientIp(requestContext);
+            log.info("User " + account.getEmail() + " has been approved by Google for authorization request " + authRequest.getId() + " from IP " + clientIp);
 
             return Response.seeOther(URI.create(redirectUrl)).build();
 

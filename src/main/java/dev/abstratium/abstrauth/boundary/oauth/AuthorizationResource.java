@@ -7,8 +7,11 @@ import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
+import dev.abstratium.abstrauth.util.ClientIpUtil;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -282,7 +285,9 @@ public class AuthorizationResource {
         @FormParam("consent") String consent,
 
         @Parameter(description = "Authorization request identifier", required = true)
-        @FormParam("request_id") String requestId
+        @FormParam("request_id") String requestId,
+
+        @Context ContainerRequestContext requestContext
     ) {
         Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
         if (requestOpt.isEmpty() || !"approved".equals(requestOpt.get().getStatus())) { // it is approved when the user signs in with the right password
@@ -319,8 +324,8 @@ public class AuthorizationResource {
         }
 
         Account account = accountOpt.get();
-        log.info("User " + account.getEmail() + " has been approved by Native for authorization request " + authRequest.getId());
-
+        String clientIp = ClientIpUtil.getClientIp(requestContext);
+        log.info("User " + account.getEmail() + " has been approved by Native for authorization request " + authRequest.getId() + " from IP " + clientIp);
 
         return Response.seeOther(URI.create(redirectUrl)).build();
     }
