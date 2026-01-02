@@ -124,6 +124,7 @@ _Replace all `TODO_...` values with the values generated above.
      -e OAUTH_GOOGLE_CLIENT_ID="TODO_YOUR_GOOGLE_CLIENT_ID" \
      -e OAUTH_GOOGLE_CLIENT_SECRET="TODO_YOUR_GOOGLE_CLIENT_SECRET" \
      -e ALLOW_SIGNUP="TODO_TRUE_OR_FALSE" \
+     -e QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME="TODO_TRUE_IF_BEHIND_REVERSE_PROXY_WHICH_ENDS_TLS_TUNNEL"
      ghcr.io/abstratium-dev/abstrauth:latest
    ```
 
@@ -147,6 +148,7 @@ _Replace all `TODO_...` values with the values generated above.
    - `RATE_LIMIT_OAUTH_BAN_DURATION_SECONDS`: Ban duration after exceeding limits (default: `300`)
    - `QUARKUS_MANAGEMENT_ENABLED`: Enable management interface (default: `true`)
    - `QUARKUS_MANAGEMENT_PORT`: Management interface port (default: `9002`)
+   - `QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME`: set to true if Abstrauth runs behind a reverse proxy that terminates TLS
 
 3. **Verify the container is running**:
    ```bash

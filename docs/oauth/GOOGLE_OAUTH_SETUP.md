@@ -41,7 +41,7 @@ Google federated login has been successfully implemented. Users can now sign in 
 5. Application type: "Web application"
 6. Add authorized redirect URIs:
    - Development: `http://localhost:8080/oauth2/callback/google`
-   - Production: `https://abstrauth.abstratium.dev/oauth2/callback/google`
+   - Production: `https://auth.abstratium.dev/oauth2/callback/google`
 7. Save and copy the Client ID and Client Secret
 
 ### Step 2: Update application.properties

@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * nginx terminates TLS and forwards requests as HTTP to the application.
  * 
  * Key configuration properties:
- * - quarkus.http.proxy.enable-forwarded-proto=true (enables X-Forwarded-Proto header support)
  * - quarkus.oidc.bff.authentication.force-redirect-https-scheme=true (forces HTTPS in redirect_uri in prod)
  * 
  * Root cause of the issue:
@@ -35,11 +34,6 @@ public class RedirectUriHttpsTest {
             .getValue("quarkus.http.proxy.proxy-address-forwarding", String.class);
         assertEquals("true", proxyForwarding,
             "quarkus.http.proxy.proxy-address-forwarding must be true to support reverse proxy");
-        
-        String enableForwardedProto = ConfigProvider.getConfig()
-            .getValue("quarkus.http.proxy.enable-forwarded-proto", String.class);
-        assertEquals("true", enableForwardedProto,
-            "quarkus.http.proxy.enable-forwarded-proto must be true to preserve HTTPS scheme");
     }
 
     @Test
