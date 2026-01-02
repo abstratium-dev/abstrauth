@@ -99,7 +99,7 @@ sequenceDiagram
     
     SPA->>BFF: Navigate to /authorize
     BFF->>BFF: Generate PKCE parameters<br/>Generate state
-    BFF->>AuthServer: Redirect to /oauth2/authorize?<br/>response_type=code&client_id=abstratium-abstrauth&<br/>redirect_uri=/auth-callback&code_challenge=...
+    BFF->>AuthServer: Redirect to /oauth2/authorize?<br/>response_type=code&client_id=abstratium-abstrauth&<br/>redirect_uri=/api/auth/callback&code_challenge=...
     
     AuthServer->>Browser: 302 Redirect to /signin/{requestId}
     Browser->>SPA: Load /signin page
@@ -122,7 +122,7 @@ sequenceDiagram
     AuthServer->>AuthServer: Verify Google ID token<br/>Extract user claims<br/>Create/update user account
     
     AuthServer->>Browser: 302 Redirect to BFF callback
-    Browser->>BFF: /auth-callback?code=ABSTRATIUM_CODE&state=xyz
+    Browser->>BFF: /api/auth/callback?code=ABSTRATIUM_CODE&state=xyz
     
     BFF->>AuthServer: POST /oauth2/token<br/>(exchange code with PKCE + client_secret)
     AuthServer->>BFF: Abstratium JWT
@@ -203,7 +203,7 @@ Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&
 code=ABSTRATIUM_AUTH_CODE&
-redirect_uri=https://bff.example.com/auth-callback&
+redirect_uri=https://bff.example.com/api/auth/callback&
 client_id=abstratium-abstrauth&
 client_secret=BFF_CLIENT_SECRET&
 code_verifier=ORIGINAL_CODE_VERIFIER
@@ -240,7 +240,7 @@ sequenceDiagram
     SPA->>AuthServer: POST /oauth2/authorize<br/>consent=approve&request_id=REQ_123
     
     AuthServer->>Browser: 302 Redirect to BFF callback
-    Browser->>BFF: /auth-callback?code=CODE&state=xyz
+    Browser->>BFF: /autapi/auth/callback?code=CODE&state=xyz
     
     BFF->>AuthServer: POST /oauth2/token<br/>(with PKCE + client_secret)
     AuthServer->>BFF: Abstratium JWT

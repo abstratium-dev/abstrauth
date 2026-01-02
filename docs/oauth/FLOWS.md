@@ -56,7 +56,7 @@ sequenceDiagram
     Note over BFF: 2. BFF Initiates OIDC Flow
     BFF->>BFF: Generate PKCE parameters<br/>Generate state parameter
     BFF->>AuthServer: Redirect to /oauth2/authorize
-    Note right of BFF: Parameters:<br/>response_type=code<br/>client_id=abstratium-abstrauth<br/>redirect_uri=https://auth.abstratium.dev/auth-callback<br/>scope=openid profile email<br/>state=random_state<br/>code_challenge=...<br/>code_challenge_method=S256
+    Note right of BFF: Parameters:<br/>response_type=code<br/>client_id=abstratium-abstrauth<br/>redirect_uri=https://auth.abstratium.dev/api/-callback<br/>scope=openid profile email<br/>state=random_state<br/>code_challenge=...<br/>code_challenge_method=S256
     
     Note over AuthServer: 3. Redirect to Angular App
     AuthServer->>SPA: 302 Redirect to /signin/{requestId}
@@ -66,7 +66,7 @@ sequenceDiagram
     SPA->>AuthServer: POST /oauth2/authorize (consent)
     
     Note over AuthServer: 5. Authorization Response
-    AuthServer->>BFF: 302 Redirect to /auth-callback?code=...&state=...
+    AuthServer->>BFF: 302 Redirect to /api/auth/callback?code=...&state=...
     
     Note over BFF: 6. BFF Exchanges Code for Tokens
     BFF->>BFF: Validate state parameter

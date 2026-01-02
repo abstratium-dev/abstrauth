@@ -59,7 +59,7 @@ test('sign up and in', async ({ page }) => {
   const redirectUris = clientCard.locator('.simple-list li');
   await expect(redirectUris).toHaveCount(2);
   await expect(redirectUris.nth(0)).toContainText('http://localhost:8080/api/auth/callback');
-  await expect(redirectUris.nth(1)).toContainText('https://auth.abstratium.dev/auth-callback');
+  await expect(redirectUris.nth(1)).toContainText('https://auth.abstratium.dev/api/auth/callback');
 
   // Verify the client has the expected scopes (should contain openid, profile, email)
   await expect(clientCard.locator('.badge-success').nth(0)).toContainText('openid');

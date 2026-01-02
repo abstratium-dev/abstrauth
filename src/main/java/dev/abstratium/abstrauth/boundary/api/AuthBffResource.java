@@ -18,7 +18,7 @@ import java.net.URI;
  * These endpoints are protected by Quarkus OIDC. When an unauthenticated user
  * accesses them, Quarkus OIDC automatically:
  * 1. Redirects to /oauth2/authorize with all required OAuth parameters
- * 2. Handles the callback at /auth-callback
+ * 2. Handles the callback at /api/auth/callback
  * 3. Exchanges the authorization code for tokens
  * 4. Stores tokens in encrypted HTTP-only cookies
  * 5. Redirects back to the original page

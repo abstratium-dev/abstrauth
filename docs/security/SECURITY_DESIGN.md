@@ -21,7 +21,7 @@ The Angular frontend uses the Quarkus backend as a BFF, which provides several s
 **Authentication Flow:**
 1. User initiates login → Angular redirects to `/oauth2/authorize`
 2. User authenticates and consents
-3. Quarkus OIDC receives callback at `/auth-callback`
+3. Quarkus OIDC receives callback at `/api/auth/callback`
 4. Quarkus exchanges authorization code for tokens using client secret (confidential client)
 5. Quarkus stores tokens in encrypted HTTP-only cookies
 6. Quarkus redirects to Angular app root `/`
@@ -342,7 +342,6 @@ The `state` parameter is a **cryptographically random string** that:
 
 **Code References:**
 - `authorize.component.ts` - Generates and stores state
-- `auth-callback.component.ts` - Validates state parameter
 
 ### State Parameter Flow
 

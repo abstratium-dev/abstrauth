@@ -10,10 +10,6 @@ export const CLIENT_ID = 'abstratium-abstrauth';
  * The backend (Quarkus OIDC) handles the entire OAuth flow:
  * - Detects unauthenticated user
  * - Redirects to /oauth2/authorize with all parameters (response_type=code, PKCE, etc.)
- * - Handles callback at /auth-callback
- * - Exchanges authorization code for tokens
- * - Stores tokens in HTTP-only cookies
- * - Redirects back to the application
  * 
  * The Angular frontend does NOT handle any OAuth parameters directly.
  */

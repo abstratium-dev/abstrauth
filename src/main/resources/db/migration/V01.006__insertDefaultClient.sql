@@ -4,7 +4,7 @@ VALUES (
     'abstratium-abstrauth',
     'abstratium abstrauth',
     'public',
-    '["http://localhost:8080/api/auth/callback", "https://auth.abstratium.dev/auth-callback"]',
+    '["http://localhost:8080/api/auth/callback", "https://auth.abstratium.dev/api/auth/callback"]',
     '["openid", "profile", "email"]',
     TRUE
 );
