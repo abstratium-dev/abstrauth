@@ -25,8 +25,6 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import java.util.List;
-import java.util.Set;
 
 /**
  * OAuth 2.0 Authorization Endpoint
@@ -126,12 +124,6 @@ public class AuthorizationResource {
         )
         @QueryParam("code_challenge_method") String codeChallengeMethod
     ) {
-        // Validate response_type
-        if (!"code".equals(responseType)) {
-            return buildErrorRedirect(redirectUri, "unsupported_response_type", 
-                    "Only 'code' response type is supported", state);
-        }
-
         // Validate client_id
         if (clientId == null || clientId.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -170,6 +162,18 @@ public class AuthorizationResource {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>Invalid redirect_uri</p></body></html>")
                     .build();
+        }
+
+        // //////////////////////////////////////////////////////////////////////////////////////////////////////
+        // From here on, the redirectUri has been validated against the client's redirect_uris in the DB,
+        // so https://github.com/abstratium-dev/abstrauth/security/code-scanning/6 is a false positive
+        // it warned against "URL redirection from remote source", but the redirectUri has been validated
+        // //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        // Validate response_type
+        if (!"code".equals(responseType)) {
+            return buildErrorRedirect(redirectUri, "unsupported_response_type", 
+                    "Only 'code' response type is supported", state);
         }
 
         // Validate scope
@@ -306,6 +310,17 @@ public class AuthorizationResource {
         if (authRequest.getState() != null && !authRequest.getState().isBlank()) {
             redirectUrl += "&state=" + URLEncoder.encode(authRequest.getState(), StandardCharsets.UTF_8);
         }
+
+        Optional<Account> accountOpt = accountService.findById(authRequest.getAccountId());
+        if (accountOpt.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("<html><body><h1>Error</h1><p>Invalid request - account not found</p></body></html>")
+                    .build();
+        }
+
+        Account account = accountOpt.get();
+        log.info("User " + account.getEmail() + " has been approved by Native for authorization request " + authRequest.getId());
+
 
         return Response.seeOther(URI.create(redirectUrl)).build();
     }

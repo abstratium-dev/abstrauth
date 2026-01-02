@@ -129,6 +129,8 @@ public class GoogleCallbackResource {
                 redirectUrl += "&state=" + URLEncoder.encode(authRequest.getState(), StandardCharsets.UTF_8);
             }
 
+            log.info("User " + account.getEmail() + " has been approved by Google for authorization request " + authRequest.getId());
+
             return Response.seeOther(URI.create(redirectUrl)).build();
 
         } catch (Exception e) {

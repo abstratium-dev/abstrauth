@@ -8,6 +8,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.jboss.logging.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +28,8 @@ import java.util.Map;
 @Authenticated
 public class UserInfoResource {
 
+    private static final Logger log = Logger.getLogger(UserInfoResource.class);
+
     @Inject
     @IdToken
     JsonWebToken idToken;
@@ -42,21 +45,25 @@ public class UserInfoResource {
     public Map<String, Object> getUserInfo() {
         Map<String, Object> userInfo = new HashMap<>();
         
+        String email = idToken.getClaim("email");
+        String clientId = idToken.getAudience() != null && !idToken.getAudience().isEmpty() 
+            ? idToken.getAudience().iterator().next() : null;
+
         userInfo.put("iss", idToken.getIssuer());
         userInfo.put("sub", idToken.getSubject());
-        userInfo.put("email", idToken.getClaim("email"));
+        userInfo.put("email", email);
         userInfo.put("email_verified", idToken.getClaim("email_verified"));
         userInfo.put("name", idToken.getClaim("name"));  // Use claim directly, not getName()
         userInfo.put("groups", idToken.getGroups());
         userInfo.put("iat", idToken.getIssuedAtTime());
         userInfo.put("exp", idToken.getExpirationTime());
-        userInfo.put("client_id", idToken.getAudience() != null && !idToken.getAudience().isEmpty() 
-            ? idToken.getAudience().iterator().next() : null);
+        userInfo.put("client_id", clientId);
         userInfo.put("jti", idToken.getClaim("jti"));
         userInfo.put("upn", idToken.getName());  // getName() returns upn claim
         userInfo.put("auth_method", idToken.getClaim("auth_method"));
         userInfo.put("isAuthenticated", true);
         
+        log.info("User with ID " + idToken.getSubject() + " and email " + email + " has been read for client_id " + clientId);
         return userInfo;
     }
 }

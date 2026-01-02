@@ -93,14 +93,35 @@ See the [E2E Testing Documentation](../e2e-tests/README.md) for detailed instruc
 
 # Upgrading
 
+1. Update Quarkus:
 ```bash
 jbang version --update
 quarkus update
+```
 
+2. Update node/npm using nvm.
+Search for nvm in all the docs in this project and update which version is used, e.g. v24.11.1
+
+3. Update Angular:
+```bash
+cd src/main/webui
 ng update
 # or 
 ng update @angular/cli @angular/core
 ```
+
+4. Ensure that there are no nodejs vulnerabilities:
+```bash
+cd src/main/webui
+npm i
+npm audit fix
+cd ../../../client-example
+npm i
+npm audit fix
+```
+
+5. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
+
 
 # Building
 
