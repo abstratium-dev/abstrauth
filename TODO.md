@@ -16,7 +16,6 @@
 - use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
  in a test somewhere
 - improve branch coverage of ui
-- csrf cookie for normal use? gitea seems to have one
 - track ip address and browser info. if a new sign in is detected, inform the user via email
 - MFA for native
 - telemetry
