@@ -21,6 +21,8 @@ Abstrauth functions as:
 - **Multi-tenancy** - Single server instance serves multiple client applications with role-based access control (RBAC)
 - **Self-hosted admin UI** - Angular-based management interface secured by Abstrauth itself using BFF pattern
 - **Security hardened** - PKCE required, confidential clients only, HTTP-only cookies, CSRF protection, rate limiting, CSP headers
+- **Low footprint** - uses as little as 64MB RAM and a small amount of CPU for typical workloads, idles at near zero CPU, achieved by being built as a native image (GraalVM)
+- **Based on Quarkus and Angular** - industry standard frameworks
 
 **Security Architecture:**
 - Tokens are stored in encrypted HTTP-only cookies (never accessible to JavaScript)

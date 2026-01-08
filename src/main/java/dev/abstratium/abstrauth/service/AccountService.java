@@ -145,7 +145,10 @@ public class AccountService {
             credential.setLockedUntil(null);
             em.merge(credential);
 
-            return findById(credential.getAccountId());
+            Optional<Account> accountOpt = findById(credential.getAccountId());
+            // Eagerly fetch roles to avoid LazyInitializationException
+            accountOpt.ifPresent(account -> account.getRoles().size());
+            return accountOpt;
         } else {
             // Increment failed attempts
             int attempts = credential.getFailedLoginAttempts() + 1;

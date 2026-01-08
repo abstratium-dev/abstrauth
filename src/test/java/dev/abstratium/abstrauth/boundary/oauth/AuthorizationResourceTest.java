@@ -1,10 +1,21 @@
 package dev.abstratium.abstrauth.boundary.oauth;
 
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.OAuthClientService;
 import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.http.ContentType;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
+
+import java.util.Optional;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for AuthorizationResource validation logic and error paths.
@@ -12,6 +23,15 @@ import static org.hamcrest.Matchers.*;
  */
 @QuarkusTest
 public class AuthorizationResourceTest {
+
+    @Inject
+    OAuthClientService clientService;
+
+    @Inject
+    AuthorizationService authorizationService;
+
+    @Inject
+    AccountService accountService;
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
@@ -401,5 +421,72 @@ public class AuthorizationResourceTest {
             .then()
             .statusCode(anyOf(is(302), is(303)))
             .header("Location", containsString("/signin/"));
+    }
+
+    // ========== Role Validation ==========
+
+    @Test
+    void shouldRejectAuthenticateWhenUserHasNoRolesForClient() {
+        // Create a unique test client
+        String uniqueClientId = "test-client-auth-no-roles-" + System.currentTimeMillis();
+        OAuthClient testClient = new OAuthClient();
+        testClient.setClientId(uniqueClientId);
+        testClient.setClientName("Test Client Auth No Roles");
+        testClient.setClientType("confidential");
+        testClient.setRedirectUris("[\"http://localhost:3000/callback\"]");
+        testClient.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+        testClient.setRequirePkce(true);
+        testClient = clientService.create(testClient);
+
+        // Create account with roles for abstratium-abstrauth but NOT for test client
+        String testEmail = "test-auth-no-roles-" + System.currentTimeMillis() + "@example.com";
+        String testUsername = "test-auth-no-roles-" + System.currentTimeMillis();
+        Optional<Account> accountOpt = accountService.findByEmail(testEmail);
+        if (accountOpt.isEmpty()) {
+            accountService.createAccount(
+                    testEmail,
+                    "Test User Auth No Roles",
+                    testUsername,
+                    "password123",
+                    AccountService.NATIVE
+            );
+        }
+
+        // Re-fetch to ensure roles are loaded
+        Account account = accountService.findByEmail(testEmail)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        // Verify account has roles for abstratium-abstrauth but not for test client
+        assertTrue(account.getRoles().stream()
+                .anyMatch(role -> role.getClientId().equals("abstratium-abstrauth")));
+        assertFalse(account.getRoles().stream()
+                .anyMatch(role -> role.getClientId().equals(uniqueClientId)));
+
+        // Create authorization request
+        AuthorizationRequest authRequest = authorizationService.createAuthorizationRequest(
+                testClient.getClientId(),
+                "http://localhost:3000/callback",
+                "openid profile email",
+                "test-state",
+                "test-challenge",
+                "S256"
+        );
+
+        // Try to authenticate - should fail with 403
+        given()
+                .contentType(ContentType.URLENC)
+                .formParam("username", testUsername)
+                .formParam("password", "password123")
+                .formParam("request_id", authRequest.getId())
+                .when()
+                .post("/oauth2/authorize/authenticate")
+                .then()
+                .statusCode(403)
+                .body(containsString("You do not have any roles for this application"));
+
+        // Verify request is still pending
+        Optional<AuthorizationRequest> updatedRequest = authorizationService.findAuthorizationRequest(authRequest.getId());
+        assertTrue(updatedRequest.isPresent());
+        assertEquals("pending", updatedRequest.get().getStatus());
     }
 }

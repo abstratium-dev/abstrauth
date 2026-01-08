@@ -6,6 +6,8 @@ import { CommonModule } from '@angular/common';
 import { ModelService } from '../model.service';
 import { Controller } from '../controller';
 import { AutofocusDirective } from '../autofocus.directive';
+import { AuthService } from '../auth.service';
+import { AuthorizeComponent, CLIENT_ID } from '../authorize/authorize.component';
 
 interface AuthRequestDetails {
     clientName: string;
@@ -35,6 +37,7 @@ export class SigninComponent implements OnInit {
     route = inject(ActivatedRoute)
     http = inject(HttpClient)
     fb = inject(FormBuilder)
+    authService = inject(AuthService)
 
     requestId = "";
     clientName = "";
@@ -106,6 +109,38 @@ export class SigninComponent implements OnInit {
                 next: (details) => {
                     this.clientName = details.clientName;
                     this.scopes = details.scope.split(" ");
+                    
+                    // Check if user is already authenticated
+                    // If yes, approve the request and skip to approval step (they're completing OAuth flow for a third-party app)
+                    if (this.authService.isAuthenticated()) {
+                        console.debug("[SIGNIN] User is already authenticated, approving request and skipping to approval");
+                        
+                        // Call backend to approve the authorization request for the authenticated user
+                        // Note: This endpoint is under /api so OIDC BFF authentication applies
+                        this.http.post<AuthenticationResponse>(
+                            `/api/oauth/approve-authenticated?request_id=${this.requestId}`,
+                            null
+                        ).subscribe({
+                            next: (response) => {
+                                this.getApproval = true;
+                                this.name = response.name;
+                                
+                                // Check for stored approval after setting up approval UI
+                                setTimeout(() => this.checkStoredApproval(), 100);
+                            },
+                            error: (error) => {
+                                console.error("[SIGNIN] Failed to approve for authenticated user:", error);
+                                if (error.status === 403) {
+                                    // User has no roles for this client
+                                    this.errorMessage = (error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + CLIENT_ID + ")";
+                                } else {
+                                    this.errorMessage = "Failed to process authorization request. Please try again.";
+                                }
+                                // Show the error on the signin page (not approval page)
+                                this.getApproval = false;
+                            }
+                        });
+                    }
                 },
                 error: (error) => {
                     this.errorMessage = error.message;
@@ -156,8 +191,12 @@ export class SigninComponent implements OnInit {
             error: (error) => {
                 if(error.status === 410) {
                     this.signinIsExpired = true;
+                } else if (error.status === 403) {
+                    // User has no roles for this client
+                    this.errorMessage = (error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + CLIENT_ID + ")";
+                } else {
+                    this.errorMessage = error?.error?.details || error.error || error.message || 'Authentication failed';
                 }
-                this.errorMessage = error?.error?.details || error.error || error.message || 'Authentication failed';
                 this.isSubmitting = false;
             }
         });
@@ -205,8 +244,9 @@ export class SigninComponent implements OnInit {
             }
             
             // Approval is valid, auto-approve
+            // Keep shouldShowApproval false to hide the UI, submit directly
             this.shouldShowApproval = false;
-            this.autoApprove();
+            this.autoApproveDirectly();
         } catch (err) {
             console.error('Error checking stored approval:', err);
             this.shouldShowApproval = true;
@@ -216,10 +256,41 @@ export class SigninComponent implements OnInit {
 
     autoApprove() {
         // Automatically submit the approval form
-        const form = document.querySelector('form[action="/oauth2/authorize"]') as HTMLFormElement;
-        if (form) {
-            form.submit();
-        }
+        // Use setTimeout to ensure the form is rendered in the DOM
+        setTimeout(() => {
+            const form = document.querySelector('form[action="/oauth2/authorize"]') as HTMLFormElement;
+            if (form) {
+                console.debug("[SIGNIN] Auto-submitting approval form");
+                form.submit();
+            } else {
+                console.error("[SIGNIN] Approval form not found in DOM");
+            }
+        }, 50);
+    }
+
+    autoApproveDirectly() {
+        // Submit approval directly without showing the UI
+        // Create a hidden form and submit it programmatically
+        console.debug("[SIGNIN] Auto-approving directly without showing UI");
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/oauth2/authorize';
+        
+        const requestIdInput = document.createElement('input');
+        requestIdInput.type = 'hidden';
+        requestIdInput.name = 'request_id';
+        requestIdInput.value = this.requestId;
+        form.appendChild(requestIdInput);
+        
+        const consentInput = document.createElement('input');
+        consentInput.type = 'hidden';
+        consentInput.name = 'consent';
+        consentInput.value = 'approve';
+        form.appendChild(consentInput);
+        
+        document.body.appendChild(form);
+        form.submit();
     }
 
     onApproveClick(form: HTMLFormElement, consent: HTMLInputElement) {

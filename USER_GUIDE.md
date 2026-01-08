@@ -72,11 +72,12 @@ Abstrauth uses RSA keys for signing and verifying JWT tokens. You need to genera
    # Store securely and never commit to version control
    ```
 
-### Generate Client Secret and Cookie Encryption Key
+### Generate Client Secret, Cookie Encryption Key, and CSRF Token Signature Key
 
-**Important:** Abstrauth uses the Backend For Frontend (BFF) pattern, which requires:
+**Important:** Abstrauth uses the Backend For Frontend (BFF) pattern and CSRF protection, which requires:
 1. A client secret for the default OAuth client
 2. A cookie encryption key for securing HTTP-only cookies
+3. A CSRF token signature key for HMAC-signing CSRF tokens
 
 1. **Generate a secure client secret** (32+ characters recommended):
    ```bash
@@ -90,7 +91,13 @@ Abstrauth uses RSA keys for signing and verifying JWT tokens. You need to genera
    ```
    Use this output for `COOKIE_ENCRYPTION_SECRET`.
 
-3. **Store securely**:
+3. **Generate a CSRF token signature key** (must be at least 32 characters):
+   ```bash
+   openssl rand -base64 64
+   ```
+   Use this output for `CSRF_TOKEN_SIGNATURE_KEY`.
+
+4. **Store securely**:
    - Never commit these secrets to version control
    - Use a secrets manager in production (e.g., AWS Secrets Manager, HashiCorp Vault)
    - Rotate secrets periodically
@@ -121,6 +128,7 @@ _Replace all `TODO_...` values with the values generated above.
      -e MP_JWT_VERIFY_PUBLICKEY="TODO_YOUR_BASE64_PUBLIC_KEY_HERE" \
      -e ABSTRAUTH_CLIENT_SECRET="TODO_YOUR_GENERATED_CLIENT_SECRET" \
      -e COOKIE_ENCRYPTION_SECRET="TODO_YOUR_GENERATED_COOKIE_ENCRYPTION_KEY" \
+     -e CSRF_TOKEN_SIGNATURE_KEY="TODO_YOUR_GENERATED_CSRF_TOKEN_SIGNATURE_KEY" \
      -e OAUTH_GOOGLE_CLIENT_ID="TODO_YOUR_GOOGLE_CLIENT_ID" \
      -e OAUTH_GOOGLE_CLIENT_SECRET="TODO_YOUR_GOOGLE_CLIENT_SECRET" \
      -e ALLOW_SIGNUP="TODO_TRUE_OR_FALSE" \
@@ -136,6 +144,7 @@ _Replace all `TODO_...` values with the values generated above.
    - `MP_JWT_VERIFY_PUBLICKEY`: Base64-encoded RSA public key for verifying JWTs (must match private key)
    - `ABSTRAUTH_CLIENT_SECRET`: Client secret for the default OAuth client (BFF pattern, generate with `openssl rand -base64 32`)
    - `COOKIE_ENCRYPTION_SECRET`: Encryption key for HTTP-only cookies (min 32 chars, generate with `openssl rand -base64 32`)
+   - `CSRF_TOKEN_SIGNATURE_KEY`: HMAC signature key for CSRF tokens (min 32 chars, generate with `openssl rand -base64 64`)
    
    **Optional Environment Variables:**
    - `OAUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID (required only for "Sign in with Google")
@@ -149,6 +158,7 @@ _Replace all `TODO_...` values with the values generated above.
    - `QUARKUS_MANAGEMENT_ENABLED`: Enable management interface (default: `true`)
    - `QUARKUS_MANAGEMENT_PORT`: Management interface port (default: `9002`)
    - `QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME`: set to true if Abstrauth runs behind a reverse proxy that terminates TLS
+   - `ALLOW_NATIVE_SIGNIN`: if true, users can sign in with email & password, otherwise they can only sign in  (default: `true`)
 
 3. **Verify the container is running**:
    ```bash
@@ -213,6 +223,14 @@ Abstrauth provides several endpoints for monitoring:
   - Useful for verifying deployment
 
 ## Troubleshooting
+
+### Container logs error on startup
+
+If you see the following error, you can safely ignore it. The reason that it is logged is because abstrauth uses the Quarkus extension `quarkus-oidc` to validate tokens, and it periodically checks the JWKS endpoint for key updates, including at startup. Since the server isn't entirely up and running at this point, the check initially fails, but as soon as you try and sign in, it re-fetches the keys and works.
+
+```bash
+2026-01-02 20:49:41,709 ERROR [io.qua.oid.run.OidcProviderClientImpl] (vert.x-eventloop-thread-1) [skey:] Request https://auth.abstratium.dev/.well-known/jwks.json has failed: status: 502, ...
+```
 
 ### Container won't start
 

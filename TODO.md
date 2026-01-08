@@ -2,30 +2,23 @@
 
 ## Today
 
-
-- why doesn't webkit e2e and manual browser tests work? sign out and try and sign in again and it doesn't pass the cookies properly
-
-- describe the cpu/memory/etc. footprint in README.md
-- docs - describe how to run as a docker image on main readme
-- improve branch coverage of ui
-
-- if native sign in is disabled, don't add the option to create an account with native sign in
 - make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.
   - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
-- allow to disable sign in with native - needs a test
-- review tests
 - complete other open points from first security audit
 - security audit for CRUD operations on clients and accounts "using any trick in the book" for accessing the server via its web API (no direct access of the database, no access to the file system) - try to CRUD accounts, clients and roles!
+- review tests
 
 
 ## Tomorrow
 
+- if native sign in is disabled, don't add the option to create an account with native sign in
 - use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
  in a test somewhere
+- improve branch coverage of ui
 - csrf cookie for normal use? gitea seems to have one
 - track ip address and browser info. if a new sign in is detected, inform the user via email
-- MFA
+- MFA for native
 - telemetry
 - audit logs
 - scheduler to clear out old authorization requests and authorization codes
@@ -46,6 +39,7 @@
 
 ## Later (not yet necessary for initial release)
 
+- mfa for non-native? well google et al. already provide this and ask for mfa if they don't trust that you are already properly authenticated - e.g. try this with an incognito window
 - TLS for web endpoints
 - TLS for DB connections
 - auditing of CUD operations on clients and accounts

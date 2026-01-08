@@ -83,7 +83,12 @@ export class AuthService {
                 this.setupTokenExpiryTimer(token.exp);
                 
                 // Handle post-authentication navigation (includes invite validation)
-                this.routeRestoration.handlePostAuthenticationNavigation(initialUrl, token.email);
+                // BUT skip navigation if user is on a signin page (OAuth flow in progress)
+                if (!initialUrl.startsWith('/signin/')) {
+                    this.routeRestoration.handlePostAuthenticationNavigation(initialUrl, token.email);
+                } else {
+                    console.debug('[AUTH] Skipping route restoration - OAuth signin flow in progress');
+                }
             }),
             catchError((err) => {
                 console.debug('[AUTH] User is NOT authenticated, error:', err.status);

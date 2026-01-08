@@ -137,7 +137,7 @@
 
     <div *ngIf="!loading && !error && clients.length > 0">
       <!-- Filter Section -->
-      <url-filter [placeholder]="'Filter by name, client ID, type, URI, or scope...'"
+      <url-filter id="clients-filter" [placeholder]="'Filter by name, client ID, type, URI, or scope...'"
         [itemCount]="filteredClients.length" [totalCount]="clients.length" [itemLabel]="'clients'"
         (filterChange)="onFilterChange($event)">
       </url-filter>

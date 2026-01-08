@@ -8,6 +8,7 @@ import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ContainerRequestContext;
@@ -48,6 +49,9 @@ public class AuthorizationResource {
 
     @Inject
     AccountService accountService;
+    
+    @Inject
+    SecurityIdentity securityIdentity;
 
     @GET
     @Produces(MediaType.TEXT_HTML)
@@ -362,6 +366,10 @@ public class AuthorizationResource {
         @APIResponse(
             responseCode = "401",
             description = "User not authenticated"
+        ),
+        @APIResponse(
+            responseCode = "403",
+            description = "User has no roles for this client"
         )
     })
     public Response authenticate(
@@ -386,6 +394,20 @@ public class AuthorizationResource {
         }
 
         Account account = accountOpt.get();
+        AuthorizationRequest authRequest = requestOpt.get();
+
+        // Check if user has at least one role for this client
+        // Force initialization of roles collection to avoid LazyInitializationException
+        boolean hasRoleForClient = account.getRoles() != null && account.getRoles().stream()
+                .anyMatch(role -> role.getClientId().equals(authRequest.getClientId()));
+
+        if (!hasRoleForClient) {
+            log.warn("User " + account.getEmail() + " attempted to authenticate for client " + authRequest.getClientId() + 
+                    " but has no roles for this client");
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity("You do not have any roles for this application. Please contact your administrator.")
+                    .build();
+        }
 
         // Approve the authorization request with native authentication
         authorizationService.approveAuthorizationRequest(requestId, account.getId(), AccountService.NATIVE);

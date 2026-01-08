@@ -91,6 +91,23 @@ The E2E tests are in `e2e-tests/` and use Playwright to test the full applicatio
 
 See the [E2E Testing Documentation](../e2e-tests/README.md) for detailed instructions.
 
+It might be easier to test these manually during testing.
+
+Start Abstrauth:
+```bash
+source /w/abstratium-abstrauth.env
+quarkus dev
+```
+
+And then the e2e tests:
+
+```bash
+cd e2e-tests
+ALLOW_SIGNUP=true npx playwright test --ui
+```
+
+And then execute them manually by clicking the play button in the UI which opened.
+
 # Upgrading
 
 1. Update Quarkus:
@@ -122,6 +139,11 @@ npm audit fix
 
 5. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
 
+# Issues with Webkit
+
+For some strange reason, cookies aren't properly transported when testing localhost with Webkit (e.g. e2e tests, but also manual browser tests). If you sign out and try and sign in again and it doesn't pass the cookies properly and you remain on the sign in page.
+
+The application works fine in production, so just don't test with Webkit locally.
 
 # Building
 
