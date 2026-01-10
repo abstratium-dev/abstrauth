@@ -132,6 +132,7 @@ _Replace all `TODO_...` values with the values generated above.
      -e OAUTH_GOOGLE_CLIENT_ID="TODO_YOUR_GOOGLE_CLIENT_ID" \
      -e OAUTH_GOOGLE_CLIENT_SECRET="TODO_YOUR_GOOGLE_CLIENT_SECRET" \
      -e ALLOW_SIGNUP="TODO_TRUE_OR_FALSE" \
+     -e SERVER_BASE_URL="https://auth.yourdomain.com" \
      -e QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME="TODO_TRUE_IF_BEHIND_REVERSE_PROXY_WHICH_ENDS_TLS_TUNNEL"
      ghcr.io/abstratium-dev/abstrauth:latest
    ```
