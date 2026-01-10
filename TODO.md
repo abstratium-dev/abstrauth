@@ -2,6 +2,11 @@
 
 ## Today
 
+- update angular
+- update quarkus
+
+- make it configurable per client, if it allows redirection back to callback if user has no roles, with default false. so that users can be added by the third party, e.g. when creating a shopping cart account. or... make it so that they HAVE to add a role for their client_id? maybe makes more sense.
+
 - make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.
   - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
