@@ -128,6 +128,7 @@ Search for nvm in all the docs in this project and update which version is used,
 3. Update Angular:
 ```bash
 cd src/main/webui
+nvm use v24.11.1 
 ng update
 # or 
 ng update @angular/cli @angular/core
@@ -135,9 +136,6 @@ ng update @angular/cli @angular/core
 
 4. Ensure that there are no nodejs vulnerabilities:
 ```bash
-cd src/main/webui
-npm i
-npm audit fix
 cd ../../../client-example
 npm i
 npm audit fix
