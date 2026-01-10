@@ -1,6 +1,8 @@
 package dev.abstratium.abstrauth.filter;
 
 import dev.abstratium.abstrauth.util.ClientIpUtil;
+import dev.abstratium.abstrauth.util.SecureRandomProvider;
+import io.quarkus.runtime.annotations.StaticInitSafe;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
@@ -18,7 +20,6 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Set;
 
@@ -46,15 +47,19 @@ public class ApiCsrfFilter implements ContainerRequestFilter {
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private static final String CSRF_HEADER_NAME = "X-XSRF-TOKEN";
     private static final Set<String> MUTATING_METHODS = Set.of("POST", "PUT", "DELETE", "PATCH");
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String HMAC_ALGORITHM = "HmacSHA256";
+    
+    @Inject
+    SecureRandomProvider secureRandomProvider;
     
     @Inject
     SecurityIdentity securityIdentity;
     
+    @StaticInitSafe
     @ConfigProperty(name = "csrf.token.signature.key", defaultValue = "")
     String signatureKey;
     
+    @StaticInitSafe
     @ConfigProperty(name = "csrf.protection.enabled", defaultValue = "true")
     boolean csrfEnabled;
 
@@ -229,7 +234,7 @@ public class ApiCsrfFilter implements ContainerRequestFilter {
     public String generateToken(String sessionId) throws NoSuchAlgorithmException, InvalidKeyException {
         // Generate random value (128 bits)
         byte[] randomBytes = new byte[16];
-        SECURE_RANDOM.nextBytes(randomBytes);
+        secureRandomProvider.getSecureRandom().nextBytes(randomBytes);
         String randomValue = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
         
         // Calculate HMAC

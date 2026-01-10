@@ -29,6 +29,7 @@ docker run -it --rm \
   -e QUARKUS_DATASOURCE_PASSWORD=secret \
   -e OAUTH_GOOGLE_CLIENT_ID="${OAUTH_GOOGLE_CLIENT_ID}" \
   -e OAUTH_GOOGLE_CLIENT_SECRET="${OAUTH_GOOGLE_CLIENT_SECRET}" \
+  -e CSRF_TOKEN_SIGNATURE_KEY="asdfasdfasdfasdf" \
   -e ALLOW_SIGNUP=false \
   -e ALLOW_NATIVE_SIGNIN=true \
   -e OAUTH_GOOGLE_REDIRECT_URI="http://localhost:8080/oauth2/callback/google" \
@@ -41,6 +42,8 @@ docker run -it --rm \
   -e MP_JWT_VERIFY_PUBLICKEY=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwbzPq4iKBGsSLS7TlNKK95ENz/Tpu6TeDZjN9jjTCcR0p+p/hqYp3hBngnchXBOTpERdGugawwDVw1H4RkHHJzerugWpSHmxdKVQacq2vovVnKW29XYsWYJunIETptWQ6knyBp8ePD7DKhzPxBOiyx3ogfFf23ZndNXokYPywKfKuwWSRgZQ2VDZnnT/25HFPLMwU/F+mQ+G7YiEw2WSsS1rYGbBCZhdLbfdIA0gcuaVP3sMFK0zGgk49nkIEOQH3nzGerSU+qYWARBclj0xJJEvrpSXLdMbd6z63pHLHngHTOtRXbWjnUq/k71m1Uae7OakqG0/amgjOfuG5z7/WwIDAQAB \
   ghcr.io/abstratium-dev/abstrauth:latest
 ```
+
+e2e tests will work against this running image. see dev readme for tips on how to run them manually.
 
 Delete test accounts as follows (which cascade deletes other data like federated identities, roles, credentials, authorization codes, etc.):
 

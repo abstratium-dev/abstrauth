@@ -99,6 +99,12 @@ source /w/abstratium-abstrauth.env
 quarkus dev
 ```
 
+Start the client example:
+```bash
+cd client-example
+npm start
+```
+
 And then the e2e tests:
 
 ```bash

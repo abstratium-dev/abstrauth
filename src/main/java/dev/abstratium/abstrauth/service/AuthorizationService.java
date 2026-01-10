@@ -3,6 +3,7 @@ package dev.abstratium.abstrauth.service;
 import dev.abstratium.abstrauth.boundary.TimedOutException;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -10,8 +11,6 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Optional;
@@ -19,6 +18,9 @@ import java.util.Optional;
 @ApplicationScoped
 public class AuthorizationService {
 
+    @Inject
+    SecureRandomProvider secureRandomProvider;
+    
     @Inject
     EntityManager em;
 
@@ -30,8 +32,6 @@ public class AuthorizationService {
 
     @ConfigProperty(name = "allow.native.signin", defaultValue = "true")
     boolean allowNativeSignin;
-
-    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
     public AuthorizationRequest createAuthorizationRequest(
@@ -126,7 +126,7 @@ public class AuthorizationService {
 
     private String generateSecureCode() {
         byte[] randomBytes = new byte[32];
-        secureRandom.nextBytes(randomBytes);
+        secureRandomProvider.getSecureRandom().nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
 

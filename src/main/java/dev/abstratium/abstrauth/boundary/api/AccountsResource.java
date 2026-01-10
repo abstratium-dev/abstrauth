@@ -1,6 +1,5 @@
 package dev.abstratium.abstrauth.boundary.api;
 
-import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -15,6 +14,7 @@ import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -39,6 +39,9 @@ import jakarta.ws.rs.core.Response;
 public class AccountsResource {
     
     @Inject
+    SecureRandomProvider secureRandomProvider;
+
+    @Inject
     AccountService accountService;
     
     @Inject
@@ -49,7 +52,7 @@ public class AccountsResource {
     
     @Inject
     @IdToken
-    JsonWebToken token;    
+    JsonWebToken token;
     
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -130,10 +133,9 @@ public class AccountsResource {
     private String generateRandomPassword() {
         // Generate a secure random password (16 characters)
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-        SecureRandom random = new SecureRandom();
         StringBuilder password = new StringBuilder(16);
         for (int i = 0; i < 16; i++) {
-            password.append(chars.charAt(random.nextInt(chars.length())));
+            password.append(chars.charAt(secureRandomProvider.getSecureRandom().nextInt(chars.length())));
         }
         return password.toString();
     }

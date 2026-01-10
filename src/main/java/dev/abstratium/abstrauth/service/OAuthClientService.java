@@ -1,24 +1,28 @@
 package dev.abstratium.abstrauth.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import dev.abstratium.abstrauth.entity.OAuthClient;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.util.SecureRandomProvider;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
+
 @ApplicationScoped
 public class OAuthClientService {
+
+    @Inject
+    SecureRandomProvider secureRandomProvider;
 
     @Inject
     EntityManager em;
@@ -98,9 +102,8 @@ public class OAuthClientService {
      * Returns a base64-encoded random string (32 bytes = 43 characters in base64).
      */
     public String generateClientSecret() {
-        SecureRandom secureRandom = new SecureRandom();
         byte[] randomBytes = new byte[32];
-        secureRandom.nextBytes(randomBytes);
+        secureRandomProvider.getSecureRandom().nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
 

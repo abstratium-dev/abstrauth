@@ -9,7 +9,9 @@
 set -e
 
 echo "Building native executable..."
-./mvnw package -Dnative -Dquarkus.native.container-build=true
+# ./mvnw package -Dnative -Dquarkus.native.container-build=true
+# secure random issues: https://quarkus.io/guides/native-reference
+./mvnw package -Dnative -Dquarkus.native.container-build=true -Dquarkus.native.additional-build-args="--trace-object-instantiation=java.security.SecureRandom"
 
 # Extract version from application.properties
 # The version is injected by Maven during build in ISO-8601 format (yyyyMMddHHmmss)
