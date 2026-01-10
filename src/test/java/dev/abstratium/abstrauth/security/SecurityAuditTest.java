@@ -176,7 +176,10 @@ public class SecurityAuditTest {
                 .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", codeVerifier)
             .when()
-                .post("/oauth2/token");
+                .log().all()
+                .post("/oauth2/token")
+            .then()
+                .log().all();
         }
         
         // Run actual measurements
@@ -202,8 +205,11 @@ public class SecurityAuditTest {
                 .formParam("client_id", testClient.getClientId())
                 .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", codeVerifier)
+                .log().all()
             .when()
-                .post("/oauth2/token");
+                .post("/oauth2/token")
+            .then()
+                .log().all();
             correctTimes[i] = System.nanoTime() - startCorrect;
 
             // Test with incorrect verifier
@@ -223,11 +229,14 @@ public class SecurityAuditTest {
                 .formParam("client_id", testClient.getClientId())
                 .formParam("client_secret", CLIENT_SECRET)
                 .formParam("code_verifier", wrongVerifier)
+                .log().all()
             .when()
-                .post("/oauth2/token");
+                .post("/oauth2/token")
+            .then()
+                .log().all()
+                .statusCode(400);
             
             // Verify it fails with 400
-            response.then().statusCode(400);
             wrongTimes[i] = System.nanoTime() - startWrong;
         }
         

@@ -9,9 +9,10 @@
 set -e
 
 echo "Building native executable..."
-# ./mvnw package -Dnative -Dquarkus.native.container-build=true
+# Build with compatibility mode for broader CPU support across different hardware
+# -march=compatibility ensures the binary works on older CPUs without AVX/AVX2 instructions
 # secure random issues: https://quarkus.io/guides/native-reference
-./mvnw package -Dnative -Dquarkus.native.container-build=true -Dquarkus.native.additional-build-args="--trace-object-instantiation=java.security.SecureRandom"
+./mvnw package -Dnative -Dquarkus.native.container-build=true -Dquarkus.native.additional-build-args="--trace-object-instantiation=java.security.SecureRandom,-march=compatibility"
 
 # Extract version from application.properties
 # The version is injected by Maven during build in ISO-8601 format (yyyyMMddHHmmss)
