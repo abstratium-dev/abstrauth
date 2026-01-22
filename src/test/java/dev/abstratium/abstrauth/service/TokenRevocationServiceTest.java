@@ -53,8 +53,15 @@ class TokenRevocationServiceTest {
             client.setRedirectUris("[\"http://localhost:8080/callback\"]");
             client.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
             client.setRequirePkce(false);
-            client.setClientSecretHash("$2a$10$dummyhash");
             em.persist(client);
+            
+            // Create client secret in new table
+            dev.abstratium.abstrauth.entity.ClientSecret secret = new dev.abstratium.abstrauth.entity.ClientSecret();
+            secret.setClientId("test-client");
+            secret.setSecretHash("$2a$10$dummyhash");
+            secret.setDescription("Test secret");
+            secret.setActive(true);
+            em.persist(secret);
         }
         
         // Clean up any existing test data

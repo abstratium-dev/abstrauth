@@ -1,6 +1,8 @@
 package dev.abstratium.abstrauth.service;
 
+import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.service.ClientSecretService;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -19,6 +21,9 @@ public class OAuthClientServiceTest {
 
     @Inject
     OAuthClientService oauthClientService;
+    
+    @Inject
+    ClientSecretService clientSecretService;
 
     @Test
     public void testFindAll() {
@@ -279,11 +284,12 @@ public class OAuthClientServiceTest {
         String newSecret = "new-secret-value";
         oauthClientService.updateClientSecretHash(clientId, newSecret);
         
-        // Verify the hash was updated
-        Optional<OAuthClient> updated = oauthClientService.findByClientId(clientId);
-        assertTrue(updated.isPresent());
-        assertNotNull(updated.get().getClientSecretHash());
-        assertTrue(oauthClientService.verifyClientSecret(newSecret, updated.get().getClientSecretHash()));
+        // Verify the new secret was added
+        List<ClientSecret> secrets = clientSecretService.findActiveSecrets(clientId);
+        assertFalse(secrets.isEmpty());
+        
+        // Verify the new secret matches
+        assertTrue(oauthClientService.clientSecretMatches(clientId, newSecret));
     }
 
     @Test
@@ -306,9 +312,16 @@ public class OAuthClientServiceTest {
         client.setRequirePkce(true);
         
         String secret = "test-secret-123";
-        client.setClientSecretHash(oauthClientService.hashClientSecret(secret));
         
         OAuthClient created = oauthClientService.create(client);
+        
+        // Create a secret for this client
+        ClientSecret clientSecret = new ClientSecret();
+        clientSecret.setClientId(created.getClientId());
+        clientSecret.setSecretHash(oauthClientService.hashClientSecret(secret));
+        clientSecret.setDescription("Test secret");
+        clientSecret.setActive(true);
+        clientSecretService.persist(clientSecret);
         
         // Test matching
         assertTrue(oauthClientService.clientSecretMatches(created.getClientId(), secret));

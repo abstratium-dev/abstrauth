@@ -25,6 +25,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
@@ -56,6 +57,9 @@ public class TokenResource {
     @Inject
     OAuthClientService clientService;
 
+    @Inject
+    ClientSecretService clientSecretService;
+    
     @Inject
     AccountService accountService;
 
@@ -440,15 +444,17 @@ public class TokenResource {
             return false;
         }
 
-        // Confidential clients must have a secret hash
-        if (client.getClientSecretHash() == null || client.getClientSecretHash().isBlank()) {
+        // Get all active secrets for this client
+        var activeSecrets = clientSecretService.findActiveSecrets(client.getClientId());
+        if (activeSecrets.isEmpty()) {
             return false;
         }
 
-        // Verify secret using BCrypt
+        // Verify secret against all active secrets using BCrypt
         try {
             BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-            return passwordEncoder.matches(clientSecret, client.getClientSecretHash());
+            return activeSecrets.stream()
+                .anyMatch(secret -> passwordEncoder.matches(clientSecret, secret.getSecretHash()));
         } catch (IllegalArgumentException e) {
             // Invalid hash format
             return false;

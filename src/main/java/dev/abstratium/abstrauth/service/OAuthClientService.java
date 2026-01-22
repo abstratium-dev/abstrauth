@@ -11,7 +11,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -29,6 +31,9 @@ public class OAuthClientService {
 
     @Inject
     ObjectMapper objectMapper;
+    
+    @Inject
+    ClientSecretService clientSecretService;
 
     public List<OAuthClient> findByClientIds(Set<String> clientIds) {
         var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId IN :clientIds", OAuthClient.class);
@@ -133,15 +138,20 @@ public class OAuthClientService {
             throw new IllegalArgumentException("Client not found: " + clientId);
         }
         
-        OAuthClient client = clientOpt.get();
+        // Create new secret in ClientSecret table
         String hashedSecret = hashClientSecret(plainSecret);
-        client.setClientSecretHash(hashedSecret);
-        em.merge(client);
+        ClientSecret clientSecret = new ClientSecret();
+        clientSecret.setClientId(clientId);
+        clientSecret.setSecretHash(hashedSecret);
+        clientSecret.setDescription("Updated secret");
+        clientSecret.setActive(true);
+        clientSecretService.persist(clientSecret);
     }
 
     /**
      * Checks if a client's secret hash matches the given plain secret.
      * Returns false if client not found or hash doesn't match.
+     * Checks against all active secrets.
      */
     public boolean clientSecretMatches(String clientId, String plainSecret) {
         Optional<OAuthClient> clientOpt = findByClientId(clientId);
@@ -149,12 +159,15 @@ public class OAuthClientService {
             return false;
         }
         
-        OAuthClient client = clientOpt.get();
-        if (client.getClientSecretHash() == null) {
+        // Check against all active secrets
+        List<ClientSecret> activeSecrets = clientSecretService.findActiveSecrets(clientId);
+        if (activeSecrets.isEmpty()) {
             return false;
         }
         
-        return verifyClientSecret(plainSecret, client.getClientSecretHash());
+        // Return true if any active secret matches
+        return activeSecrets.stream()
+            .anyMatch(secret -> verifyClientSecret(plainSecret, secret.getSecretHash()));
     }
 
     /**
@@ -165,8 +178,18 @@ public class OAuthClientService {
     public ClientWithSecret createWithSecret(OAuthClient client) {
         String plainSecret = generateClientSecret();
         String hashedSecret = hashClientSecret(plainSecret);
-        client.setClientSecretHash(hashedSecret);
+        
+        // Persist client first
         em.persist(client);
+        
+        // Create initial secret in ClientSecret table
+        ClientSecret clientSecret = new ClientSecret();
+        clientSecret.setClientId(client.getClientId());
+        clientSecret.setSecretHash(hashedSecret);
+        clientSecret.setDescription("Initial secret");
+        clientSecret.setActive(true);
+        clientSecretService.persist(clientSecret);
+        
         return new ClientWithSecret(client, plainSecret);
     }
 
