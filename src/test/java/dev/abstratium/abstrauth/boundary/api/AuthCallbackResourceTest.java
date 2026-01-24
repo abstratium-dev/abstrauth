@@ -21,6 +21,6 @@ public class AuthCallbackResourceTest {
                 .then()
                 //.log().all()
                 .statusCode(303)  // See Other
-                .header("Location", equalTo("http://localhost:8081/"));
+                .header("Location", equalTo("http://localhost:10080/"));
     }
 }

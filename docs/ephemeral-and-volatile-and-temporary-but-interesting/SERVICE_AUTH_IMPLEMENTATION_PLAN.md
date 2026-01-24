@@ -171,37 +171,47 @@ curl http://localhost:8080/.well-known/oauth-authorization-server | jq .grant_ty
 
 ---
 
-## Phase 3: Client Management API (2 hours)
+## Phase 3: Client Management API (2 hours) ✅ COMPLETE
 
-### Step 3.1: Create Secret DTOs
+### Step 3.1: Create ClientSecretsResource ✅ DONE
 
-**Create:** `src/main/java/dev/abstratium/abstrauth/dto/ClientSecretDTO.java`
+**File:** `src/main/java/dev/abstratium/abstrauth/boundary/api/ClientSecretsResource.java` ✅ CREATED
 
-Classes: `CreateSecretRequest`, `CreateSecretResponse`, `SecretInfo`
+DTOs (as static inner classes with `@RegisterForReflection`):
+- `CreateSecretRequest` - Request to create new secret
+- `CreateSecretResponse` - Response with plain secret (shown once)
+- `SecretInfo` - Secret metadata (no plain value)
 
-### Step 3.2: Create ClientSecretsResource
+Endpoints implemented:
+- `POST /api/clients/{clientId}/secrets` - Generate new secret ✅
+- `GET /api/clients/{clientId}/secrets` - List secrets (metadata only) ✅
+- `DELETE /api/clients/{clientId}/secrets/{secretId}` - Revoke secret ✅
 
-**Create:** `src/main/java/dev/abstratium/abstrauth/resource/ClientSecretsResource.java`
+Features:
+- Admin role required for all operations
+- Cannot revoke last active secret
+- Optional expiration date support
+- Proper error handling (404, 400, 403)
 
-Endpoints:
-- `POST /api/clients/{id}/secrets` - Generate new secret
-- `GET /api/clients/{id}/secrets` - List secrets (metadata only)
-- `DELETE /api/clients/{id}/secrets/{secretId}` - Revoke secret
+### Step 3.2: Create Tests ✅ DONE
 
-### Step 3.3: Update ClientsResource
+**File:** `src/test/java/dev/abstratium/abstrauth/boundary/api/ClientSecretsResourceTest.java` ✅ CREATED
 
-**File:** `src/main/java/dev/abstratium/abstrauth/resource/ClientsResource.java`
+Tests implemented (8 tests, all passing):
+- `testListSecrets` - List all secrets for a client ✅
+- `testListSecretsNotFound` - 404 for non-existent client ✅
+- `testCreateSecret` - Create new secret with expiration ✅
+- `testCreateSecretWithoutExpiration` - Create permanent secret ✅
+- `testRevokeSecret` - Deactivate a secret ✅
+- `testCannotRevokeLastSecret` - Prevent revoking last secret ✅
+- `testRevokeSecretNotFound` - 404 for non-existent secret ✅
+- `testRevokeSecretWrongClient` - 404 for wrong client ✅
 
-- Add `allowedScopes` to DTOs
-- Validate SERVICE clients have scopes
-- Validate WEB_APPLICATION clients have redirect URIs
-- Create initial secret in new table
+### Step 3.3: Configuration Updates ✅ DONE
 
-**Test:**
-```bash
-mvn compile
-mvn test
-```
+**File:** `src/test/resources/application.properties` ✅ UPDATED
+
+- Set test port to 10080 to avoid conflicts with port 8081
 
 ---
 

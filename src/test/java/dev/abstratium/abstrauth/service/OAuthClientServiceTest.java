@@ -1,17 +1,23 @@
 package dev.abstratium.abstrauth.service;
 
-import dev.abstratium.abstrauth.entity.ClientSecret;
-import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.service.ClientSecretService;
-import io.quarkus.test.junit.QuarkusTest;
-import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+import dev.abstratium.abstrauth.entity.ClientSecret;
+import dev.abstratium.abstrauth.entity.OAuthClient;
+import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 /**
  * Tests for OAuthClientService
