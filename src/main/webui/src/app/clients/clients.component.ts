@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
 import { Controller } from '../controller';
-import { ModelService, OAuthClient } from '../model.service';
+import { ClientSecret, ModelService, OAuthClient } from '../model.service';
 import { UrlFilterComponent } from '../shared/url-filter/url-filter.component';
 import { ToastService } from '../shared/toast/toast.service';
 import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
@@ -45,6 +45,17 @@ export class ClientsComponent implements OnInit {
   newClientSecret: string | null = null;
   newClientName: string | null = null;
   secretCopied = false;
+
+  // Secret management state
+  viewingSecretsFor: string | null = null;
+  clientSecrets: ClientSecret[] = [];
+  secretsLoading = false;
+  secretsError: string | null = null;
+  showCreateSecretForm = false;
+  createSecretData = {
+    description: '',
+    expiresInDays: null as number | null
+  };
 
   constructor() {
     effect(() => {
@@ -290,6 +301,169 @@ export class ClientsComponent implements OnInit {
       }
     } finally {
       this.formSubmitting = false;
+    }
+  }
+
+  // Secret Management Methods
+
+  async toggleSecretsView(client: OAuthClient): Promise<void> {
+    if (this.viewingSecretsFor === client.clientId) {
+      this.viewingSecretsFor = null;
+      this.clientSecrets = [];
+      this.showCreateSecretForm = false;
+    } else {
+      this.viewingSecretsFor = client.clientId;
+      this.showCreateSecretForm = false;
+      await this.loadClientSecrets(client.clientId);
+    }
+  }
+
+  async loadClientSecrets(clientId: string): Promise<void> {
+    this.secretsLoading = true;
+    this.secretsError = null;
+    
+    try {
+      this.clientSecrets = await this.controller.listClientSecrets(clientId);
+    } catch (err: any) {
+      console.error('Error loading secrets:', err);
+      this.secretsError = 'Failed to load secrets';
+      this.clientSecrets = [];
+    } finally {
+      this.secretsLoading = false;
+    }
+  }
+
+  toggleCreateSecretForm(): void {
+    this.showCreateSecretForm = !this.showCreateSecretForm;
+    if (this.showCreateSecretForm) {
+      this.createSecretData = {
+        description: '',
+        expiresInDays: null
+      };
+    }
+  }
+
+  async createSecret(clientId: string): Promise<void> {
+    if (!this.createSecretData.description.trim()) {
+      this.toastService.error('Please enter a description for the secret');
+      return;
+    }
+
+    try {
+      const request = {
+        description: this.createSecretData.description,
+        expiresInDays: this.createSecretData.expiresInDays || undefined
+      };
+      
+      const response = await this.controller.createClientSecret(clientId, request);
+      
+      // Show the new secret in a dialog
+      this.newClientSecret = response.secret;
+      this.newClientName = `${this.clients.find(c => c.clientId === clientId)?.clientName} - New Secret`;
+      this.secretCopied = false;
+      
+      // Reload secrets list
+      await this.loadClientSecrets(clientId);
+      
+      // Reset form
+      this.showCreateSecretForm = false;
+      this.createSecretData = {
+        description: '',
+        expiresInDays: null
+      };
+    } catch (err: any) {
+      console.error('Error creating secret:', err);
+      if (err.status === 403) {
+        this.toastService.error('You do not have permission to create secrets');
+      } else {
+        this.toastService.error('Failed to create secret. Please try again.');
+      }
+    }
+  }
+
+  async revokeSecret(clientId: string, secret: ClientSecret): Promise<void> {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Revoke Secret',
+      message: `Are you sure you want to revoke the secret "${secret.description}"? This action cannot be undone and may break applications using this secret.`,
+      confirmText: 'Revoke Secret',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await this.controller.revokeClientSecret(clientId, secret.id);
+      this.toastService.success('Secret revoked successfully');
+      await this.loadClientSecrets(clientId);
+    } catch (err: any) {
+      console.error('Error revoking secret:', err);
+      if (err.status === 400) {
+        this.toastService.error('Cannot revoke the last active secret');
+      } else if (err.status === 403) {
+        this.toastService.error('You do not have permission to revoke secrets');
+      } else if (err.status === 404) {
+        this.toastService.error('Secret not found');
+      } else {
+        this.toastService.error('Failed to revoke secret. Please try again.');
+      }
+    }
+  }
+
+  isSecretExpiringSoon(secret: ClientSecret): boolean {
+    if (!secret.expiresAt) return false;
+    
+    const expiryDate = new Date(secret.expiresAt);
+    const now = new Date();
+    const daysUntilExpiry = Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+  }
+
+  isSecretExpired(secret: ClientSecret): boolean {
+    if (!secret.expiresAt) return false;
+    
+    const expiryDate = new Date(secret.expiresAt);
+    const now = new Date();
+    
+    return expiryDate < now;
+  }
+
+  formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  }
+
+  async deleteSecret(clientId: string, secret: ClientSecret): Promise<void> {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Delete Secret',
+      message: `Are you sure you want to permanently delete the secret "${secret.description}"? This action cannot be undone.`,
+      confirmText: 'Delete Permanently',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await this.controller.deleteClientSecret(clientId, secret.id);
+      this.toastService.success('Secret deleted successfully');
+      await this.loadClientSecrets(clientId);
+    } catch (err: any) {
+      console.error('Error deleting secret:', err);
+      if (err.status === 400) {
+        this.toastService.error('Cannot delete an active secret. Revoke it first.');
+      } else if (err.status === 403) {
+        this.toastService.error('You do not have permission to delete secrets');
+      } else if (err.status === 404) {
+        this.toastService.error('Secret not found');
+      } else {
+        this.toastService.error('Failed to delete secret. Please try again.');
+      }
     }
   }
 }

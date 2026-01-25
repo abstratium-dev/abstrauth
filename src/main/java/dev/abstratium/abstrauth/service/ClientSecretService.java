@@ -20,14 +20,21 @@ public class ClientSecretService {
     EntityManager em;
     
     /**
-     * Find all active secrets for a client.
+     * Find all active AND non-expired secrets for a client.
      * Used during authentication to check against all valid secrets.
+     * A secret is valid if:
+     * 1. It is active (not revoked)
+     * 2. It has not expired (expiresAt is null OR expiresAt is in the future)
      */
     public List<ClientSecret> findActiveSecrets(String clientId) {
         var query = em.createQuery(
-            "SELECT cs FROM ClientSecret cs WHERE cs.clientId = :clientId AND cs.active = true", 
+            "SELECT cs FROM ClientSecret cs " +
+            "WHERE cs.clientId = :clientId " +
+            "AND cs.active = true " +
+            "AND (cs.expiresAt IS NULL OR cs.expiresAt > :now)", 
             ClientSecret.class);
         query.setParameter("clientId", clientId);
+        query.setParameter("now", java.time.Instant.now());
         return query.getResultList();
     }
     
@@ -89,6 +96,18 @@ public class ClientSecretService {
         if (secret != null) {
             secret.setActive(false);
             em.merge(secret);
+        }
+    }
+    
+    /**
+     * Permanently delete a secret.
+     * Should only be called for inactive secrets.
+     */
+    @Transactional
+    public void delete(Long secretId) {
+        ClientSecret secret = findById(secretId);
+        if (secret != null) {
+            em.remove(secret);
         }
     }
 }

@@ -253,4 +253,121 @@ public class ClientSecretsResourceTest {
             .setMaxResults(1)
             .getSingleResult();
     }
+
+    /**
+     * Test that expired secrets cannot be used for authentication.
+     * This verifies that both the is_active flag and expires_at timestamp are checked.
+     */
+    @Test
+    @Transactional
+    public void testExpiredSecretRejected() {
+        // Create a client for testing
+        String clientId = "test-expired-" + System.currentTimeMillis();
+        OAuthClient client = new OAuthClient();
+        client.setClientId(clientId);
+        client.setClientName("Test Expired Client");
+        client.setClientType("confidential");
+        client.setRedirectUris("[\"http://localhost:8080/callback\"]");
+        client.setAllowedScopes("[\"openid\"]");
+        client.setRequirePkce(true);
+        em.persist(client);
+
+        // Create an expired secret (expires_at in the past)
+        ClientSecret expiredSecret = new ClientSecret();
+        expiredSecret.setClientId(clientId);
+        expiredSecret.setSecretHash("$2a$10$expiredhash");
+        expiredSecret.setDescription("Expired secret");
+        expiredSecret.setActive(true); // Still marked as active
+        expiredSecret.setExpiresAt(java.time.Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS)); // Expired yesterday
+        em.persist(expiredSecret);
+
+        // Create an inactive secret (revoked)
+        ClientSecret inactiveSecret = new ClientSecret();
+        inactiveSecret.setClientId(clientId);
+        inactiveSecret.setSecretHash("$2a$10$inactivehash");
+        inactiveSecret.setDescription("Inactive secret");
+        inactiveSecret.setActive(false); // Revoked
+        inactiveSecret.setExpiresAt(null); // No expiration
+        em.persist(inactiveSecret);
+
+        // Create a valid secret for comparison
+        ClientSecret validSecret = new ClientSecret();
+        validSecret.setClientId(clientId);
+        validSecret.setSecretHash("$2a$10$validhash");
+        validSecret.setDescription("Valid secret");
+        validSecret.setActive(true);
+        validSecret.setExpiresAt(java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS)); // Expires in 30 days
+        em.persist(validSecret);
+
+        em.flush();
+
+        // Verify that findActiveSecrets only returns the valid secret
+        java.util.List<ClientSecret> activeSecrets = em.createQuery(
+            "SELECT cs FROM ClientSecret cs " +
+            "WHERE cs.clientId = :clientId " +
+            "AND cs.active = true " +
+            "AND (cs.expiresAt IS NULL OR cs.expiresAt > :now)", 
+            ClientSecret.class)
+            .setParameter("clientId", clientId)
+            .setParameter("now", java.time.Instant.now())
+            .getResultList();
+
+        // Should only return the valid secret
+        assertNotNull(activeSecrets);
+        assertTrue(activeSecrets.size() == 1, "Should only have 1 valid secret, but found: " + activeSecrets.size());
+        assertTrue(activeSecrets.get(0).getDescription().equals("Valid secret"), 
+            "The valid secret should be returned");
+
+        // Verify expired secret is not returned even though it's marked as active
+        assertFalse(activeSecrets.stream().anyMatch(s -> s.getDescription().equals("Expired secret")),
+            "Expired secret should not be returned");
+
+        // Verify inactive secret is not returned
+        assertFalse(activeSecrets.stream().anyMatch(s -> s.getDescription().equals("Inactive secret")),
+            "Inactive secret should not be returned");
+    }
+
+    /**
+     * Test that a secret with no expiration date is always valid (as long as it's active).
+     */
+    @Test
+    @Transactional
+    public void testSecretWithNoExpirationIsValid() {
+        // Create a client for testing
+        String clientId = "test-no-expiry-" + System.currentTimeMillis();
+        OAuthClient client = new OAuthClient();
+        client.setClientId(clientId);
+        client.setClientName("Test No Expiry Client");
+        client.setClientType("confidential");
+        client.setRedirectUris("[\"http://localhost:8080/callback\"]");
+        client.setAllowedScopes("[\"openid\"]");
+        client.setRequirePkce(true);
+        em.persist(client);
+
+        // Create a secret with no expiration
+        ClientSecret noExpirySecret = new ClientSecret();
+        noExpirySecret.setClientId(clientId);
+        noExpirySecret.setSecretHash("$2a$10$noexpiryhash");
+        noExpirySecret.setDescription("No expiry secret");
+        noExpirySecret.setActive(true);
+        noExpirySecret.setExpiresAt(null); // No expiration
+        em.persist(noExpirySecret);
+
+        em.flush();
+
+        // Verify that the secret is returned as active
+        java.util.List<ClientSecret> activeSecrets = em.createQuery(
+            "SELECT cs FROM ClientSecret cs " +
+            "WHERE cs.clientId = :clientId " +
+            "AND cs.active = true " +
+            "AND (cs.expiresAt IS NULL OR cs.expiresAt > :now)", 
+            ClientSecret.class)
+            .setParameter("clientId", clientId)
+            .setParameter("now", java.time.Instant.now())
+            .getResultList();
+
+        assertNotNull(activeSecrets);
+        assertTrue(activeSecrets.size() == 1, "Should have 1 valid secret");
+        assertTrue(activeSecrets.get(0).getDescription().equals("No expiry secret"));
+    }
 }

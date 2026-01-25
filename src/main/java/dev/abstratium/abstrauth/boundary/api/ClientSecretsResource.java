@@ -129,6 +129,7 @@ public class ClientSecretsResource {
         clientSecret.setDescription(request.description != null ? request.description : "Generated secret");
         clientSecret.setActive(true);
         clientSecret.setExpiresAt(expiresAt);
+        clientSecret.setAccountId(token.getSubject()); // Track who created it (account ID from JWT sub claim)
         clientSecretService.persist(clientSecret);
 
         // Return response with plain secret (only shown once)
@@ -182,6 +183,49 @@ public class ClientSecretsResource {
 
         // Deactivate the secret
         clientSecretService.deactivate(secretId);
+
+        return Response.noContent().build();
+    }
+
+    /**
+     * Permanently delete a revoked client secret.
+     * Can only delete secrets that are already inactive.
+     */
+    @DELETE
+    @Path("/{secretId}/permanent")
+    @Produces(MediaType.APPLICATION_JSON)
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
+    @Transactional
+    @Operation(summary = "Delete revoked client secret", description = "Permanently deletes an inactive client secret")
+    public Response deleteSecret(
+            @PathParam("clientId") String clientId,
+            @PathParam("secretId") Long secretId) {
+        
+        // Verify client exists
+        Optional<OAuthClient> clientOpt = oauthClientService.findByClientId(clientId);
+        if (clientOpt.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Not found", "Client not found"))
+                    .build();
+        }
+
+        // Verify secret exists and belongs to this client
+        ClientSecret secret = clientSecretService.findById(secretId);
+        if (secret == null || !secret.getClientId().equals(clientId)) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Not found", "Secret not found"))
+                    .build();
+        }
+
+        // Can only delete inactive secrets
+        if (secret.isActive()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Bad request", "Cannot delete an active secret. Revoke it first."))
+                    .build();
+        }
+
+        // Permanently delete the secret
+        clientSecretService.delete(secretId);
 
         return Response.noContent().build();
     }

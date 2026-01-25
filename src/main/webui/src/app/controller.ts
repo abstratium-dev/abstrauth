@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Account, CreateAccountResponse, ModelService, OAuthClient } from './model.service';
+import { Account, ClientSecret, CreateAccountResponse, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -202,6 +202,52 @@ export class Controller {
       this.loadAccounts();
     } catch (error) {
       console.error('Error deleting account:', error);
+      throw error;
+    }
+  }
+
+  // Client Secret Management
+
+  async listClientSecrets(clientId: string): Promise<ClientSecret[]> {
+    try {
+      return await firstValueFrom(
+        this.http.get<ClientSecret[]>(`/api/clients/${clientId}/secrets`)
+      );
+    } catch (error) {
+      console.error('Error listing client secrets:', error);
+      throw error;
+    }
+  }
+
+  async createClientSecret(clientId: string, request: CreateSecretRequest): Promise<CreateSecretResponse> {
+    try {
+      return await firstValueFrom(
+        this.http.post<CreateSecretResponse>(`/api/clients/${clientId}/secrets`, request)
+      );
+    } catch (error) {
+      console.error('Error creating client secret:', error);
+      throw error;
+    }
+  }
+
+  async revokeClientSecret(clientId: string, secretId: number): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(`/api/clients/${clientId}/secrets/${secretId}`)
+      );
+    } catch (error) {
+      console.error('Error revoking client secret:', error);
+      throw error;
+    }
+  }
+
+  async deleteClientSecret(clientId: string, secretId: number): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(`/api/clients/${clientId}/secrets/${secretId}/permanent`)
+      );
+    } catch (error) {
+      console.error('Error deleting client secret:', error);
       throw error;
     }
   }

@@ -29,6 +29,9 @@ public class ClientSecret {
     @Column(name = "description")
     private String description;
     
+    @Column(name = "account_id")
+    private String accountId;
+    
     // Getters and setters
     public Long getId() {
         return id;
@@ -84,5 +87,13 @@ public class ClientSecret {
     
     public void setDescription(String description) {
         this.description = description;
+    }
+    
+    public String getAccountId() {
+        return accountId;
+    }
+    
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
     }
 }

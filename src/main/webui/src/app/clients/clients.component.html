@@ -267,6 +267,108 @@
                 </a>
               </span>
             </div>
+
+            <!-- Secret Management Section -->
+            <div *ngIf="hasManageClientsRole()" class="detail-row secret-management">
+              <button class="btn-secondary" (click)="toggleSecretsView(client)">
+                {{ viewingSecretsFor === client.clientId ? '🔒 Hide Secrets' : '🔑 Manage Secrets' }}
+              </button>
+            </div>
+
+            <!-- Secrets List -->
+            <div *ngIf="viewingSecretsFor === client.clientId" class="secrets-section">
+              <div class="secrets-header">
+                <h3>Client Secrets</h3>
+                <button class="btn-primary btn-sm" (click)="toggleCreateSecretForm()" [disabled]="secretsLoading">
+                  {{ showCreateSecretForm ? 'Cancel' : '+ Generate New Secret' }}
+                </button>
+              </div>
+
+              <!-- Create Secret Form -->
+              <div *ngIf="showCreateSecretForm" class="form-container secret-form">
+                <h4>Generate New Secret</h4>
+                <div class="form-group">
+                  <label for="secret-description">Description *</label>
+                  <input type="text" id="secret-description" [(ngModel)]="createSecretData.description" 
+                         placeholder="e.g., Production secret - Jan 2026" required>
+                  <small class="form-hint">Describe the purpose or environment for this secret</small>
+                </div>
+                <div class="form-group">
+                  <label for="secret-expiry">Expires in (days)</label>
+                  <input type="number" id="secret-expiry" [(ngModel)]="createSecretData.expiresInDays" 
+                         placeholder="e.g., 90" min="1">
+                  <small class="form-hint">Leave empty for no expiration</small>
+                </div>
+                <div class="form-actions">
+                  <button class="btn-primary" (click)="createSecret(client.clientId)">
+                    Generate Secret
+                  </button>
+                  <button class="btn-secondary" (click)="toggleCreateSecretForm()">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <div *ngIf="secretsLoading" class="loading">Loading secrets...</div>
+              <div *ngIf="secretsError" class="error-box">{{ secretsError }}</div>
+
+              <div *ngIf="!secretsLoading && !secretsError && clientSecrets.length === 0" class="info-box">
+                No secrets found. Generate a new secret to get started.
+              </div>
+
+              <div *ngIf="!secretsLoading && clientSecrets.length > 0" class="secrets-list">
+                <div *ngFor="let secret of clientSecrets" class="secret-card" 
+                     [class.secret-expired]="isSecretExpired(secret)"
+                     [class.secret-expiring]="isSecretExpiringSoon(secret)"
+                     [class.secret-inactive]="!secret.active">
+                  <div class="secret-header">
+                    <div class="secret-info">
+                      <strong>{{ secret.description }}</strong>
+                      <span class="badge" 
+                            [class.badge-success]="secret.active && !isSecretExpired(secret)"
+                            [class.badge-warning]="isSecretExpiringSoon(secret)"
+                            [class.badge-danger]="isSecretExpired(secret) || !secret.active">
+                        {{ secret.active ? (isSecretExpired(secret) ? 'Expired' : 'Active') : 'Revoked' }}
+                      </span>
+                    </div>
+                    <div class="secret-actions">
+                      <button *ngIf="secret.active && !isSecretExpired(secret)" 
+                              class="btn-icon btn-icon-danger" 
+                              (click)="revokeSecret(client.clientId, secret)"
+                              title="Revoke secret">
+                        🔒 Revoke
+                      </button>
+                      <button *ngIf="!secret.active" 
+                              class="btn-icon btn-icon-danger" 
+                              (click)="deleteSecret(client.clientId, secret)"
+                              title="Permanently delete secret">
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div class="secret-details">
+                    <div class="secret-detail">
+                      <span class="label">Created:</span>
+                      <span class="value">{{ formatDate(secret.createdAt) }}</span>
+                    </div>
+                    <div *ngIf="secret.expiresAt" class="secret-detail">
+                      <span class="label">Expires:</span>
+                      <span class="value">{{ formatDate(secret.expiresAt) }}</span>
+                    </div>
+                    <div *ngIf="!secret.expiresAt" class="secret-detail">
+                      <span class="label">Expires:</span>
+                      <span class="value">Never</span>
+                    </div>
+                  </div>
+                  <div *ngIf="isSecretExpiringSoon(secret) && secret.active" class="alert alert-warning">
+                    ⚠️ This secret will expire soon. Generate a new secret before it expires.
+                  </div>
+                  <div *ngIf="isSecretExpired(secret) && secret.active" class="alert alert-danger">
+                    ⚠️ This secret has expired and can no longer be used.
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

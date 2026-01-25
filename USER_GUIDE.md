@@ -146,7 +146,7 @@ _Replace all `TODO_...` values with the values generated above.
    - `ABSTRAUTH_CLIENT_SECRET`: Client secret for the default OAuth client (BFF pattern, generate with `openssl rand -base64 32`)
    - `COOKIE_ENCRYPTION_SECRET`: Encryption key for HTTP-only cookies (min 32 chars, generate with `openssl rand -base64 32`)
    - `CSRF_TOKEN_SIGNATURE_KEY`: HMAC signature key for CSRF tokens (min 32 chars, generate with `openssl rand -base64 64`)
-   
+
    **Optional Environment Variables:**
    - `OAUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID (required only for "Sign in with Google")
    - `OAUTH_GOOGLE_CLIENT_SECRET`: Google OAuth client secret (required only for "Sign in with Google")
@@ -160,6 +160,13 @@ _Replace all `TODO_...` values with the values generated above.
    - `QUARKUS_MANAGEMENT_PORT`: Management interface port (default: `9002`)
    - `QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME`: set to true if Abstrauth runs behind a reverse proxy that terminates TLS
    - `ALLOW_NATIVE_SIGNIN`: if true, users can sign in with email & password, otherwise they can only sign in  (default: `true`)
+   - `ABSTRAUTH_EMAIL_ENABLED`: Enable/disable email notifications (default: `false` in dev, `true` in prod)
+   - `SMTP_HOST`: SMTP server hostname
+   - `SMTP_PORT`: SMTP server port (default: `587`)
+   - `SMTP_USERNAME`: SMTP authentication username
+   - `SMTP_PASSWORD`: SMTP authentication password
+   - `EMAIL_FROM`: Sender email address (default: `noreply@abstratium.dev`)
+
 
 3. **Verify the container is running**:
    ```bash
@@ -204,6 +211,95 @@ The idea here is that users can only see other accounts for clients that they ha
 
 To manage clients, the user needs the role `abstratium-abstrauth_manage-clients`.
 Users with an account with this role can see all the clients which the user is mapped to.
+
+### Client Secret Management
+
+Abstrauth supports multiple active secrets per client for zero-downtime secret rotation. This allows you to generate a new secret, update your applications to use it, and then revoke the old secret without any service interruption.
+
+#### Viewing Client Secrets
+
+1. Navigate to the **Clients** page
+2. Find the client you want to manage
+3. Click the **🔑 Manage Secrets** button
+4. You'll see a list of all secrets (active and revoked) with:
+   - Description
+   - Creation date
+   - Expiration date (if set)
+   - Status (Active, Expired, or Revoked)
+
+**Note:** The actual secret value is only shown once when you create it. After that, only metadata is visible.
+
+#### Creating a New Secret
+
+1. Click **🔑 Manage Secrets** for the client
+2. Click **+ Generate New Secret**
+3. Enter a description (e.g., "Production secret - Jan 2026")
+4. Optionally set an expiration period in days (e.g., 90 days)
+5. Click **Generate Secret**
+6. **IMPORTANT:** Copy the secret immediately - you won't be able to see it again!
+7. Store the secret securely (password manager, environment variables, etc.)
+
+**Best Practices:**
+- Use descriptive names that indicate the secret's purpose or environment
+- Set expiration dates for secrets (e.g., 90 days) to enforce regular rotation
+- Never commit secrets to version control
+- Store secrets in secure secret management systems (HashiCorp Vault, AWS Secrets Manager, etc.)
+
+#### Rotating Secrets (Zero-Downtime)
+
+To rotate a secret without service interruption:
+
+1. **Generate a new secret** (see above)
+2. **Update your application** to use the new secret
+3. **Deploy and test** that the new secret works
+4. **Revoke the old secret** once you're confident the new one is working
+5. **Optionally delete** the revoked secret to clean up
+
+This process ensures your service continues running throughout the rotation.
+
+#### Revoking a Secret
+
+1. Click **🔑 Manage Secrets** for the client
+2. Find the secret you want to revoke
+3. Click **🔒 Revoke** next to the secret
+4. Confirm the action
+
+**Note:** You cannot revoke the last active secret. You must have at least one active secret at all times.
+
+#### Deleting a Revoked Secret
+
+Once a secret is revoked, you can permanently delete it:
+
+1. Click **🔑 Manage Secrets** for the client
+2. Find the revoked secret
+3. Click **🗑️ Delete** next to the secret
+4. Confirm the permanent deletion
+
+**Warning:** Deletion is permanent and cannot be undone. Only delete secrets you're certain you no longer need.
+
+#### Expiration Warnings
+
+If you've set an expiration date for a secret, Abstrauth will send email notifications to the account that created the secret:
+
+- **30 days before expiration** - First warning
+- **3 days before expiration** - Final warning
+- **When the secret expires** - Expiration notice
+
+**Email Configuration:** Email notifications require SMTP configuration. See the environment variables section for details:
+- `ABSTRAUTH_EMAIL_ENABLED`: Enable/disable email notifications (default: `false` in dev, `true` in prod)
+- `SMTP_HOST`: SMTP server hostname
+- `SMTP_PORT`: SMTP server port (default: `587`)
+- `SMTP_USERNAME`: SMTP authentication username
+- `SMTP_PASSWORD`: SMTP authentication password
+- `EMAIL_FROM`: Sender email address (default: `noreply@abstratium.dev`)
+
+#### Security Considerations
+
+- **Multiple active secrets** allow for zero-downtime rotation
+- **Expired secrets** are automatically marked as expired but not deleted
+- **Revoked secrets** cannot be used for authentication
+- **Account tracking** - Each secret records who created it for audit purposes
+- **Regular rotation** is recommended (e.g., every 90 days)
 
 ## Adding New Accounts Manually
 

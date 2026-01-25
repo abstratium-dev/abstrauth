@@ -28,6 +28,27 @@ export interface OAuthClient {
   clientSecret?: string;  // Only present on creation response
 }
 
+export interface ClientSecret {
+  id: number;
+  description: string;
+  createdAt: string;
+  expiresAt: string | null;
+  active: boolean;
+}
+
+export interface CreateSecretRequest {
+  description?: string;
+  expiresInDays?: number;
+}
+
+export interface CreateSecretResponse {
+  id: number;
+  secret: string;  // Plain secret - only shown once!
+  description: string;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
 export interface CreateAccountResponse {
   account: Account;
   inviteToken: string;
