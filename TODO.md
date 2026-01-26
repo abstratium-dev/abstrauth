@@ -4,7 +4,8 @@
 
 - upgrade all and check security issues in github
 
-- continue with SERVICE_AUTH_IMPLEMENTATION_PLAN.md phase 4
+- add e2e tests for multiple secrets
+- update the example client to also test signing in as a service user
 
 - when i have no roles for abstracore, i get an error, but it shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 

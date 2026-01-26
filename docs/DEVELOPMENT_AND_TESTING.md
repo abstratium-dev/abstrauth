@@ -143,6 +143,8 @@ npm audit fix
 
 5. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
 
+6. Upgrading `nvm` means searching all places that use `v24.11.1` and updating it to the new version. Use `nvm` itself to install the latest stable version, but check Angular documentation for what a suitable version is.
+
 # Issues with Webkit
 
 For some strange reason, cookies aren't properly transported when testing localhost with Webkit (e.g. e2e tests, but also manual browser tests). If you sign out and try and sign in again and it doesn't pass the cookies properly and you remain on the sign in page.
