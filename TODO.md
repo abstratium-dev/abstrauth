@@ -1,8 +1,12 @@
 # TODO
 
-## Today
+## Before Each Release
 
 - upgrade all and check security issues in github
+- update docs to describe the changes
+
+
+## Today
 
 - add e2e tests for multiple secrets
 - update the example client to also test signing in as a service user
