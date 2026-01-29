@@ -10,163 +10,98 @@ This document provides step-by-step instructions for implementing OAuth 2.0 Clie
 
 ---
 
-## Phase 1: Database Schema (30 minutes)
+## Phase 1: Database Schema ✅ COMPLETE
 
-### Step 1.1: Add SERVICE Client Type
+### Step 1.1: Add SERVICE Client Type ✅ DONE
 
-**File:** `src/main/resources/db/migration/V01.011__add_service_client_type.sql` ✅ CREATED
+**File:** `src/main/resources/db/migration/V01.011__create_client_secrets_table.sql` ✅ EXISTS
 
-```sql
-ALTER TABLE T_oauth_clients 
-  MODIFY COLUMN client_type VARCHAR(20) NOT NULL 
-  COMMENT 'WEB_APPLICATION or SERVICE';
+Already contains client_type and allowed_scopes columns.
 
-ALTER TABLE T_oauth_clients 
-  MODIFY COLUMN allowed_scopes VARCHAR(500) 
-  COMMENT 'Space-separated list of scopes allowed for SERVICE clients';
-```
+### Step 1.2: Create Client Secrets Table ✅ DONE
 
-**Manual Test to be done by user:**
-```bash
-mvn flyway:migrate
-mysql -u abstrauth -p abstrauth_dev -e "DESCRIBE T_oauth_clients;"
-```
+**File:** `src/main/resources/db/migration/V01.011__create_client_secrets_table.sql` ✅ EXISTS
 
-### Step 1.2: Create Client Secrets Table
+Table created with MySQL/H2 compatible SQL (no ENGINE or CHARSET clauses).
 
-**File:** `src/main/resources/db/migration/V01.012__create_client_secrets_table.sql` ✅ CREATED
+### Step 1.3: Remove Old client_secret_hash Column ✅ DONE
+
+**File:** `src/main/resources/db/migration/V01.012__remove_old_client_secret_column.sql` ✅ EXISTS
+
+Column removed successfully.
+
+### Step 1.4: Create Service Account Roles Table ⚠️ TODO
+
+**File:** `src/main/resources/db/migration/V01.015__create_service_account_roles_table.sql` ❌ NOT CREATED
 
 ```sql
-CREATE TABLE T_oauth_client_secrets (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE T_service_account_roles (
+    id VARCHAR(36) PRIMARY KEY,
     client_id VARCHAR(255) NOT NULL,
-    secret_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    description VARCHAR(255),
-    FOREIGN KEY (client_id) REFERENCES T_oauth_clients(client_id) ON DELETE CASCADE,
-    INDEX idx_client_active (client_id, is_active),
-    INDEX idx_expires_at (expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    role VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT FK_service_account_roles_client FOREIGN KEY (client_id) REFERENCES T_oauth_clients(client_id) ON DELETE CASCADE
+);
 
--- Migrate existing client secrets to new table
-INSERT INTO T_oauth_client_secrets (client_id, secret_hash, is_active, description)
-SELECT client_id, client_secret_hash, TRUE, 'Migrated from T_oauth_clients'
-FROM T_oauth_clients 
-WHERE client_secret_hash IS NOT NULL;
+-- FK indexes
+CREATE INDEX I_service_account_roles_client ON T_service_account_roles(client_id);
+
+-- other indexes
+CREATE UNIQUE INDEX I_service_account_roles_unique ON T_service_account_roles(client_id, role);
 ```
 
-**Manual Test to be done by user:**
+**Test:**
 ```bash
-mvn flyway:migrate
-mysql -u abstrauth -p abstrauth_dev -e "SELECT COUNT(*) FROM T_oauth_client_secrets;"
-# Verify count matches: SELECT COUNT(*) FROM T_oauth_clients WHERE client_secret_hash IS NOT NULL;
-```
-
-### Step 1.3: Remove Old client_secret_hash Column
-
-**File:** `src/main/resources/db/migration/V01.013__remove_old_client_secret_column.sql` ✅ CREATED
-
-```sql
--- Remove the old client_secret_hash column from T_oauth_clients
--- This is safe because secrets are now in T_oauth_client_secrets
-ALTER TABLE T_oauth_clients DROP COLUMN client_secret_hash;
-```
-
-**Manual Test to be done by user:**
-```bash
-mvn flyway:migrate
-mysql -u abstrauth -p abstrauth_dev -e "DESCRIBE T_oauth_clients;"
-# Verify client_secret_hash column is gone
+mvn clean compile
+mvn test
 ```
 
 ---
 
-## Phase 2: Backend Core (2 hours)
+## Phase 2: Backend Core - Service Account Roles ⚠️ IN PROGRESS
 
-### Step 2.1: Create ClientSecret Entity ✅ DONE
+### Step 2.1: Create ServiceAccountRole Entity ❌ TODO
 
-**File:** `src/main/java/dev/abstratium/abstrauth/entity/ClientSecret.java` ✅ CREATED
+**File:** `src/main/java/dev/abstratium/abstrauth/entity/ServiceAccountRole.java` ❌ NOT CREATED
 
-JPA entity for `T_oauth_client_secrets` table with all fields.
+JPA entity for `T_service_account_roles` table.
 
-### Step 2.2: Create ClientSecretRepository ✅ DONE
+### Step 2.2: Create ServiceAccountRoleRepository ❌ TODO
 
-**File:** `src/main/java/dev/abstratium/abstrauth/repository/ClientSecretRepository.java` ✅ CREATED
+**File:** `src/main/java/dev/abstratium/abstrauth/repository/ServiceAccountRoleRepository.java` ❌ NOT CREATED
 
-Repository using EntityManager pattern with methods:
-- `findActiveSecrets(clientId)`
-- `findByClientId(clientId)`
-- `countActiveSecrets(clientId)`
-- `findExpiredSecrets(now)`
-- `persist(clientSecret)`
-- `findById(id)`
+Repository with methods:
+- `findRolesByClientId(clientId)` - Returns Set<String>
+- `persist(role)`
+- `deleteByClientIdAndRole(clientId, role)`
 
-### Step 2.3: Update OAuthClient Entity ✅ DONE
+### Step 2.3: Create ServiceAccountRoleService ❌ TODO
 
-**File:** `src/main/java/dev/abstratium/abstrauth/entity/OAuthClient.java` ✅ UPDATED
+**File:** `src/main/java/dev/abstratium/abstrauth/service/ServiceAccountRoleService.java` ❌ NOT CREATED
 
-Removed `clientSecretHash` field and getters/setters (secrets now in separate table).
+Service layer for business logic.
 
-### Step 2.4: Update OAuthClientService ✅ DONE
+### Step 2.4: Implement Client Credentials in TokenResource ❌ TODO
 
-**File:** `src/main/java/dev/abstratium/abstrauth/service/OAuthClientService.java` ✅ UPDATED
-
-- Added `ClientSecretRepository` injection
-- Updated `clientSecretMatches()` to check all active secrets
-- Updated `createWithSecret()` to persist secret in new table
-- Updated `updateClientSecretHash()` to create new secret entry
-
-### Step 2.5: Update TokenResource ✅ DONE
-
-**File:** `src/main/java/dev/abstratium/abstrauth/boundary/oauth/TokenResource.java` ✅ UPDATED
-
-- Added `ClientSecretRepository` injection
-- Updated `authenticateClient()` to check all active secrets
-
-### Step 2.6: Fix All Test Files ✅ DONE
-
-Updated all test files to create secrets in `T_oauth_client_secrets` table:
-- `AccountsResourceTest.java` ✅
-- `TokenRolesTest.java` ✅
-- `AccountRoleServiceTest.java` ✅
-- `AccountServiceTest.java` ✅
-- `AuthorizationServiceTest.java` ✅
-- `BootstrapServiceTest.java` ✅
-- `OAuthClientServiceTest.java` ✅
-- `TokenRevocationServiceTest.java` ✅
-
-### Step 2.7: Fix Dev Configuration ✅ DONE
-
-**File:** `src/main/resources/application.properties` ✅ UPDATED
-
-Added dev profile defaults for Google OAuth to prevent startup errors.
-
-Methods: `findActiveSecrets()`, `countActiveSecrets()`, `findExpiredSecrets()`
-
-### Step 2.5: Implement Client Credentials in TokenResource
-
-**File:** `src/main/java/dev/abstratium/abstrauth/resource/TokenResource.java`
+**File:** `src/main/java/dev/abstratium/abstrauth/boundary/oauth/TokenResource.java` ❌ NOT UPDATED
 
 Add handler for `grant_type=client_credentials`:
 - Validate client type is SERVICE
 - Check secret against all active secrets
 - Validate requested scopes
-- Generate token with service claims (no user info)
+- **Lookup service account roles**
+- **Generate token with BOTH `scope` AND `groups` claims**
 - Return token (no refresh token)
 
-### Step 2.6: Update Discovery Endpoint
+### Step 2.5: Update Discovery Endpoint ❌ TODO
 
-**File:** `src/main/java/dev/abstratium/abstrauth/resource/WellKnownResource.java`
+**File:** `src/main/java/dev/abstratium/abstrauth/boundary/oauth/WellKnownResource.java` ❌ NOT UPDATED
 
 Add `client_credentials` to `grant_types_supported`.
 
 **Test:**
 ```bash
-mvn compile
-mvn test
-curl http://localhost:8080/.well-known/oauth-authorization-server | jq .grant_types_supported
+mvn clean test
 ```
 
 ---

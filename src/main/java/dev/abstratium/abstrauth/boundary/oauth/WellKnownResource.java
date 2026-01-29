@@ -96,9 +96,9 @@ public class WellKnownResource {
         metadata.end_session_endpoint = baseUrl + "/api/auth/logout";
         metadata.jwks_uri = baseUrl + "/.well-known/jwks.json";
         metadata.response_types_supported = new String[]{"code"};
-        metadata.grant_types_supported = new String[]{"authorization_code", "refresh_token"};
+        metadata.grant_types_supported = new String[]{"authorization_code", "refresh_token", "client_credentials"};
         metadata.code_challenge_methods_supported = new String[]{"S256", "plain"};
-        metadata.scopes_supported = new String[]{"openid", "profile", "email"};
+        metadata.scopes_supported = new String[]{"openid", "profile", "email", "api:read", "api:write"};
         metadata.token_endpoint_auth_methods_supported = new String[]{"client_secret_post", "client_secret_basic"};
         
         return metadata;
@@ -209,7 +209,7 @@ public class WellKnownResource {
         @Schema(description = "Supported response types", examples = "[\"code\"]")
         public String[] response_types_supported;
 
-        @Schema(description = "Supported grant types", examples = "[\"authorization_code\", \"refresh_token\"]")
+        @Schema(description = "Supported grant types", examples = "[\"authorization_code\", \"refresh_token\", \"client_credentials\"]")
         public String[] grant_types_supported;
 
         @Schema(description = "Supported PKCE code challenge methods", examples = "[\"S256\", \"plain\"]")

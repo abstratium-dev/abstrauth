@@ -14,9 +14,10 @@ You must check that coverage is at 80% statement coverage and 70% branch coverag
 
 Do not write senseless tests just to increase the coverage.
 
+Make sure that all tests contain assertions and not just for rudimentary things. The tests should be meaningful, useful and they must test functionality.
+
 It is EXTREMELY IMPORTANT that this project be tested using unit and integration tests.
 
-Do not write senseless tests just to increase the coverage.
 Coverage can be measured using `mvn verify`. The backend coverage results in xml files from the folder `target/jacoco-report`. Front end coverage results are part of the output which is written when mvn executes the Angular tests as part of `mvn verify`.
 
 Tests annotated with `@QuarkusTest` are the primary kind of test for the backend.

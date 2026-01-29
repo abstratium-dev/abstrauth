@@ -16,6 +16,30 @@ Microservices in the Abstratium ecosystem need to:
 3. Call their own endpoints or downstream microservices
 4. Use a secure, industry-standard authentication mechanism
 5. Integrate seamlessly with Quarkus OIDC
+6. **Support `@RolesAllowed` annotations** for endpoint authorization
+7. **Enable audit logging** with service identity tracking
+
+### Real-World Use Case: Payment Processing
+
+**Scenario**: Bank sends payment notification → Payment Service → Accounting Service
+
+1. **Bank webhook** triggers Payment Service
+2. **Payment Service** needs to authenticate to call Accounting Service
+3. **Accounting Service** has endpoint:
+   ```java
+   @POST
+   @Path("/transactions")
+   @RolesAllowed("payment-service_accounting-writer")
+   public Response createTransaction(TransactionRequest req) {
+       String actor = jwt.getSubject();  // "payment-service" for audit log
+       auditLog.log("Transaction created by: " + actor);
+       // ...
+   }
+   ```
+4. **Requirements**:
+   - Payment Service must have role `payment-service_accounting-writer`
+   - Token must have `groups` claim for `@RolesAllowed` to work
+   - Token must have `sub` claim for audit logging
 
 ## Solution: OAuth 2.0 Client Credentials Flow
 
@@ -52,18 +76,21 @@ sequenceDiagram
     AuthServer->>AuthServer: Check client type = SERVICE
     AuthServer->>AuthServer: Validate requested scopes
     
-    Note over AuthServer: 3. Generate Token
-    AuthServer->>AuthServer: Create JWT with:<br/>- sub: service-a<br/>- client_id: service-a<br/>- scope: api:read api:write<br/>- aud: api.abstratium.dev<br/>- No user claims
+    Note over AuthServer: 3. Lookup Service Roles
+    AuthServer->>AuthServer: Query T_service_account_roles<br/>for client_id
+    
+    Note over AuthServer: 4. Generate Token
+    AuthServer->>AuthServer: Create JWT with:<br/>- sub: service-a<br/>- client_id: service-a<br/>- scope: api:read api:write<br/>- groups: [service-a_writer]<br/>- aud: api.abstratium.dev<br/>- No user claims
     
     AuthServer->>Service: 200 OK + Access Token
     Note right of AuthServer: {<br/>  "access_token": "eyJhbG...",<br/>  "token_type": "Bearer",<br/>  "expires_in": 3600,<br/>  "scope": "api:read api:write"<br/>}
     
-    Note over Service: 4. Use Token to Call API
-    Service->>DownstreamAPI: GET /api/resource
+    Note over Service: 5. Use Token to Call API
+    Service->>DownstreamAPI: POST /api/resource
     Note right of Service: Header:<br/>Authorization: Bearer eyJhbG...
     
     DownstreamAPI->>DownstreamAPI: Verify JWT signature
-    DownstreamAPI->>DownstreamAPI: Validate claims:<br/>- iss, aud, exp<br/>- Check scopes
+    DownstreamAPI->>DownstreamAPI: Validate claims:<br/>- iss, aud, exp<br/>- Check @RolesAllowed(groups)
     DownstreamAPI->>Service: 200 OK + Data
 ```
 
@@ -83,49 +110,84 @@ We need to add a new client type:
 
 | Aspect | User Token (Authorization Code) | Service Token (Client Credentials) |
 |--------|----------------------------------|-------------------------------------|
-| Subject (`sub`) | User ID | Service client ID |
+| Subject (`sub`) | User ID (UUID) | Service client ID |
 | User Claims | `email`, `name`, `preferred_username` | None |
+| Groups (`groups`) | User roles (e.g., `abstratium-abstrauth_admin`) | Service roles (e.g., `payment-service_accounting-writer`) |
 | Scope | User-granted scopes | Service-assigned scopes |
 | Audience (`aud`) | Specific API or resource | Specific API or resource |
 | Refresh Token | Yes (long-lived sessions) | No (short-lived, re-request) |
-| Use Case | User acting through UI | Service-to-service calls |
+| Use Case | User acting through UI | Service-to-service orchestration |
 
-### Scope Design
+**CRITICAL**: Service tokens MUST include the `groups` claim with roles to support `@RolesAllowed` annotations in resource servers.
 
-Services should use **fine-grained scopes** to follow the principle of least privilege:
+### Scope and Role Design
 
-**Recommended Scope Naming:**
-- `api:read` - Read access to APIs
-- `api:write` - Write access to APIs
-- `clients:manage` - Manage OAuth clients
-- `users:read` - Read user information
-- `users:write` - Modify user information
+**Services use BOTH scopes AND roles:**
+
+1. **Scopes** (OAuth 2.0 standard): Coarse-grained API access control
+   - `api:read` - Read access to APIs
+   - `api:write` - Write access to APIs
+   - `clients:manage` - Manage OAuth clients
+   - `accounts:read` - Read user accounts
+
+2. **Roles** (MicroProfile JWT `groups` claim): Fine-grained endpoint authorization
+   - Format: `{client_id}_{role}` (same as user roles)
+   - Examples: `payment-service_accounting-writer`, `monitoring-service_metrics-reader`
+   - Used by `@RolesAllowed` annotations in resource servers
 
 **Example Service Configurations:**
-- **Monitoring Service**: `api:read`
-- **Data Sync Service**: `api:read api:write`
-- **Admin Service**: `clients:manage users:read users:write`
+
+| Service | Scopes | Roles | Use Case |
+|---------|--------|-------|----------|
+| **Monitoring Service** | `api:read` | `abstratium-abstrauth_metrics-reader` | Read-only monitoring |
+| **Payment Service** | `api:read api:write` | `payment-service_accounting-writer` | Create accounting transactions |
+| **Admin Service** | `clients:manage accounts:read` | `abstratium-abstrauth_admin` | Administrative operations |
+
+**Why Both?**
+- **Scopes**: OAuth 2.0 compliance, API-level authorization
+- **Roles**: Quarkus `@RolesAllowed` compatibility, endpoint-level authorization, audit logging
 
 ## Implementation Changes
 
 ### 1. Database Schema Changes
 
-**Add new client type to `OAuthClient` entity:**
+**Migration V01.011: Add SERVICE client type and scopes**
 
 ```sql
--- Migration: Add SERVICE client type
-ALTER TABLE oauth_clients 
-  MODIFY COLUMN client_type ENUM('WEB_APPLICATION', 'SERVICE') NOT NULL;
+-- Already exists: client_type column supports 'SERVICE'
+ALTER TABLE T_oauth_clients 
+  MODIFY COLUMN client_type VARCHAR(20) NOT NULL 
+  COMMENT 'WEB_APPLICATION or SERVICE';
 
--- Add scope column for service clients
-ALTER TABLE oauth_clients 
-  ADD COLUMN allowed_scopes VARCHAR(500) AFTER client_type;
-
--- Add comment
-ALTER TABLE oauth_clients 
+-- Already exists: allowed_scopes column
+ALTER TABLE T_oauth_clients 
   MODIFY COLUMN allowed_scopes VARCHAR(500) 
-  COMMENT 'Space-separated list of scopes allowed for this service client';
+  COMMENT 'Space-separated list of scopes allowed for SERVICE clients';
 ```
+
+**Migration V01.015: Create service account roles table**
+
+```sql
+CREATE TABLE T_service_account_roles (
+    id VARCHAR(36) PRIMARY KEY,
+    client_id VARCHAR(255) NOT NULL,
+    role VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT FK_service_account_roles_client FOREIGN KEY (client_id) REFERENCES T_oauth_clients(client_id) ON DELETE CASCADE
+);
+
+-- FK indexes
+CREATE INDEX I_service_account_roles_client ON T_service_account_roles(client_id);
+
+-- other indexes
+CREATE UNIQUE INDEX I_service_account_roles_unique ON T_service_account_roles(client_id, role);
+```
+
+**Why Service Account Roles Table?**
+- Enables `@RolesAllowed` annotations in resource servers
+- Provides audit trail (who did what)
+- Consistent with user role model (`T_account_roles`)
+- Follows Keycloak and Microsoft Entra ID patterns
 
 **Update `ClientType` enum:**
 
@@ -193,16 +255,28 @@ private Response handleClientCredentials(String clientId, String clientSecret, S
             .build();
     }
     
-    // 3. Generate service token (no user claims)
+    // 3. Get service account roles for @RolesAllowed support
+    Set<String> serviceRoles = serviceAccountRoleRepository.findRolesByClientId(clientId);
+    Set<String> groups = new HashSet<>();
+    for (String role : serviceRoles) {
+        groups.add(clientId + "_" + role);  // Same format as user roles
+    }
+    
+    // 4. Generate service token with BOTH scopes AND groups
     String accessToken = Jwt.issuer(issuer)
-        .subject(clientId)  // Service ID as subject
+        .claim("jti", UUID.randomUUID().toString())
+        .subject(clientId)  // Service ID as subject (for audit logging)
+        .groups(groups)     // Roles for @RolesAllowed
         .claim("client_id", clientId)
         .claim("scope", String.join(" ", requestedScopes))
         .audience(audience)
+        .issuedAt(Instant.now())
         .expiresAt(Instant.now().plusSeconds(3600))  // 1 hour
+        .jws()
+            .keyId("abstrauth-key-1")
         .sign();
     
-    // 4. Return token (no refresh token for client credentials)
+    // 5. Return token (no refresh token for client credentials)
     return Response.ok(Map.of(
         "access_token", accessToken,
         "token_type", "Bearer",

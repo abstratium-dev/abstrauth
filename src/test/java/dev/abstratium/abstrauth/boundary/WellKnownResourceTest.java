@@ -40,9 +40,26 @@ public class WellKnownResourceTest {
             .body("token_endpoint", containsString("/oauth2/token"))
             .body("jwks_uri", containsString("/.well-known/jwks.json"))
             .body("response_types_supported", hasItem("code"))
-            .body("grant_types_supported", hasItem("authorization_code"))
+            .body("grant_types_supported", hasItems("authorization_code", "refresh_token", "client_credentials"))
             .body("code_challenge_methods_supported", hasItems("S256", "plain"))
-            .body("scopes_supported", hasItems("openid", "profile", "email"));
+            .body("scopes_supported", hasItems("openid", "profile", "email", "api:read", "api:write"));
+    }
+
+    @Test
+    public void testOpenIdConfigurationEndpoint() {
+        // OpenID Connect discovery endpoint should return same metadata
+        given()
+            .when()
+            .get("/.well-known/openid-configuration")
+            .then()
+            .statusCode(200)
+            .contentType(containsString("application/json"))
+            .body("issuer", notNullValue())
+            .body("authorization_endpoint", containsString("/oauth2/authorize"))
+            .body("token_endpoint", containsString("/oauth2/token"))
+            .body("jwks_uri", containsString("/.well-known/jwks.json"))
+            .body("grant_types_supported", hasItems("authorization_code", "refresh_token", "client_credentials"))
+            .body("scopes_supported", hasItems("openid", "profile", "email", "api:read", "api:write"));
     }
 
     @Test

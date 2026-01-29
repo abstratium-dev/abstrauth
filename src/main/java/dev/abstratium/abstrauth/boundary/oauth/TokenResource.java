@@ -30,6 +30,7 @@ import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
+import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.jwt.build.Jwt;
@@ -65,6 +66,9 @@ public class TokenResource {
 
     @Inject
     AccountRoleService accountRoleService;
+
+    @Inject
+    ServiceAccountRoleService serviceAccountRoleService;
 
     @Inject
     TokenRevocationService tokenRevocationService;
@@ -139,10 +143,10 @@ public class TokenResource {
         @jakarta.ws.rs.core.Context jakarta.ws.rs.core.HttpHeaders headers,
         
         @Parameter(
-            description = "Grant type - 'authorization_code' or 'refresh_token'",
+            description = "Grant type - 'authorization_code', 'refresh_token', or 'client_credentials'",
             required = true,
             example = "authorization_code",
-            schema = @Schema(enumeration = {"authorization_code", "refresh_token"})
+            schema = @Schema(enumeration = {"authorization_code", "refresh_token", "client_credentials"})
         )
         @FormParam("grant_type") String grantType,
 
@@ -204,14 +208,21 @@ public class TokenResource {
             }
         }
         // Validate grant_type
-        if (!"authorization_code".equals(grantType) && !"refresh_token".equals(grantType)) {
+        if (!"authorization_code".equals(grantType) && 
+            !"refresh_token".equals(grantType) && 
+            !"client_credentials".equals(grantType)) {
             return buildErrorResponse(Response.Status.BAD_REQUEST, "unsupported_grant_type",
-                    "Grant type must be 'authorization_code' or 'refresh_token'");
+                    "Grant type must be 'authorization_code', 'refresh_token', or 'client_credentials'");
         }
 
         // Handle authorization_code grant
         if ("authorization_code".equals(grantType)) {
             return handleAuthorizationCodeGrant(code, redirectUri, clientId, clientSecret, codeVerifier);
+        }
+
+        // Handle client_credentials grant
+        if ("client_credentials".equals(grantType)) {
+            return handleClientCredentials(clientId, clientSecret, scope);
         }
 
         // Handle refresh_token grant (not implemented yet)
@@ -425,6 +436,95 @@ public class TokenResource {
                 .sign();
     }
 
+
+    /**
+     * Handle client credentials grant (RFC 6749 Section 4.4)
+     * Used for service-to-service authentication
+     */
+    private Response handleClientCredentials(String clientId, String clientSecret, String requestedScope) {
+        // 1. Validate required parameters
+        if (clientId == null || clientId.isBlank()) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_request",
+                    "client_id is required");
+        }
+
+        if (clientSecret == null || clientSecret.isBlank()) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_request",
+                    "client_secret is required");
+        }
+
+        // 2. Validate client exists and is a confidential client
+        Optional<OAuthClient> clientOpt = clientService.findByClientId(clientId);
+        if (clientOpt.isEmpty()) {
+            return buildErrorResponse(Response.Status.UNAUTHORIZED, "invalid_client",
+                    "Client authentication failed");
+        }
+
+        OAuthClient client = clientOpt.get();
+
+        // 3. Authenticate client with secret
+        if (!authenticateClient(client, clientSecret)) {
+            return buildErrorResponse(Response.Status.UNAUTHORIZED, "invalid_client",
+                    "Client authentication failed");
+        }
+
+        // 4. Parse and validate requested scopes against allowed scopes
+        Set<String> allowedScopes = parseScopes(client.getAllowedScopes());
+        Set<String> requestedScopes = parseScopes(requestedScope);
+
+        // If no scope requested, use all allowed scopes
+        if (requestedScopes.isEmpty()) {
+            requestedScopes = allowedScopes;
+        }
+
+        // Validate that all requested scopes are allowed
+        if (!allowedScopes.containsAll(requestedScopes)) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_scope",
+                    "Requested scope exceeds allowed scopes for this client");
+        }
+
+        // 5. Get service account roles for @RolesAllowed support
+        Set<String> serviceRoles = serviceAccountRoleService.findRolesByClientId(clientId);
+        Set<String> groups = new HashSet<>();
+        for (String role : serviceRoles) {
+            groups.add(clientId + "_" + role);  // Same format as user roles
+        }
+
+        // 6. Generate service token with BOTH scopes AND groups
+        Instant now = Instant.now();
+        Instant expiresAt = now.plusSeconds(3600);  // 1 hour for service tokens
+
+        String accessToken = Jwt.issuer(issuer)
+                .claim("jti", UUID.randomUUID().toString())
+                .subject(clientId)  // Service ID as subject (for audit logging)
+                .groups(groups)     // Roles for @RolesAllowed
+                .claim("client_id", clientId)
+                .claim("scope", String.join(" ", requestedScopes))
+                .issuedAt(now)
+                .expiresAt(expiresAt)
+                .jws()
+                    .keyId("abstrauth-key-1")
+                .sign();
+
+        // 7. Return token response (no refresh token for client credentials)
+        TokenResponse response = new TokenResponse();
+        response.access_token = accessToken;
+        response.token_type = "Bearer";
+        response.expires_in = 3600;
+        response.scope = String.join(" ", requestedScopes);
+
+        return Response.ok(response).build();
+    }
+
+    /**
+     * Parse space-separated scope string into a Set
+     */
+    private Set<String> parseScopes(String scopeString) {
+        if (scopeString == null || scopeString.isBlank()) {
+            return new HashSet<>();
+        }
+        return new HashSet<>(java.util.Arrays.asList(scopeString.trim().split("\\s+")));
+    }
 
     /**
      * Authenticate a confidential client using its client_secret.

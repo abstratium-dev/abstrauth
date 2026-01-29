@@ -8,6 +8,13 @@
 
 ## Today
 
+- SOMETHING IS MISSING... HOW DOES THE SERVICE USER GET ROLES? SOMEHOW THEY NEED TO PROVIDE A USERNAME WHEN SIGNING IN???
+
+- does docs/security/SECURITY_DESIGN.md, docs/oauth/FLOWS.md and USER_GUIDE.md cover all the changes made here?
+
+- how are scopes api:read and api:write supposed to be used?
+- are scopes actually used at all????
+
 - add e2e tests for multiple secrets
 - update the example client to also test signing in as a service user
 
