@@ -49,6 +49,21 @@ export interface CreateSecretResponse {
   expiresAt: string | null;
 }
 
+export interface ServiceAccountRole {
+  clientId: string;
+  role: string;
+  groupName: string;
+}
+
+export interface ServiceAccountRolesResponse {
+  clientId: string;
+  roles: string[];
+}
+
+export interface AddRoleRequest {
+  role: string;
+}
+
 export interface CreateAccountResponse {
   account: Account;
   inviteToken: string;

@@ -846,4 +846,226 @@ describe('ClientsComponent', () => {
       await deletePromise;
     });
   });
+
+  describe('Role Management', () => {
+    const mockClient = mockClients[0];
+    const mockRolesResponse = {
+      clientId: 'test-client-1',
+      roles: ['api-reader', 'api-writer']
+    };
+
+    beforeEach(() => {
+      // Load clients first
+      const req = httpMock.expectOne('/api/clients');
+      req.flush(mockClients);
+    });
+
+    it('should toggle roles view and load roles', async () => {
+      expect(component.viewingRolesFor).toBeNull();
+      expect(component.serviceAccountRoles).toEqual([]);
+
+      const togglePromise = component.toggleRolesView(mockClient);
+
+      const rolesReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      rolesReq.flush(mockRolesResponse);
+
+      await togglePromise;
+
+      expect(component.viewingRolesFor).toBe('test-client-1');
+      expect(component.serviceAccountRoles).toEqual(['api-reader', 'api-writer']);
+      expect(component.rolesLoading).toBeFalse();
+    });
+
+    it('should hide roles view when toggling again', async () => {
+      // First toggle to show
+      component.viewingRolesFor = 'test-client-1';
+      component.serviceAccountRoles = ['api-reader'];
+
+      await component.toggleRolesView(mockClient);
+
+      expect(component.viewingRolesFor).toBeNull();
+      expect(component.serviceAccountRoles).toEqual([]);
+      expect(component.showAddRoleForm).toBeFalse();
+    });
+
+    it('should handle error when loading roles', async () => {
+      const togglePromise = component.toggleRolesView(mockClient);
+
+      const rolesReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      rolesReq.flush({ error: 'Failed to load' }, { status: 500, statusText: 'Internal Server Error' });
+
+      await togglePromise;
+
+      expect(component.rolesError).toBe('Failed to load roles');
+      expect(component.rolesLoading).toBeFalse();
+    });
+
+    it('should toggle add role form', () => {
+      expect(component.showAddRoleForm).toBeFalse();
+
+      component.toggleAddRoleForm();
+      expect(component.showAddRoleForm).toBeTrue();
+      expect(component.addRoleData.role).toBe('');
+
+      component.toggleAddRoleForm();
+      expect(component.showAddRoleForm).toBeFalse();
+    });
+
+    it('should add a role successfully', async () => {
+      component.viewingRolesFor = 'test-client-1';
+      component.addRoleData.role = 'new-role';
+
+      const addPromise = component.addRole('test-client-1');
+
+      const addReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      expect(addReq.request.method).toBe('POST');
+      expect(addReq.request.body).toEqual({ role: 'new-role' });
+      addReq.flush({
+        clientId: 'test-client-1',
+        role: 'new-role',
+        groupName: 'test-client-1_new-role'
+      });
+
+      // Expect reload of roles
+      const reloadReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      reloadReq.flush({ clientId: 'test-client-1', roles: ['new-role'] });
+
+      await addPromise;
+
+      expect(component.showAddRoleForm).toBeFalse();
+      expect(component.addRoleData.role).toBe('');
+    });
+
+    it('should reject empty role name', async () => {
+      component.addRoleData.role = '';
+      await component.addRole('test-client-1');
+      // Should not make HTTP request
+      httpMock.expectNone('/api/clients/test-client-1/roles');
+    });
+
+    it('should reject role name with uppercase', async () => {
+      component.addRoleData.role = 'API-Reader';
+      await component.addRole('test-client-1');
+      // Should not make HTTP request
+      httpMock.expectNone('/api/clients/test-client-1/roles');
+    });
+
+    it('should reject role name with underscores', async () => {
+      component.addRoleData.role = 'api_reader';
+      await component.addRole('test-client-1');
+      // Should not make HTTP request
+      httpMock.expectNone('/api/clients/test-client-1/roles');
+    });
+
+    it('should reject role name with spaces', async () => {
+      component.addRoleData.role = 'api reader';
+      await component.addRole('test-client-1');
+      // Should not make HTTP request
+      httpMock.expectNone('/api/clients/test-client-1/roles');
+    });
+
+    it('should handle 400 error when adding duplicate role', async () => {
+      component.viewingRolesFor = 'test-client-1';
+      component.addRoleData.role = 'existing-role';
+
+      const addPromise = component.addRole('test-client-1');
+
+      const addReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      addReq.flush({ error: 'Role already exists' }, { status: 400, statusText: 'Bad Request' });
+
+      await addPromise;
+    });
+
+    it('should handle 403 permission error when adding role', async () => {
+      component.viewingRolesFor = 'test-client-1';
+      component.addRoleData.role = 'new-role';
+
+      const addPromise = component.addRole('test-client-1');
+
+      const addReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      addReq.flush({}, { status: 403, statusText: 'Forbidden' });
+
+      await addPromise;
+    });
+
+    it('should handle 404 error when adding role to non-existent client', async () => {
+      component.viewingRolesFor = 'test-client-1';
+      component.addRoleData.role = 'new-role';
+
+      const addPromise = component.addRole('test-client-1');
+
+      const addReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      addReq.flush({ error: 'Client not found' }, { status: 404, statusText: 'Not Found' });
+
+      await addPromise;
+    });
+
+    it('should remove a role successfully', async () => {
+      component.viewingRolesFor = 'test-client-1';
+
+      const removePromise = component.removeRole('test-client-1', 'api-reader');
+
+      // Wait for confirmation
+      await Promise.resolve();
+
+      const removeReq = httpMock.expectOne('/api/clients/test-client-1/roles/api-reader');
+      expect(removeReq.request.method).toBe('DELETE');
+      removeReq.flush(null, { status: 204, statusText: 'No Content' });
+
+      // Expect reload of roles
+      const reloadReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      reloadReq.flush({ clientId: 'test-client-1', roles: ['api-writer'] });
+
+      await removePromise;
+    });
+
+    it('should not remove role if user cancels confirmation', async () => {
+      confirmService.confirm.and.returnValue(Promise.resolve(false));
+      component.viewingRolesFor = 'test-client-1';
+
+      await component.removeRole('test-client-1', 'api-reader');
+
+      // Should not make HTTP request
+      httpMock.expectNone('/api/clients/test-client-1/roles/api-reader');
+    });
+
+    it('should handle 403 permission error when removing role', async () => {
+      component.viewingRolesFor = 'test-client-1';
+
+      const removePromise = component.removeRole('test-client-1', 'api-reader');
+
+      await Promise.resolve();
+
+      const removeReq = httpMock.expectOne('/api/clients/test-client-1/roles/api-reader');
+      removeReq.flush({}, { status: 403, statusText: 'Forbidden' });
+
+      await removePromise;
+    });
+
+    it('should handle 404 error when removing non-existent role', async () => {
+      component.viewingRolesFor = 'test-client-1';
+
+      const removePromise = component.removeRole('test-client-1', 'non-existent');
+
+      await Promise.resolve();
+
+      const removeReq = httpMock.expectOne('/api/clients/test-client-1/roles/non-existent');
+      removeReq.flush({ error: 'Role not found' }, { status: 404, statusText: 'Not Found' });
+
+      await removePromise;
+    });
+
+    it('should handle generic error when removing role', async () => {
+      component.viewingRolesFor = 'test-client-1';
+
+      const removePromise = component.removeRole('test-client-1', 'api-reader');
+
+      await Promise.resolve();
+
+      const removeReq = httpMock.expectOne('/api/clients/test-client-1/roles/api-reader');
+      removeReq.flush({}, { status: 500, statusText: 'Internal Server Error' });
+
+      await removePromise;
+    });
+  });
 });

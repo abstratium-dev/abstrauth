@@ -1,0 +1,36 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - img "Abstratium Logo" [ref=e6]
+        - generic [ref=e7]: ABSTRATIUM
+      - generic [ref=e8]:
+        - button "Switch to dark mode" [ref=e9] [cursor=pointer]: 🌙
+        - link "Legal" [ref=e10] [cursor=pointer]:
+          - /url: https://abstratium.dev/docs/legal
+  - generic [ref=e11]:
+    - strong [ref=e12]: ⚠️ SECURITY WARNING
+    - paragraph [ref=e13]:
+      - text: The OAuth client secret is using the default or an insecure value. Please set a secure
+      - code [ref=e14]: ABSTRAUTH_CLIENT_SECRET
+      - text: environment variable (minimum 32 characters) and restart the application.
+    - paragraph [ref=e15]:
+      - text: "Generate a secure secret:"
+      - code [ref=e16]: openssl rand -base64 32
+    - button "Dismiss" [ref=e17] [cursor=pointer]
+  - generic [ref=e37]:
+    - heading "Approve Application" [level=1] [ref=e38]
+    - paragraph [ref=e39]:
+      - text: Hi admin,
+      - strong [ref=e40]: abstratium abstrauth
+      - text: "wants to access:"
+    - list [ref=e41]:
+      - listitem [ref=e42]: • openid
+      - listitem [ref=e43]: • profile
+      - listitem [ref=e44]: • email
+    - generic [ref=e45]:
+      - generic [ref=e47] [cursor=pointer]:
+        - checkbox "Remember this approval for 30 days" [ref=e48]
+        - text: Remember this approval for 30 days
+      - button "Approve" [active] [ref=e50] [cursor=pointer]
+      - button "Deny" [ref=e52] [cursor=pointer]

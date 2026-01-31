@@ -8,14 +8,21 @@
 
 ## Today
 
-- SOMETHING IS MISSING... HOW DOES THE SERVICE USER GET ROLES? SOMEHOW THEY NEED TO PROVIDE A USERNAME WHEN SIGNING IN???
-
 - does docs/security/SECURITY_DESIGN.md, docs/oauth/FLOWS.md and USER_GUIDE.md cover all the changes made here?
 
-- how are scopes api:read and api:write supposed to be used?
-- are scopes actually used at all????
+- get token like this:
 
-- add e2e tests for multiple secrets
+curl -X POST http://localhost:8080/oauth2/token   -H "Content-Type: application/x-www-form-urlencoded"   -d "grant_type=client_credentials"   -d "client_id=two"   -d "client_secret=$SEC"   -d "scope=[\"asdf\"]"
+
+export TOKEN="..."
+
+curl -v -X GET http://localhost:8080/api/auth/check   -H "Authorization: Bearer $TOKEN"
+
+that should return 200, rather than a redirect. if the token is wrong, it redirects.
+
+add that to some docs
+
+- add e2e tests for multiple secrets and roles
 - update the example client to also test signing in as a service user
 
 - when i have no roles for abstracore, i get an error, but it shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
@@ -38,6 +45,7 @@
 
 ## Tomorrow
 
+- do we actually need to support scopes? they aren't actually used.
 - if native sign in is disabled, don't add the option to create an account with native sign in
 - use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
  in a test somewhere

@@ -57,6 +57,16 @@ export class ClientsComponent implements OnInit {
     expiresInDays: null as number | null
   };
 
+  // Role management state
+  viewingRolesFor: string | null = null;
+  serviceAccountRoles: string[] = [];
+  rolesLoading = false;
+  rolesError: string | null = null;
+  showAddRoleForm = false;
+  addRoleData = {
+    role: ''
+  };
+
   constructor() {
     effect(() => {
       this.clients = this.modelService.clients$();
@@ -463,6 +473,102 @@ export class ClientsComponent implements OnInit {
         this.toastService.error('Secret not found');
       } else {
         this.toastService.error('Failed to delete secret. Please try again.');
+      }
+    }
+  }
+
+  // Role Management Methods
+
+  async toggleRolesView(client: OAuthClient): Promise<void> {
+    if (this.viewingRolesFor === client.clientId) {
+      this.viewingRolesFor = null;
+      this.serviceAccountRoles = [];
+      this.showAddRoleForm = false;
+    } else {
+      this.viewingRolesFor = client.clientId;
+      await this.loadServiceAccountRoles(client.clientId);
+    }
+  }
+
+  async loadServiceAccountRoles(clientId: string): Promise<void> {
+    this.rolesLoading = true;
+    this.rolesError = null;
+    try {
+      const response = await this.controller.listServiceAccountRoles(clientId);
+      this.serviceAccountRoles = response.roles;
+    } catch (err: any) {
+      console.error('Error loading roles:', err);
+      this.rolesError = 'Failed to load roles';
+    } finally {
+      this.rolesLoading = false;
+    }
+  }
+
+  toggleAddRoleForm(): void {
+    this.showAddRoleForm = !this.showAddRoleForm;
+    if (this.showAddRoleForm) {
+      this.addRoleData.role = '';
+    }
+  }
+
+  async addRole(clientId: string): Promise<void> {
+    if (!this.addRoleData.role || !this.addRoleData.role.trim()) {
+      this.toastService.error('Role name is required');
+      return;
+    }
+
+    // Validate role format
+    const rolePattern = /^[a-z0-9-]+$/;
+    if (!rolePattern.test(this.addRoleData.role)) {
+      this.toastService.error('Role must contain only lowercase letters, numbers, and hyphens');
+      return;
+    }
+
+    try {
+      await this.controller.addServiceAccountRole(clientId, { role: this.addRoleData.role });
+      this.toastService.success(`Role "${this.addRoleData.role}" added successfully`);
+      this.showAddRoleForm = false;
+      this.addRoleData.role = '';
+      await this.loadServiceAccountRoles(clientId);
+    } catch (err: any) {
+      console.error('Error adding role:', err);
+      if (err.status === 400) {
+        this.toastService.error('Role already exists or invalid role name');
+      } else if (err.status === 403) {
+        this.toastService.error('You do not have permission to add roles');
+      } else if (err.status === 404) {
+        this.toastService.error('Client not found');
+      } else {
+        this.toastService.error('Failed to add role. Please try again.');
+      }
+    }
+  }
+
+  async removeRole(clientId: string, role: string): Promise<void> {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Remove Role',
+      message: `Are you sure you want to remove the role "${role}"? This will affect JWT tokens issued for this service client.`,
+      confirmText: 'Remove Role',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await this.controller.removeServiceAccountRole(clientId, role);
+      this.toastService.success(`Role "${role}" removed successfully`);
+      await this.loadServiceAccountRoles(clientId);
+    } catch (err: any) {
+      console.error('Error removing role:', err);
+      if (err.status === 403) {
+        this.toastService.error('You do not have permission to remove roles');
+      } else if (err.status === 404) {
+        this.toastService.error('Role not found');
+      } else {
+        this.toastService.error('Failed to remove role. Please try again.');
       }
     }
   }

@@ -369,6 +369,74 @@
                 </div>
               </div>
             </div>
+
+            <!-- Role Management Section (for service clients) -->
+            <div *ngIf="hasManageClientsRole() && client.allowedScopes" class="detail-row role-management">
+              <button class="btn-secondary" (click)="toggleRolesView(client)">
+                {{ viewingRolesFor === client.clientId ? '👥 Hide Roles' : '👥 Manage Roles' }}
+              </button>
+            </div>
+
+            <!-- Roles List -->
+            <div *ngIf="viewingRolesFor === client.clientId" class="roles-section">
+              <div class="roles-header">
+                <h3>Service Account Roles</h3>
+                <button class="btn-primary btn-sm" (click)="toggleAddRoleForm()" [disabled]="rolesLoading">
+                  {{ showAddRoleForm ? 'Cancel' : '+ Add Role' }}
+                </button>
+              </div>
+
+              <div class="info-box">
+                <strong>About Service Roles:</strong> Roles are included in JWT tokens as the <code>groups</code> claim 
+                for use with <code>@RolesAllowed</code> annotations. Format: <code>{{ '{' }}clientId{{ '}' }}_{{ '{' }}role{{ '}' }}</code>
+              </div>
+
+              <!-- Add Role Form -->
+              <div *ngIf="showAddRoleForm" class="form-container role-form">
+                <h4>Add New Role</h4>
+                <div class="form-group">
+                  <label for="role-name">Role Name *</label>
+                  <input type="text" id="role-name" [(ngModel)]="addRoleData.role" 
+                         placeholder="e.g., api-reader" 
+                         pattern="^[a-z0-9-]+$"
+                         required>
+                  <small class="form-hint">Lowercase letters, numbers, and hyphens only (e.g., api-reader, data-writer)</small>
+                </div>
+                <div class="form-actions">
+                  <button class="btn-primary" (click)="addRole(client.clientId)" [disabled]="!addRoleData.role">
+                    Add Role
+                  </button>
+                  <button class="btn-secondary" (click)="toggleAddRoleForm()">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <div *ngIf="rolesLoading" class="loading">Loading roles...</div>
+              <div *ngIf="rolesError" class="error-box">{{ rolesError }}</div>
+
+              <div *ngIf="!rolesLoading && !rolesError && serviceAccountRoles.length === 0" class="info-box">
+                No roles assigned. Add a role to enable @RolesAllowed authorization.
+              </div>
+
+              <div *ngIf="!rolesLoading && serviceAccountRoles.length > 0" class="roles-list">
+                <div *ngFor="let role of serviceAccountRoles" class="role-card">
+                  <div class="role-header">
+                    <div class="role-info">
+                      <strong>{{ role }}</strong>
+                      <span class="role-group-name">→ {{ client.clientId }}_{{ role }}</span>
+                    </div>
+                    <div class="role-actions">
+                      <button class="btn-icon btn-icon-danger" 
+                              (click)="removeRole(client.clientId, role)"
+                              title="Remove role">
+                        🗑️ Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

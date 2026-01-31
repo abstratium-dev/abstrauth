@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Account, ClientSecret, CreateAccountResponse, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient } from './model.service';
+import { Account, AddRoleRequest, ClientSecret, CreateAccountResponse, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, ServiceAccountRole, ServiceAccountRolesResponse } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -248,6 +248,39 @@ export class Controller {
       );
     } catch (error) {
       console.error('Error deleting client secret:', error);
+      throw error;
+    }
+  }
+
+  async listServiceAccountRoles(clientId: string): Promise<ServiceAccountRolesResponse> {
+    try {
+      return await firstValueFrom(
+        this.http.get<ServiceAccountRolesResponse>(`/api/clients/${clientId}/roles`)
+      );
+    } catch (error) {
+      console.error('Error listing service account roles:', error);
+      throw error;
+    }
+  }
+
+  async addServiceAccountRole(clientId: string, request: AddRoleRequest): Promise<ServiceAccountRole> {
+    try {
+      return await firstValueFrom(
+        this.http.post<ServiceAccountRole>(`/api/clients/${clientId}/roles`, request)
+      );
+    } catch (error) {
+      console.error('Error adding service account role:', error);
+      throw error;
+    }
+  }
+
+  async removeServiceAccountRole(clientId: string, role: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(`/api/clients/${clientId}/roles/${role}`)
+      );
+    } catch (error) {
+      console.error('Error removing service account role:', error);
       throw error;
     }
   }

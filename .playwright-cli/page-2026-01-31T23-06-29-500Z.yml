@@ -1,0 +1,129 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - img "Abstratium Logo" [ref=e6]
+        - generic [ref=e7]: ABSTRATIUM
+      - generic [ref=e8]:
+        - button "Switch to dark mode" [ref=e9] [cursor=pointer]: 🌙
+        - link "Legal" [ref=e10] [cursor=pointer]:
+          - /url: https://abstratium.dev/docs/legal
+        - text: "|"
+        - link "Clients" [ref=e11]:
+          - /url: /clients
+        - text: "|"
+        - link "Accounts" [ref=e12] [cursor=pointer]:
+          - /url: /accounts
+        - text: "| 🥷"
+        - link "admin" [ref=e13] [cursor=pointer]:
+          - /url: /user
+        - text: "|"
+        - generic [ref=e14] [cursor=pointer]: Sign out
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - heading "OAuth Clients" [level=1] [ref=e19]
+      - button "+ Add Client" [ref=e20] [cursor=pointer]
+    - generic [ref=e21]:
+      - generic [ref=e23]:
+        - textbox "Filter by name, client ID, type, URI, or scope..." [ref=e25]
+        - generic [ref=e26]: Showing 3 of 3 clients
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]:
+              - heading "duo" [level=2] [ref=e31]
+              - text: confidential
+            - generic [ref=e32]:
+              - button "✏️" [ref=e33] [cursor=pointer]
+              - button "🗑️" [ref=e34] [cursor=pointer]
+          - generic [ref=e35]:
+            - generic [ref=e36]:
+              - generic [ref=e37]: "Client ID:"
+              - generic [ref=e38]: two
+            - generic [ref=e39]:
+              - generic [ref=e40]: "Redirect URIs:"
+              - list [ref=e41]:
+                - listitem [ref=e42]: http
+            - generic [ref=e43]:
+              - generic [ref=e44]: "Allowed Scopes:"
+              - generic [ref=e45]:
+                - generic [ref=e46]: api:read
+                - generic [ref=e47]: api:write
+            - generic [ref=e48]:
+              - generic [ref=e49]: "Requires PKCE:"
+              - generic [ref=e50]: "Yes"
+            - generic [ref=e51]:
+              - generic [ref=e52]: "Created:"
+              - generic [ref=e53]: 2026-02-01T00:02:07
+            - generic [ref=e54]:
+              - generic [ref=e55]: "Accounts:"
+              - link "View accounts with roles for this client" [ref=e57] [cursor=pointer]:
+                - /url: /accounts?filter=two
+            - button "🔑 Manage Secrets" [ref=e59] [cursor=pointer]
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - heading "abstratium-abstradex" [level=2] [ref=e63]
+              - text: confidential
+            - generic [ref=e64]:
+              - button "✏️" [ref=e65] [cursor=pointer]
+              - button "🗑️" [ref=e66] [cursor=pointer]
+          - generic [ref=e67]:
+            - generic [ref=e68]:
+              - generic [ref=e69]: "Client ID:"
+              - generic [ref=e70]: abstratium-abstradex
+            - generic [ref=e71]:
+              - generic [ref=e72]: "Redirect URIs:"
+              - list [ref=e73]:
+                - listitem [ref=e74]: http://localhost:8082/oauth/callback
+            - generic [ref=e75]:
+              - generic [ref=e76]: "Allowed Scopes:"
+              - generic [ref=e77]:
+                - generic [ref=e78]: openid
+                - generic [ref=e79]: profile
+                - generic [ref=e80]: email
+            - generic [ref=e81]:
+              - generic [ref=e82]: "Requires PKCE:"
+              - generic [ref=e83]: "Yes"
+            - generic [ref=e84]:
+              - generic [ref=e85]: "Created:"
+              - generic [ref=e86]: 2026-01-30T22:47:27
+            - generic [ref=e87]:
+              - generic [ref=e88]: "Accounts:"
+              - link "View accounts with roles for this client" [ref=e90] [cursor=pointer]:
+                - /url: /accounts?filter=abstratium-abstradex
+            - button "🔑 Manage Secrets" [ref=e92] [cursor=pointer]
+        - generic [ref=e93]:
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - heading "abstratium abstrauth" [level=2] [ref=e96]
+              - text: confidential
+            - generic [ref=e97]:
+              - button "✏️" [ref=e98] [cursor=pointer]
+              - button "🗑️" [ref=e99] [cursor=pointer]
+          - generic [ref=e100]:
+            - generic [ref=e101]:
+              - generic [ref=e102]: "Client ID:"
+              - generic [ref=e103]: abstratium-abstrauth
+            - generic [ref=e104]:
+              - generic [ref=e105]: "Redirect URIs:"
+              - list [ref=e106]:
+                - listitem [ref=e107]: http://localhost:8080/api/auth/callback
+                - listitem [ref=e108]: https://auth.abstratium.dev/api/auth/callback
+            - generic [ref=e109]:
+              - generic [ref=e110]: "Allowed Scopes:"
+              - generic [ref=e111]:
+                - generic [ref=e112]: openid
+                - generic [ref=e113]: profile
+                - generic [ref=e114]: email
+            - generic [ref=e115]:
+              - generic [ref=e116]: "Requires PKCE:"
+              - generic [ref=e117]: "Yes"
+            - generic [ref=e118]:
+              - generic [ref=e119]: "Created:"
+              - generic [ref=e120]: 2026-01-23T20:49:56
+            - generic [ref=e121]:
+              - generic [ref=e122]: "Accounts:"
+              - link "View accounts with roles for this client" [ref=e124] [cursor=pointer]:
+                - /url: /accounts?filter=abstratium-abstrauth
+            - button "🔑 Manage Secrets" [ref=e126] [cursor=pointer]
