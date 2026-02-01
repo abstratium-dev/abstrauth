@@ -114,10 +114,13 @@
         </div>
 
         <div class="form-group">
-          <label for="allowedScopes">Allowed Scopes * (space or comma separated)</label>
-          <input type="text" id="allowedScopes" name="allowedScopes" [(ngModel)]="formData.allowedScopes" required
+          <label for="allowedScopes">Allowed Scopes (space or comma separated)</label>
+          <input type="text" id="allowedScopes" name="allowedScopes" [(ngModel)]="formData.allowedScopes"
             placeholder="openid profile email" [disabled]="formSubmitting">
-          <small class="form-hint">OAuth scopes this client can request</small>
+          <small class="form-hint">
+            <strong>Supported scopes:</strong> <code>openid</code> so that a user token can be generated, <code>profile</code> so that the users name can be read, <code>email</code> so that the users email can be read.<br>
+            Leave empty for role-based authorization only (M2M clients). Roles can only be added when no scopes are configured.
+          </small>
         </div>
 
         <div class="form-actions">
@@ -211,9 +214,13 @@
               </div>
 
               <div class="form-group">
-                <label for="edit-allowedScopes">Allowed Scopes * (space or comma separated)</label>
+                <label for="edit-allowedScopes">Allowed Scopes (space or comma separated)</label>
                 <input type="text" id="edit-allowedScopes" name="allowedScopes" [(ngModel)]="formData.allowedScopes"
-                  required [disabled]="formSubmitting">
+                  [disabled]="formSubmitting">
+                <small class="form-hint">
+                  <strong>Supported scopes:</strong> <code>openid</code> so that a user token can be generated, <code>profile</code> so that the users name can be read, <code>email</code> so that the users email can be read.<br>
+                  Leave empty for role-based auth only.
+                </small>
               </div>
 
               <div class="form-actions">
@@ -242,11 +249,14 @@
 
             <div class="detail-row">
               <span class="label">Allowed Scopes:</span>
-              <div class="badge-list">
+              <div class="badge-list" *ngIf="parseJsonArray(client.allowedScopes).length > 0">
                 <span *ngFor="let scope of parseJsonArray(client.allowedScopes)" class="badge badge-success">
                   {{ scope }}
                 </span>
               </div>
+              <span class="value" *ngIf="parseJsonArray(client.allowedScopes).length === 0">
+                None (role-based authorization only)
+              </span>
             </div>
 
             <div class="detail-row">
@@ -371,10 +381,13 @@
             </div>
 
             <!-- Role Management Section (for service clients) -->
-            <div *ngIf="hasManageClientsRole() && client.allowedScopes" class="detail-row role-management">
-              <button class="btn-secondary" (click)="toggleRolesView(client)">
+            <div *ngIf="hasManageClientsRole()" class="detail-row role-management">
+              <button class="btn-secondary" (click)="toggleRolesView(client)" [disabled]="!canManageRoles(client)">
                 {{ viewingRolesFor === client.clientId ? '👥 Hide Roles' : '👥 Manage Roles' }}
               </button>
+              <small class="form-hint" *ngIf="!canManageRoles(client)" style="color: #dc3545; margin-top: 0.5rem; display: block;">
+                ⚠️ Roles can only be managed for clients with no scopes configured. Remove all scopes to enable role management.
+              </small>
             </div>
 
             <!-- Roles List -->
@@ -388,7 +401,8 @@
 
               <div class="info-box">
                 <strong>About Service Roles:</strong> Roles are included in JWT tokens as the <code>groups</code> claim 
-                for use with <code>@RolesAllowed</code> annotations. Format: <code>{{ '{' }}clientId{{ '}' }}_{{ '{' }}role{{ '}' }}</code>
+                for use with <code>@RolesAllowed</code> annotations in Java ecosystems. Format: <code>{{ '{' }}clientId{{ '}' }}_{{ '{' }}role{{ '}' }}</code><br>
+                <strong>Note:</strong> Roles can only be used with clients that have no scopes configured (role-based authorization only).
               </div>
 
               <!-- Add Role Form -->
@@ -416,7 +430,7 @@
               <div *ngIf="rolesError" class="error-box">{{ rolesError }}</div>
 
               <div *ngIf="!rolesLoading && !rolesError && serviceAccountRoles.length === 0" class="info-box">
-                No roles assigned. Add a role to enable @RolesAllowed authorization.
+                No roles assigned.
               </div>
 
               <div *ngIf="!rolesLoading && serviceAccountRoles.length > 0" class="roles-list">

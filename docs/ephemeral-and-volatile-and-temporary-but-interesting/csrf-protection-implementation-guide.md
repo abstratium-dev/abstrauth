@@ -92,7 +92,7 @@ Add to `src/main/resources/application.properties`:
 
 ```properties
 # HMAC signature key for CSRF tokens (min 32 characters)
-# Generate with: openssl rand -base64 64
+# Generate with: openssl rand -base64 64 | tr -d '\n'
 csrf.token.signature.key=${CSRF_TOKEN_SIGNATURE_KEY:dev-csrf-key-CHANGE-IN-PRODUCTION-must-be-at-least-32-characters-long-for-security}
 ```
 
@@ -189,7 +189,7 @@ Add to your production environment configuration:
 
 ```bash
 # CSRF token signature key (minimum 32 characters)
-# Generate with: openssl rand -base64 64
+# Generate with: openssl rand -base64 64 | tr -d '\n'
 export CSRF_TOKEN_SIGNATURE_KEY="your-secure-random-key-here"
 ```
 

@@ -112,7 +112,7 @@ public class OAuthFlowWithClientSecretTest {
                         "clientName", "Test OAuth Flow Client",
                         "clientType", "confidential",
                         "redirectUris", "http://localhost:8080/callback",
-                        "allowedScopes", "openid profile",
+                        "allowedScopes", "openid profile email",
                         "requirePkce", true
                 ))
                 .when()
@@ -150,7 +150,7 @@ public class OAuthFlowWithClientSecretTest {
         String redirectUri = "http://localhost:8080/callback";
 
         String requestId = createAndApproveAuthorizationRequest(
-                clientId, redirectUri, state, codeChallenge, "openid profile"
+                clientId, redirectUri, state, codeChallenge, "openid profile email"
         );
 
         // Step 4: Generate authorization code

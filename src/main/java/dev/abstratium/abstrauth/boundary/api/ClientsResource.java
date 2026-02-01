@@ -245,7 +245,7 @@ public class ClientsResource {
         @NotBlank(message = "Redirect URIs are required")
         public String redirectUris;
         
-        @NotBlank(message = "Allowed scopes are required")
+        // Allowed scopes are optional - empty for role-based M2M clients
         public String allowedScopes;
         
         public Boolean requirePkce;
@@ -262,7 +262,7 @@ public class ClientsResource {
         @NotBlank(message = "Redirect URIs are required")
         public String redirectUris;
         
-        @NotBlank(message = "Allowed scopes are required")
+        // Allowed scopes are optional - empty for role-based M2M clients
         public String allowedScopes;
         
         public Boolean requirePkce;

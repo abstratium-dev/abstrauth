@@ -328,7 +328,7 @@ public class TokenResource {
         // Generate ID token for OIDC (if openid scope is requested)
         String idToken = null;
         if (authCode.getScope() != null && authCode.getScope().contains("openid")) {
-            idToken = generateIdToken(account, clientId, authMethod);
+            idToken = generateIdToken(account, clientId, authMethod, authCode.getScope());
         }
 
         // Build token response
@@ -371,6 +371,24 @@ public class TokenResource {
         }
     }
 
+    /**
+     * Generate access token with RFC-compliant scope-based claim filtering.
+     * 
+     * According to OpenID Connect Core 1.0 Section 5.4:
+     * - 'profile' scope: Grants access to name, family_name, given_name, middle_name, nickname,
+     *   preferred_username, profile, picture, website, gender, birthdate, zoneinfo, locale, updated_at
+     * - 'email' scope: Grants access to email, email_verified
+     * - 'openid' scope: Required for OpenID Connect, grants access to sub (subject identifier)
+     * 
+     * The 'sub' claim is ALWAYS included as it's the primary subject identifier (RFC 7519 Section 4.1.2).
+     * The 'groups' claim is always included for @RolesAllowed authorization.
+     * 
+     * @param account The authenticated user account
+     * @param scope Space-delimited scope string (e.g., "openid profile email")
+     * @param clientId The OAuth client ID
+     * @param authMethod The authentication method used (e.g., "native", "google")
+     * @return Signed JWT access token
+     */
     private String generateAccessToken(Account account, String scope, String clientId, String authMethod) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
@@ -386,29 +404,61 @@ public class TokenResource {
             groups.add(clientId + "_" + role);
         }
         
-        return Jwt.issuer(issuer)
-                .claim("jti", jti)  // Add JWT ID for token revocation
-                .upn(account.getEmail())
-                .subject(account.getId())
-                .groups(groups)
-                .claim("email", account.getEmail())
-                .claim("name", account.getName())
-                .claim("email_verified", account.getEmailVerified())
+        // Parse scopes for claim filtering
+        Set<String> scopes = parseScopes(scope);
+        
+        // Build JWT with mandatory claims
+        var jwtBuilder = Jwt.issuer(issuer)
+                .claim("jti", jti)  // JWT ID for token revocation
+                .subject(account.getId())  // ALWAYS include sub - it's the primary subject identifier
+                .groups(groups)  // ALWAYS include groups for @RolesAllowed authorization
                 .claim("scope", scope)
                 .claim("client_id", clientId)
-                .claim("auth_method", authMethod)  // Use the auth method from this login session
+                .claim("auth_method", authMethod)
                 .issuedAt(now)
-                .expiresAt(expiresAt)
-                .jws()
+                .expiresAt(expiresAt);
+        
+        // RFC-compliant scope-based claim filtering:
+        // Add 'email' scope claims (OpenID Connect Core 1.0 Section 5.4)
+        if (scopes.contains("email")) {
+            jwtBuilder.upn(account.getEmail());  // User Principal Name for MicroProfile JWT
+            jwtBuilder.claim("email", account.getEmail());
+            jwtBuilder.claim("email_verified", account.getEmailVerified());
+        }
+        
+        // Add 'profile' scope claims (OpenID Connect Core 1.0 Section 5.4)
+        if (scopes.contains("profile")) {
+            jwtBuilder.claim("name", account.getName());
+            // Note: We only store 'name' currently. In the future, you could add:
+            // family_name, given_name, middle_name, nickname, preferred_username,
+            // profile, picture, website, gender, birthdate, zoneinfo, locale, updated_at
+        }
+        
+        return jwtBuilder.jws()
                     .keyId("abstrauth-key-1")  // Must match kid in JWKS
                 .sign();
     }
 
     /**
-     * Generate OpenID Connect ID Token
-     * ID tokens are used to convey user identity information to the client
+     * Generate OpenID Connect ID Token with RFC-compliant scope-based claim filtering.
+     * 
+     * ID tokens are used to convey user identity information to the client.
+     * According to OpenID Connect Core 1.0:
+     * - ID tokens MUST contain: iss, sub, aud, exp, iat (Section 2)
+     * - Additional claims are controlled by scopes requested during authorization
+     * - 'profile' scope: name and other profile claims
+     * - 'email' scope: email, email_verified
+     * 
+     * Note: This method is only called when 'openid' scope is present, so we know
+     * the client requested OpenID Connect authentication.
+     * 
+     * @param account The authenticated user account
+     * @param clientId The OAuth client ID
+     * @param authMethod The authentication method used
+     * @param scope Space-delimited scope string from the authorization request
+     * @return Signed JWT ID token
      */
-    private String generateIdToken(Account account, String clientId, String authMethod) {
+    private String generateIdToken(Account account, String clientId, String authMethod, String scope) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
 
@@ -418,20 +468,37 @@ public class TokenResource {
         for (String role : dbRoles) {
             groups.add(clientId + "_" + role);
         }
+        
+        // Parse scopes for claim filtering
+        Set<String> scopes = parseScopes(scope);
 
-        return Jwt.issuer(issuer)
-                .subject(account.getId())
-                .audience(clientId)  // ID token audience is the client_id
-                .upn(account.getEmail())  // User principal name for MicroProfile JWT
-                .claim("jti", UUID.randomUUID().toString())  // Add unique token ID
-                .claim("email", account.getEmail())
-                .claim("name", account.getName())
-                .claim("email_verified", account.getEmailVerified())
+        // Build ID token with mandatory claims (OpenID Connect Core 1.0 Section 2)
+        var jwtBuilder = Jwt.issuer(issuer)
+                .subject(account.getId())  // REQUIRED: Subject identifier
+                .audience(clientId)  // REQUIRED: ID token audience is the client_id
+                .claim("jti", UUID.randomUUID().toString())  // Unique token ID
                 .claim("auth_method", authMethod)
-                .groups(groups)  // Add groups/roles to ID token
-                .issuedAt(now)
-                .expiresAt(expiresAt)
-                .jws()
+                .groups(groups)  // Add groups/roles for @RolesAllowed authorization
+                .issuedAt(now)  // REQUIRED: Issued at time
+                .expiresAt(expiresAt);  // REQUIRED: Expiration time
+        
+        // RFC-compliant scope-based claim filtering:
+        // Add 'email' scope claims (OpenID Connect Core 1.0 Section 5.4)
+        if (scopes.contains("email")) {
+            jwtBuilder.upn(account.getEmail());  // User principal name for MicroProfile JWT
+            jwtBuilder.claim("email", account.getEmail());
+            jwtBuilder.claim("email_verified", account.getEmailVerified());
+        }
+        
+        // Add 'profile' scope claims (OpenID Connect Core 1.0 Section 5.4)
+        if (scopes.contains("profile")) {
+            jwtBuilder.claim("name", account.getName());
+            // Note: We only store 'name' currently. In the future, you could add:
+            // family_name, given_name, middle_name, nickname, preferred_username,
+            // profile, picture, website, gender, birthdate, zoneinfo, locale, updated_at
+        }
+        
+        return jwtBuilder.jws()
                     .keyId("abstrauth-key-1")  // CRITICAL: Must match kid in JWKS
                 .sign();
     }

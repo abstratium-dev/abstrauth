@@ -247,11 +247,7 @@ export class ClientsComponent implements OnInit {
         return;
       }
 
-      if (allowedScopesArray.length === 0) {
-        this.formError = 'At least one scope is required';
-        this.formSubmitting = false;
-        return;
-      }
+      // Empty scopes array is allowed for role-based authorization only
 
       const clientData = {
         clientId: this.formData.clientId,
@@ -478,6 +474,12 @@ export class ClientsComponent implements OnInit {
   }
 
   // Role Management Methods
+
+  canManageRoles(client: OAuthClient): boolean {
+    // Roles can only be managed if no scopes are configured
+    const scopes = this.parseJsonArray(client.allowedScopes);
+    return scopes.length === 0;
+  }
 
   async toggleRolesView(client: OAuthClient): Promise<void> {
     if (this.viewingRolesFor === client.clientId) {

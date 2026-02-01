@@ -8,21 +8,8 @@
 
 ## Today
 
-- does docs/security/SECURITY_DESIGN.md, docs/oauth/FLOWS.md and USER_GUIDE.md cover all the changes made here?
-
-- get token like this:
-
-curl -X POST http://localhost:8080/oauth2/token   -H "Content-Type: application/x-www-form-urlencoded"   -d "grant_type=client_credentials"   -d "client_id=two"   -d "client_secret=$SEC"   -d "scope=[\"asdf\"]"
-
-export TOKEN="..."
-
-curl -v -X GET http://localhost:8080/api/auth/check   -H "Authorization: Bearer $TOKEN"
-
-that should return 200, rather than a redirect. if the token is wrong, it redirects.
-
-add that to some docs
-
 - add e2e tests for multiple secrets and roles
+
 - update the example client to also test signing in as a service user
 
 - when i have no roles for abstracore, i get an error, but it shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
@@ -35,6 +22,8 @@ add that to some docs
 
 - `User abstratium.dev@gmail.com has been approved by Google for authorization request d3bdc98e-3fc6-4ac0-8cc9-311b5f8d34ea from IP` should also log the client into which the user just signed in, or failed if there is a failure
 
+- add metrics that show things like how many users are signed in, etc.
+
 - make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.
   - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
@@ -45,10 +34,7 @@ add that to some docs
 
 ## Tomorrow
 
-- do we actually need to support scopes? they aren't actually used.
 - if native sign in is disabled, don't add the option to create an account with native sign in
-- use         @TestSecurity(user = "admin", roles = {"abstratium-abstrauth_admin"})
- in a test somewhere
 - improve branch coverage of ui
 - track ip address and browser info. if a new sign in is detected, inform the user via email
 - MFA for native

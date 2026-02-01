@@ -62,12 +62,25 @@ public class OAuthClientService {
     }
 
     public boolean isScopeAllowed(OAuthClient client, String requestedScope) {
+        // Empty/null requested scope is always allowed (role-based auth only)
         if (requestedScope == null || requestedScope.isBlank()) {
             return true;
         }
 
+        // If no allowed scopes are configured, reject any scope request
+        // (client should use role-based authorization only)
+        if (client.getAllowedScopes() == null || client.getAllowedScopes().isBlank()) {
+            return false;
+        }
+
         try {
             String[] allowedScopes = objectMapper.readValue(client.getAllowedScopes(), String[].class);
+            
+            // Empty array means no scopes allowed (role-based auth only)
+            if (allowedScopes.length == 0) {
+                return false;
+            }
+            
             List<String> allowedScopeList = Arrays.asList(allowedScopes);
             
             String[] requestedScopes = requestedScope.split(" ");

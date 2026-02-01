@@ -268,4 +268,66 @@ public class ClientCredentialsFlowTest {
                 .body("access_token", notNullValue());
     }
 
+    /**
+     * Test that client credentials token works with /api/auth/check endpoint
+     * This verifies the M2M authentication flow works end-to-end
+     */
+    @Test
+    public void testClientCredentialsTokenWorksWithAuthCheck() {
+        String clientId = "test-service-authcheck-" + System.currentTimeMillis();
+        String plainSecret = "test-secret-" + System.currentTimeMillis();
+
+        createServiceClient(clientId, plainSecret, "api:read");
+
+        // Add service roles for authorization
+        serviceAccountRoleService.addRole(clientId, "service-reader");
+
+        // Get token via client credentials
+        Response tokenResponse = given()
+                .formParam("grant_type", "client_credentials")
+                .formParam("client_id", clientId)
+                .formParam("client_secret", plainSecret)
+                .formParam("scope", "api:read")
+                .when()
+                .post("/oauth2/token")
+                .then()
+                .statusCode(200)
+                .body("access_token", notNullValue())
+                .extract()
+                .response();
+
+        String accessToken = tokenResponse.jsonPath().getString("access_token");
+
+        // Verify token works with /api/auth/check endpoint
+        given()
+                .header("Authorization", "Bearer " + accessToken)
+                .when()
+                .get("/api/auth/check")
+                .then()
+                .statusCode(200);
+    }
+
+    /**
+     * Test that /api/auth/check rejects invalid tokens
+     */
+    @Test
+    public void testAuthCheckRejectsInvalidToken() {
+        // Test with completely invalid token
+        given()
+                .header("Authorization", "Bearer invalid-token-12345")
+                .redirects().follow(false)
+                .when()
+                .get("/api/auth/check")
+                .then()
+                .statusCode(anyOf(is(302), is(303), is(401)));
+
+        // Test with no token
+        given()
+                .redirects().follow(false)
+                .when()
+                .get("/api/auth/check")
+                .then()
+                .statusCode(anyOf(is(302), is(303), is(401)));
+    }
+
 }

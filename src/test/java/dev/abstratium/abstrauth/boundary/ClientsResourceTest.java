@@ -358,16 +358,18 @@ public class ClientsResourceTest {
     }
 
     @Test
-    public void testCreateClientWithMissingAllowedScopesReturns400() {
+    public void testCreateClientWithEmptyScopesSucceeds() {
         String token = generateValidToken();
-        String requestBody = """
+        String uniqueClientId = "test-client-no-scopes-" + System.currentTimeMillis();
+        String requestBody = String.format("""
             {
-                "clientId": "test-client",
-                "clientName": "Test Client",
-                "clientType": "public",
-                "redirectUris": "[\\"http://localhost:3000/callback\\"]"
+                "clientId": "%s",
+                "clientName": "Test Client No Scopes",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[]"
             }
-            """;
+            """, uniqueClientId);
         
         given()
             .header("Authorization", "Bearer " + token)
@@ -376,7 +378,33 @@ public class ClientsResourceTest {
             .when()
             .post("/api/clients")
             .then()
-            .statusCode(400);
+            .statusCode(201)
+            .body("clientId", equalTo(uniqueClientId))
+            .body("allowedScopes", equalTo("[]"));
+    }
+
+    @Test
+    public void testCreateClientWithMissingAllowedScopesDefaultsToEmpty() {
+        String token = generateValidToken();
+        String uniqueClientId = "test-client-missing-scopes-" + System.currentTimeMillis();
+        String requestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client Missing Scopes",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]"
+            }
+            """, uniqueClientId);
+        
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .body("clientId", equalTo(uniqueClientId));
     }
 
     @Test

@@ -127,6 +127,28 @@ public class OAuthClientServiceTest {
     }
 
     @Test
+    public void testIsScopeAllowedWithNoScopes() {
+        // Test with null allowedScopes
+        OAuthClient clientNull = new OAuthClient();
+        clientNull.setAllowedScopes(null);
+        assertTrue(oauthClientService.isScopeAllowed(clientNull, null), "Null scope should be allowed");
+        assertTrue(oauthClientService.isScopeAllowed(clientNull, ""), "Empty scope should be allowed");
+        assertFalse(oauthClientService.isScopeAllowed(clientNull, "openid"), "Any scope should be rejected when no scopes configured");
+        
+        // Test with empty string allowedScopes
+        OAuthClient clientEmpty = new OAuthClient();
+        clientEmpty.setAllowedScopes("");
+        assertTrue(oauthClientService.isScopeAllowed(clientEmpty, null), "Null scope should be allowed");
+        assertFalse(oauthClientService.isScopeAllowed(clientEmpty, "openid"), "Any scope should be rejected when no scopes configured");
+        
+        // Test with empty array allowedScopes
+        OAuthClient clientEmptyArray = new OAuthClient();
+        clientEmptyArray.setAllowedScopes("[]");
+        assertTrue(oauthClientService.isScopeAllowed(clientEmptyArray, null), "Null scope should be allowed");
+        assertFalse(oauthClientService.isScopeAllowed(clientEmptyArray, "openid"), "Any scope should be rejected when no scopes configured");
+    }
+
+    @Test
     public void testFindAllOrderedByCreatedAtDesc() {
         List<OAuthClient> clients = oauthClientService.findAll();
         assertNotNull(clients);

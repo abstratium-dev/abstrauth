@@ -4,7 +4,7 @@ globs: e2e-tests/**/*.ts
 ---
 
 - end to end (e2e) tests are written using playwright
-- use the playwright-cli skill to help understand what is displayed in the browser and how to use it
+- use the playwright-cli skill (.windsurf/skills/playwright-cli/SKILL.md) to help understand what is displayed in the browser and how to use it
 - When writing playwright tests for end to end testing, in the `e2e-tests` folder, avoid `page.waitForTimeout`since the docs say "Note that page.waitForTimeout() should only be used for debugging. Tests using the timer in production are going to be flaky. Use signals such as network events, selectors becoming visible and others instead." Note that when using "waitUntil", the docs say "Default is 'load'; 'networkidle' is discouraged for testing."
 - tests use the "page object model" pattern - each page is encapsulated in a file named `e2e-tests/pages`.
 - page files should consist of low level functions used to select elements, and higher level functions that encapsulate functionality of the page, e.g. filling in a form or clicking a button.

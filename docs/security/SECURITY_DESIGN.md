@@ -56,6 +56,148 @@ See [decisions/BFF.md](../../decisions/BFF.md) for the architectural decision ra
 - Issuer validation ensures tokens are from the correct authorization server
 - Signature validation ensures token integrity
 
+### Machine-to-Machine (M2M) Authentication
+
+abstrauth supports M2M authentication using the **OAuth 2.0 Client Credentials Grant** (RFC 6749 Section 4.4). This allows services to authenticate without user interaction.
+
+**Use Cases:**
+- Microservice-to-microservice communication
+- Backend services accessing APIs
+- Automated jobs and scripts
+- Service accounts
+
+**Authentication Methods:**
+1. **Scope-Based**: Client requests specific scopes (e.g., `api:read`, `api:write`)
+2. **Role-Based**: Client has no scopes configured, uses roles in `groups` claim for `@RolesAllowed`
+
+#### Client Credentials Flow
+
+**Step 1: Obtain Access Token**
+
+```bash
+curl -X POST http://localhost:8080/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=my-service" \
+  -d "client_secret=$SECRET" \
+  -d "scope=api:read api:write"
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "api:read api:write"
+}
+```
+
+**Step 2: Use Token to Access Protected Resources**
+
+```bash
+export TOKEN="eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+curl -v -X GET http://localhost:8080/api/auth/check \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "authenticated": true,
+  "clientId": "my-service",
+  "groups": ["my-service_api-reader"],
+  "scope": "api:read api:write"
+}
+```
+
+**Failure Response (401 Unauthorized or 302/303 Redirect):**
+- Invalid token: Redirects to login page or returns 401
+- Expired token: Returns 401
+- No token: Redirects to login page
+
+#### Scope-Based vs Role-Based Authorization
+
+**Scope-Based (OpenID Connect Scopes):**
+- Client configured with `allowedScopes`: `["openid", "profile", "email"]`
+- Used for user authentication flows
+- Claims filtered based on requested scopes
+- Scopes: `openid`, `profile`, `email`
+
+**Role-Based (M2M Services):**
+- Client configured with **empty** `allowedScopes`: `[]`
+- Used for service-to-service authentication
+- Roles added to `groups` claim for `@RolesAllowed`
+- Format: `{clientId}_{role}` (e.g., `my-service_api-reader`)
+
+**Important:** A client can use **either** scopes **or** roles, but not both. If scopes are configured, roles cannot be added.
+
+#### Creating M2M Service Clients
+
+**Via UI:**
+1. Navigate to OAuth Clients page
+2. Click "Add Client"
+3. Leave "Allowed Scopes" field **empty** for role-based auth
+4. Save client
+5. Copy the generated client secret
+6. Navigate to "Manage Roles" and add roles (e.g., `api-reader`, `api-writer`)
+
+**Via API:**
+```bash
+curl -X POST http://localhost:8080/api/clients \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clientId": "my-service",
+    "clientName": "My Service",
+    "clientType": "confidential",
+    "redirectUris": ["http://localhost:3000/callback"],
+    "allowedScopes": []
+  }'
+```
+
+Then add roles:
+```bash
+curl -X POST http://localhost:8080/api/clients/my-service/roles \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role": "api-reader"}'
+```
+
+#### Token Claims for M2M
+
+**Scope-Based Token:**
+```json
+{
+  "iss": "https://abstrauth.abstratium.dev",
+  "sub": "my-service",
+  "aud": "my-service",
+  "exp": 1234567890,
+  "iat": 1234564290,
+  "jti": "unique-token-id",
+  "client_id": "my-service",
+  "scope": "api:read api:write",
+  "groups": ["my-service_api-reader"]
+}
+```
+
+**Role-Based Token (no scopes):**
+```json
+{
+  "iss": "https://abstrauth.abstratium.dev",
+  "sub": "my-service",
+  "aud": "my-service",
+  "exp": 1234567890,
+  "iat": 1234564290,
+  "jti": "unique-token-id",
+  "client_id": "my-service",
+  "groups": ["my-service_api-reader", "my-service_api-writer"]
+}
+```
+
+**Note:** The `groups` claim is always included for `@RolesAllowed` authorization.
+
 ### Role-Based Access Control
 - Roles are extracted from the `groups` claim in the JWT
 - The `@RolesAllowed` annotation protects endpoints

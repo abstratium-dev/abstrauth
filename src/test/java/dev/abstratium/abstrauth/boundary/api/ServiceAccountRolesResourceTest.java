@@ -30,20 +30,47 @@ public class ServiceAccountRolesResourceTest {
     private static final String TEST_CLIENT_PREFIX = "test-roles-client-";
     private String testClientId;
     private String testToken;
+    private String adminClientId;
 
     @BeforeEach
-    public void setup() {
-        cleanupTestData();
+    public void setup() throws Exception {
+        // Start transaction for cleanup and setup
+        jakarta.transaction.UserTransaction tx = com.arjuna.ats.jta.UserTransaction.userTransaction();
+        tx.begin();
         
-        // Create test client
-        testClientId = TEST_CLIENT_PREFIX + System.currentTimeMillis();
-        createTestClient(testClientId);
+        try {
+            cleanupTestData();
+            
+            // Create test client
+            testClientId = TEST_CLIENT_PREFIX + System.currentTimeMillis();
+            createTestClient(testClientId);
 
-        // Create admin client and get token
+            // Use abstratium-abstrauth as admin client for M2M testing
+            // This ensures the role format matches (abstratium-abstrauth_manage-clients)
+            adminClientId = "abstratium-abstrauth";
+            
+            // Update bootstrap client to have NO scopes for M2M testing
+            em.createQuery("UPDATE OAuthClient SET allowedScopes = '[]' WHERE clientId = 'abstratium-abstrauth'")
+                    .executeUpdate();
+            
+            // Ensure it has manage-clients role
+            Set<String> existingRoles = roleService.findRolesByClientId(adminClientId);
+            if (!existingRoles.contains("manage-clients")) {
+                roleService.addRole(adminClientId, "manage-clients");
+            }
+            em.flush();
+            
+            // Commit transaction before making HTTP request
+            tx.commit();
+        } catch (Exception e) {
+            tx.rollback();
+            throw e;
+        }
+        
+        // Create admin client and get token (after transaction commits)
         testToken = createAdminClientAndGetToken();
     }
     
-    @Transactional
     protected void cleanupTestData() {
         // Clean up any existing test data
         em.createQuery("DELETE FROM ServiceAccountRole WHERE clientId LIKE :prefix")
@@ -64,13 +91,12 @@ public class ServiceAccountRolesResourceTest {
         em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE 'test-admin-%'")
                 .executeUpdate();
         
-        // Reset bootstrap client allowed_scopes to null
-        em.createQuery("UPDATE OAuthClient SET allowedScopes = NULL WHERE clientId = 'abstratium-abstrauth'")
+        // Restore bootstrap client scopes to default
+        em.createQuery("UPDATE OAuthClient SET allowedScopes = '[\"openid\", \"profile\", \"email\"]' WHERE clientId = 'abstratium-abstrauth'")
                 .executeUpdate();
         em.flush();
     }
 
-    @Transactional
     protected void createTestClient(String clientId) {
         OAuthClient client = new OAuthClient();
         client.setClientId(clientId);
@@ -91,30 +117,9 @@ public class ServiceAccountRolesResourceTest {
         em.flush();
     }
 
-    private String createAdminClientAndGetToken() {
-        // Use the bootstrap client which already has manage-clients role
-        // Just need to add allowed_scopes so it can use client_credentials flow
-        setupBootstrapClientForClientCredentials();
-        
-        // Get token via client credentials using the bootstrap client
-        String response = given()
-                .formParam("grant_type", "client_credentials")
-                .formParam("client_id", "abstratium-abstrauth")
-                .formParam("client_secret", "dev-secret-CHANGE-IN-PROD")
-                .formParam("scope", "openid")
-                .when()
-                .post("/oauth2/token")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("access_token");
-        return response;
-    }
-    
-    @Transactional
     protected void setupBootstrapClientForClientCredentials() {
         // Add allowed_scopes to bootstrap client so it can use client_credentials
-        em.createQuery("UPDATE OAuthClient SET allowedScopes = 'openid profile email' WHERE clientId = 'abstratium-abstrauth'")
+        em.createQuery("UPDATE OAuthClient SET allowedScopes = '[\"openid\", \"profile\", \"email\"]' WHERE clientId = 'abstratium-abstrauth'")
                 .executeUpdate();
         
         // Add manage-clients role if not exists
@@ -125,7 +130,22 @@ public class ServiceAccountRolesResourceTest {
         em.flush();
     }
     
-    @Transactional
+    private String createAdminClientAndGetToken() {
+        // Get token via client credentials using the M2M admin client
+        // No scope parameter since this is a role-based M2M client
+        String response = given()
+                .formParam("grant_type", "client_credentials")
+                .formParam("client_id", adminClientId)
+                .formParam("client_secret", "test-secret")
+                .when()
+                .post("/oauth2/token")
+                .then()
+                .statusCode(200)
+                .extract()
+                .path("access_token");
+        return response;
+    }
+    
     protected void createServiceClientWithScopes(String clientId, String scopes) {
         OAuthClient client = new OAuthClient();
         client.setClientId(clientId);
