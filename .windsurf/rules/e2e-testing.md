@@ -14,6 +14,6 @@ globs: e2e-tests/**/*.ts
 - The tests should be meaningful, useful and they must test functionality.
 - you don't need to start the server, it will be running already
 - if you are writing a test and the description that the user has provide is causing errors, you might have to fix the source code. if you are not sure, ask for help.
-- never set the URL directly with the `page.go` function; use buttons and links to navigate through the application. This is NOT true for starting the test which requires you to use the `go` function to get to the home page.
+- never set the URL directly with the `page.goto` function; use buttons and links to navigate through the application. This is NOT true for starting the test which requires you to use the `goto` function to get to the home page (root path).
 - when you run the tests (e.g. `npx playwright test happy.spec.ts`) run them so that playwright doesn't serve an html report at the end, because that blocks you from continuing until i kill the process. also, choose just one browser, chromium, rather than running the tests in firefox too.
 - consider adding IDs to elements in the source html code, so that selectors are simpler
