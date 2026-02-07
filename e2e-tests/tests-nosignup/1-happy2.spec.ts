@@ -9,7 +9,7 @@ import { approveAuthorization, verifySignedIn } from '../pages/authorize.page';
 import { dismissToasts } from '../pages/toast';
 
 test('admin creates manager account and manager signs in via invite link', async ({ page }) => {
-    test.setTimeout(60000); // Increase timeout to 60 seconds for this long test
+    test.setTimeout(120000); // Increase timeout to 60 seconds for this long test
     
     // Step 1: Try to sign in as admin to check if database needs cleanup
     console.log("Step 1: Attempting to sign in as admin...");

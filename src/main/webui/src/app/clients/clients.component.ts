@@ -241,13 +241,24 @@ export class ClientsComponent implements OnInit {
         .map(scope => scope.trim())
         .filter(scope => scope.length > 0);
 
-      if (redirectUrisArray.length === 0) {
-        this.formError = 'At least one redirect URI is required';
+      // Validation: redirect URIs and scopes must both be present or both be absent
+      // - If scopes are set, redirect URIs are required (authorization code flow)
+      // - If redirect URIs are set, scopes are required
+      // - Both can be empty for service/M2M clients (role-based authorization)
+      const hasRedirectUris = redirectUrisArray.length > 0;
+      const hasScopes = allowedScopesArray.length > 0;
+
+      if (hasScopes && !hasRedirectUris) {
+        this.formError = 'Redirect URIs are required when scopes are configured';
         this.formSubmitting = false;
         return;
       }
 
-      // Empty scopes array is allowed for role-based authorization only
+      if (hasRedirectUris && !hasScopes) {
+        this.formError = 'Scopes are required when redirect URIs are configured';
+        this.formSubmitting = false;
+        return;
+      }
 
       const clientData = {
         clientId: this.formData.clientId,

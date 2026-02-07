@@ -8,9 +8,9 @@
 
 ## Today
 
-- add a banner for non-prod envs with a custom string to warn users that they are not using prod
-
 - add e2e tests for multiple secrets and roles
+
+- add a banner for non-prod envs with a custom string to warn users that they are not using prod
 
 - update the example client to also test signing in as a service user
 

@@ -494,7 +494,7 @@ describe('ClientsComponent', () => {
       await submitPromise;
     });
 
-    it('should validate redirect URIs are not empty', async () => {
+    it('should validate redirect URIs are required when scopes are set', async () => {
       component.formData = {
         clientId: 'test-client',
         clientName: 'Test Client',
@@ -506,11 +506,11 @@ describe('ClientsComponent', () => {
 
       await component.onSubmit();
 
-      expect(component.formError).toBe('At least one redirect URI is required');
+      expect(component.formError).toBe('Redirect URIs are required when scopes are configured');
       expect(component.formSubmitting).toBe(false);
     });
 
-    it('should validate scopes are not empty', async () => {
+    it('should validate scopes are required when redirect URIs are set', async () => {
       component.formData = {
         clientId: 'test-client',
         clientName: 'Test Client',
@@ -522,8 +522,47 @@ describe('ClientsComponent', () => {
 
       await component.onSubmit();
 
-      expect(component.formError).toBe('At least one scope is required');
+      expect(component.formError).toBe('Scopes are required when redirect URIs are configured');
       expect(component.formSubmitting).toBe(false);
+    });
+
+    it('should allow M2M client with no scopes and no redirect URIs', async () => {
+      component.formData = {
+        clientId: 'm2m-client',
+        clientName: 'M2M Client',
+        clientType: 'confidential',
+        redirectUris: '',
+        allowedScopes: '',
+        requirePkce: true
+      };
+
+      const submitPromise = component.onSubmit();
+
+      const createReq = httpMock.expectOne('/api/clients');
+      expect(createReq.request.method).toBe('POST');
+      expect(createReq.request.body.clientId).toBe('m2m-client');
+      expect(createReq.request.body.redirectUris).toBe('[]');
+      expect(createReq.request.body.allowedScopes).toBe('[]');
+      
+      createReq.flush({
+        id: '3',
+        clientId: 'm2m-client',
+        clientName: 'M2M Client',
+        clientType: 'confidential',
+        redirectUris: '[]',
+        allowedScopes: '[]',
+        requirePkce: true,
+        createdAt: '2024-01-03T00:00:00Z'
+      });
+
+      await Promise.resolve();
+      const reloadReq = httpMock.expectOne('/api/clients');
+      reloadReq.flush([...mockClients]);
+
+      await submitPromise;
+
+      expect(component.showForm).toBe(false);
+      expect(component.formError).toBeNull();
     });
 
     it('should handle duplicate client ID error', async () => {
@@ -844,6 +883,122 @@ describe('ClientsComponent', () => {
       deleteReq.flush({}, { status: 500, statusText: 'Internal Server Error' });
 
       await deletePromise;
+    });
+  });
+
+  describe('Secret Expiration Detection', () => {
+    it('should detect secret expiring within 30 days', () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const secret = {
+        id: 105,
+        description: 'Soon to Expire',
+        active: true,
+        createdAt: '2026-02-05T20:30:58Z',
+        expiresAt: tomorrow.toISOString()
+      };
+      
+      expect(component.isSecretExpiringSoon(secret)).toBeTrue();
+    });
+
+    it('should detect secret expiring in exactly 30 days', () => {
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      
+      const secret = {
+        id: 106,
+        description: 'Expires in 30 days',
+        active: true,
+        createdAt: '2026-02-05T20:30:58Z',
+        expiresAt: thirtyDaysFromNow.toISOString()
+      };
+      
+      expect(component.isSecretExpiringSoon(secret)).toBeTrue();
+    });
+
+    it('should not detect secret expiring in 31 days as expiring soon', () => {
+      const thirtyOneDaysFromNow = new Date();
+      thirtyOneDaysFromNow.setDate(thirtyOneDaysFromNow.getDate() + 31);
+      
+      const secret = {
+        id: 107,
+        description: 'Expires in 31 days',
+        active: true,
+        createdAt: '2026-02-05T20:30:58Z',
+        expiresAt: thirtyOneDaysFromNow.toISOString()
+      };
+      
+      expect(component.isSecretExpiringSoon(secret)).toBeFalse();
+    });
+
+    it('should not detect already expired secret as expiring soon', () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const secret = {
+        id: 108,
+        description: 'Already expired',
+        active: true,
+        createdAt: '2026-02-05T20:30:58Z',
+        expiresAt: yesterday.toISOString()
+      };
+      
+      expect(component.isSecretExpiringSoon(secret)).toBeFalse();
+    });
+
+    it('should not detect secret without expiration as expiring soon', () => {
+      const secret = {
+        id: 109,
+        description: 'No expiration',
+        active: true,
+        createdAt: '2026-02-05T20:30:58Z',
+        expiresAt: null
+      };
+      
+      expect(component.isSecretExpiringSoon(secret)).toBeFalse();
+    });
+
+    it('should detect expired secret', () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const secret = {
+        id: 110,
+        description: 'Expired',
+        active: true,
+        createdAt: '2026-02-05T20:30:58Z',
+        expiresAt: yesterday.toISOString()
+      };
+      
+      expect(component.isSecretExpired(secret)).toBeTrue();
+    });
+
+    it('should not detect future secret as expired', () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const secret = {
+        id: 111,
+        description: 'Not expired',
+        active: true,
+        createdAt: '2026-02-05T20:30:58Z',
+        expiresAt: tomorrow.toISOString()
+      };
+      
+      expect(component.isSecretExpired(secret)).toBeFalse();
+    });
+
+    it('should not detect secret without expiration as expired', () => {
+      const secret = {
+        id: 112,
+        description: 'No expiration',
+        active: true,
+        createdAt: '2026-02-05T20:30:58Z',
+        expiresAt: null
+      };
+      
+      expect(component.isSecretExpired(secret)).toBeFalse();
     });
   });
 

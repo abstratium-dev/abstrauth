@@ -385,8 +385,8 @@
               <button class="btn-secondary" (click)="toggleRolesView(client)" [disabled]="!canManageRoles(client)">
                 {{ viewingRolesFor === client.clientId ? '👥 Hide Roles' : '👥 Manage Roles' }}
               </button>
-              <small class="form-hint" *ngIf="!canManageRoles(client)" style="color: #dc3545; margin-top: 0.5rem; display: block;">
-                ⚠️ Roles can only be managed for clients with no scopes configured. Remove all scopes to enable role management.
+              <small class="form-hint" *ngIf="!canManageRoles(client)" style="color: var(--color-info-text); margin-top: 0.5rem; display: block;">
+                Roles can only be managed for clients with no scopes configured. Remove all scopes to enable role management.
               </small>
             </div>
 
@@ -439,12 +439,10 @@
                     <div class="role-info">
                       <strong>{{ role }}</strong>
                       <span class="role-group-name">→ {{ client.clientId }}_{{ role }}</span>
-                    </div>
-                    <div class="role-actions">
                       <button class="btn-icon btn-icon-danger" 
                               (click)="removeRole(client.clientId, role)"
                               title="Remove role">
-                        🗑️ Remove
+                        🗑️
                       </button>
                     </div>
                   </div>

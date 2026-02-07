@@ -81,6 +81,10 @@ When developing tests or debugging, you can run the server manually and then run
 source /w/abstratium-abstrauth.env
 mvn quarkus:dev
 
+# Start the client example
+cd client-example
+npm start
+
 # In another terminal, run tests
 cd e2e-tests
 npx playwright test

@@ -95,6 +95,22 @@ public class ClientsResource {
                     .build();
         }
 
+        // Validate redirect URIs and scopes: both must be present or both must be absent
+        boolean hasRedirectUris = request.redirectUris != null && !request.redirectUris.isBlank() && !"[]".equals(request.redirectUris.trim());
+        boolean hasScopes = request.allowedScopes != null && !request.allowedScopes.isBlank() && !"[]".equals(request.allowedScopes.trim());
+        
+        if (hasScopes && !hasRedirectUris) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Redirect URIs are required when scopes are configured"))
+                    .build();
+        }
+        
+        if (hasRedirectUris && !hasScopes) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Scopes are required when redirect URIs are configured"))
+                    .build();
+        }
+
         // Create new client with generated secret
         OAuthClient client = new OAuthClient();
         client.setClientId(request.clientId);
@@ -140,6 +156,22 @@ public class ClientsResource {
         if (request.requirePkce != null && !request.requirePkce) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(new ErrorResponse("PKCE is required for all clients"))
+                    .build();
+        }
+
+        // Validate redirect URIs and scopes: both must be present or both must be absent
+        boolean hasRedirectUris = request.redirectUris != null && !request.redirectUris.isBlank() && !"[]".equals(request.redirectUris.trim());
+        boolean hasScopes = request.allowedScopes != null && !request.allowedScopes.isBlank() && !"[]".equals(request.allowedScopes.trim());
+        
+        if (hasScopes && !hasRedirectUris) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Redirect URIs are required when scopes are configured"))
+                    .build();
+        }
+        
+        if (hasRedirectUris && !hasScopes) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Scopes are required when redirect URIs are configured"))
                     .build();
         }
 
@@ -242,7 +274,7 @@ public class ClientsResource {
         @NotBlank(message = "Client type is required")
         public String clientType;
         
-        @NotBlank(message = "Redirect URIs are required")
+        // Redirect URIs are optional for M2M clients (validated in createClient)
         public String redirectUris;
         
         // Allowed scopes are optional - empty for role-based M2M clients
@@ -259,7 +291,7 @@ public class ClientsResource {
         @NotBlank(message = "Client type is required")
         public String clientType;
         
-        @NotBlank(message = "Redirect URIs are required")
+        // Redirect URIs are optional for M2M clients (validated in updateClient)
         public String redirectUris;
         
         // Allowed scopes are optional - empty for role-based M2M clients
