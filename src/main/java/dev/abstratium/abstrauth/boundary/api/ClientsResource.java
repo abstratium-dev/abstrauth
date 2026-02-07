@@ -116,8 +116,9 @@ public class ClientsResource {
         client.setClientId(request.clientId);
         client.setClientName(request.clientName);
         client.setClientType("confidential");  // Always confidential
-        client.setRedirectUris(request.redirectUris);
-        client.setAllowedScopes(request.allowedScopes);
+        // Default null/blank to empty arrays for M2M clients
+        client.setRedirectUris(hasRedirectUris ? request.redirectUris : "[]");
+        client.setAllowedScopes(hasScopes ? request.allowedScopes : "[]");
         client.setRequirePkce(true);  // Always require PKCE
 
         OAuthClientService.ClientWithSecret result = oauthClientService.createWithSecret(client);
@@ -178,8 +179,9 @@ public class ClientsResource {
         // Update client fields
         existing.setClientName(request.clientName);
         existing.setClientType("confidential");  // Always confidential
-        existing.setRedirectUris(request.redirectUris);
-        existing.setAllowedScopes(request.allowedScopes);
+        // Default null/blank to empty arrays for M2M clients
+        existing.setRedirectUris(hasRedirectUris ? request.redirectUris : "[]");
+        existing.setAllowedScopes(hasScopes ? request.allowedScopes : "[]");
         existing.setRequirePkce(true);  // Always require PKCE
 
         OAuthClient updated = oauthClientService.update(existing);

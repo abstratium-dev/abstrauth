@@ -296,35 +296,40 @@ public class OAuthClientServiceTest {
     @Test
     @Transactional
     public void testUpdateClientSecretHash() {
-        // Create a test client
-        OAuthClient client = new OAuthClient();
-        client.setClientId("test-secret-update-" + System.currentTimeMillis());
-        client.setClientName("Test Secret Update");
-        client.setClientType("confidential");
-        client.setRedirectUris("[\"http://localhost:3000/callback\"]");
-        client.setAllowedScopes("[\"openid\"]");
-        client.setRequirePkce(true);
+        // This method only works with the Roles.CLIENT_ID client
+        // Update the secret for the default client
+        String newSecret = "new-secret-value-" + System.currentTimeMillis();
+        oauthClientService.updateClientSecretHash(newSecret);
         
-        OAuthClient created = oauthClientService.create(client);
-        String clientId = created.getClientId();
-        
-        // Update the secret
-        String newSecret = "new-secret-value";
-        oauthClientService.updateClientSecretHash(clientId, newSecret);
-        
-        // Verify the new secret was added
-        List<ClientSecret> secrets = clientSecretService.findActiveSecrets(clientId);
+        // Verify the new secret was added for the default client
+        List<ClientSecret> secrets = clientSecretService.findActiveSecrets(Roles.CLIENT_ID);
         assertFalse(secrets.isEmpty());
         
         // Verify the new secret matches
-        assertTrue(oauthClientService.clientSecretMatches(clientId, newSecret));
+        assertTrue(oauthClientService.clientSecretMatches(Roles.CLIENT_ID, newSecret));
     }
 
     @Test
-    public void testUpdateClientSecretHashThrowsForNonExistentClient() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            oauthClientService.updateClientSecretHash("non-existent-client", "some-secret");
-        });
+    @Transactional
+    public void testUpdateClientSecretHashWithSameSecretDoesNotDuplicate() {
+        // Get current secret count
+        List<ClientSecret> secretsBefore = clientSecretService.findActiveSecrets(Roles.CLIENT_ID);
+        int countBefore = secretsBefore.size();
+        
+        // Update with a new secret
+        String newSecret = "unique-secret-" + System.currentTimeMillis();
+        oauthClientService.updateClientSecretHash(newSecret);
+        
+        // Verify secret was added
+        List<ClientSecret> secretsAfter = clientSecretService.findActiveSecrets(Roles.CLIENT_ID);
+        assertEquals(countBefore + 1, secretsAfter.size());
+        
+        // Update again with the same secret - should not add duplicate
+        oauthClientService.updateClientSecretHash(newSecret);
+        
+        // Verify no duplicate was added
+        List<ClientSecret> secretsFinal = clientSecretService.findActiveSecrets(Roles.CLIENT_ID);
+        assertEquals(countBefore + 1, secretsFinal.size());
     }
 
     @Test

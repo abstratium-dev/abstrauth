@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.jboss.logging.Logger;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -13,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -22,6 +22,8 @@ import jakarta.transaction.Transactional;
 
 @ApplicationScoped
 public class OAuthClientService {
+
+    private static final Logger log = Logger.getLogger(OAuthClientService.class);
 
     @Inject
     SecureRandomProvider secureRandomProvider;
@@ -145,20 +147,42 @@ public class OAuthClientService {
      * Updates the client secret hash for a given client.
      */
     @Transactional
-    public void updateClientSecretHash(String clientId, String plainSecret) {
-        Optional<OAuthClient> clientOpt = findByClientId(clientId);
+    public void updateClientSecretHash(String plainSecret) {
+        Optional<OAuthClient> clientOpt = findByClientId(Roles.CLIENT_ID);
         if (clientOpt.isEmpty()) {
-            throw new IllegalArgumentException("Client not found: " + clientId);
+            throw new IllegalArgumentException("Client not found: " + Roles.CLIENT_ID 
+                + ". Is the database empty or was that client deleted by accident? It must be present for abstrauth to run!");
         }
-        
-        // Create new secret in ClientSecret table
-        String hashedSecret = hashClientSecret(plainSecret);
-        ClientSecret clientSecret = new ClientSecret();
-        clientSecret.setClientId(clientId);
-        clientSecret.setSecretHash(hashedSecret);
-        clientSecret.setDescription("Updated secret");
-        clientSecret.setActive(true);
-        clientSecretService.persist(clientSecret);
+
+        // Check against all active secrets
+        List<ClientSecret> activeSecrets = clientSecretService.findActiveSecrets(Roles.CLIENT_ID);
+
+        var matchingSecrets = activeSecrets.stream()
+            .filter(secret -> verifyClientSecret(plainSecret, secret.getSecretHash()))
+            .toList();
+
+        // only create a new secret, if an existing one does not match
+        boolean matchesExisting = !matchingSecrets.isEmpty();
+
+        if(!matchesExisting) {
+            log.warnv("The client secret for client id {0}, that is set using the environment, has changed and so the database is being updated so that it matches.", Roles.CLIENT_ID);
+
+            // Create new secret in ClientSecret table
+            String hashedSecret = hashClientSecret(plainSecret);
+            ClientSecret clientSecret = new ClientSecret();
+            clientSecret.setClientId(Roles.CLIENT_ID);
+            clientSecret.setSecretHash(hashedSecret);
+            clientSecret.setDescription("Updated secret");
+            clientSecret.setActive(true);
+
+            // by default, there is just one non-expiring secret for abstrauth.
+            // the user might have replaced it with others that expire - even though that makes no sense, since only abstrauth should be using the secret.
+            // let's add a new non-expiring secret. so don't set expiresAt
+
+            clientSecretService.persist(clientSecret);
+        } else {
+            log.debugv("Client secret for client id {0} already matches given plain secret", Roles.CLIENT_ID);
+        }
     }
 
     /**

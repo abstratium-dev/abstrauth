@@ -34,6 +34,9 @@ public class ConfigResource {
     @ConfigProperty(name = "quarkus.oidc.bff.credentials.secret")
     String clientSecret;
 
+    @ConfigProperty(name = "abstrauth.warning.message", defaultValue = "")
+    String warningMessage;
+
     private static final int MIN_SECRET_LENGTH = 32;
     private static final String DEFAULT_SECRET = "dev-secret-CHANGE-IN-PROD";
 
@@ -44,7 +47,7 @@ public class ConfigResource {
         boolean signupAllowed = authorizationService.isSignupAllowed();
         boolean allowNativeSignin = authorizationService.isNativeSigninAllowed();
         boolean insecureClientSecret = isClientSecretInsecure();
-        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, sessionTimeoutSeconds, insecureClientSecret)).build();
+        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage)).build();
     }
 
     /**
@@ -67,12 +70,14 @@ public class ConfigResource {
         public boolean allowNativeSignin;
         public int sessionTimeoutSeconds;
         public boolean insecureClientSecret;
+        public String warningMessage;
 
-        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, int sessionTimeoutSeconds, boolean insecureClientSecret) {
+        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage) {
             this.signupAllowed = signupAllowed;
             this.allowNativeSignin = allowNativeSignin;
             this.sessionTimeoutSeconds = sessionTimeoutSeconds;
             this.insecureClientSecret = insecureClientSecret;
+            this.warningMessage = warningMessage;
         }
     }
 }

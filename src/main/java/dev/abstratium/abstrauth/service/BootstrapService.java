@@ -50,11 +50,11 @@ public class BootstrapService {
             }
             
             // Update the client secret hash using the service
-            clientService.updateClientSecretHash(Roles.CLIENT_ID, clientSecret);
+            clientService.updateClientSecretHash(clientSecret);
             
             Log.info("Client secret hash synchronized for '" + Roles.CLIENT_ID + "'");
         } catch (IllegalArgumentException e) {
-            Log.error("Failed to synchronize client secret: " + e.getMessage());
+            Log.error("Failed to synchronize client secret", e);
         }
     }
 }

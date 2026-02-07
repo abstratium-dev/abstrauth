@@ -106,7 +106,7 @@
         </div>
 
         <div class="form-group">
-          <label for="redirectUris">Redirect URIs * (one per line)</label>
+          <label for="redirectUris">Redirect URIs (one per line)</label>
           <textarea id="redirectUris" name="redirectUris" [(ngModel)]="formData.redirectUris" required rows="3"
             placeholder="http://localhost:3000/callback&#10;https://myapp.com/auth/callback"
             [disabled]="formSubmitting"></textarea>
@@ -208,7 +208,7 @@
               </div>
 
               <div class="form-group">
-                <label for="edit-redirectUris">Redirect URIs * (one per line)</label>
+                <label for="edit-redirectUris">Redirect URIs (one per line)</label>
                 <textarea id="edit-redirectUris" name="redirectUris" [(ngModel)]="formData.redirectUris" required
                   rows="3" [disabled]="formSubmitting"></textarea>
               </div>

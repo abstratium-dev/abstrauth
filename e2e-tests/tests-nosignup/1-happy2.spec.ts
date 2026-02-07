@@ -11,6 +11,14 @@ import { dismissToasts } from '../pages/toast';
 test('admin creates manager account and manager signs in via invite link', async ({ page }) => {
     test.setTimeout(120000); // Increase timeout to 60 seconds for this long test
     
+    // Step 0: Verify environment warning banner is displayed
+    console.log("Step 0: Verifying environment warning banner...");
+    await page.goto('/');
+    const environmentBanner = page.locator('.environment-warning');
+    await expect(environmentBanner).toBeVisible();
+    await expect(environmentBanner).toContainText('development environment');
+    console.log("Environment warning banner verified");
+    
     // Step 1: Try to sign in as admin to check if database needs cleanup
     console.log("Step 1: Attempting to sign in as admin...");
     const adminExists = await trySignInAsAdmin(page);

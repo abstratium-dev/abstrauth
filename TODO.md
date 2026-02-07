@@ -8,23 +8,20 @@
 
 ## Today
 
-- add e2e tests for multiple secrets and roles
+- X add e2e tests for multiple secrets and roles
 
-- add a banner for non-prod envs with a custom string to warn users that they are not using prod
+- X add a banner for non-prod envs with a custom string to warn users that they are not using prod
 
-- update the example client to also test signing in as a service user
+- X add metrics that show things like how many users are signed in, etc.
+  - this wasn't updating the number of signed in users! is that service class connected?
+  - "abstrauth.accounts.total" and "abstrauth.clients.total" are only updated on startup
+
+- X `User abstratium.dev@gmail.com has been approved by Google for authorization request d3bdc98e-3fc6-4ac0-8cc9-311b5f8d34ea from IP` should also log the client into which the user just signed in, or failed if there is a failure
+
 
 - when i have no roles for abstracore, i get an error, but it shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 
 - make it configurable per client, if it allows redirection back to callback if user has no roles, with default false. so that users can be added by the third party, e.g. when creating a shopping cart account. or... make it so that they HAVE to add a role for their client_id? maybe makes more sense.
-
-- so that a manager can delegate role management to a subordinate, for a given client_id, we need to add the concept of allowing a user to only add roles for a specific client_id. 
-
-- add the ability for users to request roles and create tasks for managers to approve them. document approval and rejection.
-
-- `User abstratium.dev@gmail.com has been approved by Google for authorization request d3bdc98e-3fc6-4ac0-8cc9-311b5f8d34ea from IP` should also log the client into which the user just signed in, or failed if there is a failure
-
-- add metrics that show things like how many users are signed in, etc.
 
 - make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.
@@ -36,6 +33,8 @@
 
 ## Tomorrow
 
+- add the ability for users to request roles and create tasks for managers to approve them. document approval and rejection.
+- so that a manager can delegate role management to a subordinate, for a given client_id, we need to add the concept of allowing a user to only add roles for a specific client_id. 
 - if native sign in is disabled, don't add the option to create an account with native sign in
 - improve branch coverage of ui
 - track ip address and browser info. if a new sign in is detected, inform the user via email

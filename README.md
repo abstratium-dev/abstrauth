@@ -46,6 +46,8 @@ For information about the security implementation and features, see [SECURITY_DE
 - [Database](docs/DATABASE.md)
 - [Native Image Build](docs/NATIVE_IMAGE_BUILD.md)
 - [Why do I need to implement a BFF?](decisions/BFF.md)
+- [Metrics and Grafana](docs/METRICS.md)
+- [Machine to Machine authentication](USER_GUIDE.md#machine-to-machine-m2m-authentication)
 
 ## Running the Application
 

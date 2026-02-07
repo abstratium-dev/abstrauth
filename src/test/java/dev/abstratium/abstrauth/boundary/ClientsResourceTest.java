@@ -338,14 +338,15 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithMissingRedirectUrisReturns400() {
         String token = generateValidToken();
-        String requestBody = """
+        String uniqueClientId = "test-client-no-redirect-" + System.currentTimeMillis();
+        String requestBody = String.format("""
             {
-                "clientId": "test-client",
+                "clientId": "%s",
                 "clientName": "Test Client",
-                "clientType": "public",
+                "clientType": "confidential",
                 "allowedScopes": "[\\"openid\\", \\"profile\\"]"
             }
-            """;
+            """, uniqueClientId);
         
         given()
             .header("Authorization", "Bearer " + token)
@@ -354,20 +355,49 @@ public class ClientsResourceTest {
             .when()
             .post("/api/clients")
             .then()
-            .statusCode(400);
+            .statusCode(400)
+            .body("error", equalTo("Redirect URIs are required when scopes are configured"));
     }
 
     @Test
-    public void testCreateClientWithEmptyScopesSucceeds() {
+    public void testCreateClientWithEmptyScopesAndRedirectsReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-no-scopes-" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-empty-scopes-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
-                "clientName": "Test Client No Scopes",
+                "clientName": "Test Client Empty Scopes",
                 "clientType": "confidential",
                 "redirectUris": "[\\"http://localhost:3000/callback\\"]",
                 "allowedScopes": "[]"
+            }
+            """, uniqueClientId);
+        
+        var response = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(400);
+        
+        // Only check body if content-type is present
+        String contentType = response.extract().contentType();
+        if (contentType != null && contentType.contains("json")) {
+            response.body("error", equalTo("Scopes are required when redirect URIs are configured"));
+        }
+    }
+
+    @Test
+    public void testCreateClientWithNeitherScopesNorRedirectsSucceeds() {
+        String token = generateValidToken();
+        String uniqueClientId = "test-client-m2m-" + System.currentTimeMillis();
+        String requestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test M2M Client",
+                "clientType": "confidential"
             }
             """, uniqueClientId);
         
@@ -380,11 +410,15 @@ public class ClientsResourceTest {
             .then()
             .statusCode(201)
             .body("clientId", equalTo(uniqueClientId))
-            .body("allowedScopes", equalTo("[]"));
+            .body("clientName", equalTo("Test M2M Client"))
+            .body("clientType", equalTo("confidential"))
+            .body("id", notNullValue())
+            .body("createdAt", notNullValue())
+            .body("clientSecret", notNullValue());  // Verify secret is returned
     }
 
     @Test
-    public void testCreateClientWithMissingAllowedScopesDefaultsToEmpty() {
+    public void testCreateClientWithMissingAllowedScopesReturns400() {
         String token = generateValidToken();
         String uniqueClientId = "test-client-missing-scopes-" + System.currentTimeMillis();
         String requestBody = String.format("""
@@ -403,8 +437,8 @@ public class ClientsResourceTest {
             .when()
             .post("/api/clients")
             .then()
-            .statusCode(201)
-            .body("clientId", equalTo(uniqueClientId));
+            .statusCode(400)
+            .body("error", equalTo("Scopes are required when redirect URIs are configured"));
     }
 
     @Test

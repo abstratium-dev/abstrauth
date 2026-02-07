@@ -173,6 +173,7 @@ _Replace all `TODO_...` values with the values generated above.
    - `SMTP_USERNAME`: SMTP authentication username
    - `SMTP_PASSWORD`: SMTP authentication password
    - `EMAIL_FROM`: Sender email address (default: `noreply@abstratium.dev`)
+   - `ABSTRAUTH_WARNING_MESSAGE`: Custom warning message displayed in a yellow banner at the top of the UI. Useful for indicating non-production environments (e.g., "You are in a development environment"). Leave empty for production (default: empty in prod, environment-specific in dev/test).
 
 
 3. **Verify the container is running**:

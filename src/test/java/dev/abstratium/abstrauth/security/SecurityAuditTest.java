@@ -219,7 +219,10 @@ public class SecurityAuditTest {
             String authCode2 = getAuthorizationCode(authRequestId2);
             
             // Create a wrong verifier that will not match the challenge
-            String wrongVerifier = "A" + codeVerifier.substring(1);
+            // Ensure it's different by flipping the first character
+            char firstChar = codeVerifier.charAt(0);
+            char wrongFirstChar = (firstChar == 'A') ? 'B' : 'A';
+            String wrongVerifier = wrongFirstChar + codeVerifier.substring(1);
             long startWrong = System.nanoTime();
             var response = given()
                 .contentType(ContentType.URLENC)

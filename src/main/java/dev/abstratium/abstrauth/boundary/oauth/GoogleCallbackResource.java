@@ -135,12 +135,13 @@ public class GoogleCallbackResource {
             }
 
             String clientIp = ClientIpUtil.getClientIp(requestContext);
-            log.info("User " + account.getEmail() + " has been approved by Google for authorization request " + authRequest.getId() + " from IP " + clientIp);
+            log.info("User " + account.getEmail() + " has been approved by Google for authorization request " + authRequest.getId() + " for client " + authRequest.getClientId() + " from IP " + clientIp);
 
             return Response.seeOther(URI.create(redirectUrl)).build();
 
         } catch (Exception e) {
-            log.error("Google callback had an exception: " + e.getMessage(), e);
+            String clientInfo = authRequest != null ? " for client " + authRequest.getClientId() : "";
+            log.error("Google callback had an exception" + clientInfo + ": " + e.getMessage(), e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("<html><body><h1>Error</h1><p>Failed to process Google authentication: " + 
                             e.getMessage() + "</p><a href='/'>Try again</a></body></html>")

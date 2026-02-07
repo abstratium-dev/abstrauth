@@ -329,7 +329,7 @@ public class AuthorizationResource {
 
         Account account = accountOpt.get();
         String clientIp = ClientIpUtil.getClientIp(requestContext);
-        log.info("User " + account.getEmail() + " has been approved by Native for authorization request " + authRequest.getId() + " from IP " + clientIp);
+        log.info("User " + account.getEmail() + " has been approved by Native for authorization request " + authRequest.getId() + " for client " + authRequest.getClientId() + " from IP " + clientIp);
 
         return Response.seeOther(URI.create(redirectUrl)).build();
     }

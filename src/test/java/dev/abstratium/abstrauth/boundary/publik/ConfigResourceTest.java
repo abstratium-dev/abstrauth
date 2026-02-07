@@ -33,7 +33,8 @@ public class ConfigResourceTest {
             .body("signupAllowed", notNullValue())
             .body("allowNativeSignin", notNullValue())
             .body("sessionTimeoutSeconds", notNullValue())
-            .body("insecureClientSecret", notNullValue());
+            .body("insecureClientSecret", notNullValue())
+            .body("warningMessage", notNullValue());
     }
 
     @Test
@@ -87,5 +88,26 @@ public class ConfigResourceTest {
             .then()
             .statusCode(200)
             .body("insecureClientSecret", equalTo(true));
+    }
+
+    @Test
+    public void testGetConfigReturnsStringForWarningMessage() {
+        given()
+            .when()
+            .get("/public/config")
+            .then()
+            .statusCode(200)
+            .body("warningMessage", instanceOf(String.class));
+    }
+
+    @Test
+    public void testGetConfigReturnsTestWarningMessage() {
+        // In test environment, should return "You are in the test environment"
+        given()
+            .when()
+            .get("/public/config")
+            .then()
+            .statusCode(200)
+            .body("warningMessage", equalTo("You are in the test environment"));
     }
 }

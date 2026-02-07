@@ -1,6 +1,14 @@
 
 <header></header>
 
+<!-- Environment Warning Banner -->
+@if (warningMessage() && showEnvironmentWarning) {
+  <div class="alert-warning environment-warning">
+    <strong>⚠️ {{ warningMessage() }}</strong>
+    <button class="btn-dismiss" (click)="dismissEnvironmentWarning()">×</button>
+  </div>
+}
+
 <!-- Security Warning Banner -->
 @if (insecureClientSecret() && showSecurityWarning) {
   <div class="alert alert-warning security-warning">

@@ -122,7 +122,7 @@ public class OAuthApprovalResource {
         authorizationService.approveAuthorizationRequest(requestId, account.getId(), account.getAuthProvider());
 
         String clientIp = ClientIpUtil.getClientIp(requestContext);
-        log.info("User " + account.getEmail() + " approved authorization request " + requestId + " (already authenticated) from IP " + clientIp);
+        log.info("User " + account.getEmail() + " approved authorization request " + requestId + " for client " + authRequest.getClientId() + " (already authenticated) from IP " + clientIp);
 
         // Return user info for consent page
         return Response.ok(new AuthenticationResponse(account.getName())).build();

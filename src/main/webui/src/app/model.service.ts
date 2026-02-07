@@ -83,6 +83,7 @@ export class ModelService {
   private allowNativeSignin = signal<boolean>(false);
   private sessionTimeoutSeconds = signal<number>(900);
   private insecureClientSecret = signal<boolean>(false);
+  private warningMessage = signal<string>('');
   private clientsLoading = signal<boolean>(false);
   private clientsError = signal<string | null>(null);
 
@@ -95,6 +96,7 @@ export class ModelService {
   allowNativeSignin$: Signal<boolean> = this.allowNativeSignin.asReadonly();
   sessionTimeoutSeconds$: Signal<number> = this.sessionTimeoutSeconds.asReadonly();
   insecureClientSecret$: Signal<boolean> = this.insecureClientSecret.asReadonly();
+  warningMessage$: Signal<string> = this.warningMessage.asReadonly();
   clientsLoading$: Signal<boolean> = this.clientsLoading.asReadonly();
   clientsError$: Signal<string | null> = this.clientsError.asReadonly();
 
@@ -140,5 +142,9 @@ export class ModelService {
 
   setInsecureClientSecret(insecure: boolean) {
     this.insecureClientSecret.set(insecure);
+  }
+
+  setWarningMessage(message: string) {
+    this.warningMessage.set(message);
   }
 }

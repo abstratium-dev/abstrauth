@@ -18,6 +18,6 @@ CREATE INDEX I_expires_at ON T_oauth_client_secrets (expires_at);
 
 -- Migrate existing client secrets to new table
 INSERT INTO T_oauth_client_secrets (client_id, secret_hash, is_active, description)
-SELECT client_id, client_secret_hash, TRUE, 'Migrated from T_oauth_clients'
+SELECT client_id, client_secret_hash, TRUE, 'Initial secret'
 FROM T_oauth_clients 
 WHERE client_secret_hash IS NOT NULL;
