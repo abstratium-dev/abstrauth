@@ -122,12 +122,13 @@ jbang version --update
 quarkus update
 ```
 
-Update the quarkus extensions too, if the above doesn't do it - this is done by using the internet to find the latest version of the extension and updating the version in `pom.xml`.
+2. Update the quarkus extensions too, if the above doesn't do it - this is done by using the internet to find the latest version of the extension and updating the version in `pom.xml`.
 
-2. Update node/npm using nvm.
-Search for nvm in all the docs in this project and update which version is used, e.g. v24.11.1
+3. Update node/npm using nvm.
+Do this if Angular needs a new version.
+Search for `nvm` in all the docs in this project and update which version is used, e.g. `v24.11.1`
 
-3. Update Angular:
+4. Update Angular:
 ```bash
 cd src/main/webui
 nvm use v24.11.1 
@@ -136,16 +137,14 @@ ng update
 ng update @angular/cli @angular/core
 ```
 
-4. Ensure that there are no nodejs vulnerabilities:
+5. Ensure that there are no nodejs vulnerabilities:
 ```bash
 cd ../../../client-example
 npm i
 npm audit fix
 ```
 
-5. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
-
-6. Upgrading `nvm` means searching all places that use `v24.11.1` and updating it to the new version. Use `nvm` itself to install the latest stable version, but check Angular documentation for what a suitable version is.
+6. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
 
 # Issues with Webkit
 
