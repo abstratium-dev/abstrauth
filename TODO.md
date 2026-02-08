@@ -20,6 +20,7 @@
 
 - X `User abstratium.dev@gmail.com has been approved by Google for authorization request d3bdc98e-3fc6-4ac0-8cc9-311b5f8d34ea from IP` should also log the client into which the user just signed in, or failed if there is a failure
 
+- X check emails are sent when client secrets are running out
 
 - when i have no roles for abstracore, i get an error, but it shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 

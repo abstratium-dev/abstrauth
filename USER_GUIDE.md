@@ -426,7 +426,7 @@ public Response getData() {
 - Client configured with scopes: `["openid", "profile", "email"]`
 - Used for user login flows
 - Claims filtered based on requested scopes
-- Cannot add roles
+- Roles added to `groups` claim depending on what roles are assigned to the user account that signs in
 
 **Role-Based (M2M Services):**
 - Client configured with **empty** scopes: `[]`
@@ -434,7 +434,7 @@ public Response getData() {
 - Roles added to `groups` claim
 - Cannot request scopes
 
-**Important:** A client uses **either** scopes **or** roles, never both.
+**Important:** An M2M client has neither scopes nor redirect URIs; a User Client has scopes, redirect URIs, and optionally roles.
 
 ### Security Best Practices
 

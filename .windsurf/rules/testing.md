@@ -5,11 +5,12 @@ globs: src/test/java/**/.*,src/main/webui/**/*.spec.ts
 ---
 
 - Run tests using `mvn verify`, which will run backend but also the Angular tests.
+- Run just the angular tests with `mvn exec:exec@run-angular-tests`
 - Do NOT use `ng test` as it hangs.
 - Fix tests which fail due to transactional errors last - those can be side effects of other tests failing. Fix the other failing tests first.
 - Don't use things like "head -n 10" very vigourously since you end up having to rerun the tests again in order to find errors. It is inefficient and slows us down.
 
-When you execute the tests with mvn, send the output to a file in the `/tmp` directory. search that file for results. use the same file for all test runs. That way, you will not run tests, and then run them again, in order to search for specific results!
+**When you execute the tests with mvn, send the output to a file in the `/tmp` directory. search that file for results. use the same file for all test runs. That way, you will not run tests, and then need to run them again, in order to search for specific results!**
 
 You must check that coverage is at 80% statement coverage and 70% branch coverage. Use coverage results to find missing tests.
 

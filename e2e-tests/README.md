@@ -176,6 +176,7 @@ Each test should be independent and not rely on state from other tests. The `hap
     npx playwright codegen
      # Auto generate tests with Codegen.
 
+Use `PLAYWRIGHT_HTML_OPEN=never` to suppress opening the HTML report, since that blocks the process from terminating.
 
 ## Debugging Tests
 

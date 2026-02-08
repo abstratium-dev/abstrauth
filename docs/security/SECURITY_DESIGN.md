@@ -131,8 +131,6 @@ curl -v -X GET http://localhost:8080/api/auth/check \
 - Roles added to `groups` claim for `@RolesAllowed`
 - Format: `{clientId}_{role}` (e.g., `my-service_api-reader`)
 
-**Important:** A client can use **either** scopes **or** roles, but not both. If scopes are configured, roles cannot be added.
-
 #### Creating M2M Service Clients
 
 **Via UI:**

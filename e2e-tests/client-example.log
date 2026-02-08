@@ -1,0 +1,26 @@
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3333
+[90m    at Server.setupListenHandle [as _listen2] (node:net:1904:16)[39m
+[90m    at listenInCluster (node:net:1961:12)[39m
+[90m    at Server.listen (node:net:2063:7)[39m
+    at Function.listen [90m(/shared2/abstratium/github.com/abstrauth/client-example/[39mnode_modules/[4mexpress[24m/lib/application.js:635:24[90m)[39m
+    at Object.<anonymous> [90m(/shared2/abstratium/github.com/abstrauth/client-example/[39mserver.js:337:5[90m)[39m
+[90m    at Module._compile (node:internal/modules/cjs/loader:1469:14)[39m
+[90m    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)[39m
+[90m    at Module.load (node:internal/modules/cjs/loader:1288:32)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1104:12)[39m
+[90m    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)[39m
+Emitted 'error' event on Server instance at:
+[90m    at emitErrorNT (node:net:1940:8)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)[39m {
+  code: [32m'EADDRINUSE'[39m,
+  errno: [33m-98[39m,
+  syscall: [32m'listen'[39m,
+  address: [32m'::'[39m,
+  port: [33m3333[39m
+}
+
+Node.js v20.18.0

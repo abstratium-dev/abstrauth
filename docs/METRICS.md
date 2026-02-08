@@ -24,33 +24,36 @@ curl -H "Accept: text/plain" http://localhost:9002/q/metrics
 
 Track user authentication events and session management.
 
-| Metric Name | Type | Description |
-|------------|------|-------------|
-| `abstrauth_auth_login_success_total` | Counter | Number of successful login attempts |
-| `abstrauth_auth_login_failure_total` | Counter | Number of failed login attempts |
-| `abstrauth_auth_signup_total` | Counter | Number of user signups |
-| `abstrauth_auth_password_change_total` | Counter | Number of password changes |
-| `abstrauth_sessions_active` | Gauge | Number of currently active sessions |
+| Metric Name | Type | Description | Status |
+|------------|------|-------------|--------|
+| `abstrauth_auth_login_success_total` | Counter | Number of successful login attempts (does NOT decrement on logout) | ✅ Active |
+| `abstrauth_auth_login_failure_total` | Counter | Number of failed login attempts | ✅ Active |
+| `abstrauth_auth_signup_total` | Counter | Number of user signups | ✅ Active |
+| `abstrauth_auth_logout_explicit_total` | Counter | Number of explicit user-initiated logouts (does NOT include automatic session expirations) | ✅ Active |
+| `abstrauth_auth_password_change_total` | Counter | Number of password changes | ⏳ Defined but not yet integrated |
 
 **Use Cases:**
-- Monitor authentication success rate: `rate(abstrauth_auth_login_success_total[5m]) / rate(abstrauth_auth_login_total[5m])`
+- Monitor authentication success rate: `rate(abstrauth_auth_login_success_total[5m]) / (rate(abstrauth_auth_login_success_total[5m]) + rate(abstrauth_auth_login_failure_total[5m]))`
 - Alert on unusual failed login attempts: `rate(abstrauth_auth_login_failure_total[5m]) > 10`
-- Track active user sessions over time
+- Track logout patterns: `rate(abstrauth_auth_logout_explicit_total[5m])`
+
+**Note on Active Sessions:**
+Active sessions are NOT tracked as a metric because automatic session expirations cannot be reliably detected. You can use `abstrauth_auth_login_success_total - abstrauth_auth_logout_explicit_total` as a rough approximation, but be aware this will drift over time due to automatic expirations.
 
 ### 2. OAuth Operation Metrics
 
 Monitor OAuth 2.0 authorization and token flows.
 
-| Metric Name | Type | Description |
-|------------|------|-------------|
-| `abstrauth_oauth_authorization_request_total` | Counter | Number of authorization requests |
-| `abstrauth_oauth_authorization_approval_total` | Counter | Number of authorization approvals |
-| `abstrauth_oauth_authorization_denial_total` | Counter | Number of authorization denials |
-| `abstrauth_oauth_token_request_total` | Counter | Total number of token requests |
-| `abstrauth_oauth_token_success_total` | Counter | Number of successful token requests |
-| `abstrauth_oauth_token_failure_total` | Counter | Number of failed token requests |
-| `abstrauth_oauth_token_revocation_total` | Counter | Number of token revocations |
-| `abstrauth_oauth_token_introspection_total` | Counter | Number of token introspection requests |
+| Metric Name | Type | Description | Status |
+|------------|------|-------------|--------|
+| `abstrauth_oauth_authorization_request_total` | Counter | Number of authorization requests | ✅ Active |
+| `abstrauth_oauth_authorization_approval_total` | Counter | Number of authorization approvals | ✅ Active |
+| `abstrauth_oauth_authorization_denial_total` | Counter | Number of authorization denials | ⏳ Defined but not yet integrated |
+| `abstrauth_oauth_token_request_total` | Counter | Total number of token requests | ✅ Active |
+| `abstrauth_oauth_token_success_total` | Counter | Number of successful token requests | ✅ Active |
+| `abstrauth_oauth_token_failure_total` | Counter | Number of failed token requests | ✅ Active |
+| `abstrauth_oauth_token_revocation_total` | Counter | Number of token revocations | ⏳ Defined but not yet integrated |
+| `abstrauth_oauth_token_introspection_total` | Counter | Number of token introspection requests | ⏳ Defined but not yet integrated |
 
 **Use Cases:**
 - Monitor token issuance success rate: `rate(abstrauth_oauth_token_success_total[5m]) / rate(abstrauth_oauth_token_request_total[5m])`
@@ -61,14 +64,14 @@ Monitor OAuth 2.0 authorization and token flows.
 
 Track OAuth client and secret lifecycle events.
 
-| Metric Name | Type | Description |
-|------------|------|-------------|
-| `abstrauth_client_creation_total` | Counter | Number of OAuth clients created |
-| `abstrauth_client_deletion_total` | Counter | Number of OAuth clients deleted |
-| `abstrauth_client_secret_creation_total` | Counter | Number of client secrets created |
-| `abstrauth_client_secret_revocation_total` | Counter | Number of client secrets revoked |
-| `abstrauth_client_secret_deletion_total` | Counter | Number of client secrets deleted |
-| `abstrauth_clients_total` | Gauge | Total number of OAuth clients |
+| Metric Name | Type | Description | Status |
+|------------|------|-------------|--------|
+| `abstrauth_client_creation_total` | Counter | Number of OAuth clients created | ✅ Active |
+| `abstrauth_client_deletion_total` | Counter | Number of OAuth clients deleted | ✅ Active |
+| `abstrauth_client_secret_creation_total` | Counter | Number of client secrets created | ⏳ Defined but not yet integrated |
+| `abstrauth_client_secret_revocation_total` | Counter | Number of client secrets revoked | ⏳ Defined but not yet integrated |
+| `abstrauth_client_secret_deletion_total` | Counter | Number of client secrets deleted | ⏳ Defined but not yet integrated |
+| `abstrauth_clients_total` | Gauge | Total number of OAuth clients (updated every 15 minutes) | ✅ Active |
 
 **Use Cases:**
 - Monitor client growth: `abstrauth_clients_total`
@@ -79,12 +82,12 @@ Track OAuth client and secret lifecycle events.
 
 Monitor role assignments for users and service accounts.
 
-| Metric Name | Type | Description |
-|------------|------|-------------|
-| `abstrauth_role_assignment_total` | Counter | Number of role assignments to users |
-| `abstrauth_role_removal_total` | Counter | Number of role removals from users |
-| `abstrauth_service_role_assignment_total` | Counter | Number of role assignments to service accounts |
-| `abstrauth_service_role_removal_total` | Counter | Number of role removals from service accounts |
+| Metric Name | Type | Description | Status |
+|------------|------|-------------|--------|
+| `abstrauth_role_assignment_total` | Counter | Number of role assignments to users | ⏳ Defined but not yet integrated |
+| `abstrauth_role_removal_total` | Counter | Number of role removals from users | ⏳ Defined but not yet integrated |
+| `abstrauth_service_role_assignment_total` | Counter | Number of role assignments to service accounts | ⏳ Defined but not yet integrated |
+| `abstrauth_service_role_removal_total` | Counter | Number of role removals from service accounts | ⏳ Defined but not yet integrated |
 
 **Use Cases:**
 - Track role changes over time
@@ -95,11 +98,11 @@ Monitor role assignments for users and service accounts.
 
 Track different types of errors in the system.
 
-| Metric Name | Type | Description |
-|------------|------|-------------|
-| `abstrauth_error_authentication_total` | Counter | Number of authentication errors |
-| `abstrauth_error_authorization_total` | Counter | Number of authorization errors |
-| `abstrauth_error_validation_total` | Counter | Number of validation errors |
+| Metric Name | Type | Description | Status |
+|------------|------|-------------|--------|
+| `abstrauth_error_authentication_total` | Counter | Number of authentication errors | ⏳ Defined but not yet integrated |
+| `abstrauth_error_authorization_total` | Counter | Number of authorization errors | ⏳ Defined but not yet integrated |
+| `abstrauth_error_validation_total` | Counter | Number of validation errors | ✅ Active |
 
 **Use Cases:**
 - Monitor error rates by type
@@ -110,14 +113,14 @@ Track different types of errors in the system.
 
 General system and resource metrics.
 
-| Metric Name | Type | Description |
-|------------|------|-------------|
-| `abstrauth_accounts_total` | Gauge | Total number of user accounts |
-| `http_server_requests_seconds_count` | Counter | HTTP request count (auto-generated) |
-| `http_server_requests_seconds_sum` | Counter | HTTP request duration sum (auto-generated) |
-| `http_server_requests_seconds_max` | Gauge | Maximum HTTP request duration (auto-generated) |
-| `jvm_*` | Various | JVM metrics (auto-generated) |
-| `system_*` | Various | System metrics (auto-generated) |
+| Metric Name | Type | Description | Status |
+|------------|------|-------------|--------|
+| `abstrauth_accounts_total` | Gauge | Total number of user accounts (updated every 15 minutes) | ✅ Active |
+| `http_server_requests_seconds_count` | Counter | HTTP request count (auto-generated by Quarkus) | ✅ Active |
+| `http_server_requests_seconds_sum` | Counter | HTTP request duration sum (auto-generated by Quarkus) | ✅ Active |
+| `http_server_requests_seconds_max` | Gauge | Maximum HTTP request duration (auto-generated by Quarkus) | ✅ Active |
+| `jvm_*` | Various | JVM metrics (auto-generated by Micrometer) | ✅ Active |
+| `system_*` | Various | System metrics (auto-generated by Micrometer) | ✅ Active |
 
 **Use Cases:**
 - Monitor user growth: `abstrauth_accounts_total`
@@ -160,13 +163,14 @@ Abstrauth includes a ready-to-use Grafana dashboard that you can import directly
 
 3. **Dashboard includes**:
    - Authentication success rate
-   - Active sessions gauge
    - Total accounts and clients
    - Token request rates and success rates
-   - Error rates by type
+   - Error rates by type (validation errors only - others not yet integrated)
    - HTTP request duration (p50, p95)
-   - Authorization flow metrics
-   - Management operations (client/secret/role changes)
+   - Authorization flow metrics (requests and approvals - denials not yet integrated)
+   - Management operations (client creations - other operations not yet integrated)
+
+**Note:** The dashboard only includes metrics that are actively tracked. Metrics marked as "⏳ Defined but not yet integrated" in the tables above are not included in the dashboard.
 
 The dashboard auto-refreshes every 10 seconds and shows the last hour of data by default.
 
@@ -179,38 +183,33 @@ rate(abstrauth_auth_login_success_total[5m])
 (rate(abstrauth_auth_login_success_total[5m]) + rate(abstrauth_auth_login_failure_total[5m]))
 ```
 
-#### 2. Active Sessions
-```promql
-abstrauth_sessions_active
-```
-
-#### 3. Token Request Rate
+#### 2. Token Request Rate
 ```promql
 rate(abstrauth_oauth_token_request_total[5m])
 ```
 
-#### 4. Token Success Rate
+#### 3. Token Success Rate
 ```promql
 rate(abstrauth_oauth_token_success_total[5m]) 
 / 
 rate(abstrauth_oauth_token_request_total[5m])
 ```
 
-#### 5. HTTP Request Duration (95th percentile)
+#### 4. HTTP Request Duration (95th percentile)
 ```promql
 histogram_quantile(0.95, 
   rate(http_server_requests_seconds_bucket[5m])
 )
 ```
 
-#### 6. Error Rate by Type
+#### 5. Validation Error Rate
 ```promql
-rate(abstrauth_error_authentication_total[5m])
-rate(abstrauth_error_authorization_total[5m])
 rate(abstrauth_error_validation_total[5m])
 ```
 
-#### 7. Client and Account Growth
+**Note:** Authentication and authorization error metrics are defined but not yet integrated into the codebase.
+
+#### 6. Client and Account Growth
 ```promql
 abstrauth_clients_total
 abstrauth_accounts_total

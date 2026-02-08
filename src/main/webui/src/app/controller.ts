@@ -53,23 +53,22 @@ export class Controller {
     });
   }
 
-  loadConfig() {
-    this.http.get<{ signupAllowed: boolean, allowNativeSignin: boolean, sessionTimeoutSeconds: number, insecureClientSecret: boolean, warningMessage: string }>('/public/config').subscribe({
-      next: (response) => {
-        this.modelService.setSignupAllowed(response.signupAllowed);
-        this.modelService.setAllowNativeSignin(response.allowNativeSignin);
-        this.modelService.setSessionTimeoutSeconds(response.sessionTimeoutSeconds);
-        this.modelService.setInsecureClientSecret(response.insecureClientSecret);
-        this.modelService.setWarningMessage(response.warningMessage || '');
-      },
-      error: (err) => {
-        console.error('Error loading config:', err);
-        this.modelService.setSignupAllowed(false);
-        this.modelService.setAllowNativeSignin(false);
-        this.modelService.setSessionTimeoutSeconds(900); // Default to 15 minutes
-        this.modelService.setInsecureClientSecret(false);
-        this.modelService.setWarningMessage('');
-      }
+  loadConfig(): Promise<void> {
+    return firstValueFrom(
+      this.http.get<{ signupAllowed: boolean, allowNativeSignin: boolean, sessionTimeoutSeconds: number, insecureClientSecret: boolean, warningMessage: string }>('/public/config')
+    ).then(response => {
+      this.modelService.setSignupAllowed(response.signupAllowed);
+      this.modelService.setAllowNativeSignin(response.allowNativeSignin);
+      this.modelService.setSessionTimeoutSeconds(response.sessionTimeoutSeconds);
+      this.modelService.setInsecureClientSecret(response.insecureClientSecret);
+      this.modelService.setWarningMessage(response.warningMessage || '');
+    }).catch(err => {
+      console.error('Error loading config:', err);
+      this.modelService.setSignupAllowed(false);
+      this.modelService.setAllowNativeSignin(false);
+      this.modelService.setSessionTimeoutSeconds(900); // Default to 15 minutes
+      this.modelService.setInsecureClientSecret(false);
+      this.modelService.setWarningMessage('');
     });
   }
 

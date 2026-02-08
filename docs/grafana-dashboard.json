@@ -137,65 +137,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 12,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "abstrauth_sessions_active",
-          "refId": "A"
-        }
-      ],
-      "title": "Active Sessions",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 18,
+        "x": 12,
         "y": 0
       },
       "id": 3,
@@ -253,7 +197,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 21,
+        "x": 15,
         "y": 0
       },
       "id": 4,
@@ -312,7 +256,7 @@
         "h": 4,
         "w": 3,
         "x": 18,
-        "y": 4
+        "y": 0
       },
       "id": 5,
       "options": {
@@ -374,7 +318,7 @@
         "h": 4,
         "w": 3,
         "x": 21,
-        "y": 4
+        "y": 0
       },
       "id": 6,
       "options": {
@@ -462,8 +406,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 8
+        "x": 12,
+        "y": 4
       },
       "id": 7,
       "options": {
@@ -567,8 +511,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 8
+        "x": 0,
+        "y": 12
       },
       "id": 8,
       "options": {
@@ -654,8 +598,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 16
+        "x": 12,
+        "y": 12
       },
       "id": 9,
       "options": {
@@ -676,30 +620,12 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(abstrauth_error_authentication_total[5m])",
-          "refId": "A",
-          "legendFormat": "Authentication Errors"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "rate(abstrauth_error_authorization_total[5m])",
-          "refId": "B",
-          "legendFormat": "Authorization Errors"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
           "expr": "rate(abstrauth_error_validation_total[5m])",
-          "refId": "C",
+          "refId": "A",
           "legendFormat": "Validation Errors"
         }
       ],
-      "title": "Error Rates by Type",
+      "title": "Validation Error Rate",
       "type": "timeseries"
     },
     {
@@ -759,8 +685,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 16
+        "x": 0,
+        "y": 20
       },
       "id": 10,
       "options": {
@@ -855,8 +781,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 24
+        "x": 12,
+        "y": 20
       },
       "id": 11,
       "options": {
@@ -889,18 +815,9 @@
           "expr": "rate(abstrauth_oauth_authorization_approval_total[5m])",
           "refId": "B",
           "legendFormat": "Approvals"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "rate(abstrauth_oauth_authorization_denial_total[5m])",
-          "refId": "C",
-          "legendFormat": "Denials"
         }
       ],
-      "title": "Authorization Flow",
+      "title": "Authorization Flow (Requests & Approvals)",
       "type": "timeseries"
     },
     {
@@ -960,8 +877,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 24
+        "x": 0,
+        "y": 28
       },
       "id": 12,
       "options": {
@@ -991,21 +908,12 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(abstrauth_client_secret_creation_total[5m])",
+          "expr": "rate(abstrauth_client_deletion_total[5m])",
           "refId": "B",
-          "legendFormat": "Secret Creations"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "rate(abstrauth_role_assignment_total[5m])",
-          "refId": "C",
-          "legendFormat": "Role Assignments"
+          "legendFormat": "Client Deletions"
         }
       ],
-      "title": "Management Operations",
+      "title": "Client Management Operations",
       "type": "timeseries"
     }
   ],

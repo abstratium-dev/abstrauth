@@ -349,34 +349,40 @@ describe('Controller', () => {
   });
 
   describe('loadConfig', () => {
-    it('should load config and update model service', () => {
-      controller.loadConfig();
+    it('should load config and update model service', async () => {
+      const promise = controller.loadConfig();
 
       const req = httpMock.expectOne('/public/config');
       expect(req.request.method).toBe('GET');
       req.flush({ signupAllowed: true, allowNativeSignin: true, sessionTimeoutSeconds: 900 });
+
+      await promise;
 
       expect(modelService.signupAllowed$()).toBe(true);
       expect(modelService.allowNativeSignin$()).toBe(true);
       expect(modelService.sessionTimeoutSeconds$()).toBe(900);
     });
 
-    it('should handle false signup allowed', () => {
-      controller.loadConfig();
+    it('should handle false signup allowed', async () => {
+      const promise = controller.loadConfig();
 
       const req = httpMock.expectOne('/public/config');
       req.flush({ signupAllowed: false, allowNativeSignin: false, sessionTimeoutSeconds: 1800 });
+
+      await promise;
 
       expect(modelService.signupAllowed$()).toBe(false);
       expect(modelService.allowNativeSignin$()).toBe(false);
       expect(modelService.sessionTimeoutSeconds$()).toBe(1800);
     });
 
-    it('should handle error when loading config', () => {
-      controller.loadConfig();
+    it('should handle error when loading config', async () => {
+      const promise = controller.loadConfig();
 
       const req = httpMock.expectOne('/public/config');
       req.error(new ProgressEvent('error'));
+
+      await promise;
 
       expect(modelService.signupAllowed$()).toBe(false);
       expect(modelService.allowNativeSignin$()).toBe(false);

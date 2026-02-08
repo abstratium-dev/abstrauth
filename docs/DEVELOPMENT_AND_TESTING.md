@@ -122,6 +122,8 @@ jbang version --update
 quarkus update
 ```
 
+Update the quarkus extensions too, if the above doesn't do it - this is done by using the internet to find the latest version of the extension and updating the version in `pom.xml`.
+
 2. Update node/npm using nvm.
 Search for nvm in all the docs in this project and update which version is used, e.g. v24.11.1
 
@@ -153,11 +155,26 @@ The application works fine in production, so just don't test with Webkit locally
 
 # Building and Releasing
 
+Ensure everything is up to date (see upgrading above).
+
+Ensure docs and especially USER_GUIDE.md is up to date.
+
 Ensure that `mvn verify` is successful.
-Start `quarkus dev` and then `npm start` in the `client-example` directory, and run `npx playwright test --ui` in the `e2e-tests` directory. Manually run all the tests. 
 
-TODO that runs the nosignup tests. What about the signup tests?
+Start `quarkus dev`
 
-Don't run `mvn verify -Pe2e` since it's a little flakey.
+Start `npm start` in the `client-example` directory.
+
+(Alternatively, don't start quarkus or the client example, and set `BASE_URL=http://localhost:8082` in the command line after ALLOW_SIGNUP)
+
+Run `ALLOW_SIGNUP=false npx playwright test --ui` in the `e2e-tests` directory.
+
+Manually run all the tests - this tests the "nosignup" tests.
+
+Run `ALLOW_SIGNUP=true npx playwright test --ui` in the `e2e-tests` directory.
+
+Manually run all the tests - this tests the "signup" tests.
+
+(Don't run `mvn verify -Pe2e` since it's a little flakey.)
 
 If that all works, see [NATIVE_IMAGE_BUILD.md](NATIVE_IMAGE_BUILD.md) for instructions on building a native image and releasing it.
