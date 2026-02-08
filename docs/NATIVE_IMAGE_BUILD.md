@@ -59,7 +59,7 @@ delete from T_accounts;
 
 After building, the upload is based on https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
 
-Create a personal access token with `read:packages`, `write:packages` and `delete:packages`. (Settings > Developer Settings > Personal access token > Tokens (classic) > Generate new token). Select 30 days.
+Create a personal access token with `read:packages`, `write:packages` and `delete:packages`. (Settings > Developer Settings > Personal access token > Tokens (classic) > Generate new token classic). Select 30 days.
 
 Export it as follows:
 
@@ -69,7 +69,7 @@ export CR_PAT=your_token_here
 
 (alternatively add it to `/w/abstratium-abstrauth.env`)
 
-Run the script named `push-docker-image.sh`, which also tags the source code and pushes it to GitHub.
+Run the script named `./push-docker-image.sh`, which also tags the source code and pushes it to GitHub.
 
 ----
 
