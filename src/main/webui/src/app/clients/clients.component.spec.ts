@@ -71,6 +71,14 @@ describe('ClientsComponent', () => {
   });
 
   afterEach(() => {
+    // Flush any pending /public/config requests from app initializer
+    const configRequests = httpMock.match('/public/config');
+    configRequests.forEach(req => {
+      if (!req.cancelled) {
+        req.flush({ signupAllowed: false, allowNativeSignin: false, sessionTimeoutSeconds: 900, insecureClientSecret: false, warningMessage: '' });
+      }
+    });
+    
     httpMock.verify();
   });
 
