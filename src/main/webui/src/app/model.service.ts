@@ -145,6 +145,10 @@ export class ModelService {
   }
 
   setWarningMessage(message: string) {
-    this.warningMessage.set(message);
+    if(message === '-') {
+      this.warningMessage.set('');
+    } else {
+      this.warningMessage.set(message);
+    }
   }
 }

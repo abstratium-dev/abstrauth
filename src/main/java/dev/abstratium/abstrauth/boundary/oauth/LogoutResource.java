@@ -1,5 +1,7 @@
 package dev.abstratium.abstrauth.boundary.oauth;
 
+import dev.abstratium.abstrauth.service.MetricsService;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -23,6 +25,9 @@ import java.net.URI;
 public class LogoutResource {
 
     private static final Logger log = Logger.getLogger(LogoutResource.class);
+
+    @Inject
+    MetricsService metricsService;
 
     @GET
     @Operation(
@@ -80,13 +85,16 @@ public class LogoutResource {
                   postLogoutRedirectUri,
                   state);
 
+        // Record explicit logout metric
+        // Note: This counter is independent of the login counter and does NOT track automatic session expirations
+        metricsService.recordExplicitLogout();
+
         // In a real implementation, you would:
         // 1. Validate the id_token_hint
-        // 2. Terminate the session associated with that token
-        // 3. Revoke any refresh tokens
-        // 4. Clear any server-side session state
+        // 2. Revoke any refresh tokens
+        // 3. Clear any server-side session state
 
-        // For now, we just redirect
+        // Build redirect URI
         String redirectUri = postLogoutRedirectUri != null ? postLogoutRedirectUri : "/";
         
         if (state != null) {

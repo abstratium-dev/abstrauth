@@ -128,10 +128,19 @@ export async function deleteSecret(page: Page, description: string) {
     const secretCard = page.locator('.secret-card').filter({ hasText: description });
     await expect(secretCard).toBeVisible({ timeout: 5000 });
     
-    // Click the delete button
-    const deleteButton = secretCard.getByRole('button', { name: /Delete/i });
+    // Click the delete button (button with title="Permanently delete secret")
+    const deleteButton = secretCard.getByTitle('Permanently delete secret');
     await expect(deleteButton).toBeVisible({ timeout: 5000 });
     await deleteButton.click();
+    
+    // Wait for and handle the custom confirmation dialog
+    const dialog = page.locator('.dialog-overlay');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+    
+    // Click the confirm button in the dialog (button text is "Delete Permanently")
+    const confirmButton = dialog.locator('button').filter({ hasText: 'Delete Permanently' });
+    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+    await confirmButton.click();
     
     // Wait for the secret to be deleted (card should disappear)
     await expect(secretCard).not.toBeVisible({ timeout: 5000 });

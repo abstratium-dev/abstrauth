@@ -7,6 +7,7 @@ import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.MetricsService;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
@@ -28,6 +29,9 @@ public class SignupResource {
 
     @Inject
     AuthorizationService authorizationService;
+
+    @Inject
+    MetricsService metricsService;
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -65,10 +69,12 @@ public class SignupResource {
 
         try {
             Account account = accountService.createAccount(email, name, username, password, AccountService.NATIVE);
+            metricsService.recordSignup();
             return Response.status(Response.Status.CREATED)
                     .entity(new SignupResponse(account.getId(), account.getEmail(), account.getName()))
                     .build();
         } catch (IllegalArgumentException e) {
+            metricsService.recordValidationError();
             return Response.status(Response.Status.CONFLICT)
                     .entity(new ErrorResponse("conflict", e.getMessage()))
                     .build();

@@ -54,6 +54,15 @@ public class OAuthClientService {
         return query.getResultList();
     }
 
+    /**
+     * Count the total number of OAuth clients in the database
+     * @return The number of clients
+     */
+    public long countClients() {
+        var query = em.createQuery("SELECT COUNT(c) FROM OAuthClient c", Long.class);
+        return query.getSingleResult();
+    }
+
     public boolean isRedirectUriAllowed(OAuthClient client, String redirectUri) {
         try {
             String[] allowedUris = objectMapper.readValue(client.getRedirectUris(), String[].class);

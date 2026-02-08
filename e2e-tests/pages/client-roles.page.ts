@@ -57,10 +57,19 @@ export async function removeRole(page: Page, roleName: string) {
     const roleCard = page.locator('.role-card').filter({ hasText: roleName });
     await expect(roleCard).toBeVisible({ timeout: 5000 });
     
-    // Click the remove button
-    const removeButton = roleCard.getByRole('button', { name: /Remove/i });
+    // Click the remove button (button with title="Remove role")
+    const removeButton = roleCard.getByTitle('Remove role');
     await expect(removeButton).toBeVisible({ timeout: 5000 });
     await removeButton.click();
+    
+    // Wait for and handle the custom confirmation dialog
+    const dialog = page.locator('.dialog-overlay');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+    
+    // Click the confirm button in the dialog (button text is "Remove Role")
+    const confirmButton = dialog.locator('button').filter({ hasText: 'Remove Role' });
+    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+    await confirmButton.click();
     
     // Wait for the role to be removed
     await expect(roleCard).not.toBeVisible({ timeout: 5000 });

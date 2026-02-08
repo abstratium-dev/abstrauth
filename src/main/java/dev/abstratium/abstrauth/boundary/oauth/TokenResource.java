@@ -29,6 +29,7 @@ import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
@@ -72,6 +73,9 @@ public class TokenResource {
 
     @Inject
     TokenRevocationService tokenRevocationService;
+
+    @Inject
+    MetricsService metricsService;
 
     @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
@@ -207,10 +211,14 @@ public class TokenResource {
                 clientSecret = credentials[1];
             }
         }
+        // Record token request
+        metricsService.recordTokenRequest();
+
         // Validate grant_type
         if (!"authorization_code".equals(grantType) && 
             !"refresh_token".equals(grantType) && 
             !"client_credentials".equals(grantType)) {
+            metricsService.recordTokenRequestFailure();
             return buildErrorResponse(Response.Status.BAD_REQUEST, "unsupported_grant_type",
                     "Grant type must be 'authorization_code', 'refresh_token', or 'client_credentials'");
         }
@@ -226,6 +234,7 @@ public class TokenResource {
         }
 
         // Handle refresh_token grant (not implemented yet)
+        metricsService.recordTokenRequestFailure();
         return buildErrorResponse(Response.Status.BAD_REQUEST, "unsupported_grant_type",
                 "Refresh token grant not yet implemented");
     }
@@ -343,6 +352,7 @@ public class TokenResource {
         // response.refresh_token = generateRefreshToken(account, authCode.getScope(), clientId);
         // the refresh token should be an http only cookie, with path set to the url used to refresh, so that it can only be used then
 
+        metricsService.recordTokenRequestSuccess();
         return Response.ok(response).build();
     }
 
@@ -580,6 +590,7 @@ public class TokenResource {
         response.expires_in = 3600;
         response.scope = String.join(" ", requestedScopes);
 
+        metricsService.recordTokenRequestSuccess();
         return Response.ok(response).build();
     }
 

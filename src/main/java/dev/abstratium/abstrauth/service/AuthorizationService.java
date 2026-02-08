@@ -27,6 +27,9 @@ public class AuthorizationService {
     @Inject
     AccountService accountService;
 
+    @Inject
+    MetricsService metricsService;
+
     @ConfigProperty(name = "allow.signup", defaultValue = "false")
     boolean allowSignup;
 
@@ -52,6 +55,7 @@ public class AuthorizationService {
         request.setStatus("pending");
 
         em.persist(request);
+        metricsService.recordAuthorizationRequest();
         return request;
     }
 
@@ -76,6 +80,7 @@ public class AuthorizationService {
         request.setAuthMethod(authMethod);
         request.setStatus("approved");
         em.merge(request);
+        metricsService.recordAuthorizationApproval();
     }
 
     @Transactional

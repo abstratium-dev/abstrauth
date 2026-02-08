@@ -3,10 +3,11 @@ package dev.abstratium.abstrauth.service;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Service for tracking application metrics using Micrometer.
@@ -29,6 +30,7 @@ public class MetricsService {
     private Counter failedLogins;
     private Counter signups;
     private Counter passwordChanges;
+    private Counter explicitLogouts;
 
     // Counters for OAuth operations
     private Counter authorizationRequests;
@@ -58,13 +60,16 @@ public class MetricsService {
     private Counter authorizationErrors;
     private Counter validationErrors;
 
-    // Active sessions tracking
-    private final AtomicInteger activeSessions = new AtomicInteger(0);
+    // Note: We do not track active sessions because we cannot reliably detect automatic session expirations
+
+    // Cached counts for gauges
+    private final AtomicLong totalAccounts = new AtomicLong(0);
+    private final AtomicLong totalClients = new AtomicLong(0);
 
     public void initialize() {
         // Authentication metrics
         successfulLogins = Counter.builder("abstrauth.auth.login.success")
-                .description("Number of successful login attempts")
+                .description("Total number of successful logins (does NOT decrement on logout - independent counter)")
                 .register(registry);
 
         failedLogins = Counter.builder("abstrauth.auth.login.failure")
@@ -77,6 +82,10 @@ public class MetricsService {
 
         passwordChanges = Counter.builder("abstrauth.auth.password.change")
                 .description("Number of password changes")
+                .register(registry);
+
+        explicitLogouts = Counter.builder("abstrauth.auth.logout.explicit")
+                .description("Total number of explicit user-initiated logouts (does NOT include automatic session expirations - independent counter)")
                 .register(registry);
 
         // OAuth operation metrics
@@ -164,23 +173,25 @@ public class MetricsService {
                 .register(registry);
 
         // Gauges for current state
-        Gauge.builder("abstrauth.accounts.total", () -> (double) accountService.findAll().size())
+        Gauge.builder("abstrauth.accounts.total", totalAccounts, counter -> (double) counter.get())
                 .description("Total number of user accounts")
                 .register(registry);
 
-        Gauge.builder("abstrauth.clients.total", () -> (double) clientService.findAll().size())
+        Gauge.builder("abstrauth.clients.total", totalClients, counter -> (double) counter.get())
                 .description("Total number of OAuth clients")
                 .register(registry);
 
-        Gauge.builder("abstrauth.sessions.active", activeSessions, counter -> (double) counter.get())
-                .description("Number of currently active sessions")
-                .register(registry);
+        // Note: We do NOT provide an active sessions gauge because we cannot reliably track
+        // automatic session expirations. Use successfulLogins - explicitLogouts as a rough
+        // approximation, but be aware this will drift over time due to automatic expirations.
+
+        // Initialize counts immediately
+        updateEntityCounts();
     }
 
     // Authentication metrics
     public void recordSuccessfulLogin() {
         successfulLogins.increment();
-        activeSessions.incrementAndGet();
     }
 
     public void recordFailedLogin() {
@@ -191,12 +202,13 @@ public class MetricsService {
         signups.increment();
     }
 
-    public void recordPasswordChange() {
-        passwordChanges.increment();
-    }
+    // TODO: Integrate when password change functionality is implemented
+    // public void recordPasswordChange() {
+    //     passwordChanges.increment();
+    // }
 
-    public void recordLogout() {
-        activeSessions.decrementAndGet();
+    public void recordExplicitLogout() {
+        explicitLogouts.increment();
     }
 
     // OAuth operation metrics
@@ -208,9 +220,11 @@ public class MetricsService {
         authorizationApprovals.increment();
     }
 
-    public void recordAuthorizationDenial() {
-        authorizationDenials.increment();
-    }
+    // TODO: Integrate when explicit authorization denial is implemented
+    // Currently users can only approve or let requests expire
+    // public void recordAuthorizationDenial() {
+    //     authorizationDenials.increment();
+    // }
 
     public void recordTokenRequest() {
         tokenRequests.increment();
@@ -224,13 +238,15 @@ public class MetricsService {
         tokenRequestsFailure.increment();
     }
 
-    public void recordTokenRevocation() {
-        tokenRevocations.increment();
-    }
+    // TODO: Integrate in TokenRevocationService when revocation endpoint is called
+    // public void recordTokenRevocation() {
+    //     tokenRevocations.increment();
+    // }
 
-    public void recordTokenIntrospection() {
-        tokenIntrospections.increment();
-    }
+    // TODO: Integrate when token introspection endpoint is implemented
+    // public void recordTokenIntrospection() {
+    //     tokenIntrospections.increment();
+    // }
 
     // Client management metrics
     public void recordClientCreation() {
@@ -241,45 +257,64 @@ public class MetricsService {
         clientDeletions.increment();
     }
 
-    public void recordSecretCreation() {
-        secretCreations.increment();
-    }
+    // TODO: Integrate in ClientSecretsResource when secret creation endpoint is called
+    // public void recordSecretCreation() {
+    //     secretCreations.increment();
+    // }
 
-    public void recordSecretRevocation() {
-        secretRevocations.increment();
-    }
+    // TODO: Integrate in ClientSecretsResource when secret revocation endpoint is called
+    // public void recordSecretRevocation() {
+    //     secretRevocations.increment();
+    // }
 
-    public void recordSecretDeletion() {
-        secretDeletions.increment();
-    }
+    // TODO: Integrate in ClientSecretsResource when secret deletion endpoint is called
+    // public void recordSecretDeletion() {
+    //     secretDeletions.increment();
+    // }
 
     // Role management metrics
-    public void recordRoleAssignment() {
-        roleAssignments.increment();
-    }
+    // TODO: Integrate in AccountRolesResource when role assignment endpoint is called
+    // public void recordRoleAssignment() {
+    //     roleAssignments.increment();
+    // }
 
-    public void recordRoleRemoval() {
-        roleRemovals.increment();
-    }
+    // TODO: Integrate in AccountRolesResource when role removal endpoint is called
+    // public void recordRoleRemoval() {
+    //     roleRemovals.increment();
+    // }
 
-    public void recordServiceAccountRoleAssignment() {
-        serviceAccountRoleAssignments.increment();
-    }
+    // TODO: Integrate in ClientRolesResource when service account role assignment endpoint is called
+    // public void recordServiceAccountRoleAssignment() {
+    //     serviceAccountRoleAssignments.increment();
+    // }
 
-    public void recordServiceAccountRoleRemoval() {
-        serviceAccountRoleRemovals.increment();
-    }
+    // TODO: Integrate in ClientRolesResource when service account role removal endpoint is called
+    // public void recordServiceAccountRoleRemoval() {
+    //     serviceAccountRoleRemovals.increment();
+    // }
 
     // Error metrics
-    public void recordAuthenticationError() {
-        authenticationErrors.increment();
-    }
+    // TODO: Integrate when authentication error handling is centralized
+    // public void recordAuthenticationError() {
+    //     authenticationErrors.increment();
+    // }
 
-    public void recordAuthorizationError() {
-        authorizationErrors.increment();
-    }
+    // TODO: Integrate when authorization error handling is centralized
+    // public void recordAuthorizationError() {
+    //     authorizationErrors.increment();
+    // }
 
     public void recordValidationError() {
         validationErrors.increment();
+    }
+
+    /**
+     * Scheduled task to update entity counts every 15 minutes.
+     * Uses SQL COUNT queries for efficiency.
+     */
+    @Scheduled(every = "15m")
+    void updateEntityCounts() {
+        totalAccounts.set(accountService.countAccounts());
+        totalClients.set(clientService.countClients());
     }
 }

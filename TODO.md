@@ -8,9 +8,11 @@
 
 ## Today
 
-- X add e2e tests for multiple secrets and roles
+- upgrade all and check security issues in github
 
-- X add a banner for non-prod envs with a custom string to warn users that they are not using prod
+- update docs to describe the changes
+
+- X add e2e tests for multiple secrets and roles
 
 - X add metrics that show things like how many users are signed in, etc.
   - this wasn't updating the number of signed in users! is that service class connected?

@@ -11,6 +11,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.AccountRoleService;
+import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.oidc.IdToken;
@@ -40,6 +41,9 @@ public class ClientsResource {
 
     @Inject
     OAuthClientService oauthClientService;
+
+    @Inject
+    MetricsService metricsService;
 
     @Inject
     SecurityIdentity securityIdentity;
@@ -122,6 +126,7 @@ public class ClientsResource {
         client.setRequirePkce(true);  // Always require PKCE
 
         OAuthClientService.ClientWithSecret result = oauthClientService.createWithSecret(client);
+        metricsService.recordClientCreation();
         return Response.status(Response.Status.CREATED)
                 .entity(toClientResponseWithSecret(result.getClient(), result.getPlainSecret()))
                 .build();
@@ -207,6 +212,7 @@ public class ClientsResource {
         }
 
         oauthClientService.delete(existing);
+        metricsService.recordClientDeletion();
         return Response.noContent().build();
     }
 

@@ -26,6 +26,9 @@ public class AccountService {
     @Inject
     AccountRoleService accountRoleService;
 
+    @Inject
+    MetricsService metricsService;
+
     @ConfigProperty(name = "password.pepper")
     String pepper;
 
@@ -145,6 +148,8 @@ public class AccountService {
             credential.setLockedUntil(null);
             em.merge(credential);
 
+            metricsService.recordSuccessfulLogin();
+
             Optional<Account> accountOpt = findById(credential.getAccountId());
             // Eagerly fetch roles to avoid LazyInitializationException
             accountOpt.ifPresent(account -> account.getRoles().size());
@@ -160,6 +165,7 @@ public class AccountService {
             }
 
             em.merge(credential);
+            metricsService.recordFailedLogin();
             return Optional.empty();
         }
     }

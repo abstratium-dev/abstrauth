@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -1010,7 +1010,8 @@ describe('ClientsComponent', () => {
     };
 
     beforeEach(() => {
-      // Load clients first
+      // Trigger component initialization which loads clients
+      fixture.detectChanges();
       const req = httpMock.expectOne('/api/clients');
       req.flush(mockClients);
     });
@@ -1066,12 +1067,15 @@ describe('ClientsComponent', () => {
       expect(component.showAddRoleForm).toBeFalse();
     });
 
-    it('should add a role successfully', async () => {
+    it('should add a role successfully', fakeAsync(() => {
       component.viewingRolesFor = 'test-client-1';
+      component.serviceAccountRoles = [];
       component.addRoleData.role = 'new-role';
 
-      const addPromise = component.addRole('test-client-1');
+      component.addRole('test-client-1');
+      tick();
 
+      // Wait for the POST request
       const addReq = httpMock.expectOne('/api/clients/test-client-1/roles');
       expect(addReq.request.method).toBe('POST');
       expect(addReq.request.body).toEqual({ role: 'new-role' });
@@ -1080,16 +1084,17 @@ describe('ClientsComponent', () => {
         role: 'new-role',
         groupName: 'test-client-1_new-role'
       });
+      tick();
 
-      // Expect reload of roles
+      // Wait for the reload GET request
       const reloadReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      expect(reloadReq.request.method).toBe('GET');
       reloadReq.flush({ clientId: 'test-client-1', roles: ['new-role'] });
-
-      await addPromise;
+      tick();
 
       expect(component.showAddRoleForm).toBeFalse();
       expect(component.addRoleData.role).toBe('');
-    });
+    }));
 
     it('should reject empty role name', async () => {
       component.addRoleData.role = '';
@@ -1155,24 +1160,25 @@ describe('ClientsComponent', () => {
       await addPromise;
     });
 
-    it('should remove a role successfully', async () => {
+    it('should remove a role successfully', fakeAsync(() => {
       component.viewingRolesFor = 'test-client-1';
+      component.serviceAccountRoles = ['api-reader', 'api-writer'];
 
-      const removePromise = component.removeRole('test-client-1', 'api-reader');
+      component.removeRole('test-client-1', 'api-reader');
+      tick();
 
-      // Wait for confirmation
-      await Promise.resolve();
-
+      // Wait for the DELETE request
       const removeReq = httpMock.expectOne('/api/clients/test-client-1/roles/api-reader');
       expect(removeReq.request.method).toBe('DELETE');
       removeReq.flush(null, { status: 204, statusText: 'No Content' });
+      tick();
 
-      // Expect reload of roles
+      // Wait for the reload GET request
       const reloadReq = httpMock.expectOne('/api/clients/test-client-1/roles');
+      expect(reloadReq.request.method).toBe('GET');
       reloadReq.flush({ clientId: 'test-client-1', roles: ['api-writer'] });
-
-      await removePromise;
-    });
+      tick();
+    }));
 
     it('should not remove role if user cancels confirmation', async () => {
       confirmService.confirm.and.returnValue(Promise.resolve(false));

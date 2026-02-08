@@ -151,6 +151,13 @@ For some strange reason, cookies aren't properly transported when testing localh
 
 The application works fine in production, so just don't test with Webkit locally.
 
-# Building
+# Building and Releasing
 
-See [NATIVE_IMAGE_BUILD.md](NATIVE_IMAGE_BUILD.md) for instructions on building a native image.
+Ensure that `mvn verify` is successful.
+Start `quarkus dev` and then `npm start` in the `client-example` directory, and run `npx playwright test --ui` in the `e2e-tests` directory. Manually run all the tests. 
+
+TODO that runs the nosignup tests. What about the signup tests?
+
+Don't run `mvn verify -Pe2e` since it's a little flakey.
+
+If that all works, see [NATIVE_IMAGE_BUILD.md](NATIVE_IMAGE_BUILD.md) for instructions on building a native image and releasing it.
