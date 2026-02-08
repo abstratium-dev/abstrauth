@@ -71,6 +71,8 @@ export CR_PAT=your_token_here
 
 Run the script named `./push-docker-image.sh`, which also tags the source code and pushes it to GitHub.
 
+You are now finished. Re-install in test and production environments.
+
 ----
 
 ## Overview
