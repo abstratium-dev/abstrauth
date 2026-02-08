@@ -4,6 +4,8 @@ This document describes how to build the abstrauth OAuth server as a native exec
 
 ## TL;DR
 
+Commit everything to git.
+
 Use method 3 which is described below:
 
 ```bash
