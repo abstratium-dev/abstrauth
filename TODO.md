@@ -8,19 +8,9 @@
 
 ## Today
 
-- upgrade all and check security issues in github
-
-- update docs to describe the changes
-
-- X add e2e tests for multiple secrets and roles
-
-- X add metrics that show things like how many users are signed in, etc.
-  - this wasn't updating the number of signed in users! is that service class connected?
-  - "abstrauth.accounts.total" and "abstrauth.clients.total" are only updated on startup
-
-- X `User abstratium.dev@gmail.com has been approved by Google for authorization request d3bdc98e-3fc6-4ac0-8cc9-311b5f8d34ea from IP` should also log the client into which the user just signed in, or failed if there is a failure
-
 - X check emails are sent when client secrets are running out
+
+- what is this log? [io.qua.oid.run.OidcRecorder] (vert.x-eventloop-thread-2) [skey:] Session age extension will not be effective because 'quarkus.oidc.token.refresh-expired=true' is not set
 
 - when i have no roles for abstracore, i get an error, but it shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 
