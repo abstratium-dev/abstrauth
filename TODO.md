@@ -8,11 +8,11 @@
 
 ## Today
 
-- X check emails are sent when client secrets are running out
+- X check emails are sent when client secrets are running out -> update 20260511 this isn't implemented. since SecretExpirationNotificationService is empty!!! see SERVICE_TO_SERVICE_AUTH.md which shows a scheduler.
 
 - what is this log? [io.qua.oid.run.OidcRecorder] (vert.x-eventloop-thread-2) [skey:] Session age extension will not be effective because 'quarkus.oidc.token.refresh-expired=true' is not set
 
-- need to allow other addresses to call management address 9002 in order to get metrics 
+- need to allow other addresses to call management address 9002 in order to get metrics. need to expose it in docker file? 
 
 - when i have no roles for abstracore, i get an error, but it shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 
