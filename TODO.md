@@ -27,6 +27,10 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 - security audit for CRUD operations on clients and accounts "using any trick in the book" for accessing the server via its web API (no direct access of the database, no access to the file system) - try to CRUD accounts, clients and roles!
 - review tests
 
+- Apple
+- Microsoft
+- Github
+
 
 ## Tomorrow
 
