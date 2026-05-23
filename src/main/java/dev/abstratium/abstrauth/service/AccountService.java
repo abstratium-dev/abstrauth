@@ -19,6 +19,7 @@ public class AccountService {
 
     public static final String NATIVE = "native";
     public static final String GOOGLE = "google";
+    public static final String MICROSOFT = "microsoft";
 
     @Inject
     EntityManager em;

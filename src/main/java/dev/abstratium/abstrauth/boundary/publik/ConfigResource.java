@@ -46,8 +46,10 @@ public class ConfigResource {
     public Response getConfig() {
         boolean signupAllowed = authorizationService.isSignupAllowed();
         boolean allowNativeSignin = authorizationService.isNativeSigninAllowed();
+        boolean allowGoogleSignin = authorizationService.isGoogleSigninAllowed();
+        boolean allowMicrosoftSignin = authorizationService.isMicrosoftSigninAllowed();
         boolean insecureClientSecret = isClientSecretInsecure();
-        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage)).build();
+        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage)).build();
     }
 
     /**
@@ -68,13 +70,17 @@ public class ConfigResource {
     public static class ConfigResponse {
         public boolean signupAllowed;
         public boolean allowNativeSignin;
+        public boolean allowGoogleSignin;
+        public boolean allowMicrosoftSignin;
         public int sessionTimeoutSeconds;
         public boolean insecureClientSecret;
         public String warningMessage;
 
-        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage) {
+        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage) {
             this.signupAllowed = signupAllowed;
             this.allowNativeSignin = allowNativeSignin;
+            this.allowGoogleSignin = allowGoogleSignin;
+            this.allowMicrosoftSignin = allowMicrosoftSignin;
             this.sessionTimeoutSeconds = sessionTimeoutSeconds;
             this.insecureClientSecret = insecureClientSecret;
             this.warningMessage = warningMessage;

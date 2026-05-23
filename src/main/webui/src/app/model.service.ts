@@ -69,6 +69,16 @@ export interface CreateAccountResponse {
   inviteToken: string;
 }
 
+export interface ConfigResponse {
+  signupAllowed: boolean;
+  allowNativeSignin: boolean;
+  allowGoogleSignin: boolean;
+  allowMicrosoftSignin: boolean;
+  sessionTimeoutSeconds: number;
+  insecureClientSecret: boolean;
+  warningMessage: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -81,6 +91,8 @@ export class ModelService {
   private clients = signal<OAuthClient[]>([]);
   private signupAllowed = signal<boolean>(false);
   private allowNativeSignin = signal<boolean>(false);
+  private allowGoogleSignin = signal<boolean>(false);
+  private allowMicrosoftSignin = signal<boolean>(false);
   private sessionTimeoutSeconds = signal<number>(900);
   private insecureClientSecret = signal<boolean>(false);
   private warningMessage = signal<string>('');
@@ -94,6 +106,8 @@ export class ModelService {
   clients$: Signal<OAuthClient[]> = this.clients.asReadonly();
   signupAllowed$: Signal<boolean> = this.signupAllowed.asReadonly();
   allowNativeSignin$: Signal<boolean> = this.allowNativeSignin.asReadonly();
+  allowGoogleSignin$: Signal<boolean> = this.allowGoogleSignin.asReadonly();
+  allowMicrosoftSignin$: Signal<boolean> = this.allowMicrosoftSignin.asReadonly();
   sessionTimeoutSeconds$: Signal<number> = this.sessionTimeoutSeconds.asReadonly();
   insecureClientSecret$: Signal<boolean> = this.insecureClientSecret.asReadonly();
   warningMessage$: Signal<string> = this.warningMessage.asReadonly();
@@ -134,6 +148,14 @@ export class ModelService {
 
   setAllowNativeSignin(allowNativeSignin: boolean) {
     this.allowNativeSignin.set(allowNativeSignin);
+  }
+
+  setAllowGoogleSignin(allowGoogleSignin: boolean) {
+    this.allowGoogleSignin.set(allowGoogleSignin);
+  }
+
+  setAllowMicrosoftSignin(allowMicrosoftSignin: boolean) {
+    this.allowMicrosoftSignin.set(allowMicrosoftSignin);
   }
 
   setSessionTimeoutSeconds(seconds: number) {

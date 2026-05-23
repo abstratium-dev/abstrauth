@@ -36,6 +36,12 @@ public class AuthorizationService {
     @ConfigProperty(name = "allow.native.signin", defaultValue = "true")
     boolean allowNativeSignin;
 
+    @ConfigProperty(name = "allow.google.signin", defaultValue = "false")
+    boolean allowGoogleSignin;
+
+    @ConfigProperty(name = "allow.microsoft.signin", defaultValue = "false")
+    boolean allowMicrosoftSignin;
+
     @Transactional
     public AuthorizationRequest createAuthorizationRequest(
             String clientId,
@@ -154,5 +160,13 @@ public class AuthorizationService {
 
     public boolean isNativeSigninAllowed() {
         return allowNativeSignin;
+    }
+
+    public boolean isGoogleSigninAllowed() {
+        return allowGoogleSignin;
+    }
+
+    public boolean isMicrosoftSigninAllowed() {
+        return allowMicrosoftSignin;
     }
 }

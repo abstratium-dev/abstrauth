@@ -390,14 +390,6 @@ describe('Controller', () => {
     });
   });
 
-  describe('loadSignupAllowed (deprecated)', () => {
-    it('should call loadConfig', () => {
-      spyOn(controller, 'loadConfig');
-      controller.loadSignupAllowed();
-      expect(controller.loadConfig).toHaveBeenCalled();
-    });
-  });
-
   describe('createClient', () => {
     const mockClientData = {
       clientId: 'new-client',

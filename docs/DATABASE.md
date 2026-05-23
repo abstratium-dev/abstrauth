@@ -12,6 +12,7 @@ erDiagram
     T_accounts ||--o{ T_federated_identities : "links"
     T_accounts ||--o{ T_authorization_codes : "owns"
     T_accounts ||--o{ T_account_roles : "has"
+    T_account_roles ||--o{ T_oauth_clients : "for"
     T_oauth_clients ||--o{ T_authorization_requests : "initiates"
     T_authorization_requests ||--o{ T_authorization_codes : "generates"
     T_accounts ||--o{ T_authorization_requests : "approves"

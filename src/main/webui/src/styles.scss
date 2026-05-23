@@ -691,6 +691,44 @@ h2 {
   }
 }
 
+/* ===== MICROSOFT SIGN-IN BUTTON ===== */
+.microsoft-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--color-google-bg);
+  border: 1px solid var(--color-border-dark);
+  border-radius: 4px;
+  color: var(--color-google-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-google-hover);
+    border-color: var(--color-border-darker);
+    box-shadow: 0 1px 2px 0 var(--shadow-google), 0 1px 3px 1px var(--shadow-google-light);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--color-google-active);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .microsoft-icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 /* ===== BUTTONS ===== */
 button {
   padding: 0.75rem 1.5rem;
@@ -955,6 +993,11 @@ button {
 
 .badge-native {
   background: var(--color-badge-native);
+  color: white;
+}
+
+.badge-microsoft {
+  background: #00A4EF;
   color: white;
 }
 

@@ -40,6 +40,7 @@
             <option value="">Select a provider</option>
             <option value="native">Native (Username/Password)</option>
             <option value="google">Google</option>
+            <option value="microsoft">Microsoft</option>
           </select>
           <small class="form-hint">Authentication provider for this account</small>
         </div>
@@ -67,7 +68,7 @@
       <h3>Account Created Successfully!</h3>
       <div class="account-details">
         <p><strong>Email:</strong> {{ accountFormData.email }}</p>
-        <p><strong>Authorisation Provider:</strong> {{ accountFormData.authProvider === 'native' ? 'Native (Username/Password)' : accountFormData.authProvider === 'google' ? 'Google' : accountFormData.authProvider }}</p>
+        <p><strong>Authorisation Provider:</strong> {{ accountFormData.authProvider === 'native' ? 'Native (Username/Password)' : accountFormData.authProvider === 'google' ? 'Google' : accountFormData.authProvider === 'microsoft' ? 'Microsoft' : accountFormData.authProvider }}</p>
       </div>
       <p>Share this invite link with the user:</p>
       <div class="invite-link-box">

@@ -13,7 +13,10 @@
   - check all statements never do bulk operations
     - copy md from abstoggle which explains the rules
     - put that doc in to abstracore
-  
+  - review security
+  - review rest of MS document
+  - review AWS document
+  - see svg which contains a better solution
 
 - X check emails are sent when client secrets are running out -> update 20260511 this isn't implemented. since SecretExpirationNotificationService is empty!!! see SERVICE_TO_SERVICE_AUTH.md which shows a scheduler.
 DO NOT SEND EMAIL TO noreply ACCOUNT AS IT ISN'T FORWARDED AND SHOUDLN'T BE!! 
@@ -34,12 +37,14 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 - security audit for CRUD operations on clients and accounts "using any trick in the book" for accessing the server via its web API (no direct access of the database, no access to the file system) - try to CRUD accounts, clients and roles!
 - review tests
 
-- Apple
-- Microsoft
-- Github
+- add more oauth providers:
+  - Apple
+  - Github
 
 
 ## Tomorrow
+
+- organisations can set domain names, to allow anyone with that domain name to automatically be part of the org when they sign in, by creating a TXT dns record which we read regularly to verify that they really own that domain.
 
 - add the ability for users to request roles and create tasks for managers to approve them. document approval and rejection.
 - so that a manager can delegate role management to a subordinate, for a given client_id, we need to add the concept of allowing a user to only add roles for a specific client_id. 

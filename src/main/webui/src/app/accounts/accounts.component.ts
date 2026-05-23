@@ -105,6 +105,8 @@ export class AccountsComponent implements OnInit {
     switch (provider) {
       case 'google':
         return 'badge-google';
+      case 'microsoft':
+        return 'badge-microsoft';
       case 'native':
         return 'badge-native';
       default:

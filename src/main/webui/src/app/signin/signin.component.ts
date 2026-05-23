@@ -51,7 +51,8 @@ export class SigninComponent implements OnInit {
     signinIsExpired = false;
     inviteData: InviteData | null = null;
     showNativeSignin = true;
-    showGoogleSignin = true;
+    showGoogleSignin = false;
+    showMicrosoftSignin = false;
     rememberApproval = false;
     shouldShowApproval = true;
 
@@ -62,6 +63,7 @@ export class SigninComponent implements OnInit {
         if (inviteDataStr) {
             try {
                 this.showGoogleSignin = false;
+                this.showMicrosoftSignin = false;
                 this.showNativeSignin = false;
                 this.inviteData = JSON.parse(inviteDataStr);
                 // Filter sign-in options based on invite data
@@ -69,6 +71,8 @@ export class SigninComponent implements OnInit {
                     this.showNativeSignin = true;
                 } else if (this.inviteData?.authProvider === 'google') {
                     this.showGoogleSignin = true;
+                } else if (this.inviteData?.authProvider === 'microsoft') {
+                    this.showMicrosoftSignin = true;
                 } else {
                     throw new Error("Unexpected authorization provider '" + this.inviteData?.authProvider + "' please contact support")
                 }
@@ -95,6 +99,8 @@ export class SigninComponent implements OnInit {
             let allowNativeSignin = this.modelService.allowNativeSignin$();
             if(!this.inviteData) {
                 this.showNativeSignin = allowNativeSignin;
+                this.showGoogleSignin = this.modelService.allowGoogleSignin$();
+                this.showMicrosoftSignin = this.modelService.allowMicrosoftSignin$();
             }
         });
     }
@@ -205,6 +211,11 @@ export class SigninComponent implements OnInit {
     signinWithGoogle() {
         // Redirect to Google OAuth initiation endpoint
         window.location.href = `/oauth2/federated/google?request_id=${this.requestId}`;
+    }
+
+    signinWithMicrosoft() {
+        // Redirect to Microsoft OAuth initiation endpoint
+        window.location.href = `/oauth2/federated/microsoft?request_id=${this.requestId}`;
     }
 
     checkStoredApproval() {

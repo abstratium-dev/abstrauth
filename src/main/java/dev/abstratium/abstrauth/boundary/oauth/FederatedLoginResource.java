@@ -3,6 +3,7 @@ package dev.abstratium.abstrauth.boundary.oauth;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.GoogleOAuthService;
+import dev.abstratium.abstrauth.service.MicrosoftOAuthService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
@@ -27,6 +28,9 @@ public class FederatedLoginResource {
 
     @Inject
     GoogleOAuthService googleOAuthService;
+
+    @Inject
+    MicrosoftOAuthService microsoftOAuthService;
 
     @Inject
     AuthorizationService authorizationService;
@@ -77,5 +81,50 @@ public class FederatedLoginResource {
 
         log.info("Redirecting to Google authorization URL");
         return Response.seeOther(URI.create(googleAuthUrl)).build();
+    }
+
+    @GET
+    @Path("/microsoft")
+    @Operation(
+        summary = "Initiate Microsoft Login",
+        description = "Redirects the user to Microsoft Entra for authentication. " +
+                     "The request_id parameter identifies the original OAuth authorization request."
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "302",
+            description = "Redirect to Microsoft authentication"
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Invalid request_id"
+        )
+    })
+    public Response initiateMicrosoftLogin(
+        @Parameter(
+            description = "Authorization request identifier",
+            required = true
+        )
+        @QueryParam("request_id") String requestId
+    ) {
+        if (requestId == null || requestId.isBlank()) {
+            log.info("Missing request_id parameter");
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Missing request_id parameter")
+                    .build();
+        }
+
+        Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
+        if (requestOpt.isEmpty() || !"pending".equals(requestOpt.get().getStatus())) {
+            log.info("Invalid or expired authorization request");
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Invalid or expired authorization request")
+                    .build();
+        }
+
+        String microsoftAuthUrl = microsoftOAuthService.getAuthorizationUrl(requestId);
+
+        log.info("Redirecting to Microsoft authorization URL");
+        return Response.seeOther(URI.create(microsoftAuthUrl)).build();
     }
 }

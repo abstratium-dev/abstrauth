@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Account, AddRoleRequest, ClientSecret, CreateAccountResponse, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, ServiceAccountRole, ServiceAccountRolesResponse } from './model.service';
+import { Account, AddRoleRequest, ClientSecret, ConfigResponse, CreateAccountResponse, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, ServiceAccountRole, ServiceAccountRolesResponse } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -55,10 +55,12 @@ export class Controller {
 
   loadConfig(): Promise<void> {
     return firstValueFrom(
-      this.http.get<{ signupAllowed: boolean, allowNativeSignin: boolean, sessionTimeoutSeconds: number, insecureClientSecret: boolean, warningMessage: string }>('/public/config')
+      this.http.get<ConfigResponse>('/public/config')
     ).then(response => {
       this.modelService.setSignupAllowed(response.signupAllowed);
       this.modelService.setAllowNativeSignin(response.allowNativeSignin);
+      this.modelService.setAllowGoogleSignin(response.allowGoogleSignin ?? false);
+      this.modelService.setAllowMicrosoftSignin(response.allowMicrosoftSignin ?? false);
       this.modelService.setSessionTimeoutSeconds(response.sessionTimeoutSeconds);
       this.modelService.setInsecureClientSecret(response.insecureClientSecret);
       this.modelService.setWarningMessage(response.warningMessage || '');
@@ -70,11 +72,6 @@ export class Controller {
       this.modelService.setInsecureClientSecret(false);
       this.modelService.setWarningMessage('');
     });
-  }
-
-  // Deprecated: Use loadConfig() instead
-  loadSignupAllowed() {
-    this.loadConfig();
   }
 
   async createClient(clientData: {
