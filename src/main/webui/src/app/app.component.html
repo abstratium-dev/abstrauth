@@ -2,10 +2,9 @@
 <header></header>
 
 <!-- Environment Warning Banner -->
-@if (warningMessage() && showEnvironmentWarning) {
+@if (warningMessage()) {
   <div class="alert-warning environment-warning">
     <strong>⚠️ {{ warningMessage() }}</strong>
-    <button class="btn-dismiss" (click)="dismissEnvironmentWarning()">×</button>
   </div>
 }
 

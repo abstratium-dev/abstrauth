@@ -68,7 +68,7 @@ describe('AppComponent', () => {
     expect(banner).toBeFalsy();
   });
 
-  it('should dismiss environment warning when dismiss button is clicked', () => {
+  it('should not have a dismiss button on the environment warning banner', () => {
     const warningSignal = signal('You are in a development environment');
     Object.defineProperty(mockModelService, 'warningMessage$', {
       value: warningSignal.asReadonly()
@@ -76,30 +76,8 @@ describe('AppComponent', () => {
 
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    
-    let banner = fixture.nativeElement.querySelector('.environment-warning');
+    const banner = fixture.nativeElement.querySelector('.environment-warning');
     expect(banner).toBeTruthy();
-    
-    const dismissButton = banner?.querySelector('.btn-dismiss') as HTMLButtonElement;
-    dismissButton.click();
-    fixture.detectChanges();
-    
-    banner = fixture.nativeElement.querySelector('.environment-warning');
-    expect(banner).toBeFalsy();
-  });
-
-  it('should have showEnvironmentWarning initially true', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app.showEnvironmentWarning).toBe(true);
-  });
-
-  it('should set showEnvironmentWarning to false when dismissEnvironmentWarning is called', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    
-    app.dismissEnvironmentWarning();
-    
-    expect(app.showEnvironmentWarning).toBe(false);
+    expect(banner?.querySelector('.btn-dismiss')).toBeFalsy();
   });
 });

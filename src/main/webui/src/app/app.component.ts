@@ -19,13 +19,8 @@ export class AppComponent {
   insecureClientSecret: Signal<boolean> = this.modelService.insecureClientSecret$;
   warningMessage: Signal<string> = this.modelService.warningMessage$;
   showSecurityWarning = true;
-  showEnvironmentWarning = true;
   
   dismissWarning() {
     this.showSecurityWarning = false;
-  }
-  
-  dismissEnvironmentWarning() {
-    this.showEnvironmentWarning = false;
   }
 }
