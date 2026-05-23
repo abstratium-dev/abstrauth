@@ -8,6 +8,13 @@
 
 ## Today
 
+- multi-tenancy
+  - introduce envers
+  - check all statements never do bulk operations
+    - copy md from abstoggle which explains the rules
+    - put that doc in to abstracore
+  
+
 - X check emails are sent when client secrets are running out -> update 20260511 this isn't implemented. since SecretExpirationNotificationService is empty!!! see SERVICE_TO_SERVICE_AUTH.md which shows a scheduler.
 DO NOT SEND EMAIL TO noreply ACCOUNT AS IT ISN'T FORWARDED AND SHOUDLN'T BE!! 
 SEARCH for all uses of noreply since we shouldn't send emails there as it isnt monitored.

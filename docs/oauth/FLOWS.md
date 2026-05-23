@@ -31,7 +31,7 @@ This flow is based on:
 
 ---
 
-## Flow 1: Authorization Code Flow with PKCE (Backend For Frontend)
+## Authorization Code Flow with PKCE (Backend For Frontend)
 
 **Use Case:** Single Page Applications using a Backend For Frontend (BFF) architecture
 
@@ -60,21 +60,44 @@ sequenceDiagram
     
     Note over AuthServer: 3. Redirect to Angular App
     AuthServer->>SPA: 302 Redirect to /signin/{requestId}
-    
-    Note over SPA: 4. User Authentication & Consent
-    SPA->>AuthServer: POST /oauth2/authorize/authenticate
-    SPA->>AuthServer: POST /oauth2/authorize (consent)
-    
+
+    Note over SPA: 4. User Authentication
+    alt Native Authentication
+        SPA->>AuthServer: POST /oauth2/authorize/authenticate
+        SPA->>AuthServer: POST /oauth2/authorize (consent)
+    else Google Authentication
+        SPA->>AuthServer: GET /oauth2/federated/google?request_id=...
+        AuthServer->>Google: Redirect to accounts.google.com/o/oauth2/v2/auth
+        Note right of AuthServer: state=request_id<br/>scope=openid email profile
+        Google->>Google: User authenticates with Google
+        Google->>AuthServer: GET /oauth2/callback/google?code=...&state=...
+        AuthServer->>Google: POST /oauth2/v4/token (exchange code)
+        Google->>AuthServer: Google access_token + id_token
+        AuthServer->>Google: GET /oauth2/v1/userinfo
+        Google->>AuthServer: User profile (email, name, picture)
+        AuthServer->>AuthServer: Create or link account<br/>Approve authorization request
+    end
+
+    Note over AuthServer: 4a. Tenant Selection
+    AuthServer->>AuthServer: Query user's tenants
+    alt Multiple Tenants
+        AuthServer->>SPA: 302 Redirect to /tenant-selection/{requestId}
+        SPA->>SPA: Pre-select lastTenantId from localStorage
+        SPA->>AuthServer: POST /tenant-selection (tenant_id)
+    else Single Tenant
+        AuthServer->>AuthServer: Use sole tenant
+    end
+
     Note over AuthServer: 5. Authorization Response
-    AuthServer->>BFF: 302 Redirect to /api/auth/callback?code=...&state=...
-    
+    AuthServer->>BFF: 302 Redirect to /api/auth/callback?code=...&state=...&tenant_id=...
+
     Note over BFF: 6. BFF Exchanges Code for Tokens
     BFF->>BFF: Validate state parameter
     BFF->>AuthServer: POST /oauth2/token
-    Note right of BFF: Parameters:<br/>grant_type=authorization_code<br/>code=AUTH_CODE<br/>client_id=abstratium-abstrauth<br/>client_secret=SECRET<br/>code_verifier=...<br/>redirect_uri=...
-    
+    Note right of BFF: Parameters:<br/>grant_type=authorization_code<br/>code=AUTH_CODE<br/>client_id=abstratium-abstrauth<br/>client_secret=SECRET<br/>code_verifier=...<br/>redirect_uri=...<br/>tenant_id=...
+
     Note over AuthServer: 7. Validate & Issue Tokens
-    AuthServer->>AuthServer: Verify client_secret<br/>Verify PKCE<br/>Generate tokens
+    AuthServer->>AuthServer: Verify client_secret<br/>Verify PKCE<br/>Verify account owns tenant<br/>Generate tokens with tenantId claim
     AuthServer->>BFF: 200 OK + Tokens
     
     Note over BFF: 8. Store Tokens in HTTP-Only Cookies
