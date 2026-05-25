@@ -516,7 +516,7 @@ graph LR
         D --> E[Issue JWT with<br/>groups claim]
     end
     subgraph "Quarkus BFF"
-        E -->|groups: ["clientId_ADMIN"]| F[Quarkus @RolesAllowed]
+        E -->|"groups: [clientId_ADMIN]"| F[Quarkus @RolesAllowed]
     end
 ```
 

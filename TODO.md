@@ -17,6 +17,14 @@
   - review rest of MS document
   - review AWS document
   - see svg which contains a better solution
+  - auto subscription. what if a user is already associated with multiple orgs, are all new subscribers? wait, they subscribe to the clientId in the request. but it could be wrong for all of their orgs to subscribe. so only the one that they CHOSE during sign in should subscribe! so auto subscribe happens after they choose the org that they are signing in under
+  - create security tests to make sure the service cannot be manipulated into providing a token with a wrong orgId
+  - define (complex) test cases for where the user is added to a different organisation, etc.
+
+- add public page to abstrauth WITH ™ symbol!
+- add legal page to abstrauth
+- change concept of clients having secrets. where did i get that idea?? search the code.
+- in list of things which abstrauth is, describe it is also an "identity broker" as written in microsoft doc
 
 - X check emails are sent when client secrets are running out -> update 20260511 this isn't implemented. since SecretExpirationNotificationService is empty!!! see SERVICE_TO_SERVICE_AUTH.md which shows a scheduler.
 DO NOT SEND EMAIL TO noreply ACCOUNT AS IT ISN'T FORWARDED AND SHOUDLN'T BE!! 
