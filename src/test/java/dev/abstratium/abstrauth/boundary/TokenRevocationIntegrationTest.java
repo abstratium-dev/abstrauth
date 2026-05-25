@@ -61,12 +61,12 @@ class TokenRevocationIntegrationTest {
 
         // Create test account
         testAccount = accountService.createAccount(
-                "revocationtest@example.com",
-                "Revocation Test User",
-                "revocationtest",
-                testPassword,
-                AccountService.NATIVE
-        );
+            "revocationtest@example.com",
+            "Revocation Test User",
+            "revocationtest",
+            testPassword,
+            AccountService.NATIVE,
+            "Test Org");
     }
 
     // This test requires the full OAuth flow which is better tested in E2E tests

@@ -67,8 +67,8 @@ public class AccountRoleServiceTest {
             "Role Test User",
             uniqueUsername,
             "TestPassword123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         testAccountId = account.getId();
         
         userTransaction.commit();
@@ -175,8 +175,8 @@ public class AccountRoleServiceTest {
             "Role Test User 2",
             uniqueUsername2,
             "TestPassword123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
 
         // Add same role to both accounts for same client
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
@@ -212,8 +212,8 @@ public class AccountRoleServiceTest {
             "Admin Test User",
             uniqueUsername,
             "TestPassword123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         
         // Add admin role for abstratium-abstrauth
         accountRoleService.addRole(adminAccount.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
@@ -239,8 +239,8 @@ public class AccountRoleServiceTest {
             "Admin 1",
             uniqueUsername1,
             "TestPassword123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         accountRoleService.addRole(admin1.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
         String uniqueEmail2 = "admin2_" + System.nanoTime() + "@example.com";
@@ -250,8 +250,8 @@ public class AccountRoleServiceTest {
             "Admin 2",
             uniqueUsername2,
             "TestPassword123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         userTransaction.commit();
         

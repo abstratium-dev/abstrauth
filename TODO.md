@@ -8,16 +8,14 @@
 
 ## Today
 
+- introduce envers
+
 - multi-tenancy
-  - introduce envers
   - check all statements never do bulk operations
     - copy md from abstoggle which explains the rules
-    - put that doc in to abstracore
+    - also put that doc in to abstracore
   - review security
-  - review rest of MS document
-  - review AWS document
-  - see svg which contains a better solution
-  - auto subscription. what if a user is already associated with multiple orgs, are all new subscribers? wait, they subscribe to the clientId in the request. but it could be wrong for all of their orgs to subscribe. so only the one that they CHOSE during sign in should subscribe! so auto subscribe happens after they choose the org that they are signing in under
+  - auto subscription. what if a user is already associated with multiple orgs, are all new subscribers? wait, they subscribe t o the clientId in the request. but it could be wrong for all of their orgs to subscribe. so only the one that they CHOSE during sign in should subscribe! so auto subscribe happens after they choose the org that they are signing in under
   - create security tests to make sure the service cannot be manipulated into providing a token with a wrong orgId
   - define (complex) test cases for where the user is added to a different organisation, etc.
 

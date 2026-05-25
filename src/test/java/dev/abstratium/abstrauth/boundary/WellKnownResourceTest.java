@@ -104,6 +104,7 @@ public class WellKnownResourceTest {
             .formParam("name", "JWKS Test User")
             .formParam("username", username)
             .formParam("password", "SecurePassword123")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()

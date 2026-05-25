@@ -66,8 +66,8 @@ public class TokenRolesTest {
             "Roles Test User",
             testUsername,
             testPassword,
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         testAccountId = account.getId();
         userTransaction.commit();
     }

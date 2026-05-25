@@ -70,12 +70,12 @@ public class OAuthFlowWithClientSecretTest {
 
         // Create test account with MANAGE_CLIENTS role
         testAccount = accountService.createAccount(
-                "oauthflowtest@example.com",
-                "OAuth Flow Test User",
-                "oauthflowtest",
-                testPassword,
-                AccountService.NATIVE
-        );
+            "oauthflowtest@example.com",
+            "OAuth Flow Test User",
+            "oauthflowtest",
+            testPassword,
+            AccountService.NATIVE,
+            "Test Org");
 
         // Assign MANAGE_CLIENTS role
         AccountRole role = new AccountRole();

@@ -56,3 +56,6 @@ e2e-tests/playwright/.auth/
 .quinoa
 
 **/node_modules/
+
+tmp
+

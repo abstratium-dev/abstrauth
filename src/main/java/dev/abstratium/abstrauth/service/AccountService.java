@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.service;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.Credential;
+import dev.abstratium.abstrauth.entity.Organisation;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.jdt.annotation.NonNull;
 import jakarta.persistence.EntityManager;
@@ -28,6 +29,9 @@ public class AccountService {
     AccountRoleService accountRoleService;
 
     @Inject
+    OrganisationService organisationService;
+
+    @Inject
     MetricsService metricsService;
 
     @ConfigProperty(name = "password.pepper")
@@ -47,7 +51,7 @@ public class AccountService {
     }
 
     @Transactional
-    public Account createAccount(String email, String name, String username, String password, String authProvider) {
+    public Account createAccount(String email, String name, String username, String password, String authProvider, String organisationName) {
         // Check if email already exists
         if (findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Email already exists");
@@ -70,11 +74,18 @@ public class AccountService {
 
         addRoles(account);
 
+        // Create organisation and link account as owner and member
+        if (organisationName != null && !organisationName.isBlank()) {
+            Organisation org = organisationService.createOrganisation(organisationName, account.getId());
+            organisationService.addOwner(org.getId(), account.getId());
+            organisationService.addMember(org.getId(), account.getId());
+        }
+
         return account;
     }
 
     @Transactional
-    public Account createFederatedAccount(String email, String name, String picture, 
+    public Account createFederatedAccount(String email, String name, String picture,
                                          Boolean emailVerified, String authProvider) {
         // Check if email already exists
         if (findByEmail(email).isPresent()) {
@@ -91,6 +102,49 @@ public class AccountService {
         em.persist(account);
 
         addRoles(account);
+
+        // Create organisation and link account as owner and member
+        // For federated signups without invite, auto-generate org name from email
+        String organisationName = email + "'s Organisation";
+        Organisation org = organisationService.createOrganisation(organisationName, account.getId());
+        organisationService.addOwner(org.getId(), account.getId());
+        organisationService.addMember(org.getId(), account.getId());
+
+        return account;
+    }
+
+    /**
+     * Creates an account within an existing organisation (for admin/org owner use).
+     * The account is linked as a member of the specified organisation.
+     * No new organisation is created - the account joins the existing one.
+     */
+    @Transactional
+    public Account createAccountForOrg(String email, String name, String username, String password, 
+                                        String authProvider, String orgId) {
+        // Check if email already exists
+        if (findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+
+        // Create account
+        Account account = new Account();
+        account.setEmail(email);
+        account.setName(name);
+        account.setEmailVerified(false);
+        account.setAuthProvider(authProvider);
+        account.setPicture(null);
+        account.setCreatedAt(LocalDateTime.now());
+        em.persist(account);
+
+        // Create credentials
+        if(AccountService.NATIVE.equals(authProvider) && password != null) {
+            createCredentialForAccount(account.getId(), username, password);
+        }
+
+        addRoles(account);
+
+        // Link account to existing organisation as member (not owner - the admin is the owner)
+        organisationService.addMember(orgId, account.getId());
 
         return account;
     }

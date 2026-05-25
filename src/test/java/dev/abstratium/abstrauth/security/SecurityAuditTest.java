@@ -57,12 +57,12 @@ public class SecurityAuditTest {
         // Create test account
         try {
             testAccount = accountService.createAccount(
-                "security-test@example.com",
-                "Security Test User",
-                "securitytest",
-                testPassword,
-                AccountService.NATIVE
-            );
+            "security-test@example.com",
+            "Security Test User",
+            "securitytest",
+            testPassword,
+            AccountService.NATIVE,
+            "Test Org");
         } catch (IllegalArgumentException e) {
             // Account already exists, find it
             testAccount = accountService.findByEmail("security-test@example.com").orElseThrow();
@@ -349,7 +349,7 @@ public class SecurityAuditTest {
         
         Account account = null;
         try {
-            account = accountService.createAccount(testEmail, "Test", "bcrypttest", testPass, AccountService.NATIVE);
+            account = accountService.createAccount(testEmail, "Test", "bcrypttest", testPass, AccountService.NATIVE, "Test Org");
         } catch (IllegalArgumentException e) {
             account = accountService.findByEmail(testEmail).orElseThrow();
         }
@@ -389,7 +389,7 @@ public class SecurityAuditTest {
 
         // Create test account
         try {
-            accountService.createAccount(email, "Lockout Test", username, password, AccountService.NATIVE);
+            accountService.createAccount(email, "Lockout Test", username, password, AccountService.NATIVE, "Test Org");
         } catch (IllegalArgumentException e) {
             // Already exists
         }

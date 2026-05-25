@@ -36,6 +36,7 @@ public class AuthorizationFlowTest {
             .formParam("name", TEST_NAME)
             .formParam("username", TEST_USERNAME)
             .formParam("password", TEST_PASSWORD)
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()

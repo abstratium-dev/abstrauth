@@ -1,30 +1,25 @@
 package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.TenantId;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "T_service_account_roles")
-public class ServiceAccountRole {
+@Table(name = "T_subscriptions")
+public class Subscription {
 
     @Id
     @Column(length = 36)
     private String id;
 
+    @Column(name = "org_id", nullable = false, length = 36)
+    private String orgId;
+
     @Column(name = "client_id", nullable = false)
     private String clientId;
 
-    @Column(nullable = false, length = 100)
-    private String role;
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    @TenantId
-    @Column(name = "org_id", length = 36)
-    private String orgId;
 
     @PrePersist
     public void prePersist() {
@@ -45,6 +40,14 @@ public class ServiceAccountRole {
         this.id = id;
     }
 
+    public String getOrgId() {
+        return orgId;
+    }
+
+    public void setOrgId(String orgId) {
+        this.orgId = orgId;
+    }
+
     public String getClientId() {
         return clientId;
     }
@@ -53,27 +56,11 @@ public class ServiceAccountRole {
         this.clientId = clientId;
     }
 
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public String getOrgId() {
-        return orgId;
-    }
-
-    public void setOrgId(String orgId) {
-        this.orgId = orgId;
     }
 }

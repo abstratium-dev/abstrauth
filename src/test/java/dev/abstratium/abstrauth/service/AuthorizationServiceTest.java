@@ -112,8 +112,8 @@ public class AuthorizationServiceTest {
             "Approve Test",
             "approveuser_" + System.currentTimeMillis(),
             "Password123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
@@ -171,8 +171,8 @@ public class AuthorizationServiceTest {
             "GenCode Test",
             "gencodeuser_" + System.currentTimeMillis(),
             "Password123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
@@ -233,8 +233,8 @@ public class AuthorizationServiceTest {
             "FindCode Test",
             "findcodeuser_" + System.currentTimeMillis(),
             "Password123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
@@ -269,8 +269,8 @@ public class AuthorizationServiceTest {
             "MarkUsed Test",
             "markuseduser_" + System.currentTimeMillis(),
             "Password123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
@@ -306,8 +306,8 @@ public class AuthorizationServiceTest {
             "MarkById Test",
             "markbyiduser_" + System.currentTimeMillis(),
             "Password123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
@@ -343,8 +343,8 @@ public class AuthorizationServiceTest {
             "Secure Test",
             "secureuser_" + System.currentTimeMillis(),
             "Password123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         
         AuthorizationRequest request = authorizationService.createAuthorizationRequest(
             "test_client",
@@ -404,8 +404,8 @@ public class AuthorizationServiceTest {
             "Signup Test",
             "signupuser_" + System.currentTimeMillis(),
             "Password123",
-            AccountService.NATIVE
-        );
+            AccountService.NATIVE,
+            "Test Org");
         
         // In test profile, allow.signup=true
         boolean signupAllowed = authorizationService.isSignupAllowed();

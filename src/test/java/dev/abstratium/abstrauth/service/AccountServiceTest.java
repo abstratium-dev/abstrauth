@@ -65,7 +65,7 @@ public class AccountServiceTest {
         String email = "servicetest_" + System.currentTimeMillis() + "@example.com";
         String username = "servicetest_" + System.currentTimeMillis();
         
-        Account account = accountService.createAccount(email, "Service Test", username, "Password123", AccountService.NATIVE);
+        Account account = accountService.createAccount(email, "Service Test", username, "Password123", AccountService.NATIVE, "Test Org");
         
         assertNotNull(account);
         assertNotNull(account.getId());
@@ -85,10 +85,10 @@ public class AccountServiceTest {
         String username1 = "user1_" + System.currentTimeMillis();
         String username2 = "user2_" + System.currentTimeMillis();
         
-        accountService.createAccount(email, "User One", username1, "Password123", AccountService.NATIVE);
+        accountService.createAccount(email, "User One", username1, "Password123", AccountService.NATIVE, "Test Org");
         
         assertThrows(IllegalArgumentException.class, () -> {
-            accountService.createAccount(email, "User Two", username2, "Password456", AccountService.NATIVE);
+            accountService.createAccount(email, "User Two", username2, "Password456", AccountService.NATIVE, "Test Org");
         });
     }
 
@@ -98,10 +98,10 @@ public class AccountServiceTest {
         String email2 = "email2_" + System.currentTimeMillis() + "@example.com";
         String username = "dupuser_" + System.currentTimeMillis();
         
-        accountService.createAccount(email1, "User One", username, "Password123", AccountService.NATIVE);
+        accountService.createAccount(email1, "User One", username, "Password123", AccountService.NATIVE, "Test Org");
         
         assertThrows(IllegalArgumentException.class, () -> {
-            accountService.createAccount(email2, "User Two", username, "Password456", AccountService.NATIVE);
+            accountService.createAccount(email2, "User Two", username, "Password456", AccountService.NATIVE, "Test Org");
         });
     }
 
@@ -111,7 +111,7 @@ public class AccountServiceTest {
         String username = "authuser_" + System.currentTimeMillis();
         String password = "SecurePassword123";
         
-        Account created = accountService.createAccount(email, "Auth User", username, password, AccountService.NATIVE);
+        Account created = accountService.createAccount(email, "Auth User", username, password, AccountService.NATIVE, "Test Org");
         
         Optional<Account> authenticated = accountService.authenticate(username, password);
         
@@ -125,7 +125,7 @@ public class AccountServiceTest {
         String email = "wrongpw_" + System.currentTimeMillis() + "@example.com";
         String username = "wrongpwuser_" + System.currentTimeMillis();
         
-        accountService.createAccount(email, "Wrong PW User", username, "CorrectPassword", AccountService.NATIVE);
+        accountService.createAccount(email, "Wrong PW User", username, "CorrectPassword", AccountService.NATIVE, "Test Org");
         
         Optional<Account> authenticated = accountService.authenticate(username, "WrongPassword");
         
@@ -150,7 +150,7 @@ public class AccountServiceTest {
         String username = "lockuser_" + System.currentTimeMillis();
         String password = "CorrectPassword";
         
-        accountService.createAccount(email, "Lock Test User", username, password, AccountService.NATIVE);
+        accountService.createAccount(email, "Lock Test User", username, password, AccountService.NATIVE, "Test Org");
         
         // Make 5 failed attempts
         for (int i = 0; i < 5; i++) {
@@ -174,7 +174,7 @@ public class AccountServiceTest {
         String username = "resetuser_" + System.currentTimeMillis();
         String password = "CorrectPassword";
         
-        accountService.createAccount(email, "Reset Test User", username, password, AccountService.NATIVE);
+        accountService.createAccount(email, "Reset Test User", username, password, AccountService.NATIVE, "Test Org");
         
         // Make 3 failed attempts
         for (int i = 0; i < 3; i++) {
@@ -205,7 +205,7 @@ public class AccountServiceTest {
         String email = "findtest_" + System.currentTimeMillis() + "@example.com";
         String username = "finduser_" + System.currentTimeMillis();
         
-        Account created = accountService.createAccount(email, "Find Test", username, "Password123", AccountService.NATIVE);
+        Account created = accountService.createAccount(email, "Find Test", username, "Password123", AccountService.NATIVE, "Test Org");
         
         Optional<Account> found = accountService.findByEmail(email);
         
@@ -226,7 +226,7 @@ public class AccountServiceTest {
         String email = "findbyid_" + System.currentTimeMillis() + "@example.com";
         String username = "findbyiduser_" + System.currentTimeMillis();
         
-        Account created = accountService.createAccount(email, "Find By ID Test", username, "Password123", AccountService.NATIVE);
+        Account created = accountService.createAccount(email, "Find By ID Test", username, "Password123", AccountService.NATIVE, "Test Org");
         
         Optional<Account> found = accountService.findById(created.getId());
         
@@ -247,7 +247,7 @@ public class AccountServiceTest {
         String email = "credtest_" + System.currentTimeMillis() + "@example.com";
         String username = "creduser_" + System.currentTimeMillis();
         
-        Account account = accountService.createAccount(email, "Cred Test", username, "Password123", AccountService.NATIVE);
+        Account account = accountService.createAccount(email, "Cred Test", username, "Password123", AccountService.NATIVE, "Test Org");
         
         Optional<Credential> credential = accountService.findCredentialByAccountId(account.getId());
         
@@ -262,7 +262,7 @@ public class AccountServiceTest {
         
         String email = "count_" + System.currentTimeMillis() + "@example.com";
         String username = "countuser_" + System.currentTimeMillis();
-        accountService.createAccount(email, "Count Test", username, "Password123", AccountService.NATIVE);
+        accountService.createAccount(email, "Count Test", username, "Password123", AccountService.NATIVE, "Test Org");
         
         long newCount = accountService.countAccounts();
         assertEquals(initialCount + 1, newCount);
@@ -277,7 +277,7 @@ public class AccountServiceTest {
         String username = "firstadminuser_" + System.currentTimeMillis();
         
         long accountCountBefore = accountService.countAccounts();
-        Account account = accountService.createAccount(email, "First Admin Test", username, "Password123", AccountService.NATIVE);
+        Account account = accountService.createAccount(email, "First Admin Test", username, "Password123", AccountService.NATIVE, "Test Org");
         
         // If this was the first account (countBefore == 0), it should have admin role
         if (accountCountBefore == 0) {
@@ -291,12 +291,12 @@ public class AccountServiceTest {
         // Ensure at least one account exists
         String email1 = "first_" + System.currentTimeMillis() + "@example.com";
         String username1 = "firstuser_" + System.currentTimeMillis();
-        accountService.createAccount(email1, "First User", username1, "Password123", AccountService.NATIVE);
+        accountService.createAccount(email1, "First User", username1, "Password123", AccountService.NATIVE, "Test Org");
         
         // Create second account
         String email2 = "second_" + System.currentTimeMillis() + "@example.com";
         String username2 = "seconduser_" + System.currentTimeMillis();
-        Account account2 = accountService.createAccount(email2, "Second User", username2, "Password123", AccountService.NATIVE);
+        Account account2 = accountService.createAccount(email2, "Second User", username2, "Password123", AccountService.NATIVE, "Test Org");
         
         // Second account should NOT have admin role
         var roles = accountRoleService.findRolesByAccountIdAndClientId(account2.getId(), "abstratium-abstrauth");
@@ -326,9 +326,9 @@ public class AccountServiceTest {
         String email2 = "shared2_" + System.currentTimeMillis() + "@example.com";
         String email3 = "shared3_" + System.currentTimeMillis() + "@example.com";
         
-        Account account1 = accountService.createAccount(email1, "User 1", "user1_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        Account account2 = accountService.createAccount(email2, "User 2", "user2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
-        Account account3 = accountService.createAccount(email3, "User 3", "user3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        Account account1 = accountService.createAccount(email1, "User 1", "user1_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account account2 = accountService.createAccount(email2, "User 2", "user2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account account3 = accountService.createAccount(email3, "User 3", "user3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         
         // Give account1 roles for client-a and client-b
         accountRoleService.addRole(account1.getId(), "client-a", "user");
@@ -365,8 +365,8 @@ public class AccountServiceTest {
         ensureClientExists(clientY);
         userTransaction.commit();
         
-        Account account1 = accountService.createAccount(email1, "User 1", "noshared1_" + timestamp, "Pass123", AccountService.NATIVE);
-        Account account2 = accountService.createAccount(email2, "User 2", "noshared2_" + timestamp, "Pass123", AccountService.NATIVE);
+        Account account1 = accountService.createAccount(email1, "User 1", "noshared1_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
+        Account account2 = accountService.createAccount(email2, "User 2", "noshared2_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
         
         // Give account1 role for unique client-x
         accountRoleService.addRole(account1.getId(), clientX, "user");
@@ -386,7 +386,7 @@ public class AccountServiceTest {
     public void testFindAccountsByUserClientRoles_UserWithNoRoles() {
         // Create an account with no roles
         String email = "noroles_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "No Roles User", "noroles_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        Account account = accountService.createAccount(email, "No Roles User", "noroles_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         
         // Don't add any roles to this account
         
@@ -417,10 +417,10 @@ public class AccountServiceTest {
         ensureClientExists(clientC);
         userTransaction.commit();
         
-        Account account1 = accountService.createAccount(email1, "User 1", "multi1_" + timestamp, "Pass123", AccountService.NATIVE);
-        Account account2 = accountService.createAccount(email2, "User 2", "multi2_" + timestamp, "Pass123", AccountService.NATIVE);
-        Account account3 = accountService.createAccount(email3, "User 3", "multi3_" + timestamp, "Pass123", AccountService.NATIVE);
-        Account account4 = accountService.createAccount(email4, "User 4", "multi4_" + timestamp, "Pass123", AccountService.NATIVE);
+        Account account1 = accountService.createAccount(email1, "User 1", "multi1_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
+        Account account2 = accountService.createAccount(email2, "User 2", "multi2_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
+        Account account3 = accountService.createAccount(email3, "User 3", "multi3_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
+        Account account4 = accountService.createAccount(email4, "User 4", "multi4_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
         
         // account1 has roles for unique client-a, client-b, client-c
         accountRoleService.addRole(account1.getId(), clientA, "user");
@@ -455,7 +455,7 @@ public class AccountServiceTest {
     public void testFindAccountsByUserClientRoles_RolesEagerlyLoaded() {
         // Create account with roles
         String email = "eager_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Eager User", "eager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE);
+        Account account = accountService.createAccount(email, "Eager User", "eager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         String accountId = account.getId();
         
         accountRoleService.addRole(accountId, "client-test", "user");
@@ -496,7 +496,7 @@ public class AccountServiceTest {
         // Create an account with admin role for abstratium-abstrauth
         String email = "onlyadmin_" + System.currentTimeMillis() + "@example.com";
         String username = "onlyadmin_" + System.currentTimeMillis();
-        Account adminAccount = accountService.createAccount(email, "Only Admin", username, "Password123", AccountService.NATIVE);
+        Account adminAccount = accountService.createAccount(email, "Only Admin", username, "Password123", AccountService.NATIVE, "Test Org");
         accountRoleService.addRole(adminAccount.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         userTransaction.commit();
         
@@ -515,12 +515,12 @@ public class AccountServiceTest {
         userTransaction.begin();
         String email1 = "admin1_del_" + System.currentTimeMillis() + "@example.com";
         String username1 = "admin1_del_" + System.currentTimeMillis();
-        Account admin1 = accountService.createAccount(email1, "Admin 1", username1, "Password123", AccountService.NATIVE);
+        Account admin1 = accountService.createAccount(email1, "Admin 1", username1, "Password123", AccountService.NATIVE, "Test Org");
         accountRoleService.addRole(admin1.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
         String email2 = "admin2_del_" + System.currentTimeMillis() + "@example.com";
         String username2 = "admin2_del_" + System.currentTimeMillis();
-        Account admin2 = accountService.createAccount(email2, "Admin 2", username2, "Password123", AccountService.NATIVE);
+        Account admin2 = accountService.createAccount(email2, "Admin 2", username2, "Password123", AccountService.NATIVE, "Test Org");
         accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         userTransaction.commit();
         
@@ -544,7 +544,7 @@ public class AccountServiceTest {
         userTransaction.begin();
         String email = "nonadmin_" + System.currentTimeMillis() + "@example.com";
         String username = "nonadmin_" + System.currentTimeMillis();
-        Account account = accountService.createAccount(email, "Non Admin", username, "Password123", AccountService.NATIVE);
+        Account account = accountService.createAccount(email, "Non Admin", username, "Password123", AccountService.NATIVE, "Test Org");
         // Don't add admin role
         userTransaction.commit();
         
@@ -564,7 +564,7 @@ public class AccountServiceTest {
         userTransaction.begin();
         String email = "otheradmin_" + System.currentTimeMillis() + "@example.com";
         String username = "otheradmin_" + System.currentTimeMillis();
-        Account account = accountService.createAccount(email, "Other Admin", username, "Password123", AccountService.NATIVE);
+        Account account = accountService.createAccount(email, "Other Admin", username, "Password123", AccountService.NATIVE, "Test Org");
         accountRoleService.addRole(account.getId(), "client-test", "admin");
         userTransaction.commit();
         

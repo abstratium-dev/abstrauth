@@ -36,12 +36,13 @@ public class SignupResource {
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Sign up new user", description = "Creates a new user account with credentials")
+    @Operation(summary = "Sign up new user", description = "Creates a new user account with credentials and initial organisation")
     public Response signup(
             @FormParam("email") String email,
             @FormParam("name") String name,
             @FormParam("username") String username,
-            @FormParam("password") String password) {
+            @FormParam("password") String password,
+            @FormParam("organisationName") String organisationName) {
 
         if (!authorizationService.isSignupAllowed()) {
             return Response.status(Response.Status.FORBIDDEN)
@@ -67,8 +68,14 @@ public class SignupResource {
                     .build();
         }
 
+        if (organisationName == null || organisationName.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("invalid_request", "Organisation name is required"))
+                    .build();
+        }
+
         try {
-            Account account = accountService.createAccount(email, name, username, password, AccountService.NATIVE);
+            Account account = accountService.createAccount(email, name, username, password, AccountService.NATIVE, organisationName);
             metricsService.recordSignup();
             return Response.status(Response.Status.CREATED)
                     .entity(new SignupResponse(account.getId(), account.getEmail(), account.getName()))

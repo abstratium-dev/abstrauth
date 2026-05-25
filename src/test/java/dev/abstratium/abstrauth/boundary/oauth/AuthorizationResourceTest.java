@@ -444,12 +444,12 @@ public class AuthorizationResourceTest {
         Optional<Account> accountOpt = accountService.findByEmail(testEmail);
         if (accountOpt.isEmpty()) {
             accountService.createAccount(
-                    testEmail,
-                    "Test User Auth No Roles",
-                    testUsername,
-                    "password123",
-                    AccountService.NATIVE
-            );
+            testEmail,
+            "Test User Auth No Roles",
+            testUsername,
+            "password123",
+            AccountService.NATIVE,
+            "Test Org");
         }
 
         // Re-fetch to ensure roles are loaded

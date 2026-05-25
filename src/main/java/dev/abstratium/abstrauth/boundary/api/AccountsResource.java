@@ -13,6 +13,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import io.quarkus.oidc.IdToken;
@@ -46,6 +47,9 @@ public class AccountsResource {
     
     @Inject
     AccountRoleService accountRoleService;
+    
+    @Inject
+    OrganisationService organisationService;
     
     @Inject
     SecurityIdentity securityIdentity;
@@ -120,7 +124,17 @@ public class AccountsResource {
             name = "NOT YET SIGNED IN";
         }
 
-        Account account = accountService.createAccount(request.email, name, request.email, generatedPassword, request.authProvider);
+        // When an admin/owner creates an account, they do so within their own organisation
+        // The orgId comes from the JWT claim of the requesting user
+        String orgId = token.getClaim("orgId");
+        if (orgId == null || orgId.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("orgId claim is required in JWT"))
+                    .build();
+        }
+        
+        // Create account without organisation - we'll link it manually to the admin's org
+        Account account = accountService.createAccountForOrg(request.email, name, request.email, generatedPassword, request.authProvider, orgId);
         
         // Create invite token
         String inviteToken = createInviteToken(request.authProvider, request.email, generatedPassword);
@@ -336,6 +350,9 @@ public class AccountsResource {
         @NotBlank(message = "Auth provider is required")
         @Pattern(regexp = "google|native", message = "Auth provider must be either 'google', or 'native'")
         public String authProvider;
+        
+        // Organisation name for the new account's initial organisation
+        public String organisationName;
     }
     
     @RegisterForReflection

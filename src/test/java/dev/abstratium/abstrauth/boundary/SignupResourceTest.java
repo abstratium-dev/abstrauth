@@ -16,12 +16,14 @@ public class SignupResourceTest {
     public void testSignupWithValidData() {
         String uniqueEmail = "signuptest_" + System.currentTimeMillis() + "@example.com";
         String uniqueUsername = "signuptest_" + System.currentTimeMillis();
+        String uniqueOrgName = "Test Org " + System.currentTimeMillis();
         
         given()
             .formParam("email", uniqueEmail)
             .formParam("name", "Signup Test")
             .formParam("username", uniqueUsername)
             .formParam("password", "SecurePassword123")
+            .formParam("organisationName", uniqueOrgName)
             .when()
             .post("/api/signup")
             .then()
@@ -37,6 +39,7 @@ public class SignupResourceTest {
             .formParam("name", "Test User")
             .formParam("username", "testuser")
             .formParam("password", "Password123")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
@@ -52,6 +55,7 @@ public class SignupResourceTest {
             .formParam("name", "Test User")
             .formParam("username", "testuser")
             .formParam("password", "Password123")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
@@ -66,6 +70,7 @@ public class SignupResourceTest {
             .formParam("email", "test@example.com")
             .formParam("name", "Test User")
             .formParam("password", "Password123")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
@@ -81,6 +86,7 @@ public class SignupResourceTest {
             .formParam("name", "Test User")
             .formParam("username", "   ")
             .formParam("password", "Password123")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
@@ -95,6 +101,7 @@ public class SignupResourceTest {
             .formParam("email", "test@example.com")
             .formParam("name", "Test User")
             .formParam("username", "testuser")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
@@ -110,6 +117,7 @@ public class SignupResourceTest {
             .formParam("name", "Test User")
             .formParam("username", "testuser")
             .formParam("password", "short")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
@@ -125,6 +133,7 @@ public class SignupResourceTest {
             .formParam("name", "Test User")
             .formParam("username", "testuser")
             .formParam("password", "1234567")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
@@ -143,6 +152,7 @@ public class SignupResourceTest {
             .formParam("name", "PW Test")
             .formParam("username", uniqueUsername)
             .formParam("password", "12345678")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
@@ -154,6 +164,8 @@ public class SignupResourceTest {
         String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
         String username1 = "user1_" + System.currentTimeMillis();
         String username2 = "user2_" + System.currentTimeMillis();
+        String orgName1 = "Org 1 " + System.currentTimeMillis();
+        String orgName2 = "Org 2 " + System.currentTimeMillis();
         
         // First sign up
         given()
@@ -161,6 +173,7 @@ public class SignupResourceTest {
             .formParam("name", "User One")
             .formParam("username", username1)
             .formParam("password", "Password123")
+            .formParam("organisationName", orgName1)
             .when()
             .post("/api/signup")
             .then()
@@ -172,6 +185,7 @@ public class SignupResourceTest {
             .formParam("name", "User Two")
             .formParam("username", username2)
             .formParam("password", "Password456")
+            .formParam("organisationName", orgName2)
             .when()
             .post("/api/signup")
             .then()
@@ -185,6 +199,8 @@ public class SignupResourceTest {
         String email1 = "email1_" + System.currentTimeMillis() + "@example.com";
         String email2 = "email2_" + System.currentTimeMillis() + "@example.com";
         String username = "dupuser_" + System.currentTimeMillis();
+        String orgName1 = "Org 1 " + System.currentTimeMillis();
+        String orgName2 = "Org 2 " + System.currentTimeMillis();
         
         // First sign up
         given()
@@ -192,6 +208,7 @@ public class SignupResourceTest {
             .formParam("name", "User One")
             .formParam("username", username)
             .formParam("password", "Password123")
+            .formParam("organisationName", orgName1)
             .when()
             .post("/api/signup")
             .then()
@@ -203,6 +220,7 @@ public class SignupResourceTest {
             .formParam("name", "User Two")
             .formParam("username", username)
             .formParam("password", "Password456")
+            .formParam("organisationName", orgName2)
             .when()
             .post("/api/signup")
             .then()
@@ -215,12 +233,14 @@ public class SignupResourceTest {
     public void testSignupWithoutName() {
         String uniqueEmail = "noname_" + System.currentTimeMillis() + "@example.com";
         String uniqueUsername = "noname_" + System.currentTimeMillis();
+        String orgName = "Test Org " + System.currentTimeMillis();
         
         // Name is optional
         given()
             .formParam("email", uniqueEmail)
             .formParam("username", uniqueUsername)
             .formParam("password", "Password123")
+            .formParam("organisationName", orgName)
             .when()
             .post("/api/signup")
             .then()
@@ -233,12 +253,14 @@ public class SignupResourceTest {
     public void testSignupReturnsJsonContentType() {
         String uniqueEmail = "jsontest_" + System.currentTimeMillis() + "@example.com";
         String uniqueUsername = "jsontest_" + System.currentTimeMillis();
+        String orgName = "Test Org " + System.currentTimeMillis();
         
         given()
             .formParam("email", uniqueEmail)
             .formParam("name", "JSON Test")
             .formParam("username", uniqueUsername)
             .formParam("password", "Password123")
+            .formParam("organisationName", orgName)
             .when()
             .post("/api/signup")
             .then()
@@ -250,9 +272,41 @@ public class SignupResourceTest {
         given()
             .formParam("email", "test@example.com")
             .formParam("password", "short")
+            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()
             .contentType(containsString("application/json"));
+    }
+
+    @Test
+    public void testSignupWithMissingOrganisationName() {
+        given()
+            .formParam("email", "test@example.com")
+            .formParam("name", "Test User")
+            .formParam("username", "testuser")
+            .formParam("password", "Password123")
+            .when()
+            .post("/api/signup")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("invalid_request"))
+            .body("error_description", containsString("Organisation name is required"));
+    }
+
+    @Test
+    public void testSignupWithBlankOrganisationName() {
+        given()
+            .formParam("email", "test@example.com")
+            .formParam("name", "Test User")
+            .formParam("username", "testuser")
+            .formParam("password", "Password123")
+            .formParam("organisationName", "   ")
+            .when()
+            .post("/api/signup")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("invalid_request"))
+            .body("error_description", containsString("Organisation name is required"));
     }
 }

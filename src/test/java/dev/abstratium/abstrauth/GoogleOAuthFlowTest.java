@@ -173,6 +173,7 @@ public class GoogleOAuthFlowTest {
                 .formParam("name", "Existing User")
                 .formParam("username", uniqueUsername)
                 .formParam("password", "password123")
+                .formParam("organisationName", "Test Organisation")
                 .when()
                 .post("/api/signup")
                 .then()

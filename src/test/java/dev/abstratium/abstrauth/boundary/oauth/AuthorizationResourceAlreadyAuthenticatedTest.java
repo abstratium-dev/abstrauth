@@ -53,12 +53,12 @@ public class AuthorizationResourceAlreadyAuthenticatedTest {
         Optional<Account> accountOpt = accountService.findByEmail("test-already-auth@example.com");
         if (accountOpt.isEmpty()) {
             testAccount = accountService.createAccount(
-                    "test-already-auth@example.com",
-                    "Test User Already Auth",
-                    "test-already-auth",
-                    "password123",
-                    AccountService.NATIVE
-            );
+            "test-already-auth@example.com",
+            "Test User Already Auth",
+            "test-already-auth",
+            "password123",
+            AccountService.NATIVE,
+            "Test Org");
         } else {
             testAccount = accountOpt.get();
         }
@@ -180,12 +180,12 @@ public class AuthorizationResourceAlreadyAuthenticatedTest {
         Optional<Account> accountOpt = accountService.findByEmail("test-no-roles-for-client@example.com");
         if (accountOpt.isEmpty()) {
             accountService.createAccount(
-                    "test-no-roles-for-client@example.com",
-                    "Test User No Roles For Client",
-                    "test-no-roles-for-client",
-                    "password123",
-                    AccountService.NATIVE
-            );
+            "test-no-roles-for-client@example.com",
+            "Test User No Roles For Client",
+            "test-no-roles-for-client",
+            "password123",
+            AccountService.NATIVE,
+            "Test Org");
         }
         
         // Re-fetch account to ensure roles are loaded

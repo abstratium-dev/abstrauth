@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.TenantId;
 import java.time.Instant;
 
 @Entity
@@ -31,7 +32,11 @@ public class ClientSecret {
     
     @Column(name = "account_id")
     private String accountId;
-    
+
+    @TenantId
+    @Column(name = "org_id", length = 36)
+    private String orgId;
+
     // Getters and setters
     public Long getId() {
         return id;
@@ -95,5 +100,13 @@ public class ClientSecret {
     
     public void setAccountId(String accountId) {
         this.accountId = accountId;
+    }
+
+    public String getOrgId() {
+        return orgId;
+    }
+
+    public void setOrgId(String orgId) {
+        this.orgId = orgId;
     }
 }

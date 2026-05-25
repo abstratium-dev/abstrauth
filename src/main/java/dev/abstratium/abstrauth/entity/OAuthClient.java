@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.TenantId;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -32,6 +33,10 @@ public class OAuthClient {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @TenantId
+    @Column(name = "org_id", length = 36)
+    private String orgId;
 
     @PrePersist
     public void prePersist() {
@@ -106,5 +111,13 @@ public class OAuthClient {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getOrgId() {
+        return orgId;
+    }
+
+    public void setOrgId(String orgId) {
+        this.orgId = orgId;
     }
 }
