@@ -76,7 +76,7 @@ Update `SignupResource` / `AccountService` so that registering a new account als
 
 ---
 
-## Feature 7 — Quarkus: `OrganisationsResource` REST Endpoints
+## Feature 7 — Quarkus: `OrganisationsResource` REST Endpoints ✅ COMPLETED
 
 Expose the organisation management API.
 
@@ -94,7 +94,7 @@ Expose the organisation management API.
 
 ---
 
-## Feature 8 — Quarkus: Org Selection During Sign-In
+## Feature 8 — Quarkus: Org Selection During Sign-In ✅ COMPLETED
 
 Add org selection step to the authorization flow.
 
@@ -107,7 +107,7 @@ Add org selection step to the authorization flow.
 
 ---
 
-## Feature 9 — Quarkus: Emit `orgId` in JWT + Verify Membership + Seed Roles
+## Feature 9 — Quarkus: Emit `orgId` in JWT + Verify Membership + Seed Roles ✅ COMPLETED
 
 Update `TokenResource`:
 1. Load `orgId` from `AuthorizationRequest` and emit it as a JWT claim in both `access_token` and `id_token`.

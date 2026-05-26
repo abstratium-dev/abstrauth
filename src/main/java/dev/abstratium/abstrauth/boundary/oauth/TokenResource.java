@@ -25,12 +25,14 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
+import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -73,6 +75,12 @@ public class TokenResource {
 
     @Inject
     TokenRevocationService tokenRevocationService;
+
+    @Inject
+    OrganisationService organisationService;
+
+    @Inject
+    ClientAllowedRoleService clientAllowedRoleService;
 
     @Inject
     MetricsService metricsService;
@@ -324,20 +332,36 @@ public class TokenResource {
         Account account = accountService.findById(authCode.getAccountId())
                 .orElseThrow(() -> new IllegalStateException("Account not found"));
 
-        // Get the authorization request to retrieve the auth method
+        // Get the authorization request to retrieve the auth method and orgId
         Optional<AuthorizationRequest> authRequestOpt = authorizationService.findAuthorizationRequest(authCode.getAuthorizationRequestId());
-        String authMethod = authRequestOpt.map(AuthorizationRequest::getAuthMethod).orElse("unknown");
+        AuthorizationRequest authRequest = authRequestOpt.orElse(null);
+        String authMethod = authRequest != null ? authRequest.getAuthMethod() : "unknown";
+        String orgId = authRequest != null ? authRequest.getOrgId() : null;
+
+        // Verify account is still a member of the selected org (if orgId is set)
+        if (orgId != null && !organisationService.isMember(orgId, account.getId())) {
+            return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
+                    "Account is no longer a member of the selected organisation");
+        }
+
+        // Seed default roles if no AccountRole rows exist for this account + clientId
+        if (!accountRoleService.hasAnyRoleForClient(account.getId(), clientId)) {
+            var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
+            if (!defaultRoles.isEmpty()) {
+                accountRoleService.seedDefaultRoles(account.getId(), clientId, defaultRoles);
+            }
+        }
 
         // Mark code as used
         authorizationService.markCodeAsUsed(code);
 
-        // Generate access token with the authentication method used for this session
-        String accessToken = generateAccessToken(account, authCode.getScope(), clientId, authMethod);
+        // Generate access token with the authentication method and orgId used for this session
+        String accessToken = generateAccessToken(account, authCode.getScope(), clientId, authMethod, orgId);
         
         // Generate ID token for OIDC (if openid scope is requested)
         String idToken = null;
         if (authCode.getScope() != null && authCode.getScope().contains("openid")) {
-            idToken = generateIdToken(account, clientId, authMethod, authCode.getScope());
+            idToken = generateIdToken(account, clientId, authMethod, authCode.getScope(), orgId);
         }
 
         // Build token response
@@ -399,7 +423,7 @@ public class TokenResource {
      * @param authMethod The authentication method used (e.g., "native", "google")
      * @return Signed JWT access token
      */
-    private String generateAccessToken(Account account, String scope, String clientId, String authMethod) {
+    private String generateAccessToken(Account account, String scope, String clientId, String authMethod, String orgId) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
 
@@ -427,6 +451,11 @@ public class TokenResource {
                 .claim("auth_method", authMethod)
                 .issuedAt(now)
                 .expiresAt(expiresAt);
+        
+        // Emit orgId claim if available (tenant context for downstream applications)
+        if (orgId != null) {
+            jwtBuilder.claim("orgId", orgId);
+        }
         
         // RFC-compliant scope-based claim filtering:
         // Add 'email' scope claims (OpenID Connect Core 1.0 Section 5.4)
@@ -468,7 +497,7 @@ public class TokenResource {
      * @param scope Space-delimited scope string from the authorization request
      * @return Signed JWT ID token
      */
-    private String generateIdToken(Account account, String clientId, String authMethod, String scope) {
+    private String generateIdToken(Account account, String clientId, String authMethod, String scope, String orgId) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
 
@@ -491,6 +520,11 @@ public class TokenResource {
                 .groups(groups)  // Add groups/roles for @RolesAllowed authorization
                 .issuedAt(now)  // REQUIRED: Issued at time
                 .expiresAt(expiresAt);  // REQUIRED: Expiration time
+        
+        // Emit orgId claim if available (tenant context for downstream applications)
+        if (orgId != null) {
+            jwtBuilder.claim("orgId", orgId);
+        }
         
         // RFC-compliant scope-based claim filtering:
         // Add 'email' scope claims (OpenID Connect Core 1.0 Section 5.4)

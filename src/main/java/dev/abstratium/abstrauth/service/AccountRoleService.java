@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.service;
 
 import dev.abstratium.abstrauth.boundary.ConflictException;
 import dev.abstratium.abstrauth.entity.AccountRole;
+import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -189,5 +190,47 @@ public class AccountRoleService {
         query.setParameter("clientId", clientId);
         query.setParameter("role", Roles._ADMIN_PLAIN);
         return query.getSingleResult();
+    }
+
+    /**
+     * Check if account has any roles for the given client.
+     * Used to determine if default roles should be seeded.
+     * 
+     * @param accountId The account ID
+     * @param clientId The OAuth client ID
+     * @return true if account has at least one role for this client
+     */
+    public boolean hasAnyRoleForClient(String accountId, String clientId) {
+        var query = em.createQuery(
+            "SELECT COUNT(ar) FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId",
+            Long.class
+        );
+        query.setParameter("accountId", accountId);
+        query.setParameter("clientId", clientId);
+        return query.getSingleResult() > 0;
+    }
+
+    /**
+     * Seed default roles from ClientAllowedRoles to an account for a specific client.
+     * Only adds roles that don't already exist for the account + client combination.
+     * 
+     * @param accountId The account ID
+     * @param clientId The OAuth client ID
+     * @param defaultRoles List of default roles to seed
+     */
+    @Transactional
+    public void seedDefaultRoles(String accountId, String clientId, List<ClientAllowedRole> defaultRoles) {
+        Set<String> existingRoles = findRolesByAccountIdAndClientId(accountId, clientId);
+        
+        for (ClientAllowedRole allowedRole : defaultRoles) {
+            String roleName = allowedRole.getRole();
+            if (!existingRoles.contains(roleName)) {
+                AccountRole accountRole = new AccountRole();
+                accountRole.setAccountId(accountId);
+                accountRole.setClientId(clientId);
+                accountRole.setRole(roleName);
+                em.persist(accountRole);
+            }
+        }
     }
 }

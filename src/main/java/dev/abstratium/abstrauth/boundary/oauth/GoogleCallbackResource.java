@@ -3,9 +3,11 @@ package dev.abstratium.abstrauth.boundary.oauth;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.GoogleOAuthService;
+import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -40,6 +42,9 @@ public class GoogleCallbackResource {
 
     @Inject
     AuthorizationService authorizationService;
+
+    @Inject
+    OrganisationService organisationService;
 
     @GET
     @Produces(MediaType.TEXT_HTML)
@@ -119,25 +124,31 @@ public class GoogleCallbackResource {
             // Exchange Google code for user info and create/link account
             Account account = googleOAuthService.handleGoogleCallback(code);
 
-            // Approve the authorization request with the account and Google auth method
-            authorizationService.approveAuthorizationRequest(authRequest.getId(), account.getId(), AccountService.GOOGLE);
-
-            // Generate authorization code for the client
-            AuthorizationCode authCode = authorizationService.generateAuthorizationCode(authRequest.getId());
-
-            // Redirect back to client with authorization code
-            String redirectUrl = authRequest.getRedirectUri() +
-                    (authRequest.getRedirectUri().contains("?") ? "&" : "?") +
-                    "code=" + URLEncoder.encode(authCode.getCode(), StandardCharsets.UTF_8);
-
-            if (authRequest.getState() != null && !authRequest.getState().isBlank()) {
-                redirectUrl += "&state=" + URLEncoder.encode(authRequest.getState(), StandardCharsets.UTF_8);
-            }
-
             String clientIp = ClientIpUtil.getClientIp(requestContext);
-            log.info("User " + account.getEmail() + " has been approved by Google for authorization request " + authRequest.getId() + " for client " + authRequest.getClientId() + " from IP " + clientIp);
 
-            return Response.seeOther(URI.create(redirectUrl)).build();
+            // Determine which org(s) the account belongs to
+            java.util.List<Organisation> orgs = organisationService.listOrganisationsForAccount(account.getId());
+
+            if (orgs.size() == 1) {
+                // Single org: approve immediately
+                authorizationService.approveAuthorizationRequest(authRequest.getId(), account.getId(), AccountService.GOOGLE);
+                authorizationService.setOrgId(authRequest.getId(), orgs.get(0).getId());
+
+                AuthorizationCode authCode = authorizationService.generateAuthorizationCode(authRequest.getId());
+                String redirectUrl = authRequest.getRedirectUri() +
+                        (authRequest.getRedirectUri().contains("?") ? "&" : "?") +
+                        "code=" + URLEncoder.encode(authCode.getCode(), StandardCharsets.UTF_8);
+                if (authRequest.getState() != null && !authRequest.getState().isBlank()) {
+                    redirectUrl += "&state=" + URLEncoder.encode(authRequest.getState(), StandardCharsets.UTF_8);
+                }
+                log.info("User " + account.getEmail() + " has been approved by Google for authorization request " + authRequest.getId() + " for client " + authRequest.getClientId() + " from IP " + clientIp);
+                return Response.seeOther(URI.create(redirectUrl)).build();
+            } else {
+                // Multiple orgs: redirect to org selection page
+                authorizationService.markAuthenticatedPendingOrgSelection(authRequest.getId(), account.getId(), AccountService.GOOGLE);
+                log.info("User " + account.getEmail() + " authenticated via Google, redirecting to org selection for request " + authRequest.getId() + " from IP " + clientIp);
+                return Response.seeOther(URI.create("/org-selection/" + authRequest.getId())).build();
+            }
 
         } catch (Exception e) {
             String clientInfo = authRequest != null ? " for client " + authRequest.getClientId() : "";

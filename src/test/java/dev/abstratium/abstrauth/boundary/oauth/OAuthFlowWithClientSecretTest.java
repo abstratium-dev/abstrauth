@@ -427,6 +427,7 @@ public class OAuthFlowWithClientSecretTest {
         authRequest.setScope(scope);
         authRequest.setStatus("approved");
         authRequest.setAccountId(testAccount.getId());
+        authRequest.setAuthMethod("native");
         authRequest.setCreatedAt(LocalDateTime.now());
         authRequest.setExpiresAt(LocalDateTime.now().plusMinutes(10));
         em.persist(authRequest);

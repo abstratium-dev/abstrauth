@@ -4,10 +4,13 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
+import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -49,6 +52,9 @@ public class AuthorizationResource {
 
     @Inject
     AccountService accountService;
+
+    @Inject
+    OrganisationService organisationService;
     
     @Inject
     SecurityIdentity securityIdentity;
@@ -409,11 +415,19 @@ public class AuthorizationResource {
                     .build();
         }
 
-        // Approve the authorization request with native authentication
-        authorizationService.approveAuthorizationRequest(requestId, account.getId(), AccountService.NATIVE);
+        // Determine which org(s) the account belongs to
+        java.util.List<Organisation> orgs = organisationService.listOrganisationsForAccount(account.getId());
 
-        // Show consent page
-        return Response.ok(new AuthenticationResponse(account.getName())).build();
+        if (orgs.size() == 1) {
+            // Single org: approve immediately with the sole org
+            authorizationService.approveAuthorizationRequest(requestId, account.getId(), AccountService.NATIVE);
+            authorizationService.setOrgId(requestId, orgs.get(0).getId());
+            return Response.ok(new AuthenticationResponse(account.getName(), null)).build();
+        } else {
+            // Multiple orgs: park the request and tell the UI to show the org selection page
+            authorizationService.markAuthenticatedPendingOrgSelection(requestId, account.getId(), AccountService.NATIVE);
+            return Response.ok(new AuthenticationResponse(account.getName(), "/org-selection/" + requestId)).build();
+        }
     }
 
     private Response buildErrorRedirect(String redirectUri, String error, String errorDescription, String state) {
@@ -439,15 +453,22 @@ public class AuthorizationResource {
         return Response.seeOther(URI.create(redirectUrl)).build();
     }
 
+    @RegisterForReflection
     public static final class AuthenticationResponse {
         private final String name;
+        private final String orgSelectionUri;
 
-        public AuthenticationResponse(String name) {
+        public AuthenticationResponse(String name, String orgSelectionUri) {
             this.name = name;
+            this.orgSelectionUri = orgSelectionUri;
         }
 
         public String getName() {
             return name;
+        }
+
+        public String getOrgSelectionUri() {
+            return orgSelectionUri;
         }
     }
 }

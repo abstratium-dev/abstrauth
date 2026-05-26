@@ -89,6 +89,67 @@ public class AuthorizationService {
         metricsService.recordAuthorizationApproval();
     }
 
+    /**
+     * Sets the orgId on an already-approved authorization request (single-org case).
+     */
+    @Transactional
+    public void setOrgId(String requestId, String orgId) {
+        AuthorizationRequest request = em.find(AuthorizationRequest.class, requestId);
+        if (request == null) {
+            throw new NotFoundException("Authorization request not found");
+        }
+        request.setOrgId(orgId);
+        em.merge(request);
+    }
+
+    /**
+     * Marks a request as authenticated but waiting for org selection.
+     * Used when the account belongs to more than one organisation.
+     */
+    @Transactional
+    public void markAuthenticatedPendingOrgSelection(String requestId, String accountId, String authMethod) {
+        AuthorizationRequest request = em.find(AuthorizationRequest.class, requestId);
+        if (request == null) {
+            throw new NotFoundException("Authorization request not found");
+        }
+        if (request.getExpiresAt().isBefore(LocalDateTime.now())) {
+            request.setStatus("expired");
+            em.merge(request);
+            throw new TimedOutException("Authorization request has expired");
+        }
+        request.setAccountId(accountId);
+        request.setAuthMethod(authMethod);
+        request.setStatus("org_selection_pending");
+        em.merge(request);
+    }
+
+    /**
+     * Completes org selection: validates that the account in the session matches
+     * (session fixation guard), stores the chosen orgId and marks the request approved.
+     */
+    @Transactional
+    public void selectOrg(String requestId, String orgId, String callerAccountId) {
+        AuthorizationRequest request = em.find(AuthorizationRequest.class, requestId);
+        if (request == null) {
+            throw new NotFoundException("Authorization request not found");
+        }
+        if (!"org_selection_pending".equals(request.getStatus())) {
+            throw new IllegalStateException("Authorization request is not awaiting org selection");
+        }
+        if (request.getExpiresAt().isBefore(LocalDateTime.now())) {
+            request.setStatus("expired");
+            em.merge(request);
+            throw new TimedOutException("Authorization request has expired");
+        }
+        if (!request.getAccountId().equals(callerAccountId)) {
+            throw new IllegalArgumentException("Account mismatch: session fixation guard rejected");
+        }
+        request.setOrgId(orgId);
+        request.setStatus("approved");
+        em.merge(request);
+        metricsService.recordAuthorizationApproval();
+    }
+
     @Transactional
     public AuthorizationCode generateAuthorizationCode(String requestId) {
         AuthorizationRequest request = em.find(AuthorizationRequest.class, requestId);

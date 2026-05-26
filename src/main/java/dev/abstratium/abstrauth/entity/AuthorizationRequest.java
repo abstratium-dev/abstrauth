@@ -33,11 +33,14 @@ public class AuthorizationRequest {
     @Column(name = "code_challenge_method", length = 10)
     private String codeChallengeMethod;
 
-    @Column(nullable = false, length = 20)
-    private String status; // 'pending', 'approved', 'denied', 'expired'
+    @Column(nullable = false, length = 25)
+    private String status; // 'pending', 'approved', 'denied', 'expired', 'org_selection_pending'
 
     @Column(name = "auth_method", length = 20)
     private String authMethod; // 'native', 'google' - tracks how user authenticated for THIS session
+
+    @Column(name = "org_id", length = 36)
+    private String orgId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -137,6 +140,14 @@ public class AuthorizationRequest {
 
     public void setAuthMethod(String authMethod) {
         this.authMethod = authMethod;
+    }
+
+    public String getOrgId() {
+        return orgId;
+    }
+
+    public void setOrgId(String orgId) {
+        this.orgId = orgId;
     }
 
     public LocalDateTime getCreatedAt() {

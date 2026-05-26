@@ -9,8 +9,10 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
+import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.AccountRoleService;
+import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
@@ -41,6 +43,9 @@ public class ClientsResource {
 
     @Inject
     OAuthClientService oauthClientService;
+
+    @Inject
+    ClientAllowedRoleService clientAllowedRoleService;
 
     @Inject
     MetricsService metricsService;
@@ -216,6 +221,19 @@ public class ClientsResource {
         return Response.noContent().build();
     }
 
+    @GET
+    @Path("/{clientId}/allowed-roles")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "List allowed roles for a client", description = "Returns the roles that subscribing organisations may assign to their users for this client")
+    @RolesAllowed(Roles.USER)
+    public Response listAllowedRoles(@PathParam("clientId") String clientId) {
+        List<ClientAllowedRole> roles = clientAllowedRoleService.findByClientId(clientId);
+        List<AllowedRoleResponse> response = roles.stream()
+                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault()))
+                .collect(Collectors.toList());
+        return Response.ok(response).build();
+    }
+
     private ClientResponse toClientResponse(OAuthClient client) {
         return new ClientResponse(
                 client.getId(),
@@ -268,6 +286,19 @@ public class ClientsResource {
             this.requirePkce = requirePkce;
             this.createdAt = createdAt;
             this.clientSecret = clientSecret;
+        }
+    }
+
+    @RegisterForReflection
+    public static class AllowedRoleResponse {
+        public String clientId;
+        public String role;
+        public Boolean isDefault;
+
+        public AllowedRoleResponse(String clientId, String role, Boolean isDefault) {
+            this.clientId = clientId;
+            this.role = role;
+            this.isDefault = isDefault;
         }
     }
 

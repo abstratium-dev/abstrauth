@@ -1,0 +1,248 @@
+package dev.abstratium.abstrauth.boundary.api;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
+import dev.abstratium.abstrauth.boundary.ErrorResponse;
+import dev.abstratium.abstrauth.entity.Organisation;
+import dev.abstratium.abstrauth.entity.Subscription;
+import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.service.SubscriptionService;
+import io.quarkus.oidc.IdToken;
+import io.quarkus.runtime.annotations.RegisterForReflection;
+import io.quarkus.security.identity.SecurityIdentity;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("/api/organisations")
+@Tag(name = "Organisations", description = "Organisation management endpoints")
+public class OrganisationsResource {
+
+    @Inject
+    OrganisationService organisationService;
+
+    @Inject
+    SubscriptionService subscriptionService;
+
+    @Inject
+    AccountService accountService;
+
+    @Inject
+    EntityManager em;
+
+    @Inject
+    SecurityIdentity securityIdentity;
+
+    @Inject
+    @IdToken
+    JsonWebToken token;
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "List organisations", description = "Returns all organisations the current user is a member of")
+    @RolesAllowed(Roles.USER)
+    public List<OrganisationResponse> listOrganisations() {
+        String accountId = token.getSubject();
+        return organisationService.listOrganisationsForAccount(accountId).stream()
+                .map(this::toOrganisationResponse)
+                .collect(Collectors.toList());
+    }
+
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Create organisation", description = "Creates a new organisation and links the current user as owner and member")
+    @RolesAllowed(Roles.USER)
+    public Response createOrganisation(@Valid CreateOrganisationRequest request) {
+        String accountId = token.getSubject();
+        Organisation org = organisationService.createOrganisation(request.name, accountId);
+        organisationService.addOwner(org.getId(), accountId);
+        organisationService.addMember(org.getId(), accountId);
+        return Response.status(Response.Status.CREATED).entity(toOrganisationResponse(org)).build();
+    }
+
+    @POST
+    @Path("/{orgId}/members")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Add member", description = "Adds an account as a member of the organisation. Caller must be owner of that organisation.")
+    @RolesAllowed(Roles.USER)
+    public Response addMember(@PathParam("orgId") String orgId, @Valid AddMemberRequest request) {
+        String callerId = token.getSubject();
+
+        if (!isOwnerOfOrg(callerId, orgId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("You must be an owner of this organisation"))
+                    .build();
+        }
+
+        if (organisationService.findById(orgId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Organisation not found"))
+                    .build();
+        }
+
+        if (accountService.findById(request.accountId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Account not found"))
+                    .build();
+        }
+
+        organisationService.addMember(orgId, request.accountId);
+        return Response.status(Response.Status.CREATED).build();
+    }
+
+    @DELETE
+    @Path("/{orgId}/members/{accountId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Remove member", description = "Removes an account from the organisation. Caller must be owner of that organisation.")
+    @RolesAllowed(Roles.USER)
+    public Response removeMember(@PathParam("orgId") String orgId, @PathParam("accountId") String accountId) {
+        String callerId = token.getSubject();
+
+        if (!isOwnerOfOrg(callerId, orgId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("You must be an owner of this organisation"))
+                    .build();
+        }
+
+        if (organisationService.findById(orgId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Organisation not found"))
+                    .build();
+        }
+
+        organisationService.removeMember(orgId, accountId);
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{orgId}/subscriptions")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Subscribe to client", description = "Subscribes the organisation to a client. Caller must be owner of that organisation.")
+    @RolesAllowed(Roles.USER)
+    public Response addSubscription(@PathParam("orgId") String orgId, @Valid AddSubscriptionRequest request) {
+        String callerId = token.getSubject();
+
+        if (!isOwnerOfOrg(callerId, orgId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("You must be an owner of this organisation"))
+                    .build();
+        }
+
+        if (organisationService.findById(orgId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Organisation not found"))
+                    .build();
+        }
+
+        Subscription subscription = subscriptionService.subscribe(orgId, request.clientId);
+        return Response.status(Response.Status.CREATED).entity(toSubscriptionResponse(subscription)).build();
+    }
+
+    @DELETE
+    @Path("/{orgId}/subscriptions/{clientId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Unsubscribe from client", description = "Removes the organisation's subscription to a client. Caller must be owner of that organisation.")
+    @RolesAllowed(Roles.USER)
+    public Response removeSubscription(@PathParam("orgId") String orgId, @PathParam("clientId") String clientId) {
+        String callerId = token.getSubject();
+
+        if (!isOwnerOfOrg(callerId, orgId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("You must be an owner of this organisation"))
+                    .build();
+        }
+
+        if (organisationService.findById(orgId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Organisation not found"))
+                    .build();
+        }
+
+        subscriptionService.unsubscribe(orgId, clientId);
+        return Response.noContent().build();
+    }
+
+    private boolean isOwnerOfOrg(String accountId, String orgId) {
+        return organisationService.isOwner(orgId, accountId);
+    }
+
+    private OrganisationResponse toOrganisationResponse(Organisation org) {
+        return new OrganisationResponse(org.getId(), org.getName(), org.getCreatedByAccountId(),
+                org.getCreatedAt() != null ? org.getCreatedAt().toString() : null);
+    }
+
+    private SubscriptionResponse toSubscriptionResponse(Subscription subscription) {
+        return new SubscriptionResponse(subscription.getId(), subscription.getOrgId(),
+                subscription.getClientId(),
+                subscription.getCreatedAt() != null ? subscription.getCreatedAt().toString() : null);
+    }
+
+    @RegisterForReflection
+    public static class OrganisationResponse {
+        public String id;
+        public String name;
+        public String createdByAccountId;
+        public String createdAt;
+
+        public OrganisationResponse(String id, String name, String createdByAccountId, String createdAt) {
+            this.id = id;
+            this.name = name;
+            this.createdByAccountId = createdByAccountId;
+            this.createdAt = createdAt;
+        }
+    }
+
+    @RegisterForReflection
+    public static class SubscriptionResponse {
+        public String id;
+        public String orgId;
+        public String clientId;
+        public String createdAt;
+
+        public SubscriptionResponse(String id, String orgId, String clientId, String createdAt) {
+            this.id = id;
+            this.orgId = orgId;
+            this.clientId = clientId;
+            this.createdAt = createdAt;
+        }
+    }
+
+    @RegisterForReflection
+    public static class CreateOrganisationRequest {
+        @NotBlank(message = "Organisation name is required")
+        public String name;
+    }
+
+    @RegisterForReflection
+    public static class AddMemberRequest {
+        @NotBlank(message = "Account ID is required")
+        public String accountId;
+    }
+
+    @RegisterForReflection
+    public static class AddSubscriptionRequest {
+        @NotBlank(message = "Client ID is required")
+        public String clientId;
+    }
+}
