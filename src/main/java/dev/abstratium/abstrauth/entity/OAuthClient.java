@@ -31,6 +31,9 @@ public class OAuthClient {
     @Column(name = "require_pkce")
     private Boolean requirePkce = true;
 
+    @Column(name = "auto_subscribe")
+    private Boolean autoSubscribe = true;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -103,6 +106,14 @@ public class OAuthClient {
 
     public void setRequirePkce(Boolean requirePkce) {
         this.requirePkce = requirePkce;
+    }
+
+    public Boolean getAutoSubscribe() {
+        return autoSubscribe;
+    }
+
+    public void setAutoSubscribe(Boolean autoSubscribe) {
+        this.autoSubscribe = autoSubscribe;
     }
 
     public LocalDateTime getCreatedAt() {

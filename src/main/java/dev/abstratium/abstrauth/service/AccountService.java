@@ -250,6 +250,73 @@ public class AccountService {
     }
 
     /**
+     * Find all accounts that are members of the given organisation.
+     * @param orgId The organisation ID
+     * @return List of accounts that are members of the organisation
+     */
+    public List<Account> findAccountsInOrg(String orgId) {
+        var query = em.createQuery(
+            "SELECT DISTINCT a FROM Account a LEFT JOIN FETCH a.roles " +
+            "WHERE a.id IN (" +
+            "  SELECT oa.id.accountId FROM OrganisationAccount oa WHERE oa.id.orgId = :orgId AND oa.id.role = 'member'" +
+            ") ORDER BY a.createdAt DESC",
+            Account.class
+        );
+        query.setParameter("orgId", orgId);
+        return query.getResultList();
+    }
+
+    /**
+     * Find accounts filtered by the user's client roles, restricted to the given organisation.
+     * Returns accounts in the org that have roles for any of the same clients as the given user.
+     * @param accountId The ID of the user's account whose client roles to use for filtering
+     * @param orgId The organisation ID to restrict results to
+     * @return List of accounts in the org that share client roles with the user
+     */
+    public List<Account> findAccountsByUserClientRolesInOrg(String accountId, String orgId) {
+        var clientIdsQuery = em.createQuery(
+            "SELECT DISTINCT ar.clientId FROM AccountRole ar WHERE ar.accountId = :accountId",
+            String.class
+        );
+        clientIdsQuery.setParameter("accountId", accountId);
+        List<String> allClientIds = clientIdsQuery.getResultList();
+
+        List<String> userClientIds = allClientIds.stream()
+            .filter(clientId -> !clientId.equals(Roles.CLIENT_ID))
+            .collect(java.util.stream.Collectors.toList());
+
+        if (userClientIds.isEmpty()) {
+            return findById(accountId)
+                .map(List::of)
+                .orElse(List.of());
+        }
+
+        var accountIdsQuery = em.createQuery(
+            "SELECT DISTINCT ar.accountId FROM AccountRole ar WHERE ar.clientId IN :clientIds " +
+            "AND ar.accountId IN (" +
+            "  SELECT oa.id.accountId FROM OrganisationAccount oa WHERE oa.id.orgId = :orgId AND oa.id.role = 'member'" +
+            ")",
+            String.class
+        );
+        accountIdsQuery.setParameter("clientIds", userClientIds);
+        accountIdsQuery.setParameter("orgId", orgId);
+        List<String> accountIds = accountIdsQuery.getResultList();
+
+        if (accountIds.isEmpty()) {
+            return findById(accountId)
+                .map(List::of)
+                .orElse(List.of());
+        }
+
+        var accountsQuery = em.createQuery(
+            "SELECT DISTINCT a FROM Account a LEFT JOIN FETCH a.roles WHERE a.id IN :accountIds ORDER BY a.createdAt DESC",
+            Account.class
+        );
+        accountsQuery.setParameter("accountIds", accountIds);
+        return accountsQuery.getResultList();
+    }
+
+    /**
      * Find accounts filtered by the user's client roles.
      * Returns accounts that have roles for any of the same clients as the given user.
      * Excludes the universal "user" role from filtering since all users have it.

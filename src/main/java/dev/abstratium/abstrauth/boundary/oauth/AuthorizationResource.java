@@ -55,7 +55,7 @@ public class AuthorizationResource {
 
     @Inject
     OrganisationService organisationService;
-    
+
     @Inject
     SecurityIdentity securityIdentity;
 
@@ -419,9 +419,15 @@ public class AuthorizationResource {
         java.util.List<Organisation> orgs = organisationService.listOrganisationsForAccount(account.getId());
 
         if (orgs.size() == 1) {
-            // Single org: approve immediately with the sole org
-            authorizationService.approveAuthorizationRequest(requestId, account.getId(), AccountService.NATIVE);
-            authorizationService.setOrgId(requestId, orgs.get(0).getId());
+            String selectedOrgId = orgs.get(0).getId();
+            try {
+                authorizationService.approveWithSubscriptionCheck(requestId, account.getId(), AccountService.NATIVE, selectedOrgId);
+            } catch (RuntimeException e) {
+                log.warn("Organisation " + selectedOrgId + " has no subscription to client " + authRequest.getClientId());
+                return Response.status(Response.Status.FORBIDDEN)
+                        .entity("Your organisation is not subscribed to this application. Please contact your administrator.")
+                        .build();
+            }
             return Response.ok(new AuthenticationResponse(account.getName(), null)).build();
         } else {
             // Multiple orgs: park the request and tell the UI to show the org selection page

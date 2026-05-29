@@ -12,6 +12,7 @@ import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.service.NoSubscriptionException;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -122,6 +123,15 @@ public class OrgSelectionResource {
             log.warn("Account " + accountId + " attempted to select org " + orgId + " but is not a member");
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(new ErrorResponse("You are not a member of the selected organisation"))
+                    .build();
+        }
+
+        try {
+            authorizationService.checkSubscription(orgId, authRequest.getClientId());
+        } catch (NoSubscriptionException e) {
+            log.warn("Organisation " + orgId + " has no subscription to client " + authRequest.getClientId());
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("Your organisation is not subscribed to this application. Please contact your administrator."))
                     .build();
         }
 

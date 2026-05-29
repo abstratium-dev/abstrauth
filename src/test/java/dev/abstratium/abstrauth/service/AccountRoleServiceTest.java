@@ -285,4 +285,106 @@ public class AccountRoleServiceTest {
         Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
         assertFalse(roles.contains("admin"));
     }
+
+    @Test
+    public void testRoleInAllowlistCanBeAddedForPublicClient() throws Exception {
+        // Create a public client with allowlist entries
+        String publicClientId = "public_client_" + System.nanoTime();
+        userTransaction.begin();
+        
+        dev.abstratium.abstrauth.entity.OAuthClient publicClient = new dev.abstratium.abstrauth.entity.OAuthClient();
+        publicClient.setClientId(publicClientId);
+        publicClient.setClientName("Public Test Client");
+        publicClient.setClientType("confidential");
+        publicClient.setRedirectUris("[\"http://localhost:8080/callback\"]");
+        publicClient.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+        publicClient.setRequirePkce(false);
+        em.persist(publicClient);
+        
+        // Add allowed roles for this client
+        dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole1 = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
+        allowedRole1.setClientId(publicClientId);
+        allowedRole1.setRole("viewer");
+        allowedRole1.setIsDefault(false);
+        em.persist(allowedRole1);
+        
+        dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole2 = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
+        allowedRole2.setClientId(publicClientId);
+        allowedRole2.setRole("editor");
+        allowedRole2.setIsDefault(true);
+        em.persist(allowedRole2);
+        
+        userTransaction.commit();
+        
+        // Should be able to add a role that is in the allowlist
+        assertDoesNotThrow(() -> {
+            accountRoleService.addRole(testAccountId, publicClientId, "viewer");
+        });
+        
+        // Verify the role was added
+        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, publicClientId);
+        assertTrue(roles.contains("viewer"));
+    }
+
+    @Test
+    public void testRoleNotInAllowlistRejectedForPublicClient() throws Exception {
+        // Create a public client with allowlist entries
+        String publicClientId = "public_client_" + System.nanoTime();
+        userTransaction.begin();
+        
+        dev.abstratium.abstrauth.entity.OAuthClient publicClient = new dev.abstratium.abstrauth.entity.OAuthClient();
+        publicClient.setClientId(publicClientId);
+        publicClient.setClientName("Public Test Client");
+        publicClient.setClientType("confidential");
+        publicClient.setRedirectUris("[\"http://localhost:8080/callback\"]");
+        publicClient.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+        publicClient.setRequirePkce(false);
+        em.persist(publicClient);
+        
+        // Add only "viewer" to allowlist
+        dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
+        allowedRole.setClientId(publicClientId);
+        allowedRole.setRole("viewer");
+        allowedRole.setIsDefault(false);
+        em.persist(allowedRole);
+        
+        userTransaction.commit();
+        
+        // Should NOT be able to add "admin" since it's not in the allowlist
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            accountRoleService.addRole(testAccountId, publicClientId, "admin");
+        });
+        
+        assertTrue(exception.getMessage().contains("not in the allowlist"));
+        assertTrue(exception.getMessage().contains(publicClientId));
+    }
+
+    @Test
+    public void testAnyRoleAllowedForPrivateClient() throws Exception {
+        // Create a private client with NO allowlist entries
+        String privateClientId = "private_client_" + System.nanoTime();
+        userTransaction.begin();
+        
+        dev.abstratium.abstrauth.entity.OAuthClient privateClient = new dev.abstratium.abstrauth.entity.OAuthClient();
+        privateClient.setClientId(privateClientId);
+        privateClient.setClientName("Private Test Client");
+        privateClient.setClientType("confidential");
+        privateClient.setRedirectUris("[\"http://localhost:8080/callback\"]");
+        privateClient.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
+        privateClient.setRequirePkce(false);
+        em.persist(privateClient);
+        
+        userTransaction.commit();
+        
+        // Should be able to add any role since there's no allowlist
+        assertDoesNotThrow(() -> {
+            accountRoleService.addRole(testAccountId, privateClientId, "custom-role");
+            accountRoleService.addRole(testAccountId, privateClientId, "another-role");
+        });
+        
+        // Verify the roles were added
+        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, privateClientId);
+        assertTrue(roles.contains("custom-role"));
+        assertTrue(roles.contains("another-role"));
+    }
 }

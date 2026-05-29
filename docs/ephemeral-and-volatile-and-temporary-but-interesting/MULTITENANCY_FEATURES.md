@@ -118,7 +118,7 @@ Update `TokenResource`:
 
 ---
 
-## Feature 10 — Quarkus: `JwtOrgResolver` Reads JWT Claim
+## Feature 10 — Quarkus: `JwtOrgResolver` Reads JWT Claim ✅ COMPLETED
 
 Replace the hard-coded default tenant in `JwtOrgResolver` with real resolution: extract `orgId` claim from the `Authorization` header JWT (or OIDC cookie). Fall back to default only when no valid token is present (e.g., public endpoints).
 
@@ -126,7 +126,7 @@ Replace the hard-coded default tenant in `JwtOrgResolver` with real resolution: 
 
 ---
 
-## Feature 11 — Quarkus: Subscription Gate on Sign-In
+## Feature 11 — Quarkus: Subscription Gate on Sign-In ✅ COMPLETED
 
 During the sign-in flow (after org selection), check that the org has a subscription to the `client_id` in the authorization request.
 
@@ -137,7 +137,7 @@ During the sign-in flow (after org selection), check that the org has a subscrip
 
 ---
 
-## Feature 12 — Quarkus: Scope `AccountsResource` and `ClientsResource` to Current Org
+## Feature 12 — Quarkus: Scope `AccountsResource` and `ClientsResource` to Current Org ✅ DONE
 
 - `AccountsResource`: filter queries via `T_organisation_accounts` so only accounts in the signed-in org are visible/manageable.
 - `ClientsResource`: use `@TenantId` discriminator; org owners can only manage their own org's clients.
@@ -147,9 +147,17 @@ During the sign-in flow (after org selection), check that the org has a subscrip
 
 ---
 
-## Feature 13 — Quarkus: Role Allowlist Enforcement
+## Feature 13 — Quarkus: Role Allowlist Enforcement ✅ COMPLETED
 
 When an org owner assigns roles for a public client, validate every role name against `T_client_allowed_roles` server-side. Reject any role not on the allowlist.
+
+**Implementation:**
+- Added `isRoleAllowed()` method to `ClientAllowedRoleService` to check if a role is in a client's allowlist
+- Added `checkRoleAgainstAllowlist()` validation in `AccountRoleService.addRole()` 
+- For public clients (with allowlist entries), only roles in the allowlist can be assigned
+- For private clients (no allowlist entries), any role can be assigned
+- Internal abstrauth client is exempt from validation (manages its own roles)
+- Returns 400 (IllegalArgumentException) when attempting to assign unlisted role
 
 **Done when:** Tests confirm allowlist enforcement; an attempt to assign an unlisted role returns 400/403.
 

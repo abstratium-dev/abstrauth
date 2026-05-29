@@ -60,21 +60,32 @@ public class AccountsResource {
     
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "List accounts", description = "Returns accounts based on user permissions. Users with only USER role see their own account, MANAGE_ACCOUNTS role sees accounts they manage, ADMIN sees all.")
+    @Operation(summary = "List accounts", description = "Returns accounts based on user permissions. Users with only USER role see their own account, MANAGE_ACCOUNTS role sees accounts in their org they manage, ADMIN sees all accounts in their org.")
     @RolesAllowed({Roles.USER})
     public List<AccountResponse> listAccounts() {
-        // Get the current user's ID from the JWT token (sub claim)
+        // Get the current user's ID and org from the JWT token
         String accountId = token.getSubject();
+        String orgId = token.getClaim("orgId");
 
-        // If user is admin, return all accounts
+        // If user is admin, return all accounts in their org
         if (securityIdentity.hasRole(Roles.ADMIN)) {
+            if (orgId != null && !orgId.isBlank()) {
+                return accountService.findAccountsInOrg(orgId).stream()
+                        .map(this::toAccountResponse)
+                        .collect(Collectors.toList());
+            }
             return accountService.findAll().stream()
                     .map(this::toAccountResponse)
                     .collect(Collectors.toList());
         }
         
-        // If user has manage-accounts role, return accounts filtered by user's client roles
+        // If user has manage-accounts role, return org-scoped accounts filtered by user's client roles
         if (securityIdentity.hasRole(Roles.MANAGE_ACCOUNTS)) {
+            if (orgId != null && !orgId.isBlank()) {
+                return accountService.findAccountsByUserClientRolesInOrg(accountId, orgId).stream()
+                        .map(this::toAccountResponse)
+                        .collect(Collectors.toList());
+            }
             return accountService.findAccountsByUserClientRoles(accountId).stream()
                     .map(this::toAccountResponse)
                     .collect(Collectors.toList());

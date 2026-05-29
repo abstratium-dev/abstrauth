@@ -130,9 +130,15 @@ public class GoogleCallbackResource {
             java.util.List<Organisation> orgs = organisationService.listOrganisationsForAccount(account.getId());
 
             if (orgs.size() == 1) {
-                // Single org: approve immediately
-                authorizationService.approveAuthorizationRequest(authRequest.getId(), account.getId(), AccountService.GOOGLE);
-                authorizationService.setOrgId(authRequest.getId(), orgs.get(0).getId());
+                String selectedOrgId = orgs.get(0).getId();
+                try {
+                    authorizationService.approveWithSubscriptionCheck(authRequest.getId(), account.getId(), AccountService.GOOGLE, selectedOrgId);
+                } catch (RuntimeException subEx) {
+                    log.warn("Organisation " + selectedOrgId + " has no subscription to client " + authRequest.getClientId());
+                    return Response.status(Response.Status.FORBIDDEN)
+                            .entity("<html><body><h1>Error</h1><p>Your organisation is not subscribed to this application.</p></body></html>")
+                            .build();
+                }
 
                 AuthorizationCode authCode = authorizationService.generateAuthorizationCode(authRequest.getId());
                 String redirectUrl = authRequest.getRedirectUri() +

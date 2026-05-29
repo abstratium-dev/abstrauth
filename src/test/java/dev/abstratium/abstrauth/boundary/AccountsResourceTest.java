@@ -22,6 +22,7 @@ import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.FederatedIdentity;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
@@ -38,6 +39,9 @@ public class AccountsResourceTest {
 
     @Inject
     AccountRoleService accountRoleService;
+
+    @Inject
+    OrganisationService organisationService;
     
     @Inject
     jakarta.persistence.EntityManager em;
@@ -105,13 +109,17 @@ public class AccountsResourceTest {
     }
 
     private String generateManageAccountsToken(String accountId) {
+        return generateManageAccountsToken(accountId, "00000000-0000-0000-0000-000000000000");
+    }
+
+    private String generateManageAccountsToken(String accountId, String orgId) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
             .subject(accountId)
             .upn("manager@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-accounts"))
             .claim("email", "manager@example.com")
             .claim("name", "Account Manager")
-            .claim("orgId", "00000000-0000-0000-0000-000000000000")
+            .claim("orgId", orgId)
             .sign();
     }
 
@@ -148,27 +156,29 @@ public class AccountsResourceTest {
 
     @Test
     public void testListAccountsAsManagerWithSharedClients() throws Exception {
-        // Create manager account
+        // All accounts are placed in the default org so that AccountRole rows (also stored in
+        // the default org in test context) match the orgId used in the token.
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
         beginTransaction();
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
         accountRoleService.addRole(managerId, "client-a", "manager");
-        
-        // Create another account with same client
+
+        // Create another account with same client in default org
         String userEmail = "shareduser_" + System.currentTimeMillis() + "@example.com";
-        Account user = accountService.createAccount(userEmail, "Shared User", "shareduser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account user = accountService.createAccountForOrg(userEmail, "Shared User", "shareduser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(user.getId(), "client-a", "viewer");
-        
-        // Create account with different client
+
+        // Create account with different client in default org
         String otherEmail = "otheruser_" + System.currentTimeMillis() + "@example.com";
-        Account other = accountService.createAccount(otherEmail, "Other User", "otheruser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account other = accountService.createAccountForOrg(otherEmail, "Other User", "otheruser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(other.getId(), "client-b", "viewer");
         commitTransaction();
-        
-        // Manager should see manager and shared user, but not other user
+
+        // Manager should see manager and shared user (same client-a), but not other user (client-b)
         given()
-            .auth().oauth2(generateManageAccountsToken(managerId))
+            .auth().oauth2(generateManageAccountsToken(managerId, defaultOrgId))
             .when()
             .get("/api/accounts")
             .then()
@@ -264,38 +274,38 @@ public class AccountsResourceTest {
 
     @Test
     public void testListAccountsAsManagerWithMultipleSharedClients() throws Exception {
-        // Create manager with multiple clients
+        // All accounts are placed in the default org so that AccountRole rows (also stored in
+        // the default org in test context) match the orgId used in the token.
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
         beginTransaction();
         String managerEmail = "multimanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Multi Manager", "multimanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Multi Manager", "multimanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
         accountRoleService.addRole(managerId, "client-x", "manager");
         accountRoleService.addRole(managerId, "client-y", "manager");
-        
-        // Create user1 sharing client-x
+
+        // Create user1 sharing client-x in default org
         String user1Email = "user1_" + System.currentTimeMillis() + "@example.com";
-        Account user1 = accountService.createAccount(user1Email, "User 1", "user1_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account user1 = accountService.createAccountForOrg(user1Email, "User 1", "user1_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(user1.getId(), "client-x", "viewer");
-        
-        // Create user2 sharing client-y
+
+        // Create user2 sharing client-y in default org
         String user2Email = "user2_" + System.currentTimeMillis() + "@example.com";
-        Account user2 = accountService.createAccount(user2Email, "User 2", "user2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account user2 = accountService.createAccountForOrg(user2Email, "User 2", "user2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(user2.getId(), "client-y", "viewer");
-        
-        // Create user3 with no shared clients
+
+        // Create user3 with no shared clients in default org (to test client-based filter)
         String user3Email = "user3_" + System.currentTimeMillis() + "@example.com";
-        Account user3 = accountService.createAccount(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account user3 = accountService.createAccountForOrg(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(user3.getId(), "client-z", "viewer");
         commitTransaction();
-        
-        // Manager should see manager, user1, and user2, but not user3
+
+        // Manager should see manager, user1, and user2, but not user3 (different client)
         given()
-            .auth().oauth2(generateManageAccountsToken(managerId))
+            .auth().oauth2(generateManageAccountsToken(managerId, defaultOrgId))
             .when()
-            //.log().all()
             .get("/api/accounts")
             .then()
-            //.log().all()
             .statusCode(200)
             .contentType(ContentType.JSON)
             .body("$", notNullValue())

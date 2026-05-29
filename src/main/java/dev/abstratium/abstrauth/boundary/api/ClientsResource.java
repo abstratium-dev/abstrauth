@@ -66,12 +66,13 @@ public class ClientsResource {
         String accountId = token.getSubject();
 
         if (securityIdentity.hasRole(Roles.MANAGE_CLIENTS)) {
+            // findAll() is automatically scoped to current org via @TenantId discriminator
             return oauthClientService.findAll().stream()
                     .map(this::toClientResponse)
                     .collect(Collectors.toList());
         }
         List<String> clientIds = accountRoleService.findClientsByAccountId(accountId);
-        
+        // findByClientIds is automatically scoped to current org via @TenantId discriminator
         return oauthClientService.findByClientIds(new HashSet<>(clientIds)).stream()
                 .map(this::toClientResponse)
                 .collect(Collectors.toList());

@@ -46,4 +46,24 @@ public class SubscriptionService {
                 .getResultStream()
                 .findFirst();
     }
+
+    /**
+     * Ensures the org is subscribed to the client.
+     * If not subscribed and autoSubscribe is true, creates the subscription automatically.
+     * If not subscribed and autoSubscribe is false, throws {@link NoSubscriptionException}.
+     */
+    @Transactional
+    public void ensureSubscribed(String orgId, String clientId, boolean autoSubscribe) {
+        if (subscriptionExists(orgId, clientId)) {
+            return;
+        }
+        if (autoSubscribe) {
+            Subscription subscription = new Subscription();
+            subscription.setOrgId(orgId);
+            subscription.setClientId(clientId);
+            em.persist(subscription);
+        } else {
+            throw new NoSubscriptionException(orgId, clientId);
+        }
+    }
 }

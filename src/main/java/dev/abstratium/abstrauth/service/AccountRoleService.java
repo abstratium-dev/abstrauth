@@ -23,6 +23,9 @@ public class AccountRoleService {
     AccountService accountService;
 
     @Inject
+    ClientAllowedRoleService clientAllowedRoleService;
+
+    @Inject
     SecurityIdentity securityIdentity;
 
     /**
@@ -89,6 +92,9 @@ public class AccountRoleService {
 
         checkOnlyAddingToClientWhichTheyAlreadyHave(accountId, clientId);
 
+        // Validate role against allowlist for public clients
+        checkRoleAgainstAllowlist(clientId, role);
+
         // Check if role already exists
         if (findRolesByAccountIdAndClientId(accountId, clientId).contains(role)) {
             throw new ConflictException("Role already exists");
@@ -150,6 +156,26 @@ public class AccountRoleService {
     }
 
     /**
+     * Validate that the role is in the client's allowlist for public clients.
+     * For private clients (no allowlist entries), any role is allowed.
+     *
+     * @param clientId The OAuth client ID
+     * @param role The role name to validate
+     * @throws IllegalArgumentException if the role is not in the allowlist for a public client
+     */
+    private void checkRoleAgainstAllowlist(String clientId, String role) {
+        // Skip validation for internal abstrauth client - it manages its own roles
+        if (Roles.CLIENT_ID.equals(clientId)) {
+            return;
+        }
+
+        if (!clientAllowedRoleService.isRoleAllowed(clientId, role)) {
+            throw new IllegalArgumentException(
+                "Role '" + role + "' is not in the allowlist for client '" + clientId + "'");
+        }
+    }
+
+    /**
      * Remove a role from an account for a specific client
      * 
      * @param accountId The account ID
@@ -166,14 +192,15 @@ public class AccountRoleService {
                 throw new IllegalArgumentException("Cannot delete the last admin role for " + Roles.CLIENT_ID);
             }
         }
-        
-        var query = em.createQuery(
-            "DELETE FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.role = :role"
-        );
-        query.setParameter("accountId", accountId);
-        query.setParameter("clientId", clientId);
-        query.setParameter("role", role);
-        query.executeUpdate();
+
+        em.createQuery(
+            "SELECT ar FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.role = :role",
+            AccountRole.class)
+            .setParameter("accountId", accountId)
+            .setParameter("clientId", clientId)
+            .setParameter("role", role)
+            .getResultStream()
+            .forEach(ar -> em.remove(ar));
     }
     
     /**

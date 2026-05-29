@@ -62,10 +62,12 @@ public class ServiceAccountRoleService {
     @Transactional
     public void removeRole(String clientId, String role) {
         em.createQuery(
-            "DELETE FROM ServiceAccountRole sar WHERE sar.clientId = :clientId AND sar.role = :role")
+            "SELECT sar FROM ServiceAccountRole sar WHERE sar.clientId = :clientId AND sar.role = :role",
+            ServiceAccountRole.class)
             .setParameter("clientId", clientId)
             .setParameter("role", role)
-            .executeUpdate();
+            .getResultStream()
+            .forEach(sar -> em.remove(sar));
     }
 
     /**
@@ -76,8 +78,10 @@ public class ServiceAccountRoleService {
     @Transactional
     public void removeAllRoles(String clientId) {
         em.createQuery(
-            "DELETE FROM ServiceAccountRole sar WHERE sar.clientId = :clientId")
+            "SELECT sar FROM ServiceAccountRole sar WHERE sar.clientId = :clientId",
+            ServiceAccountRole.class)
             .setParameter("clientId", clientId)
-            .executeUpdate();
+            .getResultStream()
+            .forEach(sar -> em.remove(sar));
     }
 }
