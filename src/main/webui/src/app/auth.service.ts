@@ -25,6 +25,7 @@ export interface Token {
     iat: number; // issued at
     email: string;
     jti: string;
+    orgId?: string; // organisation ID (tenantId)
 }
 
 export const ANONYMOUS: Token = {
@@ -174,5 +175,56 @@ export class AuthService {
 
     isAdmin(): boolean {
         return this.hasRole(ROLE_ADMIN);
+    }
+
+    /**
+     * Get the last selected organisation ID from localStorage.
+     * Returns null if not set or if localStorage is not available.
+     */
+    getLastOrgId(): string | null {
+        try {
+            if (typeof localStorage === 'undefined') {
+                return null;
+            }
+            return localStorage.getItem('lastOrgId');
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Store the selected organisation ID in localStorage.
+     */
+    setLastOrgId(orgId: string): void {
+        try {
+            if (typeof localStorage === 'undefined') {
+                return;
+            }
+            localStorage.setItem('lastOrgId', orgId);
+        } catch {
+            // Ignore localStorage errors
+        }
+    }
+
+    /**
+     * Clear the last selected organisation ID from localStorage.
+     */
+    clearLastOrgId(): void {
+        try {
+            if (typeof localStorage === 'undefined') {
+                return;
+            }
+            localStorage.removeItem('lastOrgId');
+        } catch {
+            // Ignore localStorage errors
+        }
+    }
+
+    /**
+     * Get the current organisation ID from the token.
+     * Returns undefined if not authenticated or no orgId in token.
+     */
+    getOrgId(): string | undefined {
+        return this.token.orgId;
     }
 }

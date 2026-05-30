@@ -64,6 +64,12 @@ export interface AddRoleRequest {
   role: string;
 }
 
+export interface AllowedRole {
+  clientId: string;
+  role: string;
+  isDefault: boolean;
+}
+
 export interface CreateAccountResponse {
   account: Account;
   inviteToken: string;

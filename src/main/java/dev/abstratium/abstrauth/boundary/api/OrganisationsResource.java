@@ -66,6 +66,26 @@ public class OrganisationsResource {
                 .collect(Collectors.toList());
     }
 
+    @GET
+    @Path("/current")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get current organisation", description = "Returns the organisation currently selected in the JWT token (based on orgId claim)")
+    @RolesAllowed(Roles.USER)
+    public Response getCurrentOrganisation() {
+        String orgId = token.getClaim("orgId");
+        if (orgId == null || orgId.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("No organisation selected in current session"))
+                    .build();
+        }
+
+        return organisationService.findById(orgId)
+                .map(org -> Response.ok(toOrganisationResponse(org)).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND)
+                        .entity(new ErrorResponse("Organisation not found"))
+                        .build());
+    }
+
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)

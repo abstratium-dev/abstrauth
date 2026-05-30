@@ -1,6 +1,6 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Component, effect, inject, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ModelService } from '../model.service';
@@ -16,6 +16,7 @@ interface AuthRequestDetails {
 
 interface AuthenticationResponse {
     name: string;
+    redirectTo?: string; // If present, redirect to org-selection page
 }
 
 interface InviteData {
@@ -35,6 +36,7 @@ export class SigninComponent implements OnInit {
     modelService = inject(ModelService)
     controller = inject(Controller)
     route = inject(ActivatedRoute)
+    router = inject(Router)
     http = inject(HttpClient)
     fb = inject(FormBuilder)
     authService = inject(AuthService)
@@ -180,17 +182,25 @@ export class SigninComponent implements OnInit {
 
         this.http.post<AuthenticationResponse>(`/oauth2/authorize/authenticate`, formData.toString(), { headers }).subscribe({
             next: (authenticationResponse) => {
+                this.isSubmitting = false;
+
+                // Check if we need to redirect to org-selection page (multiple orgs)
+                if (authenticationResponse.redirectTo) {
+                    console.debug("[SIGNIN] Redirecting to org-selection:", authenticationResponse.redirectTo);
+                    this.router.navigateByUrl(authenticationResponse.redirectTo);
+                    return;
+                }
+
                 this.getApproval = true;
                 this.name = authenticationResponse.name;
-                this.isSubmitting = false;
-                
+
                 // Check if we need to redirect to password change for native invite
                 if (this.inviteData?.authProvider === 'native' && this.inviteData?.password) {
                     // Mark that password change is needed
                     sessionStorage.setItem('requirePasswordChange', 'true');
                     console.debug("[SIGNIN] Marked password change required");
                 }
-                
+
                 // Check for stored approval after successful authentication
                 setTimeout(() => this.checkStoredApproval(), 100);
             },

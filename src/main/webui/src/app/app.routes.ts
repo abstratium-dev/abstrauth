@@ -9,6 +9,7 @@ import { ClientsComponent } from './clients/clients.component';
 import { AccountsComponent } from './accounts/accounts.component';
 import { SigninAfterInviteComponent } from './signin-after-invite/signin-after-invite.component';
 import { ChangePasswordComponent } from './change-password/change-password.component';
+import { OrgSelectionComponent } from './org-selection/org-selection.component';
 import { authGuard } from './auth.guard';
 
 export const routes: Routes = [
@@ -18,6 +19,7 @@ export const routes: Routes = [
   { path: 'signin-after-invite',   component: SigninAfterInviteComponent },
   { path: 'signup',   component: SignupComponent },
   { path: 'change-password',   component: ChangePasswordComponent, canActivate: [authGuard] },
+  { path: 'org-selection/:requestId', component: OrgSelectionComponent },
   { path: 'clients',  component: ClientsComponent, canActivate: [authGuard] },
   { path: 'accounts', component: AccountsComponent, canActivate: [authGuard] },
   { path: 'user', component: UserComponent, canActivate: [authGuard] },

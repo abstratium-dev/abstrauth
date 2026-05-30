@@ -17,13 +17,15 @@
   - create security tests to make sure the service cannot be manipulated into providing a token with a wrong orgId
   - define (complex) test cases for where the user is added to a different organisation, etc.
   - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs. Add a `platform-admin` role (or equivalent) with cross-org read/write access for true platform administration. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`.
-  - introduce envers
 
+- introduce envers
 
 - add public page to abstrauth WITH ™ symbol!
+  - in list of things which abstrauth is, describe it is also an "identity broker" as written in microsoft doc
+
 - add legal page to abstrauth
+
 - change concept of clients having secrets. where did i get that idea?? search the code.
-- in list of things which abstrauth is, describe it is also an "identity broker" as written in microsoft doc
 
 - X check emails are sent when client secrets are running out -> update 20260511 this isn't implemented. since SecretExpirationNotificationService is empty!!! see SERVICE_TO_SERVICE_AUTH.md which shows a scheduler.
 DO NOT SEND EMAIL TO noreply ACCOUNT AS IT ISN'T FORWARDED AND SHOUDLN'T BE!! 

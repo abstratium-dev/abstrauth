@@ -180,6 +180,7 @@
                 <select id="clientId-{{account.id}}"
                         name="clientId"
                         [(ngModel)]="roleFormData.clientId"
+                        (change)="onClientSelected()"
                         required
                         [disabled]="roleFormSubmitting">
                   <option value="">Select a client</option>
@@ -189,7 +190,30 @@
                 </select>
               </div>
 
-              <div class="form-group">
+              <!-- Loading indicator for allowed roles -->
+              <div *ngIf="loadingAllowedRoles" class="form-group">
+                <span class="loading-text">Loading allowed roles...</span>
+              </div>
+
+              <!-- Role selection for public clients (with allowlist) -->
+              <div class="form-group" *ngIf="roleFormData.clientId && !loadingAllowedRoles && !isPrivateClient">
+                <label for="role-{{account.id}}">Role *</label>
+                <select id="role-{{account.id}}"
+                        name="role"
+                        [(ngModel)]="roleFormData.role"
+                        required
+                        [disabled]="roleFormSubmitting || allowedRoles.length === 0">
+                  <option value="">{{ allowedRoles.length === 0 ? 'No allowed roles defined' : 'Select a role' }}</option>
+                  <option *ngFor="let allowedRole of allowedRoles" [value]="allowedRole.role">
+                    {{ allowedRole.role }}
+                    <span *ngIf="allowedRole.isDefault" class="role-default-badge">(default)</span>
+                  </option>
+                </select>
+                <small class="form-hint">Select from allowed roles for this client</small>
+              </div>
+
+              <!-- Role input for private clients (no allowlist restrictions) -->
+              <div class="form-group" *ngIf="roleFormData.clientId && !loadingAllowedRoles && isPrivateClient">
                 <label for="role-{{account.id}}">Role * (alphanumeric and hyphens only)</label>
                 <input type="text"
                        id="role-{{account.id}}"
@@ -199,7 +223,7 @@
                        pattern="[a-zA-Z0-9\-]+"
                        placeholder="e.g., admin, user, manager"
                        [disabled]="roleFormSubmitting">
-                <small class="form-hint">Role name for this account on the selected client</small>
+                <small class="form-hint">Role name for this account on the selected private client</small>
               </div>
 
               <div class="form-actions">

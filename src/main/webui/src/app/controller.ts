@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Account, AddRoleRequest, ClientSecret, ConfigResponse, CreateAccountResponse, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, ServiceAccountRole, ServiceAccountRolesResponse } from './model.service';
+import { Account, AddRoleRequest, AllowedRole, ClientSecret, ConfigResponse, CreateAccountResponse, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, ServiceAccountRole, ServiceAccountRolesResponse } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -279,6 +279,17 @@ export class Controller {
       );
     } catch (error) {
       console.error('Error removing service account role:', error);
+      throw error;
+    }
+  }
+
+  async listAllowedRoles(clientId: string): Promise<AllowedRole[]> {
+    try {
+      return await firstValueFrom(
+        this.http.get<AllowedRole[]>(`/api/clients/${clientId}/allowed-roles`)
+      );
+    } catch (error) {
+      console.error('Error listing allowed roles:', error);
       throw error;
     }
   }

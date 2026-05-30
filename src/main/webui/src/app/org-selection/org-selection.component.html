@@ -1,0 +1,49 @@
+<div class="container" style="max-width: 500px; margin-top: 3rem;">
+    <div class="card">
+        <h1>Select Organisation</h1>
+
+        @if(isLoading) {
+            <p>Loading organisations...</p>
+        } @else {
+            @if(errorMessage){
+                <div class="error-box">
+                    {{ errorMessage }}
+                </div>
+            }
+
+            @if(organisations.length > 0) {
+                <p>You are a member of multiple organisations. Please select which one you want to use for this session:</p>
+
+                <form [formGroup]="orgSelectionForm" (ngSubmit)="selectOrg()" class="centered-form">
+                    <div class="form-group">
+                        @for(org of organisations; track org.id) {
+                            <label class="org-option">
+                                <input
+                                    type="radio"
+                                    name="orgId"
+                                    [value]="org.id"
+                                    formControlName="orgId"
+                                    (change)="onOrgChange(org.id)"
+                                />
+                                <span class="org-name">{{ org.name }}</span>
+                            </label>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <button
+                            id="select-org-button"
+                            type="submit"
+                            [disabled]="isSubmitting || orgSelectionForm.invalid"
+                        >
+                            {{ isSubmitting ? 'Selecting...' : 'Continue' }}
+                        </button>
+                    </div>
+                </form>
+            } @else {
+                <p>You are not a member of any organisation.</p>
+                <p><a routerLink="/">Go back</a></p>
+            }
+        }
+    </div>
+</div>

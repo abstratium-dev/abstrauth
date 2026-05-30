@@ -4,10 +4,38 @@
         <span class="brand-name">ABSTRATIUM</span>
     </div>
 
+    <div class="header-center">
+        @if(isSignedIn && currentOrg) {
+            <div class="org-display">
+                <span class="org-label">Organisation:</span>
+                <span class="org-name">{{ currentOrg.name }}</span>
+                <div class="org-actions">
+                    <button
+                        class="org-action-btn"
+                        (click)="switchOrganisation()"
+                        title="Switch to a different organisation (requires sign out/in)">
+                        Switch
+                    </button>
+                    <button
+                        class="org-action-btn"
+                        (click)="createNewOrganisation()"
+                        title="Create a new organisation">
+                        New
+                    </button>
+                </div>
+            </div>
+        }
+        @if(isSignedIn && isLoadingOrg) {
+            <div class="org-display">
+                <span class="org-loading">Loading organisation...</span>
+            </div>
+        }
+    </div>
+
     <div class="header-right">
-        <button 
-            class="theme-toggle-btn" 
-            (click)="toggleTheme()" 
+        <button
+            class="theme-toggle-btn"
+            (click)="toggleTheme()"
             [attr.aria-label]="themeService.theme$() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
             [title]="themeService.theme$() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
             @if(themeService.theme$() === 'light') {

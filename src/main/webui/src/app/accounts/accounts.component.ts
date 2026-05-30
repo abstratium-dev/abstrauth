@@ -2,7 +2,7 @@ import { Component, effect, inject, OnInit, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Account, ModelService, OAuthClient } from '../model.service';
+import { Account, AllowedRole, ModelService, OAuthClient } from '../model.service';
 import { Controller } from '../controller';
 import { AuthService, ROLE_ADMIN, ROLE_MANAGE_ACCOUNTS } from '../auth.service';
 import { UrlFilterComponent } from '../shared/url-filter/url-filter.component';
@@ -52,6 +52,9 @@ export class AccountsComponent implements OnInit {
   };
   roleFormSubmitting = false;
   roleFormError: string | null = null;
+  allowedRoles: AllowedRole[] = [];
+  loadingAllowedRoles = false;
+  isPrivateClient = false; // true if client has no allowlist (private client)
 
   constructor() {
     effect(() => {
@@ -266,6 +269,35 @@ export class AccountsComponent implements OnInit {
       role: ''
     };
     this.roleFormError = null;
+    this.allowedRoles = [];
+    this.isPrivateClient = false;
+    this.loadingAllowedRoles = false;
+  }
+
+  async onClientSelected(): Promise<void> {
+    const clientId = this.roleFormData.clientId;
+    if (!clientId) {
+      this.allowedRoles = [];
+      this.isPrivateClient = false;
+      return;
+    }
+
+    this.loadingAllowedRoles = true;
+    this.roleFormData.role = ''; // Reset role when client changes
+    this.roleFormError = null;
+
+    try {
+      const roles = await this.controller.listAllowedRoles(clientId);
+      this.allowedRoles = roles;
+      // If no allowed roles returned, client is private (no allowlist restrictions)
+      this.isPrivateClient = roles.length === 0;
+    } catch (err: any) {
+      this.roleFormError = 'Failed to load allowed roles for this client.';
+      this.allowedRoles = [];
+      this.isPrivateClient = false;
+    } finally {
+      this.loadingAllowedRoles = false;
+    }
   }
 
   async onSubmitRole(accountId: string): Promise<void> {

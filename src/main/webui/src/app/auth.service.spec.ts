@@ -314,4 +314,67 @@ describe('AuthService (BFF Pattern)', () => {
     });
   });
 
+  describe('LastOrgId Management', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('should store lastOrgId in localStorage', () => {
+      service.setLastOrgId('org-123');
+      expect(localStorage.getItem('lastOrgId')).toBe('org-123');
+    });
+
+    it('should retrieve lastOrgId from localStorage', () => {
+      localStorage.setItem('lastOrgId', 'org-456');
+      expect(service.getLastOrgId()).toBe('org-456');
+    });
+
+    it('should return null when lastOrgId not set', () => {
+      expect(service.getLastOrgId()).toBeNull();
+    });
+
+    it('should clear lastOrgId from localStorage', () => {
+      localStorage.setItem('lastOrgId', 'org-789');
+      service.clearLastOrgId();
+      expect(localStorage.getItem('lastOrgId')).toBeNull();
+    });
+
+    it('should handle localStorage being undefined gracefully', () => {
+      // Test with localStorage unavailable by spying on it
+      spyOn(localStorage, 'getItem').and.throwError('localStorage not available');
+      spyOn(localStorage, 'setItem').and.throwError('localStorage not available');
+      spyOn(localStorage, 'removeItem').and.throwError('localStorage not available');
+      
+      // These should not throw due to the typeof check in the service
+      expect(() => service.getLastOrgId()).not.toThrow();
+    });
+  });
+
+  describe('OrgId from Token', () => {
+    it('should return orgId from token when available', (done) => {
+      setRouterUrl('/accounts');
+      const tokenWithOrg = { ...mockUserInfo, orgId: 'org-abc-123' };
+      
+      service.initialize().subscribe(() => {
+        expect(service.getOrgId()).toBe('org-abc-123');
+        done();
+      });
+
+      const req = httpMock.expectOne('/api/userinfo');
+      req.flush(tokenWithOrg);
+    });
+
+    it('should return undefined when orgId not in token', (done) => {
+      setRouterUrl('/accounts');
+      
+      service.initialize().subscribe(() => {
+        expect(service.getOrgId()).toBeUndefined();
+        done();
+      });
+
+      const req = httpMock.expectOne('/api/userinfo');
+      req.flush(mockUserInfo);
+    });
+  });
+
 });

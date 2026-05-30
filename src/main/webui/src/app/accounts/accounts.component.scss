@@ -61,3 +61,15 @@
   border-left: 4px solid #f59e0b;
   border-radius: 4px;
 }
+
+.loading-text {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.role-default-badge {
+  font-size: 0.75rem;
+  color: var(--color-success);
+  margin-left: 0.25rem;
+}
