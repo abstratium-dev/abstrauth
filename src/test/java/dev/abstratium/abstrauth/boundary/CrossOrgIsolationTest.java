@@ -17,7 +17,7 @@ import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.UserTransaction;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 
 /**
  * Tests that AccountsResource and ClientsResource are scoped to the signed-in org.
@@ -36,19 +36,7 @@ public class CrossOrgIsolationTest {
     EntityManager em;
 
     @Inject
-    UserTransaction userTransaction;
-
-    private void beginTransaction() throws Exception {
-        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_NO_TRANSACTION) {
-            userTransaction.begin();
-        }
-    }
-
-    private void commitTransaction() throws Exception {
-        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_ACTIVE) {
-            userTransaction.commit();
-        }
-    }
+    TestTransactionHelper transactionHelper;
 
     private String adminTokenForOrg(String accountId, String orgId) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
@@ -79,7 +67,7 @@ public class CrossOrgIsolationTest {
     public void testAdminCannotSeeAccountsFromAnotherOrg() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Org A: create account and org
         String emailA = "orgA_admin_" + ts + "@example.com";
@@ -91,7 +79,7 @@ public class CrossOrgIsolationTest {
         Account accountB = accountService.createAccount(emailB, "Org B Member", emailB, "Pass123!", AccountService.NATIVE, "Org B " + ts);
         String orgBId = organisationService.listOrganisationsForAccount(accountB.getId()).get(0).getId();
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // User authenticated as org A must see org A account but NOT org B account
         given()
@@ -120,7 +108,7 @@ public class CrossOrgIsolationTest {
     public void testManageClientsCannotSeeClientsFromAnotherOrg() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Org A: create account and org
         String emailA = "orgA_mgr_" + ts + "@example.com";
@@ -167,7 +155,7 @@ public class CrossOrgIsolationTest {
             .setParameter("orgId", orgBId)
             .executeUpdate();
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Org A user should see their client but not org B's
         given()

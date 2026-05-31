@@ -16,7 +16,7 @@ import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.UserTransaction;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 
 /**
  * Edge case and bypass attempt tests for multi-tenancy security.
@@ -35,19 +35,7 @@ public class MultiTenancyEdgeCaseTest {
     EntityManager em;
 
     @Inject
-    UserTransaction userTransaction;
-
-    private void beginTransaction() throws Exception {
-        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_NO_TRANSACTION) {
-            userTransaction.begin();
-        }
-    }
-
-    private void commitTransaction() throws Exception {
-        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_ACTIVE) {
-            userTransaction.commit();
-        }
-    }
+    TestTransactionHelper transactionHelper;
 
     private String generateToken(String accountId, String orgId, Set<String> groups) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
@@ -81,26 +69,25 @@ public class MultiTenancyEdgeCaseTest {
     public void testNullOrgIdFallsBackToDefault() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account
         String email = "nullorg_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "Null Org Test", email, "Pass123!", AccountService.NATIVE, "Null Org " + ts);
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
-        // Create token with null orgId
-        String nullOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        // Create token without orgId claim (omitted, not set to null)
+        // This simulates a token without the orgId claim to test fallback behavior
+        String noOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
-            .claim("orgId", (String) null)
             .sign();
 
-        // Request should use default org (00000000-0000-0000-0000-000000000000)
-        // and return empty list or data from default org only
+        // Request without orgId claim - interceptor lets it proceed, resource handles it
         given()
-            .auth().oauth2(nullOrgToken)
+            .auth().oauth2(noOrgToken)
             .when()
             .get("/api/accounts")
             .then()
@@ -111,13 +98,13 @@ public class MultiTenancyEdgeCaseTest {
     public void testEmptyOrgIdFallsBackToDefault() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account
         String email = "emptyorg_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "Empty Org Test", email, "Pass123!", AccountService.NATIVE, "Empty Org " + ts);
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create token with empty orgId
         String emptyOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
@@ -144,13 +131,13 @@ public class MultiTenancyEdgeCaseTest {
     public void testInvalidOrgIdFormat() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account
         String email = "invalidorg_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "Invalid Org Test", email, "Pass123!", AccountService.NATIVE, "Invalid Org " + ts);
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create token with invalid orgId format (not a UUID)
         String invalidOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
@@ -173,13 +160,13 @@ public class MultiTenancyEdgeCaseTest {
     public void testNonExistentOrgId() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account
         String email = "nonexistorg_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "Non Exist Org Test", email, "Pass123!", AccountService.NATIVE, "Non Exist Org " + ts);
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create token with non-existent but valid UUID format orgId
         String fakeOrgId = UUID.randomUUID().toString();
@@ -190,14 +177,13 @@ public class MultiTenancyEdgeCaseTest {
             .claim("orgId", fakeOrgId)
             .sign();
 
-        // System should not find any data for non-existent org
+        // System should reject request for non-existent org since account is not a member
         given()
             .auth().oauth2(fakeOrgToken)
             .when()
             .get("/api/accounts")
             .then()
-            .statusCode(200)
-            .body("size()", lessThanOrEqualTo(1)); // Should only see self, if any
+            .statusCode(403); // Forbidden since account is not a member of the claimed org
     }
 
     // ====================================================================================
@@ -208,14 +194,14 @@ public class MultiTenancyEdgeCaseTest {
     public void testCannotRemoveSelfAsLastOwner() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create Org with single owner
         String email = "last_owner_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "Last Owner Test", email, "Pass123!", AccountService.NATIVE, "Last Owner Org " + ts);
         String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Attempt to remove self as member (would leave org without owners)
         // This should be blocked by OrganisationService.removeOwner()
@@ -231,7 +217,7 @@ public class MultiTenancyEdgeCaseTest {
     public void testCannotRemoveOnlyOwnerViaAnotherMember() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create Org with owner
         String ownerEmail = "owner_protect_" + ts + "@example.com";
@@ -243,7 +229,7 @@ public class MultiTenancyEdgeCaseTest {
         Account member = accountService.createAccount(memberEmail, "Member Protect Test", memberEmail, "Pass123!", AccountService.NATIVE, "Member Org " + ts);
         organisationService.addMember(orgId, member.getId());
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Member attempts to remove the owner
         // This should fail because the member is not an owner
@@ -263,7 +249,7 @@ public class MultiTenancyEdgeCaseTest {
     public void testTokenWithDeletedOrgIdIsRejected() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account and org
         String email = "deletedorg_test_" + ts + "@example.com";
@@ -278,7 +264,7 @@ public class MultiTenancyEdgeCaseTest {
             .setParameter("orgId", orgId)
             .executeUpdate();
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create token with deleted orgId
         String deletedOrgToken = adminTokenForOrg(account.getId(), orgId);
@@ -300,7 +286,7 @@ public class MultiTenancyEdgeCaseTest {
     public void testPathParameterOrgIdMismatchWithToken() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create Org A
         String emailA = "path_orgA_" + ts + "@example.com";
@@ -316,7 +302,7 @@ public class MultiTenancyEdgeCaseTest {
         String emailUser = "path_user_" + ts + "@example.com";
         Account userAccount = accountService.createAccount(emailUser, "Path User", emailUser, "Pass123!", AccountService.NATIVE, "Path User Org " + ts);
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // User has token for Org A, but tries to modify Org B via path parameter
         String requestBody = """
@@ -346,13 +332,13 @@ public class MultiTenancyEdgeCaseTest {
     public void testSqlInjectionInOrgIdClaim() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account
         String email = "sqlinject_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "SQL Inject Test", email, "Pass123!", AccountService.NATIVE, "SQL Inject Org " + ts);
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create token with SQL injection attempt in orgId
         String maliciousOrgId = "1' OR '1'='1";
@@ -376,20 +362,28 @@ public class MultiTenancyEdgeCaseTest {
     public void testSqlInjectionInOrgIdPathParam() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account and org
         String email = "sqlpath_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "SQL Path Test", email, "Pass123!", AccountService.NATIVE, "SQL Path Org " + ts);
         String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
-        // Attempt SQL injection via path parameter
+        // Attempt SQL injection via path parameter using POST
+        // The endpoint is POST /api/organisations/{orgId}/members
+        String requestBody = """
+            {
+                "accountId": "%s"
+            }
+            """.formatted(account.getId());
         given()
             .auth().oauth2(userTokenForOrg(account.getId(), orgId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
             .when()
-            .get("/api/organisations/1'%20OR%20'1'='1/members")
+            .post("/api/organisations/1'%20OR%20'1'='1/members")
             .then()
             .statusCode(anyOf(is(404), is(400), is(403)));
     }
@@ -402,13 +396,13 @@ public class MultiTenancyEdgeCaseTest {
     public void testUnicodeInOrgId() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account
         String email = "unicode_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "Unicode Test", email, "Pass123!", AccountService.NATIVE, "Unicode Org " + ts);
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create token with unicode in orgId
         String unicodeOrgId = "00000000-0000-0000-0000-00000000\u0000";
@@ -436,13 +430,13 @@ public class MultiTenancyEdgeCaseTest {
     public void testVeryLongOrgId() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account
         String email = "longorg_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "Long Org Test", email, "Pass123!", AccountService.NATIVE, "Long Org " + ts);
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create token with very long orgId
         StringBuilder longOrgId = new StringBuilder();
@@ -473,14 +467,14 @@ public class MultiTenancyEdgeCaseTest {
     public void testCaseSensitivityInOrgId() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create account and org
         String email = "case_test_" + ts + "@example.com";
         Account account = accountService.createAccount(email, "Case Test", email, "Pass123!", AccountService.NATIVE, "Case Org " + ts);
         String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create token with uppercase version of orgId
         String upperOrgId = orgId.toUpperCase();
@@ -508,7 +502,7 @@ public class MultiTenancyEdgeCaseTest {
     public void testRapidTokenSwitching() throws Exception {
         long ts = System.currentTimeMillis();
 
-        beginTransaction();
+        transactionHelper.beginTransaction();
 
         // Create Org A
         String emailA = "rapid_orgA_" + ts + "@example.com";
@@ -543,7 +537,7 @@ public class MultiTenancyEdgeCaseTest {
             .setParameter("orgId", orgBId)
             .executeUpdate();
 
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Create tokens for both orgs
         String tokenA = adminTokenForOrg(accountA.getId(), orgAId);

@@ -12,3 +12,6 @@ globs: src/main/java/**/service/**/*.java
 **Actual Security Risks related to multi-tenancy:**
 - `em.getReference(id)` with user-supplied ID — returns a lazy proxy without hitting the database, so no tenant filter is applied. Used to establish foreign key relationships without loading the full entity, but dangerous if the ID comes from user input because the entity might belong to a different tenant
 - `em.merge()` with manually set ID from external input — if you create a new entity instance, set its ID from user input, populate other fields, and call `em.merge()`, Hibernate will INSERT or UPDATE that row without verifying the ID belongs to the current tenant
+
+**Native SQL:**
+- never use this in production code

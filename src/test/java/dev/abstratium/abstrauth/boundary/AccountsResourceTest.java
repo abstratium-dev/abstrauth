@@ -32,8 +32,6 @@ import jakarta.inject.Inject;
 @QuarkusTest
 public class AccountsResourceTest {
 
-    private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
-
     @Inject
     AccountService accountService;
 
@@ -47,12 +45,12 @@ public class AccountsResourceTest {
     jakarta.persistence.EntityManager em;
     
     @Inject
-    jakarta.transaction.UserTransaction userTransaction;
+    dev.abstratium.abstrauth.util.TestTransactionHelper transactionHelper;
 
     @BeforeEach
     public void ensureTestClientsExist() throws Exception {
         // Create test clients if they don't exist
-        beginTransaction();
+        transactionHelper.beginTransaction();
         
         // Helper to create client if it doesn't exist
         String[] clientIds = {"client-a", "client-b", "test-client", "client-unique", "client-different", 
@@ -82,29 +80,17 @@ public class AccountsResourceTest {
             }
         }
         
-        commitTransaction();
+        transactionHelper.commitTransaction();
     }
 
-    private void beginTransaction() throws Exception {
-        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_NO_TRANSACTION) {
-            userTransaction.begin();
-        }
-    }
-
-    private void commitTransaction() throws Exception {
-        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_ACTIVE) {
-            userTransaction.commit();
-        }
-    }
-
-    private String generateAdminToken(String accountId) {
+    private String generateAdminToken(String accountId, String orgId) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
             .subject(accountId)
             .upn("admin@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_admin", "abstratium-abstrauth_manage-accounts"))
             .claim("email", "admin@example.com")
             .claim("name", "Admin User")
-            .claim("orgId", "00000000-0000-0000-0000-000000000000")
+            .claim("orgId", orgId)
             .sign();
     }
 
@@ -137,15 +123,16 @@ public class AccountsResourceTest {
     @Test
     public void testListAccountsAsAdmin() throws Exception {
         // Create a test admin account
-        beginTransaction();
+        transactionHelper.beginTransaction();
         String email = "testadmin_" + System.currentTimeMillis() + "@example.com";
         Account admin = accountService.createAccount(email, "Test Admin", "testadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         String adminId = admin.getId();
-        commitTransaction();
+        String adminOrgId = organisationService.listOrganisationsForAccount(adminId).get(0).getId();
+        transactionHelper.commitTransaction();
         
         // Admin should be able to access the endpoint and get a JSON array response
         given()
-            .auth().oauth2(generateAdminToken(adminId))
+            .auth().oauth2(generateAdminToken(adminId, adminOrgId))
             .when()
             .get("/api/accounts")
             .then()
@@ -159,7 +146,7 @@ public class AccountsResourceTest {
         // All accounts are placed in the default org so that AccountRole rows (also stored in
         // the default org in test context) match the orgId used in the token.
         String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
-        beginTransaction();
+        transactionHelper.beginTransaction();
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
@@ -174,7 +161,7 @@ public class AccountsResourceTest {
         String otherEmail = "otheruser_" + System.currentTimeMillis() + "@example.com";
         Account other = accountService.createAccountForOrg(otherEmail, "Other User", "otheruser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(other.getId(), "client-b", "viewer");
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Manager should see manager and shared user (same client-a), but not other user (client-b)
         given()
@@ -191,18 +178,19 @@ public class AccountsResourceTest {
 
     @Test
     public void testListAccountsAsManagerWithNoSharedClients() throws Exception {
-        // Create manager account with unique client
-        beginTransaction();
+        // Create manager account with unique client in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "uniquemanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Unique Manager", "uniquemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Unique Manager", "uniquemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
         accountRoleService.addRole(managerId, "client-unique", "manager");
         
-        // Create other accounts with different clients
+        // Create other accounts with different clients in default org
         String otherEmail = "differentuser_" + System.currentTimeMillis() + "@example.com";
-        Account other = accountService.createAccount(otherEmail, "Different User", "differentuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account other = accountService.createAccountForOrg(otherEmail, "Different User", "differentuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(other.getId(), "client-different", "viewer");
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         // Manager should only see their own account
         given()
@@ -219,12 +207,13 @@ public class AccountsResourceTest {
 
     @Test
     public void testListAccountsAsManagerWithNoRoles() throws Exception {
-        // Create manager account with no roles
-        beginTransaction();
+        // Create manager account with no roles in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "norolemanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "No Role Manager", "norolemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "No Role Manager", "norolemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         // Don't add any roles
         
@@ -242,12 +231,13 @@ public class AccountsResourceTest {
 
     @Test
     public void testListAccountsAsNonManagerNonAdmin() throws Exception {
-        // Create regular user account
-        beginTransaction();
+        // Create regular user account in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String userEmail = "regularuser_" + System.currentTimeMillis() + "@example.com";
-        Account user = accountService.createAccount(userEmail, "Regular User", "regularuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account user = accountService.createAccountForOrg(userEmail, "Regular User", "regularuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String userId = user.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         // Regular users with only USER role can see their own account
         given()
@@ -277,7 +267,7 @@ public class AccountsResourceTest {
         // All accounts are placed in the default org so that AccountRole rows (also stored in
         // the default org in test context) match the orgId used in the token.
         String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
-        beginTransaction();
+        transactionHelper.beginTransaction();
         String managerEmail = "multimanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Multi Manager", "multimanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
@@ -298,7 +288,7 @@ public class AccountsResourceTest {
         String user3Email = "user3_" + System.currentTimeMillis() + "@example.com";
         Account user3 = accountService.createAccountForOrg(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(user3.getId(), "client-z", "viewer");
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Manager should see manager, user1, and user2, but not user3 (different client)
         given()
@@ -316,7 +306,7 @@ public class AccountsResourceTest {
     @Test
     public void testAddAccountRoleSuccessfully() throws Exception {
         // Create account
-        beginTransaction();
+        transactionHelper.beginTransaction();
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         String accountId = account.getId();
@@ -325,7 +315,8 @@ public class AccountsResourceTest {
         String adminEmail = "roleadmin_" + System.currentTimeMillis() + "@example.com";
         Account admin = accountService.createAccount(adminEmail, "Role Admin", "roleadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         String adminId = admin.getId();
-        commitTransaction();
+        String adminOrgId = organisationService.listOrganisationsForAccount(adminId).get(0).getId();
+        transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -336,7 +327,7 @@ public class AccountsResourceTest {
             """, accountId);
         
         given()
-            .auth().oauth2(generateAdminToken(adminId))
+            .auth().oauth2(generateAdminToken(adminId, adminOrgId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -369,11 +360,11 @@ public class AccountsResourceTest {
     @Test
     public void testAddAccountRoleWithoutRole() throws Exception {
         // Create manager account
-        beginTransaction();
+        transactionHelper.beginTransaction();
         String managerEmail = "rolemanager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Role Manager 2", "rolemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = """
             {
@@ -395,12 +386,13 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddAccountRoleToNonExistentAccount() throws Exception {
-        // Create manager account
-        beginTransaction();
+        // Create manager account in default org to match token
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "rolemanager3_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 3", "rolemanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Role Manager 3", "rolemanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = """
             {
@@ -423,16 +415,17 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddAccountRoleWithMissingClientId() throws Exception {
-        // Create account and manager
-        beginTransaction();
+        // Create account and manager in default org to match token
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String email = "roletest2_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test 2", "roletest2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account account = accountService.createAccountForOrg(email, "Role Test 2", "roletest2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String accountId = account.getId();
         
         String managerEmail = "rolemanager4_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 4", "rolemanager4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Role Manager 4", "rolemanager4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -453,16 +446,17 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddAccountRoleWithMissingRole() throws Exception {
-        // Create account and manager
-        beginTransaction();
+        // Create account and manager in default org to match token
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String email = "roletest3_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test 3", "roletest3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account account = accountService.createAccountForOrg(email, "Role Test 3", "roletest3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String accountId = account.getId();
         
         String managerEmail = "rolemanager5_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 5", "rolemanager5_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Role Manager 5", "rolemanager5_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -483,16 +477,17 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddAccountRoleWithInvalidRoleFormat() throws Exception {
-        // Create account and manager
-        beginTransaction();
+        // Create account and manager in default org to match token
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String email = "roletest4_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test 4", "roletest4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account account = accountService.createAccountForOrg(email, "Role Test 4", "roletest4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String accountId = account.getId();
         
         String managerEmail = "rolemanager6_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 6", "rolemanager6_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Role Manager 6", "rolemanager6_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -514,14 +509,15 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddAdminRoleAsNonAdmin() throws Exception {
-        // Create account and non-admin manager
-        beginTransaction();
+        // Create account and non-admin manager in default org to match token
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account account = accountService.createAccountForOrg(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         
         String managerEmail = "nonadmin_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Non-Admin Manager", "nonadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
-        commitTransaction();
+        Account manager = accountService.createAccountForOrg(managerEmail, "Non-Admin Manager", "nonadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -544,16 +540,17 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddRoleToNewClientAsNonAdmin() throws Exception {
-        // Create two accounts: one with a role in client-a, another without any roles
-        beginTransaction();
+        // Create two accounts in default org to match token
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String targetEmail = "target_" + System.currentTimeMillis() + "@example.com";
-        Account targetAccount = accountService.createAccount(targetEmail, "Target User", "target_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account targetAccount = accountService.createAccountForOrg(targetEmail, "Target User", "target_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         // Give target account a role in abstratium-abstrauth
         accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
         
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
-        commitTransaction();
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        transactionHelper.commitTransaction();
         
         // Try to add target account to a NEW client (test-client) - should fail for non-admin
         // Note: test-client doesn't exist, so this will also test FK constraint
@@ -578,16 +575,17 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddRoleToExistingClientAsNonAdmin() throws Exception {
-        // Create account with existing role in abstratium-abstrauth
-        beginTransaction();
+        // Create account with existing role in abstratium-abstrauth in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String targetEmail = "target2_" + System.currentTimeMillis() + "@example.com";
-        Account targetAccount = accountService.createAccount(targetEmail, "Target User 2", "target2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account targetAccount = accountService.createAccountForOrg(targetEmail, "Target User 2", "target2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         // Give target account a role in abstratium-abstrauth
         accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
         
         String managerEmail = "manager2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager 2", "manager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
-        commitTransaction();
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager 2", "manager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        transactionHelper.commitTransaction();
         
         // Try to add another role to the SAME client (abstratium-abstrauth) - should succeed for non-admin
         String requestBody = String.format("""
@@ -613,7 +611,7 @@ public class AccountsResourceTest {
     @Test
     public void testAddRoleToNewClientAsAdmin() throws Exception {
         // Create account with existing role in abstratium-abstrauth
-        beginTransaction();
+        transactionHelper.beginTransaction();
         String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccount(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         // Give target account a role in abstratium-abstrauth
@@ -623,7 +621,8 @@ public class AccountsResourceTest {
         Account admin = accountService.createAccount(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         // Give admin the admin role
         accountRoleService.addRole(admin.getId(), "abstratium-abstrauth", "admin");
-        commitTransaction();
+        String adminOrgId = organisationService.listOrganisationsForAccount(admin.getId()).get(0).getId();
+        transactionHelper.commitTransaction();
         
         // Admin should be able to add target account role even if they don't have that client yet
         // Since test-client doesn't exist, we'll add another role to the existing client to verify admin bypass
@@ -636,7 +635,7 @@ public class AccountsResourceTest {
             """, targetAccount.getId());
         
         given()
-            .auth().oauth2(generateAdminToken(admin.getId()))
+            .auth().oauth2(generateAdminToken(admin.getId(), adminOrgId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -649,16 +648,17 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddDuplicateRole() throws Exception {
-        // Create account with a role
-        beginTransaction();
+        // Create account with a role in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account account = accountService.createAccountForOrg(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         // Add initial role (user role is already added automatically)
         accountRoleService.addRole(account.getId(), "abstratium-abstrauth", "viewer");
         
         String managerEmail = "manager_dup_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager Dup", "manager_dup_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
-        commitTransaction();
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager Dup", "manager_dup_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        transactionHelper.commitTransaction();
         
         // Try to add the same role again - should return 409 Conflict
         String requestBody = String.format("""
@@ -682,17 +682,18 @@ public class AccountsResourceTest {
 
     @Test
     public void testRemoveAccountRoleSuccessfully() throws Exception {
-        // Create account with a role
-        beginTransaction();
+        // Create account with a role in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String email = "roledelete_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Delete Test", "roledelete_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account account = accountService.createAccountForOrg(email, "Role Delete Test", "roledelete_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String accountId = account.getId();
         accountRoleService.addRole(accountId, "test-client", "admin");
         
-        // Create manager account
+        // Create manager account in default org
         String managerEmail = "deletemanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Delete Manager", "deletemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
-        commitTransaction();
+        Account manager = accountService.createAccountForOrg(managerEmail, "Delete Manager", "deletemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -733,11 +734,11 @@ public class AccountsResourceTest {
 
     @Test
     public void testRemoveAccountRoleWithoutPermission() throws Exception {
-        beginTransaction();
+        transactionHelper.beginTransaction();
         String managerEmail = "deletemanager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccount(managerEmail, "Delete Manager 2", "deletemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = """
             {
@@ -759,11 +760,13 @@ public class AccountsResourceTest {
 
     @Test
     public void testRemoveAccountRoleFromNonExistentAccount() throws Exception {
-        beginTransaction();
+        // Create manager account in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "deletemanager3_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Delete Manager 3", "deletemanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Delete Manager 3", "deletemanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = """
             {
@@ -787,7 +790,8 @@ public class AccountsResourceTest {
     @Test
     public void testCannotRemoveLastAdminRoleForAbstrauthClient() throws Exception {
         // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
-        beginTransaction();
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         var existingAdmins = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
             AccountRole.class
@@ -798,17 +802,17 @@ public class AccountsResourceTest {
             em.remove(admin);
         }
         
-        // Create an account with admin role for abstratium-abstrauth
+        // Create an account with admin role for abstratium-abstrauth in default org
         String email = "lastadmin_" + System.currentTimeMillis() + "@example.com";
-        Account adminAccount = accountService.createAccount(email, "Last Admin", "lastadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account adminAccount = accountService.createAccountForOrg(email, "Last Admin", "lastadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String adminAccountId = adminAccount.getId();
         accountRoleService.addRole(adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
-        // Create manager account
+        // Create manager account in default org
         String managerEmail = "manager_lastadmin_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_lastadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_lastadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -831,22 +835,23 @@ public class AccountsResourceTest {
 
     @Test
     public void testCanRemoveAdminRoleWhenMultipleAdminsExist() throws Exception {
-        // Create two accounts with admin role for abstratium-abstrauth
-        beginTransaction();
+        // Create two accounts with admin role for abstratium-abstrauth in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String email1 = "admin1_api_" + System.currentTimeMillis() + "@example.com";
-        Account admin1 = accountService.createAccount(email1, "Admin 1", "admin1_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account admin1 = accountService.createAccountForOrg(email1, "Admin 1", "admin1_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String admin1Id = admin1.getId();
         accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
         String email2 = "admin2_api_" + System.currentTimeMillis() + "@example.com";
-        Account admin2 = accountService.createAccount(email2, "Admin 2", "admin2_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account admin2 = accountService.createAccountForOrg(email2, "Admin 2", "admin2_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
-        // Create manager account
+        // Create manager account in default org
         String managerEmail = "manager_multi_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_multi_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_multi_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
             {
@@ -869,7 +874,8 @@ public class AccountsResourceTest {
     @Test
     public void testCannotDeleteAccountWithOnlyAdminRole() throws Exception {
         // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
-        beginTransaction();
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         var existingAdmins = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
             AccountRole.class
@@ -880,17 +886,17 @@ public class AccountsResourceTest {
             em.remove(admin);
         }
         
-        // Create an account with admin role for abstratium-abstrauth
+        // Create an account with admin role for abstratium-abstrauth in default org
         String email = "onlyadmin_api_" + System.currentTimeMillis() + "@example.com";
-        Account adminAccount = accountService.createAccount(email, "Only Admin", "onlyadmin_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account adminAccount = accountService.createAccountForOrg(email, "Only Admin", "onlyadmin_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String adminAccountId = adminAccount.getId();
         accountRoleService.addRole(adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
-        // Create manager account
+        // Create manager account in default org
         String managerEmail = "manager_delacct_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         given()
             .auth().oauth2(generateManageAccountsToken(managerId))
@@ -903,22 +909,23 @@ public class AccountsResourceTest {
 
     @Test
     public void testCanDeleteAccountWhenMultipleAdminsExist() throws Exception {
-        // Create two accounts with admin role for abstratium-abstrauth
-        beginTransaction();
+        // Create two accounts with admin role for abstratium-abstrauth in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String email1 = "admin1_delacct_" + System.currentTimeMillis() + "@example.com";
-        Account admin1 = accountService.createAccount(email1, "Admin 1", "admin1_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account admin1 = accountService.createAccountForOrg(email1, "Admin 1", "admin1_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String admin1Id = admin1.getId();
         accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
         String email2 = "admin2_delacct_" + System.currentTimeMillis() + "@example.com";
-        Account admin2 = accountService.createAccount(email2, "Admin 2", "admin2_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account admin2 = accountService.createAccountForOrg(email2, "Admin 2", "admin2_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
-        // Create manager account
+        // Create manager account in default org
         String managerEmail = "manager_delacct2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Manager", "manager_delacct2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_delacct2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         given()
             .auth().oauth2(generateManageAccountsToken(managerId))
@@ -930,12 +937,13 @@ public class AccountsResourceTest {
 
     @Test
     public void testCreateAccountWithNativeProvider() throws Exception {
-        // Create manager account
-        beginTransaction();
+        // Create manager account in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "createmanager_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager", "createmanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager", "createmanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String newEmail = "newaccount_" + System.currentTimeMillis() + "@example.com";
         String requestBody = String.format("""
@@ -962,12 +970,13 @@ public class AccountsResourceTest {
 
     @Test
     public void testCreateAccountWithGoogleProvider() throws Exception {
-        // Create manager account
-        beginTransaction();
+        // Create manager account in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "createmanager2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager 2", "createmanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 2", "createmanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String newEmail = "newgoogleaccount_" + System.currentTimeMillis() + "@example.com";
         String requestBody = String.format("""
@@ -994,12 +1003,13 @@ public class AccountsResourceTest {
 
     @Test
     public void testCreateAccountWithInvalidProvider() throws Exception {
-        // Create manager account
-        beginTransaction();
+        // Create manager account in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "createmanager3_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager 3", "createmanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 3", "createmanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String newEmail = "newinvalidaccount_" + System.currentTimeMillis() + "@example.com";
         String requestBody = String.format("""
@@ -1021,16 +1031,17 @@ public class AccountsResourceTest {
 
     @Test
     public void testCreateAccountWithDuplicateEmail() throws Exception {
-        // Create manager account
-        beginTransaction();
+        // Create manager account in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "createmanager4_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager 4", "createmanager4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 4", "createmanager4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
         
-        // Create first account
+        // Create first account in default org
         String existingEmail = "existing_" + System.currentTimeMillis() + "@example.com";
-        accountService.createAccount(existingEmail, "Existing User", "existing_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
-        commitTransaction();
+        accountService.createAccountForOrg(existingEmail, "Existing User", "existing_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        transactionHelper.commitTransaction();
         
         // Try to create account with same email
         String requestBody = String.format("""
@@ -1053,12 +1064,13 @@ public class AccountsResourceTest {
 
     @Test
     public void testCreateAccountCreatesCredentialForNative() throws Exception {
-        // Create manager account
-        beginTransaction();
+        // Create manager account in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         String managerEmail = "createmanager5_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Create Manager 5", "createmanager5_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 5", "createmanager5_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        commitTransaction();
+        transactionHelper.commitTransaction();
         
         String newEmail = "newcredaccount_" + System.currentTimeMillis() + "@example.com";
         String requestBody = String.format("""
@@ -1087,8 +1099,9 @@ public class AccountsResourceTest {
 
     @Test
     public void testDeleteAccountCascadesAllChildRecords() throws Exception {
-        // Create a manager account
-        beginTransaction();
+        // Create a manager account in default org
+        String defaultOrgId = dev.abstratium.abstrauth.service.JwtOrgResolver.DEFAULT_ORG_ID;
+        transactionHelper.beginTransaction();
         Account manager = new Account();
         manager.setEmail("manager-cascade@example.com");
         manager.setName("Manager Cascade");
@@ -1096,15 +1109,17 @@ public class AccountsResourceTest {
         manager.setEmailVerified(true);
         em.persist(manager);
         em.flush();
+        // Add manager to default org
+        organisationService.addMember(defaultOrgId, manager.getId());
 
-        // Create an account with all types of child records
-        Account account = accountService.createAccount(
+        // Create an account with all types of child records in default org
+        Account account = accountService.createAccountForOrg(
             "cascade-test@example.com",
             "Cascade Test",
             "cascadeuser",
             "password123",
             AccountService.NATIVE,
-            "Test Org");
+            defaultOrgId);
         String accountId = account.getId();
 
         // Add a role (user role is already added automatically)
@@ -1119,10 +1134,10 @@ public class AccountsResourceTest {
         em.persist(fedIdentity);
 
         em.flush();
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Verify child records exist before deletion
-        beginTransaction();
+        transactionHelper.beginTransaction();
         List<AccountRole> rolesBefore = accountRoleService.findRolesByAccountId(accountId);
         assertEquals(2, rolesBefore.size()); // user role (automatic) + viewer role (manual)
 
@@ -1133,7 +1148,7 @@ public class AccountsResourceTest {
         var fedQuery = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
         fedQuery.setParameter("accountId", accountId);
         assertEquals(1, fedQuery.getResultList().size());
-        commitTransaction();
+        transactionHelper.commitTransaction();
 
         // Delete the account
         given()
@@ -1148,7 +1163,7 @@ public class AccountsResourceTest {
         assertNull(deletedAccount);
 
         // Verify all child records are deleted via CASCADE DELETE
-        beginTransaction();
+        transactionHelper.beginTransaction();
         List<AccountRole> rolesAfter = accountRoleService.findRolesByAccountId(accountId);
         assertTrue(rolesAfter.isEmpty(), "Roles should be deleted via CASCADE DELETE");
 
@@ -1159,7 +1174,7 @@ public class AccountsResourceTest {
         var fedQueryAfter = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
         fedQueryAfter.setParameter("accountId", accountId);
         assertTrue(fedQueryAfter.getResultList().isEmpty(), "Federated identities should be deleted via CASCADE DELETE");
-        commitTransaction();
+        transactionHelper.commitTransaction();
     }
 
 }
