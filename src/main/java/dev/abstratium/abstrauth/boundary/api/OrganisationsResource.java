@@ -150,7 +150,17 @@ public class OrganisationsResource {
                     .build();
         }
 
-        organisationService.removeMember(orgId, accountId);
+        try {
+            organisationService.removeMember(orgId, accountId);
+        } catch (IllegalStateException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
         return Response.noContent().build();
     }
 

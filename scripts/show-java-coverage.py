@@ -36,7 +36,7 @@ def main():
 
     if not jacoco_path.exists():
         print(f"[ERROR] JaCoCo report not found: {jacoco_path}")
-        print("  Run './scripts/run-java-test.py' first to generate coverage data.")
+        print("  Run './scripts/run-java-tests.py' first to generate coverage data.")
         sys.exit(1)
 
     try:

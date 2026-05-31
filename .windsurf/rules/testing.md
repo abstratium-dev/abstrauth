@@ -19,7 +19,7 @@ Do not write senseless tests just to increase the coverage. Instead, make sure t
 
 It is EXTREMELY IMPORTANT that this project be tested using unit and integration tests.
 
-Java Coverage can be measured using `./scripts/run-java-test.py`. After it completes, run `./scripts/show-java-coverage.py` to display an LLM-friendly summary of the backend coverage results. It reads the JaCoCo XML from `target/jacoco-report/jacoco.xml`, shows overall and per-package coverage, highlights classes below the 80% statement / 70% branch thresholds, and includes instructions for drilling into specific packages or classes with grep if more detail is needed.
+Java Coverage can be measured using `./scripts/run-java-tests.py`. After it completes, run `./scripts/show-java-coverage.py` to display an LLM-friendly summary of the backend coverage results. It reads the JaCoCo XML from `target/jacoco-report/jacoco.xml`, shows overall and per-package coverage, highlights classes below the 80% statement / 70% branch thresholds, and includes instructions for drilling into specific packages or classes with grep if more detail is needed.
 
 Front end coverage results are part of the output which is written when `./scripts/run-ng-tests.py` executes the Angular tests.
 

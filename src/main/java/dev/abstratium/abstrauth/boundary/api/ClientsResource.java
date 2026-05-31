@@ -10,6 +10,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
+import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
@@ -36,6 +37,7 @@ import jakarta.ws.rs.core.Response;
 
 @Path("/api/clients")
 @Tag(name = "Clients", description = "OAuth client management endpoints")
+@VerifyOrgMembership
 public class ClientsResource {
 
     @Inject
@@ -76,6 +78,19 @@ public class ClientsResource {
         return oauthClientService.findByClientIds(new HashSet<>(clientIds)).stream()
                 .map(this::toClientResponse)
                 .collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get an OAuth client by ID", description = "Returns a single OAuth client by its ID")
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
+    public Response getClient(@PathParam("id") String id) {
+        return oauthClientService.findById(id)
+                .map(client -> Response.ok(toClientResponse(client)).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND)
+                        .entity(new ErrorResponse("Client not found"))
+                        .build());
     }
 
     @POST

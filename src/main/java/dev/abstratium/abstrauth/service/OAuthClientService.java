@@ -43,6 +43,12 @@ public class OAuthClientService {
         return query.getResultList();
     }
 
+    public Optional<OAuthClient> findById(String id) {
+        var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.id = :id", OAuthClient.class);
+        query.setParameter("id", id);
+        return query.getResultList().stream().findFirst();
+    }
+
     public Optional<OAuthClient> findByClientId(String clientId) {
         var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", OAuthClient.class);
         query.setParameter("clientId", clientId);

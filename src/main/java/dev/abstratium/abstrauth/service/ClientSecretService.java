@@ -84,7 +84,9 @@ public class ClientSecretService {
      * Find a secret by ID.
      */
     public ClientSecret findById(Long id) {
-        return em.find(ClientSecret.class, id);
+        var query = em.createQuery("SELECT s FROM ClientSecret s WHERE s.id = :id", ClientSecret.class);
+        query.setParameter("id", id);
+        return query.getResultList().stream().findFirst().orElse(null);
     }
     
     /**

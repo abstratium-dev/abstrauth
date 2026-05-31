@@ -2,10 +2,13 @@ package dev.abstratium.abstrauth.service;
 
 import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
+import io.quarkus.runtime.LaunchMode;
 import io.vertx.core.http.HttpServerRequest;
 import jakarta.enterprise.context.RequestScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
+import io.quarkus.arc.Arc;
 
 import java.util.Base64;
 
@@ -24,10 +27,11 @@ public class JwtOrgResolver implements TenantResolver {
     // Default organisation ID from V01.021__migrate_existing_data_to_default_org.sql
     public static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
 
-    // Raw Vert.x request — JsonWebToken cannot be injected here because this resolver
-    // is invoked by Hibernate before the MicroProfile JWT security layer has run.
+    // Use Instance to safely check availability before accessing the request.
+    // The HttpServerRequest producer can return null during startup (Flyway, Bootstrap)
+    // even when the request context is technically active.
     @Inject
-    HttpServerRequest request;
+    Instance<HttpServerRequest> requestInstance;
 
     @Override
     public String getDefaultTenantId() {
@@ -37,6 +41,15 @@ public class JwtOrgResolver implements TenantResolver {
     @Override
     public String resolveTenantId() {
         try {
+            if (!Arc.container().requestContext().isActive()) {
+                return fallbackToDefault("request context not active");
+            }
+
+            HttpServerRequest request = requestInstance.get();
+            if (request == null) {
+                return fallbackToDefault("HttpServerRequest is null");
+            }
+
             String authHeader = request.getHeader("Authorization");
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return DEFAULT_ORG_ID;
@@ -47,9 +60,25 @@ public class JwtOrgResolver implements TenantResolver {
             if (orgId != null && !orgId.isBlank()) {
                 return orgId;
             }
+        } catch (jakarta.enterprise.inject.IllegalProductException e) {
+            // HttpServerRequest producer returns null during startup (Flyway, Bootstrap)
+            return fallbackToDefault("no HTTP request available");
         } catch (Exception e) {
-            log.debug("Could not resolve orgId from JWT, using default", e);
+            return fallbackToDefault("exception: " + e.getMessage());
         }
+        return DEFAULT_ORG_ID;
+    }
+
+    /**
+     * Falls back to DEFAULT_ORG_ID in dev/test mode only.
+     * In production, this is a hard error — no request should resolve to default silently.
+     */
+    private String fallbackToDefault(String reason) {
+        if (LaunchMode.current() == LaunchMode.NORMAL) {
+            throw new IllegalStateException(
+                    "Cannot resolve tenant in production without a valid request context. Reason: " + reason);
+        }
+        log.debug("Falling back to DEFAULT_ORG_ID (" + reason + ")");
         return DEFAULT_ORG_ID;
     }
 

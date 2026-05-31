@@ -66,21 +66,23 @@ public class OrganisationService {
 
     @Transactional
     public void removeMember(String orgId, String accountId) {
+        // First check if this account is an owner
+        Optional<OrganisationAccount> ownerRow = findOwnerRow(orgId, accountId);
+        if (ownerRow.isPresent()) {
+            // Check if this is the last owner
+            long ownerCount = countOwners(orgId);
+            if (ownerCount <= 1) {
+                throw new IllegalStateException("Cannot remove the last owner of an organisation");
+            }
+            em.remove(ownerRow.get());
+            return;
+        }
+
+        // Not an owner, try to find as member
         OrganisationAccount memberRow = findMemberRow(orgId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account is not a member of this organisation"));
 
         em.remove(memberRow);
-    }
-
-    @Transactional
-    public void removeOwner(String orgId, String accountId) {
-        long ownerCount = countOwners(orgId);
-        if (ownerCount <= 1) {
-            throw new IllegalStateException("Cannot remove the last owner of an organisation");
-        }
-        OrganisationAccount ownerRow = findOwnerRow(orgId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account is not an owner of this organisation"));
-        em.remove(ownerRow);
     }
 
     public boolean isMember(String orgId, String accountId) {

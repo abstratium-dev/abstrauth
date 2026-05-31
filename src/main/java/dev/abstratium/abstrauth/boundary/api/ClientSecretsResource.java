@@ -12,6 +12,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.ClientSecret;
+import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.ClientSecretService;
@@ -41,6 +42,7 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/api/clients/{clientId}/secrets")
 @Tag(name = "Client Secrets", description = "OAuth client secret management endpoints")
+@VerifyOrgMembership
 public class ClientSecretsResource {
 
     @Inject

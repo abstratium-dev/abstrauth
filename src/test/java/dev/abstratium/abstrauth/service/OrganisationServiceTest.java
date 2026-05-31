@@ -152,7 +152,7 @@ public class OrganisationServiceTest {
         organisationService.addOwner(org.getId(), owner1);
         organisationService.addOwner(org.getId(), owner2);
 
-        organisationService.removeOwner(org.getId(), owner1);
+        organisationService.removeMember(org.getId(), owner1);
 
         assertFalse(organisationService.isOwner(org.getId(), owner1));
         assertTrue(organisationService.isOwner(org.getId(), owner2));
@@ -165,20 +165,20 @@ public class OrganisationServiceTest {
         organisationService.addOwner(org.getId(), owner);
 
         assertThrows(IllegalStateException.class, () ->
-                organisationService.removeOwner(org.getId(), owner));
+                organisationService.removeMember(org.getId(), owner));
     }
 
     @Test
-    public void testRemoveOwnerNotOwnerThrows() {
+    public void testRemoveNonMemberThrows() {
         String owner1 = createTestAccount();
         String owner2 = createTestAccount();
-        String nonOwner = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Remove Non-Owner", null);
+        String nonMember = createTestAccount();
+        Organisation org = organisationService.createOrganisation("Remove Non-Member", null);
         organisationService.addOwner(org.getId(), owner1);
         organisationService.addOwner(org.getId(), owner2);
 
         assertThrows(IllegalArgumentException.class, () ->
-                organisationService.removeOwner(org.getId(), nonOwner));
+                organisationService.removeMember(org.getId(), nonMember));
     }
 
     @Test

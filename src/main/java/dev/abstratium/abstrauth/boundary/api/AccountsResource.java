@@ -13,6 +13,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
@@ -37,6 +38,7 @@ import jakarta.ws.rs.core.Response;
 
 @Path("/api/accounts")
 @Tag(name = "Accounts", description = "Account management endpoints")
+@VerifyOrgMembership
 public class AccountsResource {
     
     @Inject
@@ -234,6 +236,14 @@ public class AccountsResource {
         if (accountService.findById(accountId).isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(new ErrorResponse("Account not found"))
+                    .build();
+        }
+
+        // Verify account belongs to caller's organization
+        String orgId = token.getClaim("orgId");
+        if (!organisationService.isMember(orgId, accountId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("Account not found in your organization"))
                     .build();
         }
 

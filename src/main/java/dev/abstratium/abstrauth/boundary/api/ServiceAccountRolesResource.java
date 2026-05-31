@@ -15,6 +15,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
@@ -40,6 +41,7 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/api/clients/{clientId}/roles")
 @Tag(name = "Service Account Roles", description = "Manage roles for service clients used in @RolesAllowed authorization")
+@VerifyOrgMembership
 public class ServiceAccountRolesResource {
 
     @Inject
