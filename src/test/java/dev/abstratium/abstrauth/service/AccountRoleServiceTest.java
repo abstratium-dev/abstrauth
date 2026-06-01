@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.service;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +26,7 @@ public class AccountRoleServiceTest {
     jakarta.persistence.EntityManager em;
     
     @Inject
-    jakarta.transaction.UserTransaction userTransaction;
+    TestTransactionHelper transactionHelper;
 
     private String testAccountId;
     private static final String TEST_CLIENT_ID = "test_client_123";
@@ -33,7 +34,7 @@ public class AccountRoleServiceTest {
 
     @BeforeEach
     public void setup() throws Exception {
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         
         // Ensure test clients exist
         for (String clientId : new String[]{TEST_CLIENT_ID, TEST_CLIENT_ID_2}) {
@@ -71,7 +72,7 @@ public class AccountRoleServiceTest {
             "Test Org");
         testAccountId = account.getId();
         
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
     }
 
     @Test
@@ -193,7 +194,7 @@ public class AccountRoleServiceTest {
     @Test
     public void testCannotDeleteLastAdminRoleForAbstrauthClient() throws Exception {
         // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         var existingAdmins = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
             dev.abstratium.abstrauth.entity.AccountRole.class
@@ -217,7 +218,7 @@ public class AccountRoleServiceTest {
         
         // Add admin role for abstratium-abstrauth
         accountRoleService.addRole(adminAccount.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Try to remove the admin role - should fail because it's the only one
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -231,7 +232,7 @@ public class AccountRoleServiceTest {
     @Test
     public void testCanDeleteAdminRoleWhenMultipleAdminsExist() throws Exception {
         // Create two accounts with admin role for abstratium-abstrauth
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         String uniqueEmail1 = "admin1_" + System.nanoTime() + "@example.com";
         String uniqueUsername1 = "admin1_" + System.nanoTime();
         Account admin1 = accountService.createAccount(
@@ -253,7 +254,7 @@ public class AccountRoleServiceTest {
             AccountService.NATIVE,
             "Test Org");
         accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should be able to remove one admin role since there are two
         assertDoesNotThrow(() -> {
@@ -272,9 +273,9 @@ public class AccountRoleServiceTest {
     @Test
     public void testCanDeleteAdminRoleForOtherClients() throws Exception {
         // Add admin role for a different client
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should be able to remove admin role for other clients even if it's the only one
         assertDoesNotThrow(() -> {
@@ -290,7 +291,7 @@ public class AccountRoleServiceTest {
     public void testRoleInAllowlistCanBeAddedForPublicClient() throws Exception {
         // Create a public client with allowlist entries
         String publicClientId = "public_client_" + System.nanoTime();
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         
         dev.abstratium.abstrauth.entity.OAuthClient publicClient = new dev.abstratium.abstrauth.entity.OAuthClient();
         publicClient.setClientId(publicClientId);
@@ -314,7 +315,7 @@ public class AccountRoleServiceTest {
         allowedRole2.setIsDefault(true);
         em.persist(allowedRole2);
         
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should be able to add a role that is in the allowlist
         assertDoesNotThrow(() -> {
@@ -330,7 +331,7 @@ public class AccountRoleServiceTest {
     public void testRoleNotInAllowlistRejectedForPublicClient() throws Exception {
         // Create a public client with allowlist entries
         String publicClientId = "public_client_" + System.nanoTime();
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         
         dev.abstratium.abstrauth.entity.OAuthClient publicClient = new dev.abstratium.abstrauth.entity.OAuthClient();
         publicClient.setClientId(publicClientId);
@@ -348,7 +349,7 @@ public class AccountRoleServiceTest {
         allowedRole.setIsDefault(false);
         em.persist(allowedRole);
         
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should NOT be able to add "admin" since it's not in the allowlist
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -363,7 +364,7 @@ public class AccountRoleServiceTest {
     public void testAnyRoleAllowedForPrivateClient() throws Exception {
         // Create a private client with NO allowlist entries
         String privateClientId = "private_client_" + System.nanoTime();
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         
         dev.abstratium.abstrauth.entity.OAuthClient privateClient = new dev.abstratium.abstrauth.entity.OAuthClient();
         privateClient.setClientId(privateClientId);
@@ -374,7 +375,7 @@ public class AccountRoleServiceTest {
         privateClient.setRequirePkce(false);
         em.persist(privateClient);
         
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should be able to add any role since there's no allowlist
         assertDoesNotThrow(() -> {

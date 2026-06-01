@@ -16,12 +16,12 @@ import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.service.SubscriptionService;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.UserTransaction;
 
 @QuarkusTest
 public class OrganisationsResourceTest {
@@ -41,19 +41,7 @@ public class OrganisationsResourceTest {
     EntityManager em;
 
     @Inject
-    UserTransaction userTransaction;
-
-    private void beginTx() throws Exception {
-        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_NO_TRANSACTION) {
-            userTransaction.begin();
-        }
-    }
-
-    private void commitTx() throws Exception {
-        if (userTransaction.getStatus() == jakarta.transaction.Status.STATUS_ACTIVE) {
-            userTransaction.commit();
-        }
-    }
+    TestTransactionHelper transactionHelper;
 
     private String userToken(String accountId, String orgId) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
@@ -69,7 +57,7 @@ public class OrganisationsResourceTest {
     }
 
     private Account createAccount(String suffix) throws Exception {
-        beginTx();
+        transactionHelper.beginTransaction();
         Account account = accountService.createAccount(
                 "orgtest_" + suffix + "@example.com",
                 "OrgTest " + suffix,
@@ -77,8 +65,16 @@ public class OrganisationsResourceTest {
                 "Pass123!",
                 AccountService.NATIVE,
                 "Test Org " + suffix);
-        commitTx();
+        transactionHelper.commitTransaction();
         return account;
+    }
+
+    private String getAccountOrgId(String accountId) throws Exception {
+        transactionHelper.beginTransaction();
+        java.util.List<Organisation> orgs = organisationService.listOrganisationsForAccount(accountId);
+        String orgId = orgs.isEmpty() ? DEFAULT_ORG_ID : orgs.get(0).getId();
+        transactionHelper.commitTransaction();
+        return orgId;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -252,9 +248,9 @@ public class OrganisationsResourceTest {
 
         Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
 
-        beginTx();
+        transactionHelper.beginTransaction();
         organisationService.addMember(ownerOrg.getId(), member.getId());
-        commitTx();
+        transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
 
@@ -277,9 +273,9 @@ public class OrganisationsResourceTest {
 
         Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
 
-        beginTx();
+        transactionHelper.beginTransaction();
         organisationService.addMember(ownerOrg.getId(), victim.getId());
-        commitTx();
+        transactionHelper.commitTransaction();
 
         String token = userToken(nonOwner.getId(), ownerOrg.getId());
 
@@ -303,9 +299,9 @@ public class OrganisationsResourceTest {
 
         // create a client to subscribe to
         String clientId = "sub-test-client-" + ts;
-        beginTx();
+        transactionHelper.beginTransaction();
         createTestClient(clientId);
-        commitTx();
+        transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
 
@@ -329,10 +325,10 @@ public class OrganisationsResourceTest {
         Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
 
         String clientId = "dup-sub-client-" + ts;
-        beginTx();
+        transactionHelper.beginTransaction();
         createTestClient(clientId);
         subscriptionService.subscribe(ownerOrg.getId(), clientId);
-        commitTx();
+        transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
 
@@ -354,9 +350,9 @@ public class OrganisationsResourceTest {
         Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
 
         String clientId = "sub-f-client-" + ts;
-        beginTx();
+        transactionHelper.beginTransaction();
         createTestClient(clientId);
-        commitTx();
+        transactionHelper.commitTransaction();
 
         String token = userToken(nonOwner.getId(), ownerOrg.getId());
 
@@ -381,10 +377,10 @@ public class OrganisationsResourceTest {
         Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
 
         String clientId = "unsub-client-" + ts;
-        beginTx();
+        transactionHelper.beginTransaction();
         createTestClient(clientId);
         subscriptionService.subscribe(ownerOrg.getId(), clientId);
-        commitTx();
+        transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
 
@@ -406,10 +402,10 @@ public class OrganisationsResourceTest {
         Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
 
         String clientId = "unsub-f-client-" + ts;
-        beginTx();
+        transactionHelper.beginTransaction();
         createTestClient(clientId);
         subscriptionService.subscribe(ownerOrg.getId(), clientId);
-        commitTx();
+        transactionHelper.commitTransaction();
 
         String token = userToken(nonOwner.getId(), ownerOrg.getId());
 
@@ -428,9 +424,9 @@ public class OrganisationsResourceTest {
         Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
 
         String clientId = "unsub-miss-client-" + ts;
-        beginTx();
+        transactionHelper.beginTransaction();
         createTestClient(clientId);
-        commitTx();
+        transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
 
@@ -452,11 +448,12 @@ public class OrganisationsResourceTest {
         Account account = createAccount(ts + "_roleemp");
         String clientId = "roles-empty-client-" + ts;
 
-        beginTx();
+        transactionHelper.beginTransaction();
         createTestClient(clientId);
-        commitTx();
+        transactionHelper.commitTransaction();
 
-        String token = userToken(account.getId());
+        String orgId = getAccountOrgId(account.getId());
+        String token = userToken(account.getId(), orgId);
 
         given()
                 .auth().oauth2(token)
@@ -474,13 +471,14 @@ public class OrganisationsResourceTest {
         Account account = createAccount(ts + "_rolewith");
         String clientId = "roles-with-client-" + ts;
 
-        beginTx();
+        transactionHelper.beginTransaction();
         createTestClient(clientId);
         insertAllowedRole(clientId, "viewer", false);
         insertAllowedRole(clientId, "editor", true);
-        commitTx();
+        transactionHelper.commitTransaction();
 
-        String token = userToken(account.getId());
+        String orgId = getAccountOrgId(account.getId());
+        String token = userToken(account.getId(), orgId);
 
         given()
                 .auth().oauth2(token)

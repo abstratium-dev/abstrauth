@@ -1,11 +1,11 @@
 package dev.abstratium.abstrauth.filter;
 
 import dev.abstratium.abstrauth.service.TokenRevocationService;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,11 +27,15 @@ class TokenRevocationFilterTest {
     @Inject
     EntityManager em;
 
+    @Inject
+    TestTransactionHelper transactionHelper;
+
     @BeforeEach
-    @Transactional
-    public void setup() {
+    public void setup() throws Exception {
         // Clean up test data
+        transactionHelper.beginTransaction();
         em.createQuery("DELETE FROM RevokedToken").executeUpdate();
+        transactionHelper.commitTransaction();
     }
 
     @Test
@@ -64,7 +68,7 @@ class TokenRevocationFilterTest {
                 .statusCode(200);
 
         // When: Token is revoked (in a separate transaction that commits)
-        revokeTokenInNewTransaction(jti);
+        revokeToken(jti);
 
         // Then: Token should no longer work
         given()
@@ -77,8 +81,7 @@ class TokenRevocationFilterTest {
                 .body("error_description", containsString("revoked"));
     }
 
-    @Transactional
-    void revokeTokenInNewTransaction(String jti) {
+    void revokeToken(String jti) {
         tokenRevocationService.revokeToken(jti, "test_revocation");
     }
 

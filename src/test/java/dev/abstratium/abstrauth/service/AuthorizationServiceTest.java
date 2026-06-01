@@ -3,6 +3,7 @@ package dev.abstratium.abstrauth.service;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,11 +27,11 @@ public class AuthorizationServiceTest {
     jakarta.persistence.EntityManager em;
     
     @Inject
-    jakarta.transaction.UserTransaction userTransaction;
+    TestTransactionHelper transactionHelper;
     
     @BeforeEach
     public void setup() throws Exception {
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         
         // Ensure test_client exists
         var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = 'test_client'", dev.abstratium.abstrauth.entity.OAuthClient.class);
@@ -53,7 +54,7 @@ public class AuthorizationServiceTest {
             em.persist(secret);
         }
         
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
     }
 
     @Test
@@ -142,7 +143,7 @@ public class AuthorizationServiceTest {
     @Test
     public void testApproveExpiredRequest() throws Exception {
         // Create an expired authorization request directly
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         AuthorizationRequest request = new AuthorizationRequest();
         request.setId(java.util.UUID.randomUUID().toString());
         request.setClientId("test_client");
@@ -156,7 +157,7 @@ public class AuthorizationServiceTest {
         request.setExpiresAt(LocalDateTime.now().minusMinutes(1)); // Already expired
         em.persist(request);
         em.flush();
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should throw TimedOutException for expired request
         assertThrows(dev.abstratium.abstrauth.boundary.TimedOutException.class, () -> {

@@ -15,6 +15,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.RevokedToken;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -34,14 +35,14 @@ class TokenRevocationServiceTest {
     EntityManager em;
     
     @Inject
-    jakarta.transaction.UserTransaction userTransaction;
+    TestTransactionHelper transactionHelper;
 
     private String testAuthCodeId;
     private String testJti;
 
     @BeforeEach
     public void setup() throws Exception {
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         
         // Ensure test-client exists
         var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = 'test-client'", dev.abstratium.abstrauth.entity.OAuthClient.class);
@@ -116,7 +117,7 @@ class TokenRevocationServiceTest {
         em.persist(authCode);
         
         em.flush();
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
     }
 
     @Test

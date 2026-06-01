@@ -22,10 +22,10 @@ import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
-import jakarta.transaction.UserTransaction;
 
 /**
  * Tests for Feature 9: Emit orgId in JWT + Verify Membership + Seed Roles
@@ -47,7 +47,7 @@ public class TokenResourceOrgIdTest {
     OrganisationService organisationService;
 
     @Inject
-    UserTransaction userTransaction;
+    TestTransactionHelper transactionHelper;
 
     @Inject
     ObjectMapper objectMapper;
@@ -57,7 +57,7 @@ public class TokenResourceOrgIdTest {
     // ─────────────────────────────────────────────────────────
 
     private Account createAccount(String suffix) throws Exception {
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         Account account = accountService.createAccount(
                 "orgid_" + suffix + "@example.com",
                 "OrgId " + suffix,
@@ -65,7 +65,7 @@ public class TokenResourceOrgIdTest {
                 "Pass123!",
                 AccountService.NATIVE,
                 "OrgId Org " + suffix);
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         return account;
     }
 
@@ -260,10 +260,20 @@ public class TokenResourceOrgIdTest {
         assertNotNull(authCode);
 
         // Remove account from organisation (simulate membership revocation)
-        userTransaction.begin();
+        // First add another owner so we can remove the original account
+        transactionHelper.beginTransaction();
         Organisation org = organisationService.listOrganisationsForAccount(account.getId()).get(0);
-        organisationService.removeMember(org.getId(), account.getId());
-        userTransaction.commit();
+        Account otherAccount = accountService.createAccount(
+                "orgid_" + ts + "_other@example.com",
+                "Other " + ts,
+                "orgid_" + ts + "_other",
+                "Pass123!",
+                AccountService.NATIVE,
+                "Other Org " + ts);
+        organisationService.addOwner(org.getId(), otherAccount.getId());
+        organisationService.removeMember(org.getId(), account.getId()); // removes owner row
+        organisationService.removeMember(org.getId(), account.getId()); // removes member row
+        transactionHelper.commitTransaction();
 
         // Try to exchange code for token - should fail because account is no longer a member
         given()

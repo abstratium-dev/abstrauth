@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.service;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.Credential;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,17 +25,17 @@ public class AccountServiceTest {
     jakarta.persistence.EntityManager em;
     
     @Inject
-    jakarta.transaction.UserTransaction userTransaction;
+    TestTransactionHelper transactionHelper;
     
     @BeforeEach
     public void setup() throws Exception {
         // Ensure common test clients exist
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         ensureClientExists("client-a");
         ensureClientExists("client-b");
         ensureClientExists("client-c");
         ensureClientExists("client-test");
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
     }
     
     private void ensureClientExists(String clientId) {
@@ -360,10 +361,10 @@ public class AccountServiceTest {
         String clientY = "client-y-" + timestamp;
         
         // Create the dynamic clients
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         ensureClientExists(clientX);
         ensureClientExists(clientY);
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         Account account1 = accountService.createAccount(email1, "User 1", "noshared1_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
         Account account2 = accountService.createAccount(email2, "User 2", "noshared2_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
@@ -411,11 +412,11 @@ public class AccountServiceTest {
         String clientC = "client-c-" + timestamp;
         
         // Create the dynamic clients
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         ensureClientExists(clientA);
         ensureClientExists(clientB);
         ensureClientExists(clientC);
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         Account account1 = accountService.createAccount(email1, "User 1", "multi1_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
         Account account2 = accountService.createAccount(email2, "User 2", "multi2_" + timestamp, "Pass123", AccountService.NATIVE, "Test Org");
@@ -482,7 +483,7 @@ public class AccountServiceTest {
     @Test
     public void testCannotDeleteAccountWithOnlyAdminRole() throws Exception {
         // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         var existingAdmins = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
             dev.abstratium.abstrauth.entity.AccountRole.class
@@ -498,7 +499,7 @@ public class AccountServiceTest {
         String username = "onlyadmin_" + System.currentTimeMillis();
         Account adminAccount = accountService.createAccount(email, "Only Admin", username, "Password123", AccountService.NATIVE, "Test Org");
         accountRoleService.addRole(adminAccount.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Try to delete the account - should fail because it has the only admin role
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -512,7 +513,7 @@ public class AccountServiceTest {
     @Test
     public void testCanDeleteAccountWhenMultipleAdminsExist() throws Exception {
         // Create two accounts with admin role for abstratium-abstrauth
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         String email1 = "admin1_del_" + System.currentTimeMillis() + "@example.com";
         String username1 = "admin1_del_" + System.currentTimeMillis();
         Account admin1 = accountService.createAccount(email1, "Admin 1", username1, "Password123", AccountService.NATIVE, "Test Org");
@@ -522,7 +523,7 @@ public class AccountServiceTest {
         String username2 = "admin2_del_" + System.currentTimeMillis();
         Account admin2 = accountService.createAccount(email2, "Admin 2", username2, "Password123", AccountService.NATIVE, "Test Org");
         accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should be able to delete one admin account since there are two
         assertDoesNotThrow(() -> {
@@ -541,12 +542,12 @@ public class AccountServiceTest {
     @Test
     public void testCanDeleteAccountWithoutAdminRole() throws Exception {
         // Create an account without admin role
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         String email = "nonadmin_" + System.currentTimeMillis() + "@example.com";
         String username = "nonadmin_" + System.currentTimeMillis();
         Account account = accountService.createAccount(email, "Non Admin", username, "Password123", AccountService.NATIVE, "Test Org");
         // Don't add admin role
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should be able to delete this account
         assertDoesNotThrow(() -> {
@@ -561,12 +562,12 @@ public class AccountServiceTest {
     @Test
     public void testCanDeleteAccountWithAdminRoleForOtherClients() throws Exception {
         // Create an account with admin role for a different client
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         String email = "otheradmin_" + System.currentTimeMillis() + "@example.com";
         String username = "otheradmin_" + System.currentTimeMillis();
         Account account = accountService.createAccount(email, "Other Admin", username, "Password123", AccountService.NATIVE, "Test Org");
         accountRoleService.addRole(account.getId(), "client-test", "admin");
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Should be able to delete this account (admin role is for different client)
         assertDoesNotThrow(() -> {
