@@ -12,8 +12,11 @@
 ## Today
 
 - then test the UI
+  - does it do all the stuff on the svg diagram and in the design document???
 - then go fix client secrets and replace with service accounts
   - first ask how this is solved in GCP, AWS and Azure
+  - ah wait! multiple client secrets is perfect for secret rotation! we need that!
+  - and we need service accounts for what i actually wanted - so it was wrong to add roles to secrets, rubbish!
 - add envers and viewing history
   - based on abstoggle! but that really needs to go into abstracore.
 

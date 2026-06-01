@@ -2,97 +2,171 @@
 
 ## Overview
 
-The AbsrAuth OAuth 2.0 Authorization Server uses a relational database model designed to support the OAuth 2.0 Authorization Code Flow with PKCE (Proof Key for Code Exchange) extension. The schema is compatible with both MySQL and H2 databases and follows a naming convention where all tables are prefixed with `T_`, foreign keys with `FK_`, and indices with `I_`.
+The AbsrAuth OAuth 2.0 Authorization Server uses a relational database model supporting the Authorization Code Flow with PKCE. The schema works with both MySQL and H2 and follows a strict naming convention: tables prefixed with `T_`, foreign keys with `FK_`, and indices with `I_`.
 
 ## Entity Relationship Diagram
 
 ```mermaid
 erDiagram
     T_accounts ||--o{ T_credentials : "has"
-    T_accounts ||--o{ T_federated_identities : "links"
+    T_accounts ||--o{ T_federated_identities : "has"
     T_accounts ||--o{ T_authorization_codes : "owns"
     T_accounts ||--o{ T_account_roles : "has"
-    T_account_roles ||--o{ T_oauth_clients : "for"
+    T_accounts ||--o{ T_oauth_client_secrets : "creates"
+    T_accounts ||--o{ T_organisation_accounts : "member_of"
+    T_accounts ||--o{ T_organisations : "created_by"
     T_oauth_clients ||--o{ T_authorization_requests : "initiates"
+    T_oauth_clients ||--o{ T_authorization_codes : "for"
+    T_oauth_clients ||--o{ T_account_roles : "scopes"
+    T_oauth_clients ||--o{ T_service_account_roles : "has"
+    T_oauth_clients ||--o{ T_oauth_client_secrets : "has"
+    T_oauth_clients ||--o{ T_client_allowed_roles : "defines"
+    T_oauth_clients ||--o{ T_subscriptions : "subscribed"
+    T_organisations ||--o{ T_oauth_clients : "owns"
+    T_organisations ||--o{ T_account_roles : "scopes"
+    T_organisations ||--o{ T_oauth_client_secrets : "scopes"
+    T_organisations ||--o{ T_service_account_roles : "scopes"
+    T_organisations ||--o{ T_organisation_accounts : "has"
+    T_organisations ||--o{ T_subscriptions : "has"
     T_authorization_requests ||--o{ T_authorization_codes : "generates"
-    T_accounts ||--o{ T_authorization_requests : "approves"
+    T_authorization_codes ||--o{ T_revoked_tokens : "revoked_via"
 
     T_accounts {
         VARCHAR(36) id PK "UUID primary key"
-        VARCHAR(255) email UK "Unique email address"
-        BOOLEAN email_verified "Email verification status"
-        VARCHAR(255) name "User's full name"
-        VARCHAR(255) picture "Profile picture URL"
-        VARCHAR(20) auth_provider "Initial auth method used"
-        TIMESTAMP created_at "Account creation timestamp"
-    }
-
-    T_federated_identities {
-        VARCHAR(36) id PK "UUID primary key"
-        VARCHAR(36) account_id FK "References T_accounts"
-        VARCHAR(50) provider "Provider name (google, etc)"
-        VARCHAR(255) provider_user_id "User ID from provider"
-        VARCHAR(255) email "Email from provider"
-        TIMESTAMP connected_at "Link creation timestamp"
+        VARCHAR(255) email UK "Unique email"
+        BOOLEAN email_verified "Verification status"
+        VARCHAR(255) name "Full name"
+        VARCHAR(500) picture "Profile picture URL"
+        VARCHAR(50) auth_provider "native/google/etc"
+        TIMESTAMP created_at
     }
 
     T_credentials {
-        VARCHAR(36) id PK "UUID primary key"
-        VARCHAR(36) account_id FK "References T_accounts"
-        VARCHAR(100) username UK "Unique username"
-        VARCHAR(255) password_hash "Hashed password"
-        INT failed_login_attempts "Failed login counter"
-        TIMESTAMP locked_until "Account lock expiration"
-        TIMESTAMP created_at "Credential creation timestamp"
+        VARCHAR(36) id PK
+        VARCHAR(36) account_id FK "T_accounts"
+        VARCHAR(100) username UK
+        VARCHAR(255) password_hash "bcrypt"
+        INT failed_login_attempts
+        TIMESTAMP locked_until
+        TIMESTAMP created_at
+    }
+
+    T_federated_identities {
+        VARCHAR(36) id PK
+        VARCHAR(36) account_id FK "T_accounts"
+        VARCHAR(50) provider
+        VARCHAR(255) provider_user_id
+        VARCHAR(255) email
+        TIMESTAMP connected_at
     }
 
     T_oauth_clients {
-        VARCHAR(36) id PK "UUID primary key"
-        VARCHAR(255) client_id UK "Unique client identifier"
-        VARCHAR(255) client_name "Human-readable client name"
-        VARCHAR(20) client_type "confidential (BFF pattern required)"
-        VARCHAR(255) client_secret_hash "BCrypt hash of client secret"
-        VARCHAR(5000) redirect_uris "JSON array of allowed URIs"
-        VARCHAR(5000) allowed_scopes "JSON array of scopes"
-        BOOLEAN require_pkce "PKCE requirement flag (always true)"
-        TIMESTAMP created_at "Client sign up timestamp"
+        VARCHAR(36) id PK
+        VARCHAR(255) client_id UK
+        VARCHAR(255) client_name
+        VARCHAR(20) client_type "confidential"
+        VARCHAR(5000) redirect_uris "JSON array"
+        VARCHAR(5000) allowed_scopes "JSON array"
+        BOOLEAN require_pkce "default true"
+        BOOLEAN auto_subscribe "default true"
+        VARCHAR(36) org_id FK "T_organisations"
+        TIMESTAMP created_at
+    }
+
+    T_oauth_client_secrets {
+        BIGINT id PK "auto-increment"
+        VARCHAR(255) client_id FK "T_oauth_clients"
+        VARCHAR(255) secret_hash "bcrypt"
+        TIMESTAMP created_at
+        TIMESTAMP expires_at
+        BOOLEAN is_active "default true"
+        VARCHAR(255) description
+        VARCHAR(36) account_id FK "T_accounts"
+        VARCHAR(36) org_id FK "T_organisations"
     }
 
     T_authorization_requests {
-        VARCHAR(36) id PK "UUID primary key"
-        VARCHAR(255) client_id "Client identifier"
-        VARCHAR(36) account_id FK "References T_accounts (nullable)"
-        VARCHAR(500) redirect_uri "Callback URI"
-        VARCHAR(500) scope "Requested scopes"
-        VARCHAR(255) state "CSRF protection token"
-        VARCHAR(255) code_challenge "PKCE challenge"
-        VARCHAR(10) code_challenge_method "S256 or plain"
-        VARCHAR(20) status "pending/approved/denied/expired"
-        TIMESTAMP created_at "Request creation timestamp"
-        TIMESTAMP expires_at "Request expiration timestamp"
+        VARCHAR(36) id PK
+        VARCHAR(255) client_id FK "T_oauth_clients"
+        VARCHAR(36) account_id FK "T_accounts"
+        VARCHAR(500) redirect_uri
+        VARCHAR(500) scope
+        VARCHAR(255) state "CSRF token"
+        VARCHAR(255) code_challenge
+        VARCHAR(10) code_challenge_method
+        VARCHAR(25) status
+        VARCHAR(20) auth_method
+        VARCHAR(36) org_id FK "T_organisations"
+        TIMESTAMP created_at
+        TIMESTAMP expires_at
     }
 
     T_authorization_codes {
-        VARCHAR(36) id PK "UUID primary key"
-        VARCHAR(255) code UK "Unique authorization code"
-        VARCHAR(36) authorization_request_id FK "References T_authorization_requests"
-        VARCHAR(36) account_id FK "References T_accounts"
-        VARCHAR(255) client_id "Client identifier"
-        VARCHAR(500) redirect_uri "Callback URI"
-        VARCHAR(500) scope "Granted scopes"
-        VARCHAR(255) code_challenge "PKCE challenge"
-        VARCHAR(10) code_challenge_method "S256 or plain"
-        BOOLEAN used "Code usage flag"
-        TIMESTAMP created_at "Code creation timestamp"
-        TIMESTAMP expires_at "Code expiration timestamp"
+        VARCHAR(36) id PK
+        VARCHAR(255) code UK
+        VARCHAR(36) authorization_request_id FK "T_authorization_requests"
+        VARCHAR(36) account_id FK "T_accounts"
+        VARCHAR(255) client_id FK "T_oauth_clients"
+        VARCHAR(500) redirect_uri
+        VARCHAR(500) scope
+        VARCHAR(255) code_challenge
+        VARCHAR(10) code_challenge_method
+        BOOLEAN used "default false"
+        TIMESTAMP created_at
+        TIMESTAMP expires_at
+    }
+
+    T_revoked_tokens {
+        VARCHAR(36) id PK
+        VARCHAR(255) token_jti
+        TIMESTAMP revoked_at
+        VARCHAR(100) reason
+        VARCHAR(36) authorization_code_id FK "T_authorization_codes"
+        TIMESTAMP created_at
     }
 
     T_account_roles {
-        VARCHAR(36) id PK "UUID primary key"
-        VARCHAR(36) account_id FK "References T_accounts"
-        VARCHAR(255) client_id "Client identifier"
-        VARCHAR(100) role "Role name"
-        TIMESTAMP created_at "Role assignment timestamp"
+        VARCHAR(36) id PK
+        VARCHAR(36) account_id FK "T_accounts"
+        VARCHAR(255) client_id FK "T_oauth_clients"
+        VARCHAR(100) role
+        VARCHAR(36) org_id FK "T_organisations"
+        TIMESTAMP created_at
+    }
+
+    T_service_account_roles {
+        VARCHAR(36) id PK
+        VARCHAR(255) client_id FK "T_oauth_clients"
+        VARCHAR(100) role
+        VARCHAR(36) org_id FK "T_organisations"
+        TIMESTAMP created_at
+    }
+
+    T_client_allowed_roles {
+        VARCHAR(255) client_id FK "T_oauth_clients"
+        VARCHAR(100) role
+        BOOLEAN is_default "default false"
+    }
+
+    T_organisations {
+        VARCHAR(36) id PK
+        VARCHAR(255) name
+        VARCHAR(36) created_by_account_id FK "T_accounts"
+        TIMESTAMP created_at
+    }
+
+    T_organisation_accounts {
+        VARCHAR(36) org_id FK "T_organisations"
+        VARCHAR(36) account_id FK "T_accounts"
+        VARCHAR(50) role
+        TIMESTAMP added_at
+    }
+
+    T_subscriptions {
+        VARCHAR(36) id PK
+        VARCHAR(36) org_id FK "T_organisations"
+        VARCHAR(255) client_id FK "T_oauth_clients"
+        TIMESTAMP created_at
     }
 ```
 
@@ -100,243 +174,243 @@ erDiagram
 
 ### T_accounts
 
-The `T_accounts` table stores user account information. Each account represents a resource owner in the OAuth 2.0 flow.
+User accounts (resource owners).
 
-**Key Features:**
-- Uses UUID as primary key for distributed system compatibility
-- Email must be unique and is used for account identification
-- Supports email verification workflow
-- Tracks account creation time
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| email | VARCHAR(255) | NOT NULL, UK | Unique email |
+| email_verified | BOOLEAN | DEFAULT FALSE | Verification status |
+| name | VARCHAR(255) | | Full name |
+| picture | VARCHAR(500) | | Profile picture URL |
+| auth_provider | VARCHAR(50) | DEFAULT 'native' | Initial creation method |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
-**Constraints:**
-- `I_accounts_email`: Unique constraint on email field
+**Indexes:** `I_accounts_email` (unique)
 
 ### T_credentials
 
-The `T_credentials` table stores authentication credentials for user accounts. It maintains a one-to-many relationship with accounts (though typically one-to-one in practice).
+Local authentication credentials. One account typically has one credential record.
 
-**Key Features:**
-- Stores bcrypt-hashed passwords (never plaintext)
-- Tracks failed login attempts for security
-- Supports account locking mechanism via `locked_until`
-- Username is unique across the system
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
+| username | VARCHAR(100) | NOT NULL, UK | Unique username |
+| password_hash | VARCHAR(255) | NOT NULL | bcrypt hash |
+| failed_login_attempts | INT | DEFAULT 0 | Lockout counter |
+| locked_until | TIMESTAMP | NULL | Temporary lock expiry |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
-**Constraints:**
-- `FK_credentials_account_id`: Foreign key to T_accounts with CASCADE delete
-- `I_credentials_username`: Unique index on username
-
-**Security Features:**
-- Failed login attempt tracking
-- Temporary account locking capability
-- Cascading delete ensures credential cleanup when account is deleted
-
-### T_oauth_clients
-
-The `T_oauth_clients` table stores registered OAuth 2.0 client applications that can request authorization.
-
-**Important:** This authorization server **only supports confidential clients** using the Backend For Frontend (BFF) pattern. Public clients (SPAs handling tokens directly) are rejected for security reasons.
-
-**Key Features:**
-- All clients MUST be confidential (BFF pattern required)
-- Stores BCrypt-hashed client secrets for authentication
-- Stores redirect URIs as JSON array for validation
-- Stores allowed scopes as JSON array for authorization
-- PKCE is REQUIRED for all clients (enforced at authorization endpoint)
-
-**Client Types:**
-- `confidential`: Clients that can securely store secrets (BFF backends, server applications)
-- ~~`public`~~: **NOT SUPPORTED** - Public clients are rejected at authorization time
-
-**Security Requirements:**
-- `client_secret_hash`: BCrypt hash of the client secret (REQUIRED)
-- `require_pkce`: Must be `true` (PKCE enforced for all requests)
-- `client_type`: Must be `confidential`
-
-**Constraints:**
-- `I_oauth_clients_client_id`: Unique index on client_id
-
-**Default Data:**
-- The default client `abstratium-abstrauth` is configured as confidential (see V01.010 migration)
-- Client secret must be set via environment variable `ABSTRAUTH_CLIENT_SECRET`
-
-### T_authorization_requests
-
-The `T_authorization_requests` table tracks OAuth 2.0 authorization requests throughout their lifecycle.
-
-**Key Features:**
-- Stores PKCE challenge for security validation
-- Tracks request status (pending, approved, denied, expired)
-- Maintains state parameter for CSRF protection
-- Short-lived (typically 10 minutes)
-
-**Status Values:**
-- `pending`: Initial state, awaiting user authentication/consent
-- `approved`: User has granted authorization
-- `denied`: User has denied authorization
-- `expired`: Request has exceeded its lifetime
-
-**Indices:**
-- `I_authorization_requests_client_id_account_id`: Composite index for lookups
-- `I_authorization_requests_status_expires_at`: Index for cleanup queries
-
-**Relationships:**
-- Links to client via `client_id` (not enforced FK for flexibility)
-- Links to account via `account_id` after user authentication
-
-### T_authorization_codes
-
-The `T_authorization_codes` table stores generated authorization codes that can be exchanged for access tokens.
-
-**Key Features:**
-- One-time use codes (tracked via `used` flag)
-- Very short-lived (typically 5 minutes)
-- Stores PKCE challenge for verification during token exchange
-- Denormalized data for security validation
-
-**Constraints:**
-- `FK_authorization_codes_authorization_request_id`: Links to authorization request with CASCADE delete
-- `FK_authorization_codes_account_id`: Links to account with CASCADE delete
-- `I_authorization_codes_code`: Unique index on authorization code
-- `I_authorization_codes_expires_at`: Index for cleanup queries
-
-**Security Features:**
-- Single-use enforcement via `used` flag
-- Short expiration time (5 minutes)
-- PKCE code_verifier validation
-- Cascading deletes maintain referential integrity
-
-### T_account_roles
-
-The `T_account_roles` table stores role assignments for user accounts within the context of specific OAuth clients.
-
-**Key Features:**
-- Links accounts to roles within client applications
-- Supports multi-tenancy by scoping roles to clients
-- Enables fine-grained authorization control
-- Tracks when roles were assigned
-
-**Constraints:**
-- `FK_account_roles_account`: Foreign key to T_accounts with CASCADE delete
-- `I_account_roles_unique`: Unique constraint on (account_id, client_id, role)
-- `I_account_roles_account_client`: Composite index for efficient lookups
-
-**Use Cases:**
-- Assigning admin roles to users for specific applications
-- Managing user permissions per client application
-- Supporting role-based access control (RBAC) in JWT tokens
+**Indexes:** `I_credentials_account_id` (unique), `I_credentials_username` (unique)
 
 ### T_federated_identities
 
-The `T_federated_identities` table links user accounts to external identity providers (IdPs) like Google, Microsoft, GitHub, etc.
+Links accounts to external identity providers (Google, etc.). One account can have multiple identities.
 
-**Key Features:**
-- Enables federated authentication (OAuth/OIDC with external providers)
-- Supports account linking - one account can have multiple federated identities
-- Tracks which external provider and user ID is linked to each account
-- Stores provider-specific email for verification
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
+| provider | VARCHAR(50) | NOT NULL | Provider name |
+| provider_user_id | VARCHAR(255) | NOT NULL | Provider's user ID |
+| email | VARCHAR(255) | | Provider email |
+| connected_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
-**Constraints:**
-- `FK_federated_identities_account_id`: Foreign key to T_accounts with CASCADE delete
-- `I_federated_identities_provider_user`: Unique constraint on (provider, provider_user_id)
-- `I_federated_identities_account_provider`: Composite index for lookups
+**Indexes:** `I_federated_account_id`, `I_federated_provider_user` (unique on provider, provider_user_id)
 
-**Relationship with T_accounts:**
-- **One-to-Many**: One account can have multiple federated identities (e.g., Google + GitHub)
-- **Account.auth_provider**: Records which method was used to **create** the account initially ("native" or "google")
-- **FederatedIdentity.provider**: Records which external IdP this identity is linked to
-- **AuthorizationRequest.auth_method**: Records which method was used for **this specific login session**
+### T_oauth_clients
 
-**Example Scenarios:**
-1. **New Google User**: Creates account via Google → `auth_provider="google"`, creates FederatedIdentity with `provider="google"`
-2. **Existing Native User Links Google**: Account has `auth_provider="native"`, adds FederatedIdentity with `provider="google"`
-3. **User Logs In**: `auth_method` in JWT shows "native" or "google" based on how they logged in **this time**
+Registered OAuth 2.0 clients. Only **confidential** clients (BFF pattern) are supported.
 
-**Use Cases:**
-- Social login (Sign in with Google, Microsoft, etc.)
-- Account linking (add multiple login methods to one account)
-- Preventing duplicate accounts (check if provider user ID already exists)
-- Tracking authentication methods per session
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| client_id | VARCHAR(255) | NOT NULL, UK | Unique client identifier |
+| client_name | VARCHAR(255) | NOT NULL | Human-readable name |
+| client_type | VARCHAR(20) | NOT NULL | `confidential` only |
+| redirect_uris | VARCHAR(5000) | NOT NULL | JSON array of allowed URIs |
+| allowed_scopes | VARCHAR(5000) | | JSON array of scopes |
+| require_pkce | BOOLEAN | DEFAULT TRUE | Always true |
+| auto_subscribe | BOOLEAN | NOT NULL DEFAULT TRUE | Auto-subscribe org on first use |
+| org_id | VARCHAR(36) | FK | T_organisations |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+
+**Indexes:** `I_oauth_clients_client_id` (unique)
+
+### T_oauth_client_secrets
+
+Multiple secrets per client, enabling rotation without downtime.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | BIGINT | PK AUTO_INCREMENT | Surrogate key |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| secret_hash | VARCHAR(255) | NOT NULL | bcrypt hash |
+| created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | |
+| expires_at | TIMESTAMP | NULL | Secret expiry |
+| is_active | BOOLEAN | NOT NULL DEFAULT TRUE | |
+| description | VARCHAR(255) | | Human-readable note |
+| account_id | VARCHAR(36) | FK | Creator, T_accounts SET NULL |
+| org_id | VARCHAR(36) | FK | T_organisations |
+
+**Indexes:** `I_client_active` (client_id, is_active), `I_expires_at`, `I_client_secrets_account`, `I_client_secrets_org_id`
+
+### T_authorization_requests
+
+Tracks OAuth authorization requests through their lifecycle.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| account_id | VARCHAR(36) | FK | T_accounts CASCADE |
+| redirect_uri | VARCHAR(500) | NOT NULL | Callback URI |
+| scope | VARCHAR(500) | | Requested scopes |
+| state | VARCHAR(255) | | CSRF token |
+| code_challenge | VARCHAR(255) | | PKCE challenge |
+| code_challenge_method | VARCHAR(10) | | S256 or plain |
+| status | VARCHAR(25) | NOT NULL | pending/approved/denied/expired/org_selection_pending |
+| auth_method | VARCHAR(20) | | native/google/etc |
+| org_id | VARCHAR(36) | FK | Selected organisation |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+| expires_at | TIMESTAMP | NOT NULL | |
+
+**Indexes:** `I_authorization_requests_account_id`, `I_authorization_requests_client_id`, `I_authorization_requests_status_expires_at`
+
+### T_authorization_codes
+
+One-time authorization codes exchanged for tokens.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| code | VARCHAR(255) | NOT NULL, UK | Unique code |
+| authorization_request_id | VARCHAR(36) | NOT NULL, FK | T_authorization_requests CASCADE |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| redirect_uri | VARCHAR(500) | NOT NULL | |
+| scope | VARCHAR(500) | | Granted scopes |
+| code_challenge | VARCHAR(255) | | PKCE challenge |
+| code_challenge_method | VARCHAR(10) | | S256 or plain |
+| used | BOOLEAN | DEFAULT FALSE | One-time flag |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+| expires_at | TIMESTAMP | NOT NULL | |
+
+**Indexes:** `I_authorization_codes_authorization_request_id`, `I_authorization_codes_client_id`, `I_authorization_codes_account_id`, `I_authorization_codes_code` (unique), `I_authorization_codes_expires_at`
+
+### T_revoked_tokens
+
+Records revoked tokens to prevent replay attacks and support revocation.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| token_jti | VARCHAR(255) | NOT NULL | Token JTI |
+| revoked_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | |
+| reason | VARCHAR(100) | NOT NULL | Why revoked |
+| authorization_code_id | VARCHAR(36) | FK | T_authorization_codes CASCADE |
+| created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | |
+
+**Indexes:** `idx_authorization_code_id`, `idx_token_jti`, `idx_revoked_at`
+
+### T_account_roles
+
+User roles scoped to a client and organisation.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| role | VARCHAR(100) | NOT NULL | Role name |
+| org_id | VARCHAR(36) | FK | T_organisations |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+
+**Indexes:** `I_account_roles_account`, `I_account_roles_client`, `I_account_roles_unique` (account_id, client_id, role), `I_account_roles_org_id`
+
+### T_service_account_roles
+
+Roles that a service account (client) can assert on behalf of users.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| role | VARCHAR(100) | NOT NULL | Role name |
+| org_id | VARCHAR(36) | FK | T_organisations |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+
+**Indexes:** `I_service_account_roles_client`, `I_service_account_roles_unique` (client_id, role), `I_service_account_roles_org_id`
+
+### T_client_allowed_roles
+
+Roles a client is permitted to assign or request.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| role | VARCHAR(100) | NOT NULL | Role name |
+| is_default | BOOLEAN | DEFAULT FALSE | Auto-assign on subscription |
+
+**PK:** (client_id, role)
+**Indexes:** `I_client_allowed_roles_client`
+
+### T_organisations
+
+Multi-tenancy organisations.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| name | VARCHAR(255) | NOT NULL | Organisation name |
+| created_by_account_id | VARCHAR(36) | FK | Creator, T_accounts SET NULL |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+
+**Indexes:** `I_organisations_created_by`
+
+### T_organisation_accounts
+
+Membership of accounts in organisations.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| org_id | VARCHAR(36) | NOT NULL, FK | T_organisations CASCADE |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
+| role | VARCHAR(50) | NOT NULL | member/owner/etc |
+| added_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+
+**PK:** (org_id, account_id, role)
+**Indexes:** `I_org_accounts_org`, `I_org_accounts_account`
+
+### T_subscriptions
+
+Organisation subscriptions to clients.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID |
+| org_id | VARCHAR(36) | NOT NULL, FK | T_organisations CASCADE |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
+
+**Indexes:** `I_subscriptions_org`, `I_subscriptions_client`, `I_subscriptions_unique` (org_id, client_id)
 
 ## Naming Conventions
 
-The database follows strict naming conventions for consistency and clarity:
-
-- **Tables**: Prefixed with `T_` (e.g., `T_accounts`, `T_oauth_clients`)
-- **Foreign Keys**: Format `FK_<tableName>_<columnName>` (e.g., `FK_credentials_account_id`)
-- **Indices**: Format `I_<tableName>_<columnName(s)>` (e.g., `I_accounts_email`)
-- **Primary Keys**: Always named `id` using VARCHAR(36) for UUID storage
-- **Timestamps**: Use `created_at` and `expires_at` naming pattern
-
-## Data Flow
-
-### Authorization Code Flow
-
-1. **Client Registration**: OAuth client is registered in `T_oauth_clients`
-2. **User Sign Up**: User creates account in `T_accounts` with credentials in `T_credentials`
-3. **Authorization Request**: Client initiates flow, creating entry in `T_authorization_requests`
-4. **User Authentication**: User logs in using credentials from `T_credentials`
-5. **User Consent**: User approves request, updating `T_authorization_requests` status
-6. **Code Generation**: Authorization code created in `T_authorization_codes`
-7. **Token Exchange**: Client exchanges code for token (code marked as `used`)
-
-## Database Compatibility
-
-The schema is designed to work with both MySQL and H2 databases:
-
-- Uses standard SQL data types
-- Avoids database-specific features
-- Named constraints for explicit control
-- Separate CREATE INDEX statements for compatibility
-- BOOLEAN type supported by both databases
-- VARCHAR lengths within common limits
-
-## Indexes and Performance
-
-Strategic indexes are placed for common query patterns:
-
-- **Unique Indexes**: Enforce business rules (email, username, client_id, code)
-- **Composite Indexes**: Support multi-column queries (client_id + account_id)
-- **Expiration Indexes**: Enable efficient cleanup of expired records
-- **Foreign Key Indexes**: Implicit indexes on FK columns for join performance
+- **Tables**: Prefixed with `T_`
+- **Foreign Keys**: `FK_<table>_<column>`
+- **Indices**: `I_<table>_<column(s)>`
+- **Primary Keys**: `id`, VARCHAR(36)
+- **Timestamps**: `created_at`, `expires_at`
 
 ## Security Considerations
 
-- **Password Storage**: Only hashed passwords stored, never plaintext
-- **PKCE Support**: Code challenge stored for verification
-- **Expiration**: All temporary entities have expiration timestamps
-- **Cascade Deletes**: Automatic cleanup of related records
-- **Account Locking**: Failed login tracking with lockout capability
-- **One-Time Codes**: Authorization codes can only be used once
-- **State Parameter**: CSRF protection for authorization requests
-
-## Maintenance
-
-### Cleanup Queries
-
-Expired records should be periodically cleaned:
-
-```sql
--- Clean expired authorization requests
-DELETE FROM T_authorization_requests 
-WHERE expires_at < CURRENT_TIMESTAMP;
-
--- Clean expired authorization codes
-DELETE FROM T_authorization_codes 
-WHERE expires_at < CURRENT_TIMESTAMP;
-```
-
-### Monitoring Queries
-
-```sql
--- Check for locked accounts
-SELECT a.email, c.locked_until, c.failed_login_attempts
-FROM T_accounts a
-JOIN T_credentials c ON a.id = c.account_id
-WHERE c.locked_until > CURRENT_TIMESTAMP;
-
--- Check active authorization requests
-SELECT client_id, status, COUNT(*) as count
-FROM T_authorization_requests
-GROUP BY client_id, status;
-```
+- Passwords stored as bcrypt hashes only
+- PKCE required for all authorization requests
+- Authorization codes are single-use with short expiry
+- Account lockout after repeated failed logins
+- Cascade deletes maintain referential integrity
+- CSRF protection via `state` parameter
+- Token revocation tracked to prevent replay
 
