@@ -4,8 +4,10 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.entity.OrganisationAccount;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.JwtOrgResolver;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
@@ -84,6 +86,11 @@ public class OAuthFlowWithClientSecretTest {
         role.setRole(Roles.MANAGE_CLIENTS);
         em.persist(role);
 
+        // Link account to default org so interceptor passes
+        OrganisationAccount oa = new OrganisationAccount();
+        oa.setId(new OrganisationAccount.Id(JwtOrgResolver.DEFAULT_ORG_ID, testAccount.getId(), "member"));
+        em.persist(oa);
+
         em.flush();
 
         // Generate admin token
@@ -93,6 +100,7 @@ public class OAuthFlowWithClientSecretTest {
             .groups(java.util.Set.of(Roles.MANAGE_CLIENTS, Roles.USER))
             .claim("email", testAccount.getEmail())
             .claim("name", testAccount.getName())
+            .claim("orgId", JwtOrgResolver.DEFAULT_ORG_ID)
             .sign();
     }
 
@@ -104,7 +112,7 @@ public class OAuthFlowWithClientSecretTest {
         String clientId = "test-oauth-flow-" + System.currentTimeMillis();
 
         // Step 1: Create a new OAuth client via REST API
-        String clientResponse = given()
+        given()
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType("application/json")
                 .body(Map.of(
@@ -119,9 +127,7 @@ public class OAuthFlowWithClientSecretTest {
                 .post("/api/clients")
                 .then()
                 .statusCode(201)
-                .body("clientId", equalTo(clientId))
-                .extract()
-                .asString();
+                .body("clientId", equalTo(clientId));
 
         // Step 2: Create a new client secret via REST API
         Response secretResponse = given()

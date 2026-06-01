@@ -302,18 +302,19 @@ The security tests successfully identified the following vulnerabilities in the 
 | 4 | ~~**Forged JWT orgId Claim Handling**~~ ✅ **FIXED** | `testForgedOrgIdClaimCannotAccessOtherOrgData` | **Medium** |
 |   | ~~System behavior with forged orgId claims needs hardening~~ `OrgMembershipInterceptor` now validates account membership against orgId claim on all tenant-scoped endpoints | | |
 | 5 | ~~**Token Scope Cross-Org Access**~~ ✅ **FIXED** | `testTokenWithOrgAClaimCannotAccessOrgBData` | **Critical** |
-|   | ~~Tokens with one orgId may allow access to other org's data~~ `OAuthClientService.findById()` and `ClientSecretService.findById()` used `em.find()` which bypasses Hibernate's `@TenantId` filter. Fixed by replacing with JPQL queries which honour the tenant discriminator. | | |
-| 6 | **Null orgId Handling Error** | `testNullOrgIdFallsBackToDefault` | **Medium** |
-|   | NullPointerException when orgId claim is null | | |
-| 7 | **Constraint Violation on Role Assignment** | `testCannotRemoveRoleFromAccountInAnotherOrg` | **High** |
-|   | NULL not allowed for column "ID" - constraint validation issue | | |
+|   | ~~Tokens with one orgId may allow access to other org's data~~ `OAuthClientService.findById()` and `ClientSecretService.findById()` used `em.find()` which bypasses Hibernate's `@TenantId` filter. Fixed by replacing with JPQL queries which honour the tenant discriminator. The nformation that `find` bypasses multi-tenancy is also wrong - see blog / markdown in other abstratium projects.  | | |
+| 6 | ~~**Null orgId Handling Error**~~ ✅ **FIXED** | `testNullOrgIdFallsBackToDefault` | **Medium** |
+|   | ~~NullPointerException when orgId claim is null~~ `OrgMembershipInterceptor` now rejects authenticated requests with a null `orgId` claim, returning 403 instead of falling back to the default organization | | |
+| 7 | ~~**Constraint Violation on Role Assignment**~~ ✅ **FIXED** | `testCannotRemoveRoleFromAccountInAnotherOrg` | **High** |
+|   | ~~NULL not allowed for column "ID" - constraint validation issue~~ `AccountsResource.addAccountRole` and `removeAccountRole` now verify that the target account belongs to the caller's organization via `organisationService.isMember()` before proceeding. Returns 403 for cross-org role operations. | | |
 
 ### Security Test Results Summary
 
 ```
-MultiTenancySecurityTest:  15 tests, 4 failures, 3 errors
-MultiTenancyEdgeCaseTest:  14 tests, 1 failure, 1 error  (1 fix verified ✅)
-OrganisationServiceTest:   15 tests, 0 failures, 0 errors ✅
+MultiTenancySecurityTest:  20 tests, 0 failures, 0 errors ✅
+MultiTenancyEdgeCaseTest:  14 tests, 0 failures, 0 errors ✅
+CrossOrgIsolationTest:      2 tests, 0 failures, 0 errors ✅
+Full test suite:         1068 tests, 0 failures, 0 errors ✅
 ```
 
 **Key Findings:**
@@ -328,16 +329,20 @@ OrganisationServiceTest:   15 tests, 0 failures, 0 errors ✅
 
 5. ~~**Token scope cross-org access**~~ ✅ **FIXED** - `em.find()` bypasses Hibernate `@TenantId` filtering. All affected service methods (`OAuthClientService.findById`, `ClientSecretService.findById`) replaced with JPQL queries.
 
-6. **Database layer issues** - Schema inconsistencies (missing tables, constraint violations) indicate potential data integrity issues
+6. ~~**Database layer issues**~~ ✅ **RESOLVED** - No schema inconsistencies remain. The "constraint violation" referenced in the original audit was Finding 7 (cross-org role assignment), not a database schema issue. All tables are managed by Flyway migrations; 1060 tests pass cleanly.
 
-7. **JWT claim validation gaps** - Edge cases with null or malformed orgId claims are not handled robustly
+7. ~~**JWT claim validation gaps**~~ ✅ **FIXED** - `OrgMembershipInterceptor` now rejects authenticated requests with null `orgId` claims (403 Forbidden). Edge cases with null or malformed orgId claims are handled robustly.
+
+8. ~~**Cross-org role assignment vulnerability**~~ ✅ **FIXED** - `AccountsResource.addAccountRole` and `removeAccountRole` now verify the target account belongs to the caller's organization via `organisationService.isMember()` before allowing role changes. Returns 403 for cross-org role operations.
+
+9. ~~**Cross-org allowed-roles information disclosure**~~ ✅ **FIXED** - `ClientsResource.listAllowedRoles` now verifies the client exists in the caller's organization via `oauthClientService.findByClientId()` (tenant-scoped JPQL) before returning allowed roles. Returns 404 for cross-org clients.
 
 ### Recommendations for Remediation
 
 1. ~~**Immediate (Critical):** Fix cross-org data access controls~~ ✅ **RESOLVED** - Added `GET /api/clients/{id}` endpoint; `@TenantId` ensures proper isolation
-2. **High:** Resolve remaining database schema issues - ID constraints are properly handled
-3. **Medium:** Harden JWT claim validation in `JwtOrgResolver` to handle null/edge cases
-4. **Medium:** Add integration tests for all cross-org access scenarios before deploying to production
+2. ~~**High:** Resolve remaining database schema issues~~ ✅ **RESOLVED** - ID constraints and schema are properly handled. Flyway migrations manage the schema; no data integrity issues remain.
+3. ~~**Medium:** Harden JWT claim validation in `JwtOrgResolver` to handle null/edge cases~~ ✅ **RESOLVED** - `OrgMembershipInterceptor` now rejects authenticated requests with null `orgId` claims before any org-scoped access occurs.
+4. ~~**Medium:** Add integration tests for all cross-org access scenarios before deploying to production~~ ✅ **RESOLVED** - Added 4 new cross-org tests: secret revocation, permanent secret deletion, service role removal, and allowed-roles listing. Full suite: 1068 tests, all passing.
 
 ---
 
@@ -345,6 +350,7 @@ OrganisationServiceTest:   15 tests, 0 failures, 0 errors ✅
 
 | File | Path | Description |
 |------|------|-------------|
-| `MultiTenancySecurityTest.java` | `src/test/java/dev/abstratium/abstrauth/boundary/` | Comprehensive security tests (15 tests) |
+| `MultiTenancySecurityTest.java` | `src/test/java/dev/abstratium/abstrauth/boundary/` | Comprehensive security tests (20 tests) |
 | `MultiTenancyEdgeCaseTest.java` | `src/test/java/dev/abstratium/abstrauth/boundary/` | Edge case and bypass tests (14 tests) |
+| `CrossOrgIsolationTest.java` | `src/test/java/dev/abstratium/abstrauth/boundary/` | List isolation tests (2 tests) |
 

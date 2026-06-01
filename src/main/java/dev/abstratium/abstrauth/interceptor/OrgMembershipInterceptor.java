@@ -37,14 +37,18 @@ public class OrgMembershipInterceptor {
         String accountId = token.getSubject();
         String orgId = token.getClaim("orgId");
 
-        log.infov("Interceptor: accountId={0} orgId={1}", accountId, orgId);
+        log.debugv("Interceptor: accountId={0} orgId={1}", accountId, orgId);
 
-        // If either is missing, we can't verify - let the request proceed
-        // and let the resource handle the missing data
-        if (accountId == null || orgId == null) {
-            log.infov("Interceptor: missing claim, proceeding");
-
+        // Unauthenticated request - let @RolesAllowed handle it
+        if (accountId == null) {
+            log.infov("Interceptor: no accountId, proceeding");
             return context.proceed();
+        }
+
+        // Authenticated request to a tenant-scoped endpoint must have an orgId
+        if (orgId == null) {
+            log.infov("Interceptor: missing orgId, rejecting");
+            throw new ForbiddenException("orgId claim is required");
         }
 
         boolean isMember = organisationService.isMember(orgId, accountId);

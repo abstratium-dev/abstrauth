@@ -5,12 +5,12 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
-import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
@@ -300,7 +300,7 @@ public class OrganisationsResourceTest {
         // create a client to subscribe to
         String clientId = "sub-test-client-" + ts;
         transactionHelper.beginTransaction();
-        createTestClient(clientId);
+        createTestClient(clientId, ownerOrg.getId());
         transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
@@ -326,7 +326,7 @@ public class OrganisationsResourceTest {
 
         String clientId = "dup-sub-client-" + ts;
         transactionHelper.beginTransaction();
-        createTestClient(clientId);
+        createTestClient(clientId, ownerOrg.getId());
         subscriptionService.subscribe(ownerOrg.getId(), clientId);
         transactionHelper.commitTransaction();
 
@@ -351,7 +351,7 @@ public class OrganisationsResourceTest {
 
         String clientId = "sub-f-client-" + ts;
         transactionHelper.beginTransaction();
-        createTestClient(clientId);
+        createTestClient(clientId, ownerOrg.getId());
         transactionHelper.commitTransaction();
 
         String token = userToken(nonOwner.getId(), ownerOrg.getId());
@@ -378,7 +378,7 @@ public class OrganisationsResourceTest {
 
         String clientId = "unsub-client-" + ts;
         transactionHelper.beginTransaction();
-        createTestClient(clientId);
+        createTestClient(clientId, ownerOrg.getId());
         subscriptionService.subscribe(ownerOrg.getId(), clientId);
         transactionHelper.commitTransaction();
 
@@ -403,7 +403,7 @@ public class OrganisationsResourceTest {
 
         String clientId = "unsub-f-client-" + ts;
         transactionHelper.beginTransaction();
-        createTestClient(clientId);
+        createTestClient(clientId, ownerOrg.getId());
         subscriptionService.subscribe(ownerOrg.getId(), clientId);
         transactionHelper.commitTransaction();
 
@@ -425,7 +425,7 @@ public class OrganisationsResourceTest {
 
         String clientId = "unsub-miss-client-" + ts;
         transactionHelper.beginTransaction();
-        createTestClient(clientId);
+        createTestClient(clientId, ownerOrg.getId());
         transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
@@ -447,12 +447,11 @@ public class OrganisationsResourceTest {
         long ts = System.currentTimeMillis();
         Account account = createAccount(ts + "_roleemp");
         String clientId = "roles-empty-client-" + ts;
+        String orgId = getAccountOrgId(account.getId());
 
         transactionHelper.beginTransaction();
-        createTestClient(clientId);
+        createTestClient(clientId, orgId);
         transactionHelper.commitTransaction();
-
-        String orgId = getAccountOrgId(account.getId());
         String token = userToken(account.getId(), orgId);
 
         given()
@@ -470,14 +469,14 @@ public class OrganisationsResourceTest {
         long ts = System.currentTimeMillis();
         Account account = createAccount(ts + "_rolewith");
         String clientId = "roles-with-client-" + ts;
+        String orgId = getAccountOrgId(account.getId());
 
         transactionHelper.beginTransaction();
-        createTestClient(clientId);
+        createTestClient(clientId, orgId);
         insertAllowedRole(clientId, "viewer", false);
         insertAllowedRole(clientId, "editor", true);
         transactionHelper.commitTransaction();
 
-        String orgId = getAccountOrgId(account.getId());
         String token = userToken(account.getId(), orgId);
 
         given()
@@ -504,15 +503,17 @@ public class OrganisationsResourceTest {
     // Helpers
     // ─────────────────────────────────────────────────────────
 
-    private void createTestClient(String clientId) {
-        OAuthClient client = new OAuthClient();
-        client.setClientId(clientId);
-        client.setClientName("Test " + clientId);
-        client.setClientType("confidential");
-        client.setRedirectUris("[\"http://localhost:8080/callback\"]");
-        client.setAllowedScopes("[\"openid\"]");
-        client.setRequirePkce(true);
-        em.persist(client);
+    private void createTestClient(String clientId, String orgId) {
+        em.createNativeQuery(
+            "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, org_id) " +
+            "VALUES (:id, :clientId, :name, 'confidential', :redirectUris, :allowedScopes, true, true, :orgId)")
+            .setParameter("id", UUID.randomUUID().toString())
+            .setParameter("clientId", clientId)
+            .setParameter("name", "Test " + clientId)
+            .setParameter("redirectUris", "[\"http://localhost:8080/callback\"]")
+            .setParameter("allowedScopes", "[\"openid\"]")
+            .setParameter("orgId", orgId)
+            .executeUpdate();
     }
 
     private void insertAllowedRole(String clientId, String role, boolean isDefault) {

@@ -261,6 +261,52 @@ public class MultiTenancySecurityTest {
             .statusCode(anyOf(is(404), is(403)));
     }
 
+    @Test
+    public void testCannotListAllowedRolesForAnotherOrgsClient() throws Exception {
+        long ts = System.currentTimeMillis();
+
+        transactionHelper.beginTransaction();
+
+        // Create Org A with admin
+        String emailA = "orgA_admin_" + ts + "@example.com";
+        Account accountA = accountService.createAccount(emailA, "Org A Admin", emailA, "Pass123!", AccountService.NATIVE, "Org A " + ts);
+        String orgAId = organisationService.listOrganisationsForAccount(accountA.getId()).get(0).getId();
+
+        // Create Org B with admin
+        String emailB = "orgB_admin_" + ts + "@example.com";
+        Account accountB = accountService.createAccount(emailB, "Org B Admin", emailB, "Pass123!", AccountService.NATIVE, "Org B " + ts);
+        String orgBId = organisationService.listOrganisationsForAccount(accountB.getId()).get(0).getId();
+
+        // Create client in Org A
+        String clientIdA = "allowed-roles-test-a-" + ts;
+        String clientUuidA = UUID.randomUUID().toString();
+        em.createNativeQuery(
+            "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, org_id) " +
+            "VALUES (:id, :clientId, :name, 'confidential', '[]', '[]', true, true, :orgId)")
+            .setParameter("id", clientUuidA)
+            .setParameter("clientId", clientIdA)
+            .setParameter("name", "Allowed Roles Test A")
+            .setParameter("orgId", orgAId)
+            .executeUpdate();
+
+        // Add allowed role for Org A's client
+        em.createNativeQuery(
+            "INSERT INTO T_client_allowed_roles (client_id, role, is_default) " +
+            "VALUES (:clientId, 'user', true)")
+            .setParameter("clientId", clientIdA)
+            .executeUpdate();
+
+        transactionHelper.commitTransaction();
+
+        // Org B user attempts to list allowed roles of Org A's client
+        given()
+            .auth().oauth2(userTokenForOrg(accountB.getId(), orgBId))
+            .when()
+            .get("/api/clients/" + clientIdA + "/allowed-roles")
+            .then()
+            .statusCode(404);
+    }
+
     // ====================================================================================
     // TEST 2: Cross-Org Client Secrets Access Prevention
     // ====================================================================================
@@ -360,6 +406,112 @@ public class MultiTenancySecurityTest {
             .statusCode(anyOf(is(404), is(403)));
     }
 
+    @Test
+    public void testCannotRevokeSecretForAnotherOrgsClient() throws Exception {
+        long ts = System.currentTimeMillis();
+
+        transactionHelper.beginTransaction();
+
+        // Create Org A with admin
+        String emailA = "orgA_admin_" + ts + "@example.com";
+        Account accountA = accountService.createAccount(emailA, "Org A Admin", emailA, "Pass123!", AccountService.NATIVE, "Org A " + ts);
+        String orgAId = organisationService.listOrganisationsForAccount(accountA.getId()).get(0).getId();
+
+        // Create Org B with admin
+        String emailB = "orgB_admin_" + ts + "@example.com";
+        Account accountB = accountService.createAccount(emailB, "Org B Admin", emailB, "Pass123!", AccountService.NATIVE, "Org B " + ts);
+        String orgBId = organisationService.listOrganisationsForAccount(accountB.getId()).get(0).getId();
+
+        // Create client in Org A
+        String clientIdA = "revoke-secret-test-a-" + ts;
+        String clientUuidA = UUID.randomUUID().toString();
+        em.createNativeQuery(
+            "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, org_id) " +
+            "VALUES (:id, :clientId, :name, 'confidential', '[]', '[]', true, true, :orgId)")
+            .setParameter("id", clientUuidA)
+            .setParameter("clientId", clientIdA)
+            .setParameter("name", "Revoke Secret Test A")
+            .setParameter("orgId", orgAId)
+            .executeUpdate();
+
+        // Create secret for client in Org A
+        em.createNativeQuery(
+            "INSERT INTO T_oauth_client_secrets (client_id, secret_hash, is_active, description, org_id) " +
+            "VALUES (:clientId, '$2a$10$dummyhash', true, 'Test Secret', :orgId)")
+            .setParameter("clientId", clientIdA)
+            .setParameter("orgId", orgAId)
+            .executeUpdate();
+
+        // Get the generated secret ID
+        Number secretId = (Number) em.createNativeQuery(
+            "SELECT id FROM T_oauth_client_secrets WHERE client_id = :clientId")
+            .setParameter("clientId", clientIdA)
+            .getSingleResult();
+
+        transactionHelper.commitTransaction();
+
+        // Org B admin attempts to revoke secret of Org A's client
+        given()
+            .auth().oauth2(manageClientsTokenForOrg(accountB.getId(), orgBId))
+            .when()
+            .delete("/api/clients/" + clientIdA + "/secrets/" + secretId.longValue())
+            .then()
+            .statusCode(anyOf(is(404), is(403)));
+    }
+
+    @Test
+    public void testCannotDeleteSecretPermanentlyForAnotherOrgsClient() throws Exception {
+        long ts = System.currentTimeMillis();
+
+        transactionHelper.beginTransaction();
+
+        // Create Org A with admin
+        String emailA = "orgA_admin_" + ts + "@example.com";
+        Account accountA = accountService.createAccount(emailA, "Org A Admin", emailA, "Pass123!", AccountService.NATIVE, "Org A " + ts);
+        String orgAId = organisationService.listOrganisationsForAccount(accountA.getId()).get(0).getId();
+
+        // Create Org B with admin
+        String emailB = "orgB_admin_" + ts + "@example.com";
+        Account accountB = accountService.createAccount(emailB, "Org B Admin", emailB, "Pass123!", AccountService.NATIVE, "Org B " + ts);
+        String orgBId = organisationService.listOrganisationsForAccount(accountB.getId()).get(0).getId();
+
+        // Create client in Org A
+        String clientIdA = "perm-delete-secret-test-a-" + ts;
+        String clientUuidA = UUID.randomUUID().toString();
+        em.createNativeQuery(
+            "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, org_id) " +
+            "VALUES (:id, :clientId, :name, 'confidential', '[]', '[]', true, true, :orgId)")
+            .setParameter("id", clientUuidA)
+            .setParameter("clientId", clientIdA)
+            .setParameter("name", "Perm Delete Secret Test A")
+            .setParameter("orgId", orgAId)
+            .executeUpdate();
+
+        // Create an already-inactive (revoked) secret for client in Org A
+        em.createNativeQuery(
+            "INSERT INTO T_oauth_client_secrets (client_id, secret_hash, is_active, description, org_id) " +
+            "VALUES (:clientId, '$2a$10$dummyhash', false, 'Revoked Secret', :orgId)")
+            .setParameter("clientId", clientIdA)
+            .setParameter("orgId", orgAId)
+            .executeUpdate();
+
+        // Get the generated secret ID
+        Number secretId = (Number) em.createNativeQuery(
+            "SELECT id FROM T_oauth_client_secrets WHERE client_id = :clientId")
+            .setParameter("clientId", clientIdA)
+            .getSingleResult();
+
+        transactionHelper.commitTransaction();
+
+        // Org B admin attempts to permanently delete secret of Org A's client
+        given()
+            .auth().oauth2(manageClientsTokenForOrg(accountB.getId(), orgBId))
+            .when()
+            .delete("/api/clients/" + clientIdA + "/secrets/" + secretId.longValue() + "/permanent")
+            .then()
+            .statusCode(anyOf(is(404), is(403)));
+    }
+
     // ====================================================================================
     // TEST 3: Cross-Org Account Role Management Prevention
     // ====================================================================================
@@ -398,9 +550,7 @@ public class MultiTenancySecurityTest {
         transactionHelper.commitTransaction();
 
         // Org B admin attempts to add role to victim account in Org A
-        // The role is scoped to the caller's org (org B) via @TenantId, so
-        // it doesn't affect org A. The endpoint allows this because the caller
-        // has MANAGE_ACCOUNTS in their own org.
+        // Should be rejected because the target account is not in the caller's org
         String requestBody = """
             {
                 "accountId": "%s",
@@ -416,7 +566,7 @@ public class MultiTenancySecurityTest {
             .when()
             .post("/api/accounts/role")
             .then()
-            .statusCode(201);
+            .statusCode(403);
     }
 
     @Test
@@ -465,6 +615,7 @@ public class MultiTenancySecurityTest {
         transactionHelper.commitTransaction();
 
         // Org B admin attempts to remove role from victim account in Org A
+        // Should be rejected because the target account is not in the caller's org
         String requestBody = """
             {
                 "accountId": "%s",
@@ -480,7 +631,7 @@ public class MultiTenancySecurityTest {
             .when()
             .delete("/api/accounts/role")
             .then()
-            .statusCode(204);
+            .statusCode(403);
     }
 
     // ====================================================================================
@@ -578,6 +729,54 @@ public class MultiTenancySecurityTest {
             .body(requestBody)
             .when()
             .post("/api/clients/" + clientIdA + "/roles")
+            .then()
+            .statusCode(anyOf(is(404), is(403)));
+    }
+
+    @Test
+    public void testCannotRemoveServiceRoleFromAnotherOrgsClient() throws Exception {
+        long ts = System.currentTimeMillis();
+
+        transactionHelper.beginTransaction();
+
+        // Create Org A with admin
+        String emailA = "orgA_admin_" + ts + "@example.com";
+        Account accountA = accountService.createAccount(emailA, "Org A Admin", emailA, "Pass123!", AccountService.NATIVE, "Org A " + ts);
+        String orgAId = organisationService.listOrganisationsForAccount(accountA.getId()).get(0).getId();
+
+        // Create Org B with admin
+        String emailB = "orgB_admin_" + ts + "@example.com";
+        Account accountB = accountService.createAccount(emailB, "Org B Admin", emailB, "Pass123!", AccountService.NATIVE, "Org B " + ts);
+        String orgBId = organisationService.listOrganisationsForAccount(accountB.getId()).get(0).getId();
+
+        // Create client in Org A
+        String clientIdA = "svc-remove-role-test-a-" + ts;
+        String clientUuidA = UUID.randomUUID().toString();
+        em.createNativeQuery(
+            "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, org_id) " +
+            "VALUES (:id, :clientId, :name, 'confidential', '[]', '[]', true, true, :orgId)")
+            .setParameter("id", clientUuidA)
+            .setParameter("clientId", clientIdA)
+            .setParameter("name", "Svc Remove Role Test A")
+            .setParameter("orgId", orgAId)
+            .executeUpdate();
+
+        // Add service role for Org A's client
+        em.createNativeQuery(
+            "INSERT INTO T_service_account_roles (id, client_id, role, org_id) " +
+            "VALUES (:id, :clientId, 'api-reader', :orgId)")
+            .setParameter("id", UUID.randomUUID().toString())
+            .setParameter("clientId", clientIdA)
+            .setParameter("orgId", orgAId)
+            .executeUpdate();
+
+        transactionHelper.commitTransaction();
+
+        // Org B admin attempts to remove service role from Org A's client
+        given()
+            .auth().oauth2(manageClientsTokenForOrg(accountB.getId(), orgBId))
+            .when()
+            .delete("/api/clients/" + clientIdA + "/roles/api-reader")
             .then()
             .statusCode(anyOf(is(404), is(403)));
     }

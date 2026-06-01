@@ -196,6 +196,14 @@ public class AccountsResource {
                     .build();
         }
 
+        // Verify account belongs to caller's organization
+        String orgId = token.getClaim("orgId");
+        if (!organisationService.isMember(orgId, accountId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("Account not found in your organization"))
+                    .build();
+        }
+
         // Add the role (validation happens inside)
         // IllegalArgumentException will be caught by IllegalArgumentExceptionMapper and returned as 400
         AccountRole accountRole = accountRoleService.addRole(accountId, request.clientId, request.role);
@@ -217,6 +225,14 @@ public class AccountsResource {
         if (accountService.findById(accountId).isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(new ErrorResponse("Account not found"))
+                    .build();
+        }
+
+        // Verify account belongs to caller's organization
+        String orgId = token.getClaim("orgId");
+        if (!organisationService.isMember(orgId, accountId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("Account not found in your organization"))
                     .build();
         }
 

@@ -85,13 +85,13 @@ public class MultiTenancyEdgeCaseTest {
             .groups(Set.of("abstratium-abstrauth_user"))
             .sign();
 
-        // Request without orgId claim - interceptor lets it proceed, resource handles it
+        // Request without orgId claim - interceptor rejects authenticated requests missing orgId
         given()
             .auth().oauth2(noOrgToken)
             .when()
             .get("/api/accounts")
             .then()
-            .statusCode(anyOf(is(200), is(403)));
+            .statusCode(403);
     }
 
     @Test

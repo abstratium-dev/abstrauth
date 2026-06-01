@@ -11,8 +11,6 @@
 
 ## Today
 
-- continue running all tests
-- then finish multi tenancy security audit problems
 - then test the UI
 - then go fix client secrets and replace with service accounts
   - first ask how this is solved in GCP, AWS and Azure
@@ -21,16 +19,10 @@
 
 
 - multi-tenancy
-  - check all statements never do bulk operations
-    - copy md from abstoggle which explains the rules
-    - also put that doc in to abstracore
-  - review security
   - auto subscription. what if a user is already associated with multiple orgs, are all new subscribers? wait, they subscribe t o the clientId in the request. but it could be wrong for all of their orgs to subscribe. so only the one that they CHOSE during sign in should subscribe! so auto subscribe happens after they choose the org that they are signing in under
-  - create security tests to make sure the service cannot be manipulated into providing a token with a wrong orgId
-  - define (complex) test cases for where the user is added to a different organisation, etc.
   - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs. Add a `platform-admin` role (or equivalent) with cross-org read/write access for true platform administration. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`.
 
-- introduce envers
+- deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream?
 
 - add public page to abstrauth WITH ™ symbol!
   - in list of things which abstrauth is, describe it is also an "identity broker" as written in microsoft doc

@@ -340,15 +340,3 @@ FROM T_authorization_requests
 GROUP BY client_id, status;
 ```
 
-## Migration History
-
-- **V01.001**: Create T_accounts table
-- **V01.002**: Create T_credentials table with FK to T_accounts
-- **V01.003**: Create T_oauth_clients table (with client_secret_hash column)
-- **V01.004**: Create T_authorization_requests table
-- **V01.005**: Create T_authorization_codes table with FKs
-- **V01.006**: Insert default test client for development
-- **V01.007**: Create T_account_roles table for role-based access control
-- **V01.008**: Add picture and auth_provider columns to T_accounts
-- **V01.009**: Create T_federated_identities table for federated login
-- **V01.010**: Update default client to confidential with client_secret_hash (BFF pattern)

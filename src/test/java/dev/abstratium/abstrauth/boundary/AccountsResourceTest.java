@@ -305,17 +305,19 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddAccountRoleSuccessfully() throws Exception {
-        // Create account
         transactionHelper.beginTransaction();
-        String email = "roletest_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccount(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
-        String accountId = account.getId();
         
-        // Create admin account
+        // Create admin account first
         String adminEmail = "roleadmin_" + System.currentTimeMillis() + "@example.com";
         Account admin = accountService.createAccount(adminEmail, "Role Admin", "roleadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         String adminId = admin.getId();
         String adminOrgId = organisationService.listOrganisationsForAccount(adminId).get(0).getId();
+        
+        // Create target account in admin's org
+        String email = "roletest_" + System.currentTimeMillis() + "@example.com";
+        Account account = accountService.createAccountForOrg(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, adminOrgId);
+        String accountId = account.getId();
+        
         transactionHelper.commitTransaction();
         
         String requestBody = String.format("""
@@ -610,18 +612,21 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddRoleToNewClientAsAdmin() throws Exception {
-        // Create account with existing role in abstratium-abstrauth
         transactionHelper.beginTransaction();
-        String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
-        Account targetAccount = accountService.createAccount(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
-        // Give target account a role in abstratium-abstrauth
-        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
         
+        // Create admin account first
         String adminEmail = "admin_" + System.currentTimeMillis() + "@example.com";
         Account admin = accountService.createAccount(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
         // Give admin the admin role
         accountRoleService.addRole(admin.getId(), "abstratium-abstrauth", "admin");
         String adminOrgId = organisationService.listOrganisationsForAccount(admin.getId()).get(0).getId();
+        
+        // Create target account in admin's org
+        String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
+        Account targetAccount = accountService.createAccountForOrg(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, adminOrgId);
+        // Give target account a role in abstratium-abstrauth
+        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
+        
         transactionHelper.commitTransaction();
         
         // Admin should be able to add target account role even if they don't have that client yet

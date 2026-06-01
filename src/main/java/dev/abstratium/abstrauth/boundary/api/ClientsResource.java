@@ -243,6 +243,13 @@ public class ClientsResource {
     @Operation(summary = "List allowed roles for a client", description = "Returns the roles that subscribing organisations may assign to their users for this client")
     @RolesAllowed(Roles.USER)
     public Response listAllowedRoles(@PathParam("clientId") String clientId) {
+        // Verify client exists in caller's org (findByClientId is tenant-scoped)
+        if (oauthClientService.findByClientId(clientId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Client not found"))
+                    .build();
+        }
+
         List<ClientAllowedRole> roles = clientAllowedRoleService.findByClientId(clientId);
         List<AllowedRoleResponse> response = roles.stream()
                 .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault()))

@@ -11,7 +11,9 @@ globs: src/main/java/**/service/**/*.java
 
 **Actual Security Risks related to multi-tenancy:**
 - `em.getReference(id)` with user-supplied ID — returns a lazy proxy without hitting the database, so no tenant filter is applied. Used to establish foreign key relationships without loading the full entity, but dangerous if the ID comes from user input because the entity might belong to a different tenant
-- `em.merge()` with manually set ID from external input — if you create a new entity instance, set its ID from user input, populate other fields, and call `em.merge()`, Hibernate will INSERT or UPDATE that row without verifying the ID belongs to the current tenant
+- `em.merge()` with manually set ID from external input — if you call `em.merge()` on a detached entity with a user-supplied ID **without first verifying tenant ownership**, Hibernate may INSERT or UPDATE a row belonging to a different tenant. **Safe pattern for updates:** call `em.find(id)` first (which applies the tenant filter and returns `null` for cross-tenant IDs), verify the result is non-null, then call `em.merge()` with the incoming data. This verifies tenant ownership before any mutation and avoids stale code when new fields are added to the entity.
+- `em.remove(entity)` on a detached entity with user-supplied ID — only call `em.remove()` on entities that were loaded via `em.find()` or JPQL within the same transaction, so the tenant filter has already been applied.
 
 **Native SQL:**
-- never use this in production code
+- never use native SQL in production code
+

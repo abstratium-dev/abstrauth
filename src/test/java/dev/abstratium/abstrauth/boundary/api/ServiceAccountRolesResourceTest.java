@@ -8,12 +8,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.entity.ServiceAccountRole;
+import dev.abstratium.abstrauth.entity.OrganisationAccount;
+import dev.abstratium.abstrauth.service.JwtOrgResolver;
+import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
+import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 
@@ -30,7 +34,7 @@ public class ServiceAccountRolesResourceTest {
     
     private String testClientId;
     private String testToken;
-    private String adminClientId;
+    private String adminAccountId;
 
     @BeforeEach
     public void setup() throws Exception {
@@ -45,29 +49,37 @@ public class ServiceAccountRolesResourceTest {
             testClientId = TEST_CLIENT_PREFIX + System.currentTimeMillis();
             createTestClient(testClientId);
 
-            // Use bootstrap client as admin for testing
-            // Temporarily set its scopes to empty for M2M (role-based) auth
-            adminClientId = "abstratium-abstrauth";
-            em.createQuery("UPDATE OAuthClient SET allowedScopes = '[]' WHERE clientId = :clientId")
-                    .setParameter("clientId", adminClientId)
-                    .executeUpdate();
-            
-            // Ensure bootstrap client has manage-clients role
-            ServiceAccountRole adminRole = new ServiceAccountRole();
-            adminRole.setClientId(adminClientId);
-            adminRole.setRole("manage-clients");
-            em.persist(adminRole);
+            // Create admin account for testing
+            Account admin = new Account();
+            admin.setEmail("roles-admin@test.com");
+            admin.setName("Roles Admin");
+            admin.setEmailVerified(true);
+            em.persist(admin);
+            adminAccountId = admin.getId();
+
+            // Link admin to default org so interceptor passes
+            OrganisationAccount oa = new OrganisationAccount();
+            oa.setId(new OrganisationAccount.Id(JwtOrgResolver.DEFAULT_ORG_ID, admin.getId(), "member"));
+            em.persist(oa);
+
             em.flush();
             
-            // Commit transaction before making HTTP request
+            // Commit transaction before making HTTP requests
             tx.commit();
         } catch (Exception e) {
             tx.rollback();
             throw e;
         }
         
-        // Create admin client and get token (after transaction commits)
-        testToken = createAdminClientAndGetToken();
+        // Build admin token directly with required role and orgId
+        testToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+                .upn("roles-admin@test.com")
+                .subject(adminAccountId)
+                .groups(java.util.Set.of(Roles.MANAGE_CLIENTS, Roles.USER))
+                .claim("email", "roles-admin@test.com")
+                .claim("name", "Roles Admin")
+                .claim("orgId", JwtOrgResolver.DEFAULT_ORG_ID)
+                .sign();
     }
     
     @AfterEach
@@ -98,12 +110,10 @@ public class ServiceAccountRolesResourceTest {
                 .setParameter("prefix", TEST_CLIENT_PREFIX + "%")
                 .executeUpdate();
         
-        // Restore bootstrap client scopes to default
-        em.createQuery("UPDATE OAuthClient SET allowedScopes = '[\"openid\", \"profile\", \"email\"]' WHERE clientId = 'abstratium-abstrauth'")
+        // Clean up admin account and org membership
+        em.createQuery("DELETE FROM OrganisationAccount WHERE id.accountId IN (SELECT id FROM Account WHERE email = 'roles-admin@test.com')")
                 .executeUpdate();
-        
-        // Clean up the manage-clients role we added to bootstrap client for testing
-        em.createQuery("DELETE FROM ServiceAccountRole WHERE clientId = 'abstratium-abstrauth' AND role = 'manage-clients'")
+        em.createQuery("DELETE FROM Account WHERE email = 'roles-admin@test.com'")
                 .executeUpdate();
         
         em.flush();
@@ -129,22 +139,6 @@ public class ServiceAccountRolesResourceTest {
         em.flush();
     }
 
-    private String createAdminClientAndGetToken() {
-        // Get token via client credentials using the bootstrap client
-        // No scope parameter since we've set it to empty scopes for role-based M2M auth
-        String response = given()
-                .formParam("grant_type", "client_credentials")
-                .formParam("client_id", adminClientId)
-                .formParam("client_secret", "dev-secret-CHANGE-IN-PROD")
-                .when()
-                .post("/oauth2/token")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("access_token");
-        return response;
-    }
-    
 
     @Test
     public void testListRolesEmpty() {
