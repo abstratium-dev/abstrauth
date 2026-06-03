@@ -88,9 +88,11 @@ public class AccountRoleService {
      */
     @Transactional
     public AccountRole addRole(String accountId, String clientId, String role) {
-        checkNonAdminCannotAddAdminRole(role);
+        long accountCount = accountService.countAccounts();
 
-        checkOnlyAddingToClientWhichTheyAlreadyHave(accountId, clientId);
+        checkNonAdminCannotAddAdminRole(role, accountCount);
+
+        checkOnlyAddingToClientWhichTheyAlreadyHave(accountId, clientId, accountCount);
 
         // Validate role against allowlist for public clients
         checkRoleAgainstAllowlist(clientId, role);
@@ -108,9 +110,8 @@ public class AccountRoleService {
         return accountRole;
     }
 
-    private void checkOnlyAddingToClientWhichTheyAlreadyHave(String accountId, String clientId) {
+    private void checkOnlyAddingToClientWhichTheyAlreadyHave(String accountId, String clientId, long accountCount) {
         // Allow if this is the first account (system initialization) or no security context (tests)
-        long accountCount = accountService.countAccounts();
         if (accountCount == 1 || securityIdentity.isAnonymous()) {
             return;
         }
@@ -142,10 +143,9 @@ public class AccountRoleService {
     /**
      * only admin can add the admin role
      */
-    private void checkNonAdminCannotAddAdminRole(String role) {
+    private void checkNonAdminCannotAddAdminRole(String role, long accountCount) {
         if (role.equals(Roles._ADMIN_PLAIN)) {
             // Allow if this is the first account (system initialization) or no security context (tests)
-            long accountCount = accountService.countAccounts();
             if (accountCount == 1 || securityIdentity.isAnonymous()) {
                 return;
             }

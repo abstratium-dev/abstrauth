@@ -11,6 +11,17 @@
 
 ## Today
 
+- T - i just signed in as the first user. the very first user needs to be added to the very first organisation. it is a special case that needs to be build into the system. 
+
+- /user screen doesn't show the orgId claim
+- What is NOT done
+  - Signup "Organisation Name" field — signup.component.ts:33-38 only has email, name, password, password2. The backend accepts organisationName, but the UI never sends it.
+  - Organisation list / management page — no component calls GET /api/organisations or POST /api/organisations.
+  - Member management UI — no calls to POST /api/organisations/{orgId}/members or DELETE /api/organisations/{orgId}/members/{accountId}.
+  - Subscription management UI — no calls to POST /api/organisations/{orgId}/subscriptions or DELETE .../subscriptions/{clientId}.
+  - "New Organisation" flow — the header's "New" button navigates to /user, but user.component.ts:11-54 only displays JWT claims; it has no organisation creation form.
+The backend OrganisationsResource exposes all of these endpoints (as noted in MULTITENANCY_FEATURES.md Feature 7), but controller.ts and the rest of the Angular app do not wire them up.
+
 - then test the UI
   - does it do all the stuff on the svg diagram and in the design document???
 - then go fix client secrets and replace with service accounts
@@ -24,6 +35,11 @@
 - multi-tenancy
   - auto subscription. what if a user is already associated with multiple orgs, are all new subscribers? wait, they subscribe t o the clientId in the request. but it could be wrong for all of their orgs to subscribe. so only the one that they CHOSE during sign in should subscribe! so auto subscribe happens after they choose the org that they are signing in under
   - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs. Add a `platform-admin` role (or equivalent) with cross-org read/write access for true platform administration. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`.
+  - extend MetricsService with orgs, etc.
+  - testing
+    - is it right that a new user who auto-subscribes to the abstratium-abstrauth client can see the client? it has a different orgId than that user!!
+      - no! bug, since JwtOrgResolver expects the header, not a cookie -> fixing this now...
+    - the created_by_account_id of things like org aren't set upon first sign in, that can be improved.
 
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream?
 

@@ -64,6 +64,7 @@ DROP DATABASE IF EXISTS abstrauth;
 CREATE DATABASE abstrauth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 GRANT ALL PRIVILEGES ON abstrauth.* TO abstrauth@'%'; -- on own database
 
+USE abstrauth;
 FLUSH PRIVILEGES;
 ```
 

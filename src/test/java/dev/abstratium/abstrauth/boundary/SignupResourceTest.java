@@ -281,6 +281,21 @@ public class SignupResourceTest {
 
     @Test
     public void testSignupWithMissingOrganisationName() {
+        // Ensure at least one account exists so this is not the first-user scenario
+        String firstEmail = "firstorgtest_" + System.currentTimeMillis() + "@example.com";
+        String firstUsername = "firstorgtest_" + System.currentTimeMillis();
+        given()
+            .formParam("email", firstEmail)
+            .formParam("name", "First User")
+            .formParam("username", firstUsername)
+            .formParam("password", "Password123")
+            .formParam("organisationName", "First Org " + System.currentTimeMillis())
+            .when()
+            .post("/api/signup")
+            .then()
+            .statusCode(201);
+
+        // Now test that missing org name fails for subsequent signups
         given()
             .formParam("email", "test@example.com")
             .formParam("name", "Test User")
@@ -296,6 +311,21 @@ public class SignupResourceTest {
 
     @Test
     public void testSignupWithBlankOrganisationName() {
+        // Ensure at least one account exists so this is not the first-user scenario
+        String firstEmail = "firstblanktest_" + System.currentTimeMillis() + "@example.com";
+        String firstUsername = "firstblanktest_" + System.currentTimeMillis();
+        given()
+            .formParam("email", firstEmail)
+            .formParam("name", "First User")
+            .formParam("username", firstUsername)
+            .formParam("password", "Password123")
+            .formParam("organisationName", "First Org " + System.currentTimeMillis())
+            .when()
+            .post("/api/signup")
+            .then()
+            .statusCode(201);
+
+        // Now test that blank org name fails for subsequent signups
         given()
             .formParam("email", "test@example.com")
             .formParam("name", "Test User")
@@ -309,4 +339,5 @@ public class SignupResourceTest {
             .body("error", equalTo("invalid_request"))
             .body("error_description", containsString("Organisation name is required"));
     }
+
 }

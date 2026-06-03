@@ -7,7 +7,6 @@ import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OrganisationAccount;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
-import dev.abstratium.abstrauth.service.JwtOrgResolver;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
@@ -88,7 +87,7 @@ public class OAuthFlowWithClientSecretTest {
 
         // Link account to default org so interceptor passes
         OrganisationAccount oa = new OrganisationAccount();
-        oa.setId(new OrganisationAccount.Id(JwtOrgResolver.DEFAULT_ORG_ID, testAccount.getId(), "member"));
+        oa.setId(new OrganisationAccount.Id("00000000-0000-0000-0000-000000000000", testAccount.getId(), "member"));
         em.persist(oa);
 
         em.flush();
@@ -100,7 +99,7 @@ public class OAuthFlowWithClientSecretTest {
             .groups(java.util.Set.of(Roles.MANAGE_CLIENTS, Roles.USER))
             .claim("email", testAccount.getEmail())
             .claim("name", testAccount.getName())
-            .claim("orgId", JwtOrgResolver.DEFAULT_ORG_ID)
+            .claim("orgId", "00000000-0000-0000-0000-000000000000")
             .sign();
     }
 

@@ -74,4 +74,34 @@ public class MultiTenancySqlDebugTest {
             .body(containsString("DELETE done"))
             .body(containsString("JPQL DELETE done"));
     }
+
+    @Test
+    public void testTenantIdNullOnPersist() {
+        String orgId = "00000000-0000-0000-0000-000000000000";
+        String token = generateToken(orgId);
+
+        given()
+            .auth().oauth2(token)
+            .header("X-Org-Id", orgId)
+            .when()
+            .post("/test/mt-sql-debug/run-tenant-null-test")
+            .then()
+            .statusCode(200)
+            .body(containsString("NULL_TEST stored orgId="));
+    }
+
+    @Test
+    public void testTenantIdWrongOnPersist() {
+        String orgId = "00000000-0000-0000-0000-000000000000";
+        String token = generateToken(orgId);
+
+        given()
+            .auth().oauth2(token)
+            .header("X-Org-Id", orgId)
+            .when()
+            .post("/test/mt-sql-debug/run-tenant-wrong-test")
+            .then()
+            .statusCode(200)
+            .body(containsString("WRONG_TEST error=PropertyValueException"));
+    }
 }

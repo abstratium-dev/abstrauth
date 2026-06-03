@@ -3,6 +3,7 @@ package dev.abstratium.abstrauth.boundary;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.UserTransaction;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -25,6 +26,9 @@ public class MultiTenancySqlDebugResource {
 
     @Inject
     EntityManager em;
+
+    @Inject
+    UserTransaction userTransaction;
 
     @POST
     @Path("/run-all")
@@ -185,6 +189,118 @@ public class MultiTenancySqlDebugResource {
         LOG.info("=== ALL OPERATIONS COMPLETE ===");
         LOG.info("============================================================");
 
+        return Response.ok(report.toString()).build();
+    }
+
+    @POST
+    @Path("/run-tenant-null-test")
+    @Transactional
+    public Response runTenantNullTest(@HeaderParam("X-Org-Id") String orgId) {
+        StringBuilder report = new StringBuilder();
+
+        if (orgId != null && !orgId.isBlank()) {
+            em.createNativeQuery(
+                    "MERGE INTO T_organisations (id, name, created_at) KEY(id) VALUES (:id, :name, CURRENT_TIMESTAMP)")
+                    .setParameter("id", orgId)
+                    .setParameter("name", "Test Org " + orgId.substring(0, 8))
+                    .executeUpdate();
+            em.flush();
+        }
+
+        OAuthClient client = new OAuthClient();
+        String id = UUID.randomUUID().toString();
+        client.setId(id);
+        client.setClientId("debug-null-" + id.substring(0, 8));
+        client.setClientName("Null Tenant Client");
+        client.setClientType("confidential");
+        client.setRedirectUris("[\"http://localhost/callback\"]");
+        client.setAllowedScopes("[\"openid\"]");
+        client.setRequirePkce(true);
+        client.setAutoSubscribe(false);
+        client.setCreatedAt(LocalDateTime.now());
+        client.setOrgId(null); // explicitly null
+
+        LOG.info("=== ABOUT TO PERSIST with null orgId ===");
+        em.persist(client);
+        em.flush();
+        LOG.info("=== PERSIST with null orgId COMPLETE ===");
+
+        // Read back via native query to see what was actually stored
+        LOG.info("=== NATIVE SELECT for null-test row ===");
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery("SELECT id, org_id FROM T_oauth_clients WHERE id = :id")
+                .setParameter("id", id)
+                .getResultList();
+
+        String storedOrgId = rows.isEmpty() ? "NOT FOUND" : (String) rows.get(0)[1];
+        LOG.info("=== RESULT: null-test stored orgId=" + storedOrgId + " ===");
+
+        report.append("NULL_TEST stored orgId=").append(storedOrgId).append("\n");
+
+        // Clean up
+        em.createNativeQuery("DELETE FROM T_oauth_clients WHERE id = :id")
+                .setParameter("id", id)
+                .executeUpdate();
+
+        return Response.ok(report.toString()).build();
+    }
+
+    @POST
+    @Path("/run-tenant-wrong-test")
+    public Response runTenantWrongTest(@HeaderParam("X-Org-Id") String orgId) {
+        StringBuilder report = new StringBuilder();
+        String errorMessage = "NO_ERROR";
+        String wrongOrgId = "99999999-9999-9999-9999-999999999999";
+
+        try {
+            userTransaction.begin();
+
+            // Ensure orgs exist
+            if (orgId != null && !orgId.isBlank()) {
+                em.createNativeQuery(
+                        "MERGE INTO T_organisations (id, name, created_at) KEY(id) VALUES (:id, :name, CURRENT_TIMESTAMP)")
+                        .setParameter("id", orgId)
+                        .setParameter("name", "Test Org " + orgId.substring(0, 8))
+                        .executeUpdate();
+            }
+            em.createNativeQuery(
+                    "MERGE INTO T_organisations (id, name, created_at) KEY(id) VALUES (:id, :name, CURRENT_TIMESTAMP)")
+                    .setParameter("id", wrongOrgId)
+                    .setParameter("name", "Wrong Org")
+                    .executeUpdate();
+            em.flush();
+
+            OAuthClient client = new OAuthClient();
+            String id = UUID.randomUUID().toString();
+            client.setId(id);
+            client.setClientId("debug-wrong-" + id.substring(0, 8));
+            client.setClientName("Wrong Tenant Client");
+            client.setClientType("confidential");
+            client.setRedirectUris("[\"http://localhost/callback2\"]");
+            client.setAllowedScopes("[\"openid\"]");
+            client.setRequirePkce(false);
+            client.setAutoSubscribe(true);
+            client.setCreatedAt(LocalDateTime.now());
+            client.setOrgId(wrongOrgId);
+
+            LOG.info("=== ABOUT TO PERSIST with wrong orgId (" + wrongOrgId + ") ===");
+            em.persist(client);
+            em.flush();
+            LOG.info("=== PERSIST with wrong orgId COMPLETE ===");
+
+            userTransaction.commit();
+        } catch (Exception e) {
+            errorMessage = e.getClass().getSimpleName() + ": " + e.getMessage();
+            LOG.info("=== GOT EXCEPTION AS EXPECTED for wrong orgId: " + errorMessage + " ===");
+            if(!errorMessage.equals("PropertyValueException: assigned tenant id differs from current tenant id [99999999-9999-9999-9999-999999999999 != 00000000-0000-0000-0000-000000000000] for entity dev.abstratium.abstrauth.entity.OAuthClient.orgId")) {
+                throw new IllegalStateException("did not get expected exception. see logs for details.");
+            }
+            try {
+                userTransaction.rollback();
+            } catch (Exception ignored) {}
+        }
+
+        report.append("WRONG_TEST error=").append(errorMessage).append("\n");
         return Response.ok(report.toString()).build();
     }
 }

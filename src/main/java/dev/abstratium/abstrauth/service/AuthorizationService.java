@@ -250,7 +250,7 @@ public class AuthorizationService {
      */
     public boolean isSignupAllowed() {
         // Always allow signup if there are no accounts (first user)
-        if (accountService.countAccounts() == 0) {
+        if (accountService.noAccountsExist()) {
             return true;
         }
         // Otherwise, check the config property

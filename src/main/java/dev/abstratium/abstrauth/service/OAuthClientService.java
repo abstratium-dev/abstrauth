@@ -50,9 +50,7 @@ public class OAuthClientService {
     }
 
     public Optional<OAuthClient> findByClientId(String clientId) {
-        var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", OAuthClient.class);
-        query.setParameter("clientId", clientId);
-        return query.getResultList().stream().findFirst();
+        return findByClientIds(Set.of(clientId)).stream().findFirst();
     }
 
     public List<OAuthClient> findAll() {

@@ -3,7 +3,7 @@
 import sys
 import json
 
-FILE_LOCATION = "/temp/windsurf_input.txt"
+FILE_LOCATION = "/temp/devin_input.txt"
 
 def main():
     # Read the JSON data from stdin

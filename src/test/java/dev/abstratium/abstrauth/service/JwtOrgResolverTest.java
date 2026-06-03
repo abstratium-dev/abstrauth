@@ -78,11 +78,6 @@ public class JwtOrgResolverTest {
         assertEquals(orgId, resolver.testExtractOrgId(jwt));
     }
 
-    @Test
-    public void testDefaultOrgIdConstant() {
-        assertEquals("00000000-0000-0000-0000-000000000000", JwtOrgResolver.DEFAULT_ORG_ID);
-    }
-
     // ─────────────────────────────────────────────────────────
     // Thin subclass to expose private method for testing
     // ─────────────────────────────────────────────────────────
@@ -116,7 +111,7 @@ public class JwtOrgResolverTest {
 
         @Override
         public String resolveTenantId() {
-            return DEFAULT_ORG_ID;
+            return "00000000-0000-0000-0000-000000000000";
         }
     }
 }

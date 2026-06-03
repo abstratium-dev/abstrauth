@@ -14,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @ApplicationScoped
 public class AccountService {
@@ -21,6 +22,7 @@ public class AccountService {
     public static final String NATIVE = "native";
     public static final String GOOGLE = "google";
     public static final String MICROSOFT = "microsoft";
+    private static final AtomicBoolean ONE_OR_MORE_ACCOUNTS_FOUND = new AtomicBoolean(false);
 
     @Inject
     EntityManager em;
@@ -36,6 +38,9 @@ public class AccountService {
 
     @ConfigProperty(name = "password.pepper")
     String pepper;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     // BCrypt with strength 12 (2^12 rounds, OWASP recommendation)
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
@@ -57,6 +62,9 @@ public class AccountService {
             throw new IllegalArgumentException("Email already exists");
         }
 
+        // Determine if this is the first account before creating it
+        boolean isFirstAccount = noAccountsExist();
+
         // Create account
         Account account = new Account();
         account.setEmail(email);
@@ -74,12 +82,19 @@ public class AccountService {
 
         addRoles(account);
 
-        // Create organisation and link account as owner and member
-        if (organisationName != null && !organisationName.isBlank()) {
+        // Link account to organisation
+        var orgId = defaultOrgId;
+        if (isFirstAccount) {
+            //  First account uses the existing default organisation from migration
+        } else {
+            if (organisationName == null || organisationName.isBlank()) {
+                organisationName = name + "'s Organisation";
+            }
             Organisation org = organisationService.createOrganisation(organisationName, account.getId());
-            organisationService.addOwner(org.getId(), account.getId());
-            organisationService.addMember(org.getId(), account.getId());
+            orgId = org.getId();
         }
+        organisationService.addOwner(orgId, account.getId());
+        organisationService.addMember(orgId, account.getId());
 
         return account;
     }
@@ -92,6 +107,9 @@ public class AccountService {
             throw new IllegalArgumentException("Email already exists");
         }
 
+        // Determine if this is the first account before creating it
+        boolean isFirstAccount = noAccountsExist();
+
         // Create account
         Account account = new Account();
         account.setEmail(email);
@@ -103,12 +121,16 @@ public class AccountService {
 
         addRoles(account);
 
-        // Create organisation and link account as owner and member
-        // For federated signups without invite, auto-generate org name from email
-        String organisationName = email + "'s Organisation";
-        Organisation org = organisationService.createOrganisation(organisationName, account.getId());
-        organisationService.addOwner(org.getId(), account.getId());
-        organisationService.addMember(org.getId(), account.getId());
+        // Link account to organisation
+        var orgId = defaultOrgId;
+        if (!isFirstAccount) {
+            // For federated signups without invite, auto-generate org name from email
+            String organisationName = email + "'s Organisation";
+            Organisation org = organisationService.createOrganisation(organisationName, account.getId());
+            orgId = org.getId();
+        } // else: First account uses the existing default organisation from migration
+        organisationService.addOwner(orgId, account.getId());
+        organisationService.addMember(orgId, account.getId());
 
         return account;
     }
@@ -154,6 +176,8 @@ public class AccountService {
         accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._USER_PLAIN);
         
         // Check if this is the first account
+        // don't used cached value, since here we really need to know if EXACTLY ONE exists,
+        // since adding roles happens long after creating the account
         boolean isFirstAccount = countAccounts() == 1;
 
         // First account also gets admin and management roles
@@ -375,6 +399,27 @@ public class AccountService {
     public long countAccounts() {
         var query = em.createQuery("SELECT COUNT(a) FROM Account a", Long.class);
         return query.getSingleResult();
+    }
+
+    public boolean oneOrMoreAccountsExist() {
+        if(ONE_OR_MORE_ACCOUNTS_FOUND.get()) {
+            return true;
+        } else {
+            // count, as it may have changed
+            if(countAccounts() >= 1) {
+                // once this node has confirmed that at least one exists, it can cache the value.
+                // TODO support special case where all accounts are deleted? or just restart server?
+                ONE_OR_MORE_ACCOUNTS_FOUND.set(true);
+                return true;
+            } else {
+                // leave ONE_OR_MORE_ACCOUNTS_FOUND as false
+                return false;
+            }
+        }
+    }
+
+    public boolean noAccountsExist() {
+        return !oneOrMoreAccountsExist();
     }
 
     /**

@@ -17,7 +17,6 @@ import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.entity.OrganisationAccount;
-import dev.abstratium.abstrauth.service.JwtOrgResolver;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
@@ -64,7 +63,7 @@ public class ClientSecretsResourceTest {
 
         // Link admin to default org so interceptor passes
         OrganisationAccount oa = new OrganisationAccount();
-        oa.setId(new OrganisationAccount.Id(JwtOrgResolver.DEFAULT_ORG_ID, admin.getId(), "member"));
+        oa.setId(new OrganisationAccount.Id("00000000-0000-0000-0000-000000000000", admin.getId(), "member"));
         em.persist(oa);
 
         // Create test client
@@ -95,7 +94,7 @@ public class ClientSecretsResourceTest {
             .groups(java.util.Set.of(Roles.MANAGE_CLIENTS, Roles.USER))
             .claim("email", admin.getEmail())
             .claim("name", admin.getName())
-            .claim("orgId", JwtOrgResolver.DEFAULT_ORG_ID)
+            .claim("orgId", "00000000-0000-0000-0000-000000000000")
             .sign();
     }
 

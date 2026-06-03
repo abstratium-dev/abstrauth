@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Install script for Abstratium Windsurf hooks
+# Install script for Abstratium Devin hooks
 # This script copies the Python hook scripts to ~/.codeium/abstratium-hooks
 #
 
@@ -9,7 +9,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$HOME/.codeium/abstratium-hooks"
 
-echo "Installing Abstratium Windsurf hooks..."
+echo "Installing Abstratium Devin hooks..."
 
 # Create the target directory if it doesn't exist
 if [ ! -d "$TARGET_DIR" ]; then
@@ -29,5 +29,5 @@ done
 echo ""
 echo "✅ Hooks installed successfully to: $TARGET_DIR"
 echo ""
-echo "These scripts are already configured so that Windsurf uses them due to the hooks configured in the .windsurf/hooks.json folder"
+echo "These scripts are already configured so that Devin uses them due to the hooks configured in the .devin/hooks.json folder"
 echo ""

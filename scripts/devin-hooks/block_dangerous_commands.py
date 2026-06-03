@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# https://docs.windsurf.com/windsurf/cascade/hooks#blocking-dangerous-commands
+# https://docs.devin.ai/desktop/cascade/hooks#blocking-dangerous-commands
 
 import sys
 import json

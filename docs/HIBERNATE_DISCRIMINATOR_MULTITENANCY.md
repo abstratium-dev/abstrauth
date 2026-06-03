@@ -63,6 +63,15 @@ The `org_id` value is set automatically from the resolved tenant — you never s
 
 ---
 
+### Tenant ID enforcement on persist
+
+Hibernate validates the `@TenantId` field before emitting the INSERT:
+
+- **Field is `null`** — silently overwritten with the resolved tenant ID.
+- **Field differs from resolved tenant** — `PropertyValueException` thrown during flush; no SQL is executed, e.g. `PropertyValueException: assigned tenant id differs from current tenant id [99999999-9999-9999-9999-999999999999 != 00000000-0000-0000-0000-000000000000] for entity dev.abstratium.abstrauth.entity.OAuthClient.orgId`.
+
+---
+
 ### em.find() — `org_id` filter added automatically (when hitting database)
 
 **Java:**

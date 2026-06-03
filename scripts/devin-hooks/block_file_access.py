@@ -6,7 +6,7 @@ import sys
 import json
 import os
 
-# Get the current working directory where Windsurf was launched
+# Get the current working directory where Devin was launched
 ALLOWED_PREFIX = os.getcwd()
 print(f"[block_file_access] Current working directory (allowed prefix): {ALLOWED_PREFIX}", file=sys.stderr)
 

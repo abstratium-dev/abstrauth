@@ -68,7 +68,9 @@ public class SignupResource {
                     .build();
         }
 
-        if (organisationName == null || organisationName.isBlank()) {
+        // Organisation name is only required when other accounts already exist.
+        // The first account is automatically linked to the default organisation from migration.
+        if (accountService.oneOrMoreAccountsExist() && (organisationName == null || organisationName.isBlank())) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(new ErrorResponse("invalid_request", "Organisation name is required"))
                     .build();
