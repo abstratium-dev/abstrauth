@@ -5,12 +5,7 @@ import { HomeComponent } from './home/home.component';
 import { SigninComponent } from './signin/signin.component';
 import { SignupComponent } from './signup/signup.component';
 import { AuthorizeComponent } from './authorize/authorize.component';
-import { ClientsComponent } from './clients/clients.component';
-import { AccountsComponent } from './accounts/accounts.component';
 import { SigninAfterInviteComponent } from './signin-after-invite/signin-after-invite.component';
-import { ChangePasswordComponent } from './change-password/change-password.component';
-import { OrgSelectionComponent } from './org-selection/org-selection.component';
-import { OrganisationsComponent } from './organisations/organisations.component';
 import { authGuard } from './auth.guard';
 
 export const routes: Routes = [
@@ -19,11 +14,16 @@ export const routes: Routes = [
   { path: 'signin/:requestId',   component: SigninComponent },
   { path: 'signin-after-invite',   component: SigninAfterInviteComponent },
   { path: 'signup',   component: SignupComponent },
-  { path: 'change-password',   component: ChangePasswordComponent, canActivate: [authGuard] },
-  { path: 'org-selection/:requestId', component: OrgSelectionComponent },
-  { path: 'clients',  component: ClientsComponent, canActivate: [authGuard] },
-  { path: 'accounts', component: AccountsComponent, canActivate: [authGuard] },
-  { path: 'organisations', component: OrganisationsComponent, canActivate: [authGuard] },
-  { path: 'user', component: UserComponent, canActivate: [authGuard] },
+
+  // /////////////////////////////////
+  // lazily loaded routes follow:
+  // /////////////////////////////////
+  { path: 'change-password',   loadComponent: () => import('./change-password/change-password.component').then(m => m.ChangePasswordComponent), canActivate: [authGuard] },
+  { path: 'org-selection/:requestId', loadComponent: () => import('./org-selection/org-selection.component').then(m => m.OrgSelectionComponent) },
+  { path: 'clients',  loadComponent: () => import('./clients/clients.component').then(m => m.ClientsComponent), canActivate: [authGuard] },
+  { path: 'accounts', loadComponent: () => import('./accounts/accounts.component').then(m => m.AccountsComponent), canActivate: [authGuard] },
+  { path: 'organisations', loadComponent: () => import('./organisations/organisations.component').then(m => m.OrganisationsComponent), canActivate: [authGuard] },
+  { path: 'organisations/:orgId', loadComponent: () => import('./organisation-detail/organisation-detail.component').then(m => m.OrganisationDetailComponent), canActivate: [authGuard] },
+  { path: 'user', loadComponent: () => import('./user/user.component').then(m => m.UserComponent), canActivate: [authGuard] },
   { path: '**',       component: NotFoundComponent }
 ];

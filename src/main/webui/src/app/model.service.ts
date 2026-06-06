@@ -82,6 +82,10 @@ export interface CreateOrganisationRequest {
   name: string;
 }
 
+export interface UpdateOrganisationRequest {
+  name: string;
+}
+
 export interface CreateAccountResponse {
   account: Account;
   inviteToken: string;
@@ -119,6 +123,7 @@ export class ModelService {
   private organisations = signal<Organisation[]>([]);
   private organisationsLoading = signal<boolean>(false);
   private organisationsError = signal<string | null>(null);
+  private currentOrganisation = signal<Organisation | null>(null);
 
   signUpUsername$: Signal<string> = this.signUpUsername.asReadonly();
   signUpPassword$: Signal<string> = this.signUpPassword.asReadonly();
@@ -137,6 +142,7 @@ export class ModelService {
   organisations$: Signal<Organisation[]> = this.organisations.asReadonly();
   organisationsLoading$: Signal<boolean> = this.organisationsLoading.asReadonly();
   organisationsError$: Signal<string | null> = this.organisationsError.asReadonly();
+  currentOrganisation$: Signal<Organisation | null> = this.currentOrganisation.asReadonly();
 
   setSignUpUsername(username: string) {
     this.signUpUsername.set(username);
@@ -176,6 +182,10 @@ export class ModelService {
 
   setOrganisationsError(error: string | null) {
     this.organisationsError.set(error);
+  }
+
+  setCurrentOrganisation(org: Organisation | null) {
+    this.currentOrganisation.set(org);
   }
 
   setSignupAllowed(allowed: boolean) {

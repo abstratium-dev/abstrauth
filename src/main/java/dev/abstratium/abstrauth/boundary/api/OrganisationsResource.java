@@ -26,6 +26,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -81,6 +82,46 @@ public class OrganisationsResource {
 
         return organisationService.findById(orgId)
                 .map(org -> Response.ok(toOrganisationResponse(org)).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND)
+                        .entity(new ErrorResponse("Organisation not found"))
+                        .build());
+    }
+
+    @GET
+    @Path("/{orgId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get organisation", description = "Returns an organisation by ID. The caller must be a member.")
+    @RolesAllowed(Roles.USER)
+    public Response getOrganisation(@PathParam("orgId") String orgId) {
+        String accountId = token.getSubject();
+        return organisationService.findById(orgId)
+                .filter(org -> organisationService.isMember(orgId, accountId))
+                .map(org -> Response.ok(toOrganisationResponse(org)).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND)
+                        .entity(new ErrorResponse("Organisation not found"))
+                        .build());
+    }
+
+    @PUT
+    @Path("/{orgId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Update organisation", description = "Updates an organisation's name. Caller must be an owner.")
+    @RolesAllowed(Roles.USER)
+    public Response updateOrganisation(@PathParam("orgId") String orgId, @Valid UpdateOrganisationRequest request) {
+        String callerId = token.getSubject();
+
+        if (!isOwnerOfOrg(callerId, orgId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("You must be an owner of this organisation"))
+                    .build();
+        }
+
+        return organisationService.findById(orgId)
+                .map(org -> {
+                    org = organisationService.updateName(orgId, request.name);
+                    return Response.ok(toOrganisationResponse(org)).build();
+                })
                 .orElse(Response.status(Response.Status.NOT_FOUND)
                         .entity(new ErrorResponse("Organisation not found"))
                         .build());
@@ -264,6 +305,12 @@ public class OrganisationsResource {
 
     @RegisterForReflection
     public static class CreateOrganisationRequest {
+        @NotBlank(message = "Organisation name is required")
+        public String name;
+    }
+
+    @RegisterForReflection
+    public static class UpdateOrganisationRequest {
         @NotBlank(message = "Organisation name is required")
         public String name;
     }

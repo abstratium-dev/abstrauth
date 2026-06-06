@@ -32,6 +32,15 @@ public class OrganisationService {
         return Optional.ofNullable(em.find(Organisation.class, orgId));
     }
 
+    @Transactional
+    public Organisation updateName(String orgId, String name) {
+        Organisation org = em.find(Organisation.class, orgId);
+        if (org != null) {
+            org.setName(name);
+        }
+        return org;
+    }
+
     public List<Organisation> listOrganisationsForAccount(String accountId) {
         return em.createQuery(
                 "SELECT o FROM Organisation o WHERE o.id IN " +

@@ -7,9 +7,10 @@ describe('AppComponent', () => {
   let mockModelService: jasmine.SpyObj<ModelService>;
 
   beforeEach(async () => {
-    mockModelService = jasmine.createSpyObj('ModelService', [], {
+    mockModelService = jasmine.createSpyObj('ModelService', ['setCurrentOrganisation'], {
       insecureClientSecret$: signal(false).asReadonly(),
-      warningMessage$: signal('').asReadonly()
+      warningMessage$: signal('').asReadonly(),
+      currentOrganisation$: signal(null).asReadonly()
     });
 
     await TestBed.configureTestingModule({

@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Account, AddRoleRequest, AllowedRole, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, ServiceAccountRole, ServiceAccountRolesResponse } from './model.service';
+import { Account, AddRoleRequest, AllowedRole, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, ServiceAccountRole, ServiceAccountRolesResponse, UpdateOrganisationRequest } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -281,6 +281,45 @@ export class Controller {
       console.error('Error removing service account role:', error);
       throw error;
     }
+  }
+
+  loadOrganisation(orgId: string): void {
+    this.http.get<Organisation>(`/api/organisations/${orgId}`).subscribe({
+      next: (org) => {
+        this.modelService.setCurrentOrganisation(org);
+      },
+      error: (err) => {
+        console.error('Error loading organisation:', err);
+        this.modelService.setCurrentOrganisation(null);
+      }
+    });
+  }
+
+  async updateOrganisationName(orgId: string, request: UpdateOrganisationRequest): Promise<Organisation> {
+    try {
+      const org = await firstValueFrom(
+        this.http.put<Organisation>(`/api/organisations/${orgId}`, request)
+      );
+      this.modelService.setCurrentOrganisation(org);
+      this.loadOrganisations();
+      this.loadCurrentOrganisation();
+      return org;
+    } catch (error) {
+      console.error('Error updating organisation:', error);
+      throw error;
+    }
+  }
+
+  loadCurrentOrganisation(): void {
+    this.http.get<Organisation>('/api/organisations/current').subscribe({
+      next: (org) => {
+        this.modelService.setCurrentOrganisation(org);
+      },
+      error: (err) => {
+        console.error('Error loading current organisation:', err);
+        this.modelService.setCurrentOrganisation(null);
+      }
+    });
   }
 
   loadOrganisations(): void {

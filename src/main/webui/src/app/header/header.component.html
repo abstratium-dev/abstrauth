@@ -25,7 +25,7 @@
             &nbsp;|&nbsp;
             <a id="organisations-link" routerLink="/organisations" routerLinkActive="inactive-link">Organisations</a>
             &nbsp;|&nbsp;
-            🥷 <a id="user-link" routerLink="/user" routerLinkActive="inactive-link">{{ token.name }}</a>
+            🥷 <a id="user-link" routerLink="/user" routerLinkActive="inactive-link">{{ token.name }}</a>@if(currentOrg()) { &nbsp;(<a [routerLink]="['/organisations', currentOrg()!.id]" class="client-link" id="current-org-link">{{ currentOrg()!.name }}</a>) }
             &nbsp;|&nbsp;
             <a id="signout-link" class="alink" (click)="signout()">Sign out</a>
         }

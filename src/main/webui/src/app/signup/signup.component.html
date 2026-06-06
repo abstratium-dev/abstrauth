@@ -26,6 +26,16 @@
             </div>
             
             <div class="form-group">
+                <label for="organisationName">Organisation Name *</label>
+                <input type="text" id="organisationName" formControlName="organisationName" 
+                        placeholder="Your Organisation" 
+                        (input)="onOrganisationNameChange()">
+                <div *ngIf="signupForm.get('organisationName')?.invalid && signupForm.get('organisationName')?.touched" class="error">
+                    <span *ngIf="signupForm.get('organisationName')?.hasError('required')">Organisation name is required</span>
+                </div>
+            </div>
+            
+            <div class="form-group">
                 <label for="password">Password *</label>
                 <input type="password" id="password" formControlName="password" 
                         placeholder="Password" autocomplete="new-password">

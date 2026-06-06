@@ -78,8 +78,10 @@ public class GoogleOAuthService {
             // Link the Google identity to the existing account
             account = existingAccount.get();
             
-            // Update account info from Google, in all cases
-            account.setName(userInfo.getName());
+            // Update account info from Google, but never overwrite a non-blank name with a blank one
+            if (userInfo.getName() != null && !userInfo.getName().isBlank()) {
+                account.setName(userInfo.getName());
+            }
             account.setPicture(convertToProxyUrl(userInfo.getPicture()));
             // Use email_verified from ID token if available, otherwise fall back to userinfo
             Boolean emailVerified = emailVerifiedFromToken != null ? emailVerifiedFromToken : userInfo.getEmailVerified();

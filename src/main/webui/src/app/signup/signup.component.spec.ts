@@ -42,6 +42,7 @@ describe('SignupComponent', () => {
       expect(component.signupForm.value).toEqual({
         email: '',
         name: '',
+        organisationName: '',
         password: '',
         password2: ''
       });
@@ -85,6 +86,12 @@ describe('SignupComponent', () => {
       nameControl?.setValue('');
       expect(nameControl?.valid).toBe(true);
     });
+
+    it('should have required validator on organisationName field', () => {
+      const orgControl = component.signupForm.get('organisationName');
+      orgControl?.setValue('');
+      expect(orgControl?.hasError('required')).toBe(true);
+    });
   });
 
   describe('Form Validation', () => {
@@ -95,6 +102,7 @@ describe('SignupComponent', () => {
     it('should mark form as valid when all required fields are filled correctly', () => {
       component.signupForm.patchValue({
         email: 'test@example.com',
+        organisationName: 'Test Organisation',
         password: 'password123',
         password2: 'password123'
       });
@@ -112,6 +120,7 @@ describe('SignupComponent', () => {
       component.signup();
       
       expect(component.signupForm.get('email')?.touched).toBe(true);
+      expect(component.signupForm.get('organisationName')?.touched).toBe(true);
       expect(component.signupForm.get('password')?.touched).toBe(true);
       expect(component.signupForm.get('password2')?.touched).toBe(true);
     });
@@ -122,6 +131,7 @@ describe('SignupComponent', () => {
       component.signupForm.patchValue({
         email: 'test@example.com',
         name: 'Test User',
+        organisationName: 'Test Organisation',
         password: 'password123',
         password2: 'password123'
       });
@@ -141,6 +151,7 @@ describe('SignupComponent', () => {
       expect(body).toContain('name=Test+User');
       expect(body).toContain('username=test%40example.com'); // username is the email
       expect(body).toContain('password=password123');
+      expect(body).toContain('organisationName=Test+Organisation');
 
       req.flush({ id: '123' });
 
@@ -179,6 +190,7 @@ describe('SignupComponent', () => {
       expect(component.signupForm.value).toEqual({
         email: null,
         name: null,
+        organisationName: null,
         password: null,
         password2: null
       });
@@ -204,6 +216,7 @@ describe('SignupComponent', () => {
       component.signupForm.patchValue({
         email: 'test@example.com',
         name: 'Test User',
+        organisationName: 'Test Organisation',
         password: 'password123',
         password2: 'password123'
       });
@@ -283,6 +296,7 @@ describe('SignupComponent', () => {
       component.signupForm.patchValue({
         email: 'minimal@example.com',
         name: '',
+        organisationName: 'Minimal Organisation',
         password: 'password123',
         password2: 'password123'
       });
@@ -294,7 +308,8 @@ describe('SignupComponent', () => {
       expect(body).toContain('email=minimal%40example.com');
       expect(body).toContain('name=');
       expect(body).toContain('username=minimal%40example.com'); // username is the email
-      
+      expect(body).toContain('organisationName=Minimal+Organisation');
+
       req.flush({ id: '456' });
       expect(component.messageType).toBe('success');
     });
@@ -303,6 +318,7 @@ describe('SignupComponent', () => {
       component.signupForm.patchValue({
         email: 'test+tag@example.com',
         name: 'Test O\'Brien',
+        organisationName: 'O\'Brien Corp',
         password: 'P@ssw0rd!',
         password2: 'P@ssw0rd!'
       });
@@ -311,8 +327,56 @@ describe('SignupComponent', () => {
 
       const req = httpMock.expectOne('/api/signup');
       req.flush({ id: '789' });
-      
+
       expect(component.messageType).toBe('success');
+    });
+  });
+
+  describe('Organisation Name Auto-population', () => {
+    it('should auto-populate organisationName when name changes', () => {
+      component.signupForm.get('name')?.setValue('John Doe');
+      fixture.detectChanges();
+
+      expect(component.signupForm.get('organisationName')?.value).toBe("John Doe's Organisation");
+    });
+
+    it('should not auto-populate organisationName when name is empty', () => {
+      component.signupForm.get('name')?.setValue('');
+      fixture.detectChanges();
+
+      expect(component.signupForm.get('organisationName')?.value).toBe('');
+    });
+
+    it('should not auto-populate after user manually edits organisationName', () => {
+      component.signupForm.get('name')?.setValue('John Doe');
+      fixture.detectChanges();
+      expect(component.signupForm.get('organisationName')?.value).toBe("John Doe's Organisation");
+
+      // Simulate user editing the field
+      component.onOrganisationNameChange();
+      component.signupForm.get('organisationName')?.setValue('Custom Org Name');
+
+      // Now change the name again - org name should not auto-update
+      component.signupForm.get('name')?.setValue('Jane Smith');
+      fixture.detectChanges();
+
+      expect(component.signupForm.get('organisationName')?.value).toBe('Custom Org Name');
+    });
+
+    it('should mark organisationNameManuallyEdited when onOrganisationNameChange is called', () => {
+      expect(component.organisationNameManuallyEdited).toBe(false);
+
+      component.onOrganisationNameChange();
+
+      expect(component.organisationNameManuallyEdited).toBe(true);
+    });
+
+    it('should unsubscribe from name changes on destroy', () => {
+      const unsubscribeSpy = spyOn(component['nameSubscription'], 'unsubscribe');
+
+      component.ngOnDestroy();
+
+      expect(unsubscribeSpy).toHaveBeenCalled();
     });
   });
 });

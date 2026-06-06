@@ -28,7 +28,10 @@ describe('OrgSelectionComponent', () => {
     { id: 'org-2', name: 'Test Organisation 2' }
   ];
 
+  let formSubmitSpy: jasmine.Spy;
+
   beforeEach(async () => {
+    formSubmitSpy = spyOn(HTMLFormElement.prototype, 'submit').and.callFake(() => {});
     mockWindow = { location: { href: '' } };
     authServiceSpy = jasmine.createSpyObj('AuthService', [
       'getLastOrgId', 'setLastOrgId', 'clearLastOrgId', 'getOrgId'
@@ -68,8 +71,9 @@ describe('OrgSelectionComponent', () => {
     component = fixture.componentInstance;
     httpMock = TestBed.inject(HttpTestingController);
 
-    // Clear localStorage
+    // Clear localStorage and sessionStorage
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -177,26 +181,25 @@ describe('OrgSelectionComponent', () => {
       expect(authServiceSpy.setLastOrgId).toHaveBeenCalledWith('org-1');
     });
 
-    it('should redirect to signin when consent is required', () => {
+    it('should submit consent form when selection succeeds', () => {
       component.selectOrg();
 
       const postReq = httpMock.expectOne('/api/org-selection');
       postReq.flush({ consentRequired: true });
 
-      // Verify lastOrgId was stored
+      // Verify lastOrgId was stored and consent form was submitted
       expect(authServiceSpy.setLastOrgId).toHaveBeenCalledWith('org-1');
-      // Verify redirect to signin page
-      expect(mockWindow.location.href).toBe(`/signin/${mockRequestId}`);
+      expect(formSubmitSpy).toHaveBeenCalled();
     });
 
-    it('should navigate to home when consent is not required', () => {
+    it('should submit consent form regardless of consentRequired flag', () => {
       component.selectOrg();
 
       const postReq = httpMock.expectOne('/api/org-selection');
       postReq.flush({ consentRequired: false });
 
       expect(authServiceSpy.setLastOrgId).toHaveBeenCalledWith('org-1');
-      expect(routerSpy.navigate).toHaveBeenCalledWith(['/']);
+      expect(formSubmitSpy).toHaveBeenCalled();
     });
 
     it('should show error when submission fails', () => {

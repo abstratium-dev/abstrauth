@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 import { AuthService } from '../auth.service';
 import { Controller } from '../controller';
 import { Organisation } from '../model.service';
@@ -38,7 +39,7 @@ describe('OrganisationsComponent', () => {
     const toastSpy = jasmine.createSpyObj('ToastService', ['success', 'error']);
 
     await TestBed.configureTestingModule({
-      imports: [OrganisationsComponent],
+      imports: [OrganisationsComponent, RouterTestingModule],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -132,6 +133,16 @@ describe('OrganisationsComponent', () => {
 
       const subtitle = fixture.nativeElement.querySelector('.tile-subtitle');
       expect(subtitle.textContent).toContain('org-1');
+    });
+
+    it('should display a pencil edit link in each tile', () => {
+      fixture.detectChanges();
+      httpMock.expectOne('/api/organisations').flush(mockOrgs);
+      fixture.detectChanges();
+
+      const editLinks = fixture.nativeElement.querySelectorAll('.tile-action-link');
+      expect(editLinks.length).toBe(2);
+      expect(editLinks[0].textContent.trim()).toContain('✏️');
     });
 
     it('should show "Current" badge for the active organisation', () => {

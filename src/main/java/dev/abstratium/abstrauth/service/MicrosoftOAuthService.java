@@ -87,8 +87,10 @@ public class MicrosoftOAuthService {
             // Link the Microsoft identity to the existing account
             account = existingAccount.get();
 
-            // Update account info from Microsoft
-            account.setName(userInfo.getName());
+            // Update account info from Microsoft, but never overwrite a non-blank name with a blank one
+            if (userInfo.getName() != null && !userInfo.getName().isBlank()) {
+                account.setName(userInfo.getName());
+            }
             // Microsoft Graph does not return a picture URL from /me; photo requires a separate API call
             account.setPicture(null);
             if (Boolean.FALSE.equals(account.getEmailVerified()) && Boolean.TRUE.equals(emailVerified)) {

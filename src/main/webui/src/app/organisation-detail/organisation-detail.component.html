@@ -1,0 +1,65 @@
+<div class="container">
+  <div class="page-header">
+    <h1>Organisation Details</h1>
+    <a id="back-link" routerLink="/organisations" class="btn-secondary">← Back to Organisations</a>
+  </div>
+
+  <div *ngIf="!organisation()" class="loading">
+    <p>Loading organisation...</p>
+  </div>
+
+  <div *ngIf="organisation() as org" class="card">
+    <div class="card-header">
+      <h2 id="org-name">{{ org.name }}</h2>
+      <div class="card-actions">
+        <button *ngIf="isOwner() && !editMode" id="edit-button" class="btn-primary" (click)="startEdit()">
+          Edit Name
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="editMode" class="form-container">
+      <h2>Rename Organisation</h2>
+      <form (ngSubmit)="onSubmitEdit()">
+        <div *ngIf="formError" class="error-box">{{ formError }}</div>
+        <div class="form-group">
+          <label for="edit-org-name">Organisation Name *</label>
+          <input
+            type="text"
+            id="edit-org-name"
+            name="editOrgName"
+            [(ngModel)]="editName"
+            required
+            [disabled]="formSubmitting">
+        </div>
+        <div class="form-actions">
+          <button type="submit" id="submit-edit-button" class="btn-primary" [disabled]="formSubmitting">
+            {{ formSubmitting ? 'Saving...' : 'Save' }}
+          </button>
+          <button type="button" id="cancel-edit-button" class="btn-secondary" (click)="cancelEdit()" [disabled]="formSubmitting">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-row">
+        <span class="label">ID</span>
+        <span class="value" id="org-id">{{ org.id }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">Created</span>
+        <span class="value">{{ org.createdAt | date:'medium' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">Your roles</span>
+        <div class="badge-list">
+          <span *ngFor="let role of org.roles" class="badge"
+            [class.badge-primary]="role === 'owner'"
+            [class.badge-native]="role === 'member'">{{ role }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

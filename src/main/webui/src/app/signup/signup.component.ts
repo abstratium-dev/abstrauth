@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, effect, inject } from '@angular/core';
+import { Component, effect, inject, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ModelService } from '../model.service';
 
 @Component({
@@ -11,7 +12,7 @@ import { ModelService } from '../model.service';
   templateUrl: './signup.component.html',
   styleUrl: './signup.component.scss',
 })
-export class SignupComponent {
+export class SignupComponent implements OnDestroy {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
@@ -23,6 +24,8 @@ export class SignupComponent {
   message: string = '';
   messageType: 'success' | 'error' | '' = '';
   isSubmitting: boolean = false;
+  organisationNameManuallyEdited: boolean = false;
+  private nameSubscription: Subscription;
 
   constructor(
   ) {
@@ -33,9 +36,26 @@ export class SignupComponent {
     this.signupForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       name: [''],
+      organisationName: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(8)]],
       password2: ['', [Validators.required, Validators.minLength(8)]],
     });
+
+    // Auto-populate organisationName when name changes, unless manually edited
+    this.nameSubscription = this.signupForm.get('name')!.valueChanges.subscribe((nameValue: string) => {
+      if (!this.organisationNameManuallyEdited) {
+        const orgName = nameValue ? `${nameValue}'s Organisation` : '';
+        this.signupForm.get('organisationName')!.setValue(orgName, { emitEvent: false });
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.nameSubscription?.unsubscribe();
+  }
+
+  onOrganisationNameChange(): void {
+    this.organisationNameManuallyEdited = true;
   }
 
   signup() {
@@ -59,6 +79,7 @@ export class SignupComponent {
     formData.append('name', this.signupForm.value.name);
     formData.append('username', this.signupForm.value.email);
     formData.append('password', this.signupForm.value.password);
+    formData.append('organisationName', this.signupForm.value.organisationName);
 
     this.http.post<any>('/api/signup', formData.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }

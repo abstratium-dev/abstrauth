@@ -1,6 +1,7 @@
 import { Component, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Controller } from '../controller';
 import { ModelService, Organisation } from '../model.service';
 import { AuthService } from '../auth.service';
@@ -8,7 +9,7 @@ import { ToastService } from '../shared/toast/toast.service';
 
 @Component({
   selector: 'app-organisations',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './organisations.component.html',
   styleUrl: './organisations.component.scss'
 })
