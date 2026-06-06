@@ -33,7 +33,7 @@ import jakarta.ws.rs.core.Response;
  * stored on the AuthorizationRequest matches the account_id supplied by the
  * caller before accepting an org_id submission.
  */
-@Path("/org-selection")
+@Path("/api/org-selection")
 @Tag(name = "Org Selection", description = "Organisation selection during OAuth sign-in")
 public class OrgSelectionResource {
 
@@ -80,6 +80,7 @@ public class OrgSelectionResource {
      * stores the orgId on the request and marks it approved.
      *
      * Returns JSON so the Angular UI can proceed to the consent step.
+     * The accountId is extracted from the OIDC session token for security.
      */
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -90,8 +91,7 @@ public class OrgSelectionResource {
     )
     public Response selectOrg(
             @FormParam("request_id") String requestId,
-            @FormParam("org_id") String orgId,
-            @FormParam("account_id") String accountId) {
+            @FormParam("org_id") String orgId) {
 
         if (requestId == null || requestId.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -103,11 +103,6 @@ public class OrgSelectionResource {
                     .entity(new ErrorResponse("org_id is required"))
                     .build();
         }
-        if (accountId == null || accountId.isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse("account_id is required"))
-                    .build();
-        }
 
         AuthorizationRequest authRequest = authorizationService.findAuthorizationRequest(requestId)
                 .orElse(null);
@@ -115,6 +110,14 @@ public class OrgSelectionResource {
         if (authRequest == null) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(new ErrorResponse("Authorization request not found"))
+                    .build();
+        }
+
+        // Get accountId from the authorization request (stored during authentication)
+        String accountId = authRequest.getAccountId();
+        if (accountId == null || accountId.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Authorization request not authenticated"))
                     .build();
         }
 
@@ -136,7 +139,7 @@ public class OrgSelectionResource {
         }
 
         try {
-            // selectOrg enforces session fixation guard: accountId must match request.accountId
+            // selectOrg enforces session fixation guard: accountId from token must match request.accountId
             authorizationService.selectOrg(requestId, orgId, accountId);
         } catch (IllegalArgumentException e) {
             log.warn("Session fixation guard rejected org selection for request " + requestId + ": " + e.getMessage());

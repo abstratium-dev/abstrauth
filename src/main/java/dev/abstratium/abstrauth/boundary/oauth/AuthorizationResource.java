@@ -432,7 +432,7 @@ public class AuthorizationResource {
         } else {
             // Multiple orgs: park the request and tell the UI to show the org selection page
             authorizationService.markAuthenticatedPendingOrgSelection(requestId, account.getId(), AccountService.NATIVE);
-            return Response.ok(new AuthenticationResponse(account.getName(), "/org-selection/" + requestId)).build();
+            return Response.ok(new AuthenticationResponse(account.getName(), "/api/org-selection/" + requestId)).build();
         }
     }
 

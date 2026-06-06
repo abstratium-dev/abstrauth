@@ -37,9 +37,11 @@ The backend OrganisationsResource exposes all of these endpoints (as noted in MU
   - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs. Add a `platform-admin` role (or equivalent) with cross-org read/write access for true platform administration. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`.
   - extend MetricsService with orgs, etc.
   - testing
-    - is it right that a new user who auto-subscribes to the abstratium-abstrauth client can see the client? it has a different orgId than that user!!
-      - no! bug, since JwtOrgResolver expects the header, not a cookie -> fixing this now...
     - the created_by_account_id of things like org aren't set upon first sign in, that can be improved.
+    - X add quarkus test on boundary that a new user can see their role for abstrauth when viewing their account
+    - why can't a user create a new client? perhaps they are not in the role manage-clients in their org?
+    - why can't a user create a new account? perhaps they are not in the role manage-clients in their org?
+    - signup native says "Organisation name is required" but there's no field for it. and it should be ok to be empty, since it should take the users name that they enter. make typescript do that while they type the first name unless the org name has been changed by the user.
 
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream?
 

@@ -80,7 +80,7 @@ public class AccountService {
             createCredentialForAccount(account.getId(), username, password);
         }
 
-        addRoles(account);
+        addAbstrauthRoles(account);
 
         // Link account to organisation
         var orgId = defaultOrgId;
@@ -119,7 +119,7 @@ public class AccountService {
         account.setAuthProvider(authProvider);
         em.persist(account);
 
-        addRoles(account);
+        addAbstrauthRoles(account);
 
         // Link account to organisation
         var orgId = defaultOrgId;
@@ -163,7 +163,7 @@ public class AccountService {
             createCredentialForAccount(account.getId(), username, password);
         }
 
-        addRoles(account);
+        addAbstrauthRoles(account);
 
         // Link account to existing organisation as member (not owner - the admin is the owner)
         organisationService.addMember(orgId, account.getId());
@@ -171,8 +171,8 @@ public class AccountService {
         return account;
     }
 
-    private void addRoles(Account account) {
-        // All accounts get the "user" role
+    private void addAbstrauthRoles(Account account) {
+        // All accounts get the "user" role for abstrauth, so that they can actually use it
         accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._USER_PLAIN);
         
         // Check if this is the first account

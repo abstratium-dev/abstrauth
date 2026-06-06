@@ -4,34 +4,6 @@
         <span class="brand-name">ABSTRATIUM</span>
     </div>
 
-    <div class="header-center">
-        @if(isSignedIn && currentOrg) {
-            <div class="org-display">
-                <span class="org-label">Organisation:</span>
-                <span class="org-name">{{ currentOrg.name }}</span>
-                <div class="org-actions">
-                    <button
-                        class="org-action-btn"
-                        (click)="switchOrganisation()"
-                        title="Switch to a different organisation (requires sign out/in)">
-                        Switch
-                    </button>
-                    <button
-                        class="org-action-btn"
-                        (click)="createNewOrganisation()"
-                        title="Create a new organisation">
-                        New
-                    </button>
-                </div>
-            </div>
-        }
-        @if(isSignedIn && isLoadingOrg) {
-            <div class="org-display">
-                <span class="org-loading">Loading organisation...</span>
-            </div>
-        }
-    </div>
-
     <div class="header-right">
         <button
             class="theme-toggle-btn"
@@ -50,6 +22,8 @@
             <a id="clients-link" routerLink="/clients" routerLinkActive="inactive-link">Clients</a>
             &nbsp;|&nbsp;
             <a id="accounts-link" routerLink="/accounts" routerLinkActive="inactive-link">Accounts</a>
+            &nbsp;|&nbsp;
+            <a id="organisations-link" routerLink="/organisations" routerLinkActive="inactive-link">Organisations</a>
             &nbsp;|&nbsp;
             🥷 <a id="user-link" routerLink="/user" routerLinkActive="inactive-link">{{ token.name }}</a>
             &nbsp;|&nbsp;

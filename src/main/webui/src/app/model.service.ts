@@ -70,6 +70,18 @@ export interface AllowedRole {
   isDefault: boolean;
 }
 
+export interface Organisation {
+  id: string;
+  name: string;
+  createdByAccountId: string;
+  createdAt: string;
+  roles: string[];
+}
+
+export interface CreateOrganisationRequest {
+  name: string;
+}
+
 export interface CreateAccountResponse {
   account: Account;
   inviteToken: string;
@@ -104,6 +116,9 @@ export class ModelService {
   private warningMessage = signal<string>('');
   private clientsLoading = signal<boolean>(false);
   private clientsError = signal<string | null>(null);
+  private organisations = signal<Organisation[]>([]);
+  private organisationsLoading = signal<boolean>(false);
+  private organisationsError = signal<string | null>(null);
 
   signUpUsername$: Signal<string> = this.signUpUsername.asReadonly();
   signUpPassword$: Signal<string> = this.signUpPassword.asReadonly();
@@ -119,6 +134,9 @@ export class ModelService {
   warningMessage$: Signal<string> = this.warningMessage.asReadonly();
   clientsLoading$: Signal<boolean> = this.clientsLoading.asReadonly();
   clientsError$: Signal<string | null> = this.clientsError.asReadonly();
+  organisations$: Signal<Organisation[]> = this.organisations.asReadonly();
+  organisationsLoading$: Signal<boolean> = this.organisationsLoading.asReadonly();
+  organisationsError$: Signal<string | null> = this.organisationsError.asReadonly();
 
   setSignUpUsername(username: string) {
     this.signUpUsername.set(username);
@@ -146,6 +164,18 @@ export class ModelService {
 
   setClientsError(error: string | null) {
     this.clientsError.set(error);
+  }
+
+  setOrganisations(organisations: Organisation[]) {
+    this.organisations.set(organisations);
+  }
+
+  setOrganisationsLoading(loading: boolean) {
+    this.organisationsLoading.set(loading);
+  }
+
+  setOrganisationsError(error: string | null) {
+    this.organisationsError.set(error);
   }
 
   setSignupAllowed(allowed: boolean) {

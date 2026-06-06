@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Account, AddRoleRequest, AllowedRole, ClientSecret, ConfigResponse, CreateAccountResponse, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, ServiceAccountRole, ServiceAccountRolesResponse } from './model.service';
+import { Account, AddRoleRequest, AllowedRole, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, ServiceAccountRole, ServiceAccountRolesResponse } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -279,6 +279,36 @@ export class Controller {
       );
     } catch (error) {
       console.error('Error removing service account role:', error);
+      throw error;
+    }
+  }
+
+  loadOrganisations(): void {
+    this.modelService.setOrganisationsLoading(true);
+    this.modelService.setOrganisationsError(null);
+    this.http.get<Organisation[]>('/api/organisations').subscribe({
+      next: (orgs) => {
+        this.modelService.setOrganisations(orgs);
+        this.modelService.setOrganisationsLoading(false);
+      },
+      error: (err) => {
+        console.error('Error loading organisations:', err);
+        this.modelService.setOrganisations([]);
+        this.modelService.setOrganisationsError('Failed to load organisations');
+        this.modelService.setOrganisationsLoading(false);
+      }
+    });
+  }
+
+  async createOrganisation(request: CreateOrganisationRequest): Promise<Organisation> {
+    try {
+      const response = await firstValueFrom(
+        this.http.post<Organisation>('/api/organisations', request)
+      );
+      this.loadOrganisations();
+      return response;
+    } catch (error) {
+      console.error('Error creating organisation:', error);
       throw error;
     }
   }

@@ -79,21 +79,4 @@ export class HeaderComponent implements OnInit {
     signout() {
         this.authService.signout();
     }
-
-    /**
-     * Switch organisation - signs out user so they can sign back in and select a different org
-     */
-    switchOrganisation(): void {
-        // Clear lastOrgId so user gets to select org again on next sign-in
-        this.authService.clearLastOrgId();
-        // Sign out - user will need to sign back in and select org
-        this.authService.signout();
-    }
-
-    /**
-     * Create new organisation - navigate to user page where org creation is handled
-     */
-    createNewOrganisation(): void {
-        this.router.navigate(['/user']);
-    }
 }

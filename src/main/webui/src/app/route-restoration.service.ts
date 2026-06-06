@@ -20,7 +20,7 @@ export class RouteRestorationService {
 
   private readonly LOCALSTORAGE_KEY = 'routeBeforeSignIn';
   private readonly defaultRoute = '/accounts';
-  private readonly ignoredRoutePrefixes = ['/signin', '/signup', '/authorize'];
+  private readonly ignoredRoutePrefixes = ['/signin', '/signup', '/authorize', '/org-selection'];
   private readonly ignoredRoutes = ['/signout', '/'];
 
   /**

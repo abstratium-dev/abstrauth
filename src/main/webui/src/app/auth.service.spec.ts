@@ -333,12 +333,6 @@ describe('AuthService (BFF Pattern)', () => {
       expect(service.getLastOrgId()).toBeNull();
     });
 
-    it('should clear lastOrgId from localStorage', () => {
-      localStorage.setItem('lastOrgId', 'org-789');
-      service.clearLastOrgId();
-      expect(localStorage.getItem('lastOrgId')).toBeNull();
-    });
-
     it('should handle localStorage being undefined gracefully', () => {
       // Test with localStorage unavailable by spying on it
       spyOn(localStorage, 'getItem').and.throwError('localStorage not available');

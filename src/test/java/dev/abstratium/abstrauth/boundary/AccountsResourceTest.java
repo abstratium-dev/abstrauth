@@ -1102,6 +1102,61 @@ public class AccountsResourceTest {
         assertTrue(credential.isPresent(), "Credential should be created for native account");
     }
 
+    /**
+     * Verifies that a user belonging to their own organisation can still see their abstrauth
+     * "user" role when calling GET /api/accounts, even though the AccountRole row in
+     * T_account_roles belongs to the default organisation (org_id = '00000000-...').
+     *
+     * This is a critical cross-org visibility requirement: the abstrauth "user" role is always
+     * stored under the default organisation (because addAbstrauthRoles runs before the user's
+     * own organisation is created/linked). The /api/accounts endpoint must still return that
+     * role regardless of which orgId the user signs in with. 
+     * because ant decided that it also makes sense that the new user can see that they are 
+     * a user of abstrauth (and potentially other clients outside of their org).
+     */
+    @Test
+    public void testSecondAccountSeesAbstrauthUserRoleDespiteDifferentOrg() throws Exception {
+        // Create the first account so that the system is initialized (first account gets default org)
+        transactionHelper.beginTransaction();
+        String firstEmail = "firstuser_crossorg_" + System.currentTimeMillis() + "@example.com";
+        accountService.createAccount(firstEmail, "First User", "firstuser_crossorg_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Default Org");
+        transactionHelper.commitTransaction();
+
+        // Create a second account — this one gets its own NEW organisation
+        transactionHelper.beginTransaction();
+        String secondEmail = "seconduser_crossorg_" + System.currentTimeMillis() + "@example.com";
+        Account secondAccount = accountService.createAccount(secondEmail, "Second User", "seconduser_crossorg_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Second Org");
+        String secondAccountId = secondAccount.getId();
+        // The second account's org is NOT the default org
+        String secondOrgId = organisationService.listOrganisationsForAccount(secondAccountId).get(0).getId();
+        transactionHelper.commitTransaction();
+
+        // Generate a token with the second user's own orgId (not the default org)
+        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+            .subject(secondAccountId)
+            .upn(secondEmail)
+            .groups("abstratium-abstrauth_user")
+            .claim("email", secondEmail)
+            .claim("name", "Second User")
+            .claim("orgId", secondOrgId)
+            .sign();
+
+        // Call /api/accounts — the user should see their own account with the abstrauth "user" role,
+        // even though that role's row in T_account_roles has org_id = default org, not secondOrgId
+        given()
+            .auth().oauth2(token)
+            .when()
+            .get("/api/accounts")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+            .body("size()", equalTo(1))
+            .body("[0].email", equalTo(secondEmail))
+            .body("[0].roles.size()", equalTo(1))
+            .body("[0].roles[0].clientId", equalTo(Roles.CLIENT_ID))
+            .body("[0].roles[0].role", equalTo(Roles._USER_PLAIN));
+    }
+
     @Test
     public void testDeleteAccountCascadesAllChildRecords() throws Exception {
         // Create a manager account in default org

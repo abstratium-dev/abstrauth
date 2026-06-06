@@ -218,8 +218,10 @@ public class OrganisationsResource {
     }
 
     private OrganisationResponse toOrganisationResponse(Organisation org) {
+        String accountId = token.getSubject();
+        List<String> roles = organisationService.getRolesForAccount(org.getId(), accountId);
         return new OrganisationResponse(org.getId(), org.getName(), org.getCreatedByAccountId(),
-                org.getCreatedAt() != null ? org.getCreatedAt().toString() : null);
+                org.getCreatedAt() != null ? org.getCreatedAt().toString() : null, roles);
     }
 
     private SubscriptionResponse toSubscriptionResponse(Subscription subscription) {
@@ -234,12 +236,14 @@ public class OrganisationsResource {
         public String name;
         public String createdByAccountId;
         public String createdAt;
+        public List<String> roles;
 
-        public OrganisationResponse(String id, String name, String createdByAccountId, String createdAt) {
+        public OrganisationResponse(String id, String name, String createdByAccountId, String createdAt, List<String> roles) {
             this.id = id;
             this.name = name;
             this.createdByAccountId = createdByAccountId;
             this.createdAt = createdAt;
+            this.roles = roles;
         }
     }
 

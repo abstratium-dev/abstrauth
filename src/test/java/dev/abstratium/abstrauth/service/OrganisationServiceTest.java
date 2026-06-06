@@ -182,6 +182,42 @@ public class OrganisationServiceTest {
     }
 
     @Test
+    public void testGetRolesForAccount_ownerAndMember() {
+        String accountId = createTestAccount();
+        Organisation org = organisationService.createOrganisation("Roles Org Owner+Member", null);
+        organisationService.addOwner(org.getId(), accountId);
+        organisationService.addMember(org.getId(), accountId);
+
+        List<String> roles = organisationService.getRolesForAccount(org.getId(), accountId);
+
+        assertEquals(2, roles.size());
+        assertTrue(roles.contains(OrganisationService.ROLE_OWNER));
+        assertTrue(roles.contains(OrganisationService.ROLE_MEMBER));
+    }
+
+    @Test
+    public void testGetRolesForAccount_memberOnly() {
+        String accountId = createTestAccount();
+        Organisation org = organisationService.createOrganisation("Roles Org Member Only", null);
+        organisationService.addMember(org.getId(), accountId);
+
+        List<String> roles = organisationService.getRolesForAccount(org.getId(), accountId);
+
+        assertEquals(1, roles.size());
+        assertTrue(roles.contains(OrganisationService.ROLE_MEMBER));
+    }
+
+    @Test
+    public void testGetRolesForAccount_noMembership_returnsEmpty() {
+        String accountId = createTestAccount();
+        Organisation org = organisationService.createOrganisation("Roles Org No Member", null);
+
+        List<String> roles = organisationService.getRolesForAccount(org.getId(), accountId);
+
+        assertTrue(roles.isEmpty());
+    }
+
+    @Test
     public void testListOrganisationsForAccountReturnsOnlyMemberOrgs() {
         String accountId = createTestAccount();
         String ownerOnlyAccountId = createTestAccount();

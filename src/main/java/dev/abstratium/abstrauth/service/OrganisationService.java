@@ -85,6 +85,15 @@ public class OrganisationService {
         em.remove(memberRow);
     }
 
+    public List<String> getRolesForAccount(String orgId, String accountId) {
+        return em.createQuery(
+                "SELECT oa.id.role FROM OrganisationAccount oa WHERE oa.id.orgId = :orgId AND oa.id.accountId = :accountId",
+                String.class)
+                .setParameter("orgId", orgId)
+                .setParameter("accountId", accountId)
+                .getResultList();
+    }
+
     public boolean isMember(String orgId, String accountId) {
         return findMemberRow(orgId, accountId).isPresent();
     }

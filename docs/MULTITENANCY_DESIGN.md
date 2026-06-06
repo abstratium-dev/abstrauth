@@ -319,7 +319,8 @@ Owners of organisations also manage subscriptions so that they decide which appl
 | POST | `/api/organisations/{orgId}/subscriptions` | Subscribe org to a client | Authenticated (org `owner`) |
 | DELETE | `/api/organisations/{orgId}/subscriptions/{clientId}` | Unsubscribe | Authenticated (org `owner`) |
 | GET | `/api/clients/{clientId}/allowed-roles` | List assignable roles for a client | Authenticated |
-| POST | `/org-selection` | Select organisation during sign-in flow | Authenticated (session) |
+| POST | `/api/org-selection` | Select organisation during sign-in flow | Authenticated (session) |
+| GET | `/api/org-selection/{requestId}` | List organisations for selection | Authenticated (session) |
 
 ## Angular UI Changes
 

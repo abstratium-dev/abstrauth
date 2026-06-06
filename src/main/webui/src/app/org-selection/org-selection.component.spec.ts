@@ -22,18 +22,11 @@ describe('OrgSelectionComponent', () => {
   let mockWindow: { location: { href: string } };
 
   const mockRequestId = 'test-request-123';
-  const mockAccountId = 'account-456';
 
   const mockOrganisations = [
     { id: 'org-1', name: 'Test Organisation 1' },
     { id: 'org-2', name: 'Test Organisation 2' }
   ];
-
-  const mockUserInfo = {
-    sub: mockAccountId,
-    email: 'test@example.com',
-    name: 'Test User'
-  };
 
   beforeEach(async () => {
     mockWindow = { location: { href: '' } };
@@ -87,11 +80,8 @@ describe('OrgSelectionComponent', () => {
     fixture.detectChanges();
 
     // Handle the HTTP requests triggered by ngOnInit
-    const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+    const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
     orgReq.flush(mockOrganisations);
-
-    const userInfoReq = httpMock.expectOne('/api/userinfo');
-    userInfoReq.flush(mockUserInfo);
 
     expect(component).toBeTruthy();
   });
@@ -101,14 +91,9 @@ describe('OrgSelectionComponent', () => {
       fixture.detectChanges();
 
       // Expect GET request for organisations
-      const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+      const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
       expect(orgReq.request.method).toBe('GET');
       orgReq.flush(mockOrganisations);
-
-      // Expect GET request for user info
-      const userInfoReq = httpMock.expectOne('/api/userinfo');
-      expect(userInfoReq.request.method).toBe('GET');
-      userInfoReq.flush(mockUserInfo);
 
       expect(component.organisations).toEqual(mockOrganisations);
       expect(component.isLoading).toBeFalse();
@@ -117,7 +102,7 @@ describe('OrgSelectionComponent', () => {
     it('should show error when no organisations available', () => {
       fixture.detectChanges();
 
-      const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+      const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
       orgReq.flush([]);
 
       expect(component.organisations.length).toBe(0);
@@ -128,11 +113,8 @@ describe('OrgSelectionComponent', () => {
     it('should auto-select single organisation', () => {
       fixture.detectChanges();
 
-      const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+      const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
       orgReq.flush([mockOrganisations[0]]);
-
-      const userInfoReq = httpMock.expectOne('/api/userinfo');
-      userInfoReq.flush(mockUserInfo);
 
       expect(component.selectedOrgId).toBe('org-1');
       expect(component.orgSelectionForm.get('orgId')?.value).toBe('org-1');
@@ -145,11 +127,8 @@ describe('OrgSelectionComponent', () => {
 
       fixture.detectChanges();
 
-      const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+      const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
       orgReq.flush(mockOrganisations);
-
-      const userInfoReq = httpMock.expectOne('/api/userinfo');
-      userInfoReq.flush(mockUserInfo);
 
       expect(component.selectedOrgId).toBe('org-2');
       expect(component.orgSelectionForm.get('orgId')?.value).toBe('org-2');
@@ -160,11 +139,8 @@ describe('OrgSelectionComponent', () => {
 
       fixture.detectChanges();
 
-      const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+      const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
       orgReq.flush(mockOrganisations);
-
-      const userInfoReq = httpMock.expectOne('/api/userinfo');
-      userInfoReq.flush(mockUserInfo);
 
       // Should not pre-select invalid org
       expect(component.selectedOrgId).toBe('');
@@ -176,11 +152,8 @@ describe('OrgSelectionComponent', () => {
       fixture.detectChanges();
 
       // Load organisations
-      const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+      const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
       orgReq.flush(mockOrganisations);
-
-      const userInfoReq = httpMock.expectOne('/api/userinfo');
-      userInfoReq.flush(mockUserInfo);
 
       // Select an org
       component.selectedOrgId = 'org-1';
@@ -190,14 +163,14 @@ describe('OrgSelectionComponent', () => {
     it('should submit org selection successfully', () => {
       component.selectOrg();
 
-      const postReq = httpMock.expectOne('/org-selection');
+      const postReq = httpMock.expectOne('/api/org-selection');
       expect(postReq.request.method).toBe('POST');
 
-      // Check form data
+      // Check form data - account_id is now extracted from OIDC token by backend
       const formData = postReq.request.body as string;
       expect(formData).toContain('request_id=test-request-123');
       expect(formData).toContain('org_id=org-1');
-      expect(formData).toContain('account_id=account-456');
+      expect(formData).not.toContain('account_id');
 
       postReq.flush({ consentRequired: true });
 
@@ -207,7 +180,7 @@ describe('OrgSelectionComponent', () => {
     it('should redirect to signin when consent is required', () => {
       component.selectOrg();
 
-      const postReq = httpMock.expectOne('/org-selection');
+      const postReq = httpMock.expectOne('/api/org-selection');
       postReq.flush({ consentRequired: true });
 
       // Verify lastOrgId was stored
@@ -219,7 +192,7 @@ describe('OrgSelectionComponent', () => {
     it('should navigate to home when consent is not required', () => {
       component.selectOrg();
 
-      const postReq = httpMock.expectOne('/org-selection');
+      const postReq = httpMock.expectOne('/api/org-selection');
       postReq.flush({ consentRequired: false });
 
       expect(authServiceSpy.setLastOrgId).toHaveBeenCalledWith('org-1');
@@ -229,20 +202,11 @@ describe('OrgSelectionComponent', () => {
     it('should show error when submission fails', () => {
       component.selectOrg();
 
-      const postReq = httpMock.expectOne('/org-selection');
+      const postReq = httpMock.expectOne('/api/org-selection');
       postReq.flush({ error: 'Not a member of selected org' }, { status: 403, statusText: 'Forbidden' });
 
       expect(component.errorMessage).toBeTruthy();
       expect(component.isSubmitting).toBeFalse();
-    });
-
-    it('should not submit without account info', () => {
-      component.accountId = '';
-
-      component.selectOrg();
-
-      httpMock.expectNone('/org-selection');
-      expect(component.errorMessage).toContain('User information not available');
     });
 
     it('should not submit without selected org', () => {
@@ -251,7 +215,7 @@ describe('OrgSelectionComponent', () => {
 
       component.selectOrg();
 
-      httpMock.expectNone('/org-selection');
+      httpMock.expectNone('/api/org-selection');
       expect(component.errorMessage).toContain('Please select');
     });
   });
@@ -260,11 +224,8 @@ describe('OrgSelectionComponent', () => {
     it('should mark form invalid without selection', () => {
       fixture.detectChanges();
 
-      const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+      const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
       orgReq.flush(mockOrganisations);
-
-      const userInfoReq = httpMock.expectOne('/api/userinfo');
-      userInfoReq.flush(mockUserInfo);
 
       component.orgSelectionForm.patchValue({ orgId: '' });
       expect(component.orgSelectionForm.invalid).toBeTrue();
@@ -273,11 +234,8 @@ describe('OrgSelectionComponent', () => {
     it('should mark form valid with selection', () => {
       fixture.detectChanges();
 
-      const orgReq = httpMock.expectOne(`/org-selection/${mockRequestId}`);
+      const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
       orgReq.flush(mockOrganisations);
-
-      const userInfoReq = httpMock.expectOne('/api/userinfo');
-      userInfoReq.flush(mockUserInfo);
 
       component.orgSelectionForm.patchValue({ orgId: 'org-1' });
       expect(component.orgSelectionForm.valid).toBeTrue();

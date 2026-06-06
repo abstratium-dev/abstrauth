@@ -84,8 +84,8 @@ export class AuthService {
                 this.setupTokenExpiryTimer(token.exp);
                 
                 // Handle post-authentication navigation (includes invite validation)
-                // BUT skip navigation if user is on a signin page (OAuth flow in progress)
-                if (!initialUrl.startsWith('/signin/')) {
+                // BUT skip navigation if user is on a signin or org-selection page (OAuth flow in progress)
+                if (!initialUrl.startsWith('/signin/') && !initialUrl.startsWith('/org-selection/')) {
                     this.routeRestoration.handlePostAuthenticationNavigation(initialUrl, token.email);
                 } else {
                     console.debug('[AUTH] Skipping route restoration - OAuth signin flow in progress');
@@ -201,20 +201,6 @@ export class AuthService {
                 return;
             }
             localStorage.setItem('lastOrgId', orgId);
-        } catch {
-            // Ignore localStorage errors
-        }
-    }
-
-    /**
-     * Clear the last selected organisation ID from localStorage.
-     */
-    clearLastOrgId(): void {
-        try {
-            if (typeof localStorage === 'undefined') {
-                return;
-            }
-            localStorage.removeItem('lastOrgId');
         } catch {
             // Ignore localStorage errors
         }

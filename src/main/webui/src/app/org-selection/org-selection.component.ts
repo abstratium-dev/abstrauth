@@ -35,7 +35,7 @@ export class OrgSelectionComponent implements OnInit {
     errorMessage = "";
     isLoading = true;
     isSubmitting = false;
-    accountId = "";
+    readonly HAS_SUBMITTED_KEY = 'orgSelectionSubmitted';
 
     orgSelectionForm: FormGroup;
 
@@ -48,15 +48,20 @@ export class OrgSelectionComponent implements OnInit {
     ngOnInit(): void {
         this.requestId = this.route.snapshot.paramMap.get('requestId')!;
 
+        // Check if already submitted in this session (prevents error after form submission)
+        const hasSubmitted = sessionStorage.getItem(this.HAS_SUBMITTED_KEY) === this.requestId;
+
         // Load the organisations for this request
-        this.loadOrganisations();
+        if (!hasSubmitted) {
+            this.loadOrganisations();
+        }
     }
 
     loadOrganisations(): void {
         this.isLoading = true;
         this.errorMessage = "";
 
-        this.http.get<Organisation[]>(`/org-selection/${this.requestId}`)
+        this.http.get<Organisation[]>(`/api/org-selection/${this.requestId}`)
             .subscribe({
                 next: (orgs) => {
                     this.organisations = orgs;
@@ -83,26 +88,12 @@ export class OrgSelectionComponent implements OnInit {
                         }
                     }
 
-                    // Get accountId from userinfo endpoint
-                    this.loadAccountInfo();
                 },
                 error: (error) => {
                     this.isLoading = false;
                     this.errorMessage = error?.error?.error || "Failed to load organisations. Please try again.";
                 }
             });
-    }
-
-    loadAccountInfo(): void {
-        // Get userinfo to extract the account ID (sub claim)
-        this.http.get<any>('/api/userinfo').subscribe({
-            next: (userInfo) => {
-                this.accountId = userInfo.sub;
-            },
-            error: () => {
-                this.errorMessage = "Failed to load user information. Please try signing in again.";
-            }
-        });
     }
 
     onOrgChange(orgId: string): void {
@@ -112,11 +103,6 @@ export class OrgSelectionComponent implements OnInit {
     selectOrg(): void {
         if (this.orgSelectionForm.invalid || !this.selectedOrgId) {
             this.errorMessage = "Please select an organisation.";
-            return;
-        }
-
-        if (!this.accountId) {
-            this.errorMessage = "User information not available. Please try signing in again.";
             return;
         }
 
@@ -130,22 +116,39 @@ export class OrgSelectionComponent implements OnInit {
         const formData = new URLSearchParams();
         formData.append('request_id', this.requestId);
         formData.append('org_id', this.selectedOrgId);
-        formData.append('account_id', this.accountId);
+        // account_id is now extracted from the OIDC session token by the backend
 
-        this.http.post<OrgSelectionResponse>('/org-selection', formData.toString(), { headers })
+        this.http.post<OrgSelectionResponse>('/api/org-selection', formData.toString(), { headers })
             .subscribe({
                 next: (response) => {
                     // Store selected org as lastOrgId in localStorage
                     this.authService.setLastOrgId(this.selectedOrgId);
 
-                    if (response.consentRequired) {
-                        // Redirect to consent/approval page
-                        // The backend will redirect to /signin/{requestId} for consent
-                        this.window.location.href = `/signin/${this.requestId}`;
-                    } else {
-                        // No consent needed, redirect to home
-                        this.router.navigate(['/']);
-                    }
+                    // Mark as submitted in sessionStorage to prevent reload errors
+                    sessionStorage.setItem(this.HAS_SUBMITTED_KEY, this.requestId);
+
+                    // After org selection, submit consent via form POST to complete OAuth flow
+                    // This avoids going through signin which triggers OIDC auth check
+                    // Using form submission (not HTTP client) so browser handles 302 redirects
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/oauth2/authorize';
+
+                    const requestIdInput = document.createElement('input');
+                    requestIdInput.type = 'hidden';
+                    requestIdInput.name = 'request_id';
+                    requestIdInput.value = this.requestId;
+                    form.appendChild(requestIdInput);
+
+                    const consentInput = document.createElement('input');
+                    consentInput.type = 'hidden';
+                    consentInput.name = 'consent';
+                    consentInput.value = 'approve';
+                    form.appendChild(consentInput);
+
+                    document.body.appendChild(form);
+                    form.submit();
+                    document.body.removeChild(form);
                 },
                 error: (error) => {
                     this.isSubmitting = false;

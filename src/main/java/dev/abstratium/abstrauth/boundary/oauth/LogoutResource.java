@@ -6,6 +6,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
@@ -102,7 +103,19 @@ public class LogoutResource {
         }
 
         log.infof("Redirecting to: %s", redirectUri);
-        
-        return Response.seeOther(URI.create(redirectUri)).build();
+
+        // Clear XSRF-TOKEN cookie to prevent CSRF token mismatch on subsequent login
+        NewCookie clearedXsrfCookie = new NewCookie.Builder("XSRF-TOKEN")
+            .value("")
+            .path("/")
+            .maxAge(0) // Delete the cookie
+            .httpOnly(false)
+            .secure(false)
+            .sameSite(NewCookie.SameSite.STRICT)
+            .build();
+
+        return Response.seeOther(URI.create(redirectUri))
+            .cookie(clearedXsrfCookie)
+            .build();
     }
 }

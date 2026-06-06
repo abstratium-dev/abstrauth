@@ -14,19 +14,26 @@
             @if(organisations.length > 0) {
                 <p>You are a member of multiple organisations. Please select which one you want to use for this session:</p>
 
-                <form [formGroup]="orgSelectionForm" (ngSubmit)="selectOrg()" class="centered-form">
-                    <div class="form-group">
+                <form [formGroup]="orgSelectionForm" (ngSubmit)="selectOrg()" class="org-selection-form">
+                    <div class="form-group2">
                         @for(org of organisations; track org.id) {
-                            <label class="org-option">
-                                <input
-                                    type="radio"
-                                    name="orgId"
-                                    [value]="org.id"
-                                    formControlName="orgId"
-                                    (change)="onOrgChange(org.id)"
-                                />
-                                <span class="org-name">{{ org.name }}</span>
-                            </label>
+                            <div class="form-row2">
+                                <label class="org-option" 
+                                        for="org-selection-rb-{{org.id}}"
+                                >
+                                    <input
+                                        id="org-selection-rb-{{org.id}}"
+                                        type="radio"
+                                        name="orgId"
+                                        [value]="org.id"
+                                        formControlName="orgId"
+                                        (change)="onOrgChange(org.id)"
+                                    />
+                                    <span class="org-name">
+                                        {{ org.name }}
+                                    </span>
+                                </label>
+                            </div>
                         }
                     </div>
 

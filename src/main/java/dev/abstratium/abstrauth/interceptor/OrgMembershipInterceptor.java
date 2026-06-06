@@ -4,6 +4,7 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
 import dev.abstratium.abstrauth.service.OrganisationService;
+import io.quarkus.oidc.IdToken;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
 import jakarta.interceptor.AroundInvoke;
@@ -14,7 +15,7 @@ import jakarta.ws.rs.ForbiddenException;
 /**
  * Interceptor that verifies the authenticated account is a member of the
  * organization specified in the JWT orgId claim.
- * 
+ *
  * This prevents security vulnerabilities where a forged JWT with an arbitrary
  * orgId claim could access data from organizations where the account is not
  * a member.
@@ -27,6 +28,7 @@ public class OrgMembershipInterceptor {
     private static final Logger log = Logger.getLogger(OrgMembershipInterceptor.class);
 
     @Inject
+    @IdToken
     JsonWebToken token;
 
     @Inject

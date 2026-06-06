@@ -7,7 +7,7 @@ INSERT INTO T_organisations (id, name, created_by_account_id, created_at)
 SELECT 
     '${default_org_uuid}' as id,
     'rename-me' as name,
-    NULL as created_by_account_id,
+    (SELECT account_id FROM T_account_roles WHERE role = 'admin' LIMIT 1) as created_by_account_id,
     CURRENT_TIMESTAMP as created_at;
 
 -- Step 2: Link all existing accounts as members of the default organisation
