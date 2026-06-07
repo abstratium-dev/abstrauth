@@ -8,6 +8,12 @@ import java.util.UUID;
 @Table(name = "T_authorization_requests")
 public class AuthorizationRequest {
 
+    /** Authorization request timeout in minutes */
+    public static final int AUTHORIZATION_REQUEST_TIMEOUT_MINUTES = 10;
+
+    /** Session cookie name for org selection security */
+    public static final String SESSION_COOKIE_NAME = "abstrauth_session";
+
     @Id
     @Column(length = 36)
     private String id;
@@ -57,7 +63,7 @@ public class AuthorizationRequest {
             createdAt = LocalDateTime.now();
         }
         if (expiresAt == null) {
-            expiresAt = createdAt.plusMinutes(10); // 10 minute expiration
+            expiresAt = createdAt.plusMinutes(AUTHORIZATION_REQUEST_TIMEOUT_MINUTES);
         }
     }
 

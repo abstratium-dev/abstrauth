@@ -127,15 +127,16 @@ public class AccountRoleServiceTest {
 
     @Test
     public void testFindRolesByAccountId() {
-        // Add roles for multiple clients (note: account already has automatic "user" role)
+        // Add roles for multiple clients (note: account already has automatic roles:
+        // "user", "manage_accounts", "manage_clients" because account is an owner)
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "editor");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID_2, "viewer");
 
         List<AccountRole> roles = accountRoleService.findRolesByAccountId(testAccountId);
         
-        // Expect 4 roles: automatic "user" + 3 manually added
-        assertEquals(4, roles.size());
+        // Expect 6 roles: 3 automatic (user, manage_accounts, manage_clients) + 3 manually added
+        assertEquals(6, roles.size());
     }
 
     @Test

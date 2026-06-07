@@ -122,7 +122,7 @@ public class OrganisationService {
                 .findFirst();
     }
 
-    private Optional<OrganisationAccount> findOwnerRow(String orgId, String accountId) {
+    public Optional<OrganisationAccount> findOwnerRow(String orgId, String accountId) {
         return em.createQuery(
                 "SELECT oa FROM OrganisationAccount oa WHERE oa.id.orgId = :orgId AND oa.id.accountId = :accountId AND oa.id.role = :role",
                 OrganisationAccount.class)

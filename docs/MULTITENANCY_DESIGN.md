@@ -25,7 +25,7 @@ classDiagram
 - **`Organisation`** — the billing and membership unit. Has 1..n administrators and 1..m members. Admins control membership.
 - **`Account`** — a user's login identity. Belongs to one or more organisations. When someone first registers with abstrauth, an organisation is automatically created; the account becomes both owner and member.
 - **`Subscription`** — links an organisation to an application (via `clientId`). Its existence grants the org access to the application.
-- **`ClientId`** — represents an application registered in abstrauth. A client can be **private** (only the owning org can subscribe) or **public** (any org can subscribe).
+- **`ClientId`** — represents an application registered in abstrauth. A client can be **private** (`publik = false`, only the owning org can subscribe) or **public** (`publik = true`, any org can subscribe).
 - **`AccountRole`** (entity: `T_account_roles`) — models "client & role": an account is assigned roles per `clientId`. These rows are the sole source of truth for roles placed in the JWT `groups` claim at sign-in time.
 
 ## Runtime Flow
@@ -92,7 +92,7 @@ Declares which roles a public client permits subscribing organisations to assign
 ### Modified Tables
 
 Organisation-scoped (receive `org_id` VARCHAR(36) column) and JPA entities use @TenantId:
-- `T_oauth_clients`
+- `T_oauth_clients` — also has `auto_subscribe BOOLEAN` (whether subscriptions are created automatically on first sign-in) and `publik BOOLEAN` (whether third-party organisations may subscribe at all)
 - `T_account_roles`
 - `T_client_secrets`
 - `T_service_account_roles`
@@ -178,8 +178,8 @@ Hibernate automatically appends `org_id = ?` to SELECT/UPDATE/DELETE by primary 
 Organisations subscribe to applications. A subscription links an `org_id` to a `client_id` and governs which roles the org's users may hold for that application.
 
 - **Automatic subscription**: enabled by an `auto_subscribe` flag on the client (defaults to `false`). When enabled and a user signs in from a client whose org does not yet have a subscription, abstrauth creates the subscription automatically. If `auto_subscribe` is `false` and no subscription exists, sign-in is denied with "no subscription" error.
-- **Private clients**: only the owning organisation may subscribe. Useful when an org creates its own application backed by abstrauth.
-- **Public clients**: any organisation may subscribe. The client owner declares assignable roles and their defaults via `T_client_allowed_roles`.
+- **Private clients** (`publik = false`): only the owning organisation may subscribe. Useful when an org creates its own application backed by abstrauth.
+- **Public clients** (`publik = true`): any organisation may subscribe. The client owner declares assignable roles and their defaults via `T_client_allowed_roles`.
 - **Unsubscribe**: an org can unsubscribe, which revokes all user access to the application.
 - **Billing vs subscriptions**: subscriptions govern access rights. Billing is related to contracts — a separate concern.
 
@@ -257,13 +257,13 @@ When a user is invited, an org owner creates `T_organisation_accounts` rows for 
 ### Creating a Private Application
 
 1. User creates a new `clientId` in abstrauth (generates client secret).
-2. Client is marked **private** to the user's organisation.
+2. Client is created with `publik = false` (default).
 3. A subscription from the org to that client is created (manually or automatically).
 4. No other organisation can subscribe to it.
 
 ### Creating a Public Application
 
-Same as above, but the client is marked **public** and the owner populates `T_client_allowed_roles` with the roles subscribing orgs may assign. Other organisations can then subscribe and choose from that list.
+Same as above, but the client is created with `publik = true` and the owner populates `T_client_allowed_roles` with the roles subscribing orgs may assign. Other organisations can then subscribe and choose from that list.
 
 ## Roles and Access Control
 

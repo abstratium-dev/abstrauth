@@ -1,20 +1,26 @@
 package dev.abstratium.abstrauth.service;
 
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.jboss.logging.Logger;
+
 import dev.abstratium.abstrauth.boundary.ConflictException;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccountRole;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import jakarta.ws.rs.ForbiddenException;
 
 @ApplicationScoped
 public class AccountRoleService {
+
+    private static final Logger log = Logger.getLogger(AccountRoleService.class); 
 
     @Inject
     EntityManager em;
@@ -27,6 +33,12 @@ public class AccountRoleService {
 
     @Inject
     SecurityIdentity securityIdentity;
+
+    @Inject
+    CurrentOrgContext currentOrgContext;
+
+    @Inject
+    SecurityProblemLogger securityProblemLogger;
 
     /**
      * Get all roles (groups) for a specific account and client combination
@@ -43,9 +55,11 @@ public class AccountRoleService {
         query.setParameter("accountId", accountId);
         query.setParameter("clientId", clientId);
         
-        return query.getResultStream()
+        var roles = query.getResultStream()
             .map(AccountRole::getRole)
             .collect(Collectors.toSet());
+        log.debugf("Found roles for accountId %s and clientId %s: %s", accountId, clientId, roles);
+        return roles;
     }
 
     /**
@@ -92,7 +106,9 @@ public class AccountRoleService {
 
         checkNonAdminCannotAddAdminRole(role, accountCount);
 
-        checkOnlyAddingToClientWhichTheyAlreadyHave(accountId, clientId, accountCount);
+        // checkOnlyAddingToClientWhichTheyAlreadyHave(accountId, clientId, accountCount);
+
+        // not right since user should be able to add to abstrauth: checkClientBelongsToCallerOrg(clientId, accountCount);
 
         // Validate role against allowlist for public clients
         checkRoleAgainstAllowlist(clientId, role);
@@ -110,7 +126,39 @@ public class AccountRoleService {
         return accountRole;
     }
 
-    private void checkOnlyAddingToClientWhichTheyAlreadyHave(String accountId, String clientId, long accountCount) {
+    /**
+     * Verifies that the target OAuthClient belongs to the same organisation as the
+     * caller's current org context (JWT orgId claim).  Skipped for the first account
+     * (bootstrap) and when there is no active security context (plain unit tests).
+     */
+    public void checkClientBelongsToCallerOrg(String clientId, long accountCount) {
+        if (accountCount == 1 || securityIdentity.isAnonymous()) {
+            return;
+        }
+        String callerOrgId;
+        try {
+            callerOrgId = currentOrgContext.getOrgId();
+        } catch (Exception e) {
+            return;
+        }
+        if (callerOrgId == null || callerOrgId.isBlank()) {
+            return;
+        }
+        // Use NonMultitenancyOAuthClient to bypass Hibernate's automatic tenant discriminator filter,
+        // which would otherwise double-apply the org_id predicate and produce wrong results.
+        var count = (Number) em.createQuery(
+                "SELECT COUNT(*) FROM NonMultitenancyOAuthClient c WHERE c.clientId = ? AND c.orgId = ?", Long.class)
+            .setParameter(1, clientId)
+            .setParameter(2, callerOrgId)
+            .getSingleResult();
+        if (count.longValue() == 0) {
+            securityProblemLogger.warnf("attempt to add role to an oauth-client that does not belong to the users organization");
+            throw new ForbiddenException("Client not found in your organization");
+        }
+    }
+
+    // TODO check if actually used and if not, then delete
+    public void checkOnlyAddingToClientWhichTheyAlreadyHave(String accountId, String clientId, long accountCount) {
         // Allow if this is the first account (system initialization) or no security context (tests)
         if (accountCount == 1 || securityIdentity.isAnonymous()) {
             return;
@@ -143,7 +191,7 @@ public class AccountRoleService {
     /**
      * only admin can add the admin role
      */
-    private void checkNonAdminCannotAddAdminRole(String role, long accountCount) {
+    public void checkNonAdminCannotAddAdminRole(String role, long accountCount) {
         if (role.equals(Roles._ADMIN_PLAIN)) {
             // Allow if this is the first account (system initialization) or no security context (tests)
             if (accountCount == 1 || securityIdentity.isAnonymous()) {
@@ -158,17 +206,17 @@ public class AccountRoleService {
     /**
      * Validate that the role is in the client's allowlist for public clients.
      * For private clients (no allowlist entries), any role is allowed.
+     * Skipped during bootstrap (first account) and when there is no security context.
      *
      * @param clientId The OAuth client ID
      * @param role The role name to validate
      * @throws IllegalArgumentException if the role is not in the allowlist for a public client
      */
-    private void checkRoleAgainstAllowlist(String clientId, String role) {
-        // Skip validation for internal abstrauth client - it manages its own roles
-        if (Roles.CLIENT_ID.equals(clientId)) {
+    public void checkRoleAgainstAllowlist(String clientId, String role) {
+        long accountCount = accountService.countAccounts();
+        if (accountCount <= 1 || securityIdentity.isAnonymous()) {
             return;
         }
-
         if (!clientAllowedRoleService.isRoleAllowed(clientId, role)) {
             throw new IllegalArgumentException(
                 "Role '" + role + "' is not in the allowlist for client '" + clientId + "'");
@@ -220,42 +268,56 @@ public class AccountRoleService {
     }
 
     /**
-     * Check if account has any roles for the given client.
-     * Used to determine if default roles should be seeded.
+     * Check if account has any roles for the given client within a specific org.
+     * Uses NonMultitenancyAccountRole to bypass the @TenantId discriminator and query
+     * by explicit orgId, preventing false negatives when the Hibernate tenant context
+     * does not match the orgId of existing rows.
      * 
      * @param accountId The account ID
      * @param clientId The OAuth client ID
-     * @return true if account has at least one role for this client
+     * @param orgId The organisation ID
+     * @return true if account has at least one role for this client in this org
      */
-    public boolean hasAnyRoleForClient(String accountId, String clientId) {
+    public boolean hasAnyRoleForClient(String accountId, String clientId, String orgId) {
         var query = em.createQuery(
-            "SELECT COUNT(ar) FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId",
+            "SELECT COUNT(ar) FROM NonMultitenancyAccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.orgId = :orgId",
             Long.class
         );
         query.setParameter("accountId", accountId);
         query.setParameter("clientId", clientId);
+        query.setParameter("orgId", orgId);
         return query.getSingleResult() > 0;
     }
 
     /**
-     * Seed default roles from ClientAllowedRoles to an account for a specific client.
-     * Only adds roles that don't already exist for the account + client combination.
+     * Seed default roles from ClientAllowedRoles to an account for a specific client and org.
+     * Uses NonMultitenancyAccountRole to bypass the @TenantId discriminator so that both
+     * the existence check and the insert use the explicit orgId, preventing duplicate inserts.
      * 
      * @param accountId The account ID
      * @param clientId The OAuth client ID
+     * @param orgId The organisation ID
      * @param defaultRoles List of default roles to seed
      */
     @Transactional
-    public void seedDefaultRoles(String accountId, String clientId, List<ClientAllowedRole> defaultRoles) {
-        Set<String> existingRoles = findRolesByAccountIdAndClientId(accountId, clientId);
-        
+    public void seedDefaultRoles(String accountId, String clientId, String orgId, List<ClientAllowedRole> defaultRoles) {
+        var query = em.createQuery(
+            "SELECT ar.role FROM NonMultitenancyAccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.orgId = :orgId",
+            String.class
+        );
+        query.setParameter("accountId", accountId);
+        query.setParameter("clientId", clientId);
+        query.setParameter("orgId", orgId);
+        Set<String> existingRoles = query.getResultStream().collect(Collectors.toSet());
+
         for (ClientAllowedRole allowedRole : defaultRoles) {
             String roleName = allowedRole.getRole();
             if (!existingRoles.contains(roleName)) {
-                AccountRole accountRole = new AccountRole();
+                NonMultitenancyAccountRole accountRole = new NonMultitenancyAccountRole();
                 accountRole.setAccountId(accountId);
                 accountRole.setClientId(clientId);
                 accountRole.setRole(roleName);
+                accountRole.setOrgId(orgId);
                 em.persist(accountRole);
             }
         }

@@ -1,23 +1,28 @@
 package dev.abstratium.abstrauth.service;
 
-import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.entity.Credential;
-import dev.abstratium.abstrauth.entity.Organisation;
-import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.jdt.annotation.NonNull;
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
-import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.Credential;
+import dev.abstratium.abstrauth.entity.Organisation;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
+
 @ApplicationScoped
 public class AccountService {
+
+    private static final Logger log = Logger.getLogger(AccountService.class); 
 
     public static final String NATIVE = "native";
     public static final String GOOGLE = "google";
@@ -29,6 +34,9 @@ public class AccountService {
 
     @Inject
     AccountRoleService accountRoleService;
+
+    @Inject
+    NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
 
     @Inject
     OrganisationService organisationService;
@@ -80,8 +88,6 @@ public class AccountService {
             createCredentialForAccount(account.getId(), username, password);
         }
 
-        addAbstrauthRoles(account);
-
         // Link account to organisation
         var orgId = defaultOrgId;
         if (isFirstAccount) {
@@ -95,6 +101,8 @@ public class AccountService {
         }
         organisationService.addOwner(orgId, account.getId());
         organisationService.addMember(orgId, account.getId());
+
+        addAbstrauthRoles(account, orgId);
 
         return account;
     }
@@ -119,8 +127,6 @@ public class AccountService {
         account.setAuthProvider(authProvider);
         em.persist(account);
 
-        addAbstrauthRoles(account);
-
         // Link account to organisation
         var orgId = defaultOrgId;
         if (!isFirstAccount) {
@@ -131,6 +137,8 @@ public class AccountService {
         } // else: First account uses the existing default organisation from migration
         organisationService.addOwner(orgId, account.getId());
         organisationService.addMember(orgId, account.getId());
+
+        addAbstrauthRoles(account, orgId);
 
         return account;
     }
@@ -163,29 +171,35 @@ public class AccountService {
             createCredentialForAccount(account.getId(), username, password);
         }
 
-        addAbstrauthRoles(account);
-
         // Link account to existing organisation as member (not owner - the admin is the owner)
         organisationService.addMember(orgId, account.getId());
+        
+        addAbstrauthRoles(account, orgId);
 
         return account;
     }
 
-    private void addAbstrauthRoles(Account account) {
-        // All accounts get the "user" role for abstrauth, so that they can actually use it
-        accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._USER_PLAIN);
-        
+    private void addAbstrauthRoles(Account account, String orgId) {
         // Check if this is the first account
         // don't used cached value, since here we really need to know if EXACTLY ONE exists,
         // since adding roles happens long after creating the account
         boolean isFirstAccount = countAccounts() == 1;
 
-        // First account also gets admin and management roles
+        // First account also gets admin roles
         if (isFirstAccount) {
-            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._MANAGE_ACCOUNTS_PLAIN);
-            accountRoleService.addRole(account.getId(), Roles.CLIENT_ID, Roles._MANAGE_CLIENTS_PLAIN);
+            nonMultitenancyAccountRoleService.addRole(orgId, account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         }
+
+        // All accounts get the "user" role for abstrauth, so that they can actually use it.
+        nonMultitenancyAccountRoleService.addRole(orgId, account.getId(), Roles.CLIENT_ID, Roles._USER_PLAIN);
+
+        // accounts also get the management roles, if the user is an owner in their org (which means that the first abstrauth user also gets them).
+        boolean accountIsOwnerOfGivenOrg = organisationService.findOwnerRow(orgId, account.getId()).isPresent();
+        if (accountIsOwnerOfGivenOrg) {
+            nonMultitenancyAccountRoleService.addRole(orgId, account.getId(), Roles.CLIENT_ID, Roles._MANAGE_ACCOUNTS_PLAIN);
+            nonMultitenancyAccountRoleService.addRole(orgId, account.getId(), Roles.CLIENT_ID, Roles._MANAGE_CLIENTS_PLAIN);
+        }
+        log.debug("finished adding abstrauth roles");
     }
 
     @Transactional

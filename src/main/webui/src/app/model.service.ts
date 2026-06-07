@@ -18,12 +18,15 @@ export interface Account {
 
 export interface OAuthClient {
   id: string;
+  orgId: string;
   clientId: string;
   clientName: string;
   clientType: string;
   redirectUris: string;
   allowedScopes: string;
   requirePkce: boolean;
+  autoSubscribe: boolean;
+  publik: boolean;
   createdAt: string;
   clientSecret?: string;  // Only present on creation response
 }

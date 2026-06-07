@@ -36,7 +36,9 @@ export class ClientsComponent implements OnInit {
     clientType: 'confidential',
     redirectUris: '',
     allowedScopes: '',
-    requirePkce: true
+    requirePkce: true,
+    autoSubscribe: false,
+    publik: false
   };
   formError: string | null = null;
   formSubmitting = false;
@@ -136,6 +138,10 @@ export class ClientsComponent implements OnInit {
     return this.authService.hasRole(ROLE_MANAGE_CLIENTS);
   }
 
+  matchesTokenOrgId(orgId: string): boolean {
+    return this.authService.token$().orgId === orgId;
+  }
+
   toggleForm(): void {
     this.showForm = !this.showForm;
     if (this.showForm) {
@@ -152,7 +158,9 @@ export class ClientsComponent implements OnInit {
       clientType: client.clientType,
       redirectUris: this.parseJsonArray(client.redirectUris).join('\n'),
       allowedScopes: this.parseJsonArray(client.allowedScopes).join(' '),
-      requirePkce: client.requirePkce
+      requirePkce: client.requirePkce,
+      autoSubscribe: client.autoSubscribe,
+      publik: client.publik
     };
     this.formError = null;
   }
@@ -194,6 +202,12 @@ export class ClientsComponent implements OnInit {
     }
   }
 
+  onPublikChange(): void {
+    if (!this.formData.publik) {
+      this.formData.autoSubscribe = false;
+    }
+  }
+
   resetForm(): void {
     this.editingClientId = null;
     this.formData = {
@@ -202,7 +216,9 @@ export class ClientsComponent implements OnInit {
       clientType: 'confidential',
       redirectUris: '',
       allowedScopes: '',
-      requirePkce: true
+      requirePkce: true,
+      autoSubscribe: false,
+      publik: false
     };
     this.formError = null;
   }
@@ -266,7 +282,9 @@ export class ClientsComponent implements OnInit {
         clientType: this.formData.clientType,
         redirectUris: JSON.stringify(redirectUrisArray),
         allowedScopes: JSON.stringify(allowedScopesArray),
-        requirePkce: this.formData.requirePkce
+        requirePkce: this.formData.requirePkce,
+        autoSubscribe: this.formData.autoSubscribe,
+        publik: this.formData.publik
       };
 
       if (this.editingClientId) {

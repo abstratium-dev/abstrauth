@@ -1,5 +1,6 @@
 package dev.abstratium.abstrauth.filter;
 
+import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import io.quarkus.runtime.annotations.StaticInitSafe;
@@ -53,6 +54,9 @@ public class ApiCsrfFilter implements ContainerRequestFilter {
     SecureRandomProvider secureRandomProvider;
     
     @Inject
+    SecurityProblemLogger securityProblemLogger;
+
+    @Inject
     SecurityIdentity securityIdentity;
     
     @StaticInitSafe
@@ -84,20 +88,18 @@ public class ApiCsrfFilter implements ContainerRequestFilter {
         }
         
         // Only apply to authenticated requests
+        String clientIp = ClientIpUtil.getClientIp(requestContext);
         if (securityIdentity.isAnonymous()) {
-            String clientIp = ClientIpUtil.getClientIp(requestContext);
             LOG.debugf("Skipping CSRF check for anonymous request to %s from IP %s", path, clientIp);
             return;
         }
         
-        // Get user info for logging
         String userId = securityIdentity.getPrincipal().getName();
-        String clientIp = ClientIpUtil.getClientIp(requestContext);
         
         // Get CSRF token from cookie
         Cookie csrfCookie = requestContext.getCookies().get(CSRF_COOKIE_NAME);
         if (csrfCookie == null) {
-            LOG.warnf("CSRF cookie missing for %s %s - User: %s, IP: %s", method, path, userId, clientIp);
+            securityProblemLogger.warnf("CSRF cookie missing");
             requestContext.abortWith(
                 Response.status(Response.Status.BAD_REQUEST)
                     .entity("CSRF token cookie missing")
@@ -109,7 +111,7 @@ public class ApiCsrfFilter implements ContainerRequestFilter {
         // Get CSRF token from header
         String csrfHeader = requestContext.getHeaderString(CSRF_HEADER_NAME);
         if (csrfHeader == null || csrfHeader.isBlank()) {
-            LOG.warnf("CSRF header missing for %s %s - User: %s, IP: %s", method, path, userId, clientIp);
+            securityProblemLogger.warnf("CSRF header missing");
             requestContext.abortWith(
                 Response.status(Response.Status.BAD_REQUEST)
                     .entity("CSRF token header missing")
@@ -121,7 +123,7 @@ public class ApiCsrfFilter implements ContainerRequestFilter {
         // Verify tokens match (constant-time comparison to prevent timing attacks)
         String cookieValue = csrfCookie.getValue();
         if (!constantTimeEquals(cookieValue, csrfHeader)) {
-            LOG.warnf("CSRF token mismatch for %s %s - User: %s, IP: %s", method, path, userId, clientIp);
+            securityProblemLogger.warnf("CSRF token mismatch");
             requestContext.abortWith(
                 Response.status(Response.Status.BAD_REQUEST)
                     .entity("CSRF token mismatch")
@@ -132,7 +134,7 @@ public class ApiCsrfFilter implements ContainerRequestFilter {
         
         // Verify HMAC signature
         if (!verifyHmacSignature(cookieValue)) {
-            LOG.warnf("CSRF token HMAC verification failed for %s %s - User: %s, IP: %s", method, path, userId, clientIp);
+            securityProblemLogger.warnf("CSRF token HMAC verification failed");
             requestContext.abortWith(
                 Response.status(Response.Status.BAD_REQUEST)
                     .entity("CSRF token signature invalid")

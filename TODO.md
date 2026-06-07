@@ -40,8 +40,14 @@ The backend OrganisationsResource exposes all of these endpoints (as noted in MU
     - the created_by_account_id of things like org aren't set upon first sign in, that can be improved.
     - why can't a user create a new client? perhaps they are not in the role manage-clients in their org?
     - why can't a user create a new account? perhaps they are not in the role manage-clients in their org?
-    - X signup native says "Organisation name is required" but there's no field for it. and it should be ok to be empty, since it should take the users name that they enter. make typescript do that while they type the first name unless the org name has been changed by the user.
-    - make all angular components be lazy loaded
+    - ensure that when a user adds a client, the client is in their org
+    - ensure that when a user adds a client-role, the client is in their org
+    - ensure that when a user adds an account, ... well... they can do that. but it can only be added to their org.
+    - ensure that when a user sets an OrganisationAccount, it can only be done for their own org.
+    - added new account from ant@abstratium.dev: test@abstratium.dev
+      - ant can't see the new account in the list of accounts.
+    - add a test for src/main/java/dev/abstratium/abstrauth/service/SecurityProblemLogger.java
+    - when a user adds a second org, will they have the necessary abstratium roles? no!!
 
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream?
 
@@ -49,6 +55,8 @@ The backend OrganisationsResource exposes all of these endpoints (as noted in MU
   - in list of things which abstrauth is, describe it is also an "identity broker" as written in microsoft doc
 
 - add legal page to abstrauth
+
+- use SecurityProblemLogger and set up alerting for that
 
 - change concept of clients having secrets. where did i get that idea?? search the code.
 

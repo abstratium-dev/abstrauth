@@ -60,7 +60,6 @@
             <span *ngFor="let role of org.roles" class="badge" [ngClass]="getRoleBadgeClass(role)">{{ role }}</span>
             <span *ngIf="isCurrentOrg(org.id)" class="badge badge-verified">&#10003; Current</span>
           </div>
-          <a [routerLink]="['/organisations', org.id]" class="tile-action-link" title="Edit organisation">✏️</a>
         </div>
       </div>
       <div class="tile-details">

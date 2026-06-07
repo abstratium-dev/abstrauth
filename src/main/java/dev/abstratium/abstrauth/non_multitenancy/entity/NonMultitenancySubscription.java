@@ -1,20 +1,22 @@
-package dev.abstratium.abstrauth.entity;
+package dev.abstratium.abstrauth.non_multitenancy.entity;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.hibernate.annotations.TenantId;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "T_subscriptions")
-public class Subscription {
+public class NonMultitenancySubscription {
 
     @Id
     @Column(length = 36)
     private String id;
 
-    @TenantId
     @Column(name = "org_id", nullable = false, length = 36)
     private String orgId;
 

@@ -4,6 +4,7 @@ import dev.abstratium.abstrauth.boundary.TimedOutException;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -35,7 +36,7 @@ public class AuthorizationService {
     OAuthClientService oAuthClientService;
 
     @Inject
-    SubscriptionService subscriptionService;
+    NonMultitenancySubscriptionService nonMultitenancySubscriptionService;
 
     @ConfigProperty(name = "allow.signup", defaultValue = "false")
     boolean allowSignup;
@@ -98,14 +99,17 @@ public class AuthorizationService {
 
     /**
      * Checks the subscription gate for the given org and client.
-     * Auto-creates a subscription if auto_subscribe = true; throws {@link NoSubscriptionException} otherwise.
+     * Auto-creates a subscription if auto_subscribe = true AND publik = true;
+     * throws {@link NoSubscriptionException} otherwise.
+     * A private client (publik = false) can never be auto-subscribed by a non-owning org.
      * Used by the org-selection path where approval is handled separately.
      */
     @Transactional
     public void checkSubscription(String orgId, String clientId) {
         OAuthClient client = oAuthClientService.findByClientId(clientId).orElse(null);
-        boolean autoSubscribe = client == null || Boolean.TRUE.equals(client.getAutoSubscribe());
-        subscriptionService.ensureSubscribed(orgId, clientId, autoSubscribe);
+        boolean isPublik = client == null || Boolean.TRUE.equals(client.getPublik());
+        boolean autoSubscribe = isPublik && (client == null || Boolean.TRUE.equals(client.getAutoSubscribe()));
+        nonMultitenancySubscriptionService.ensureSubscribed(orgId, clientId, autoSubscribe);
     }
 
     /**
@@ -120,9 +124,7 @@ public class AuthorizationService {
         if (request == null) {
             throw new NotFoundException("Authorization request not found");
         }
-        OAuthClient client = oAuthClientService.findByClientId(request.getClientId()).orElse(null);
-        boolean autoSubscribe = client == null || Boolean.TRUE.equals(client.getAutoSubscribe());
-        subscriptionService.ensureSubscribed(orgId, request.getClientId(), autoSubscribe);
+        checkSubscription(orgId, request.getClientId());
         approveAuthorizationRequest(requestId, accountId, authMethod);
         setOrgId(requestId, orgId);
     }

@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -56,6 +57,22 @@ public class OAuthClientService {
     public List<OAuthClient> findAll() {
         var query = em.createQuery("SELECT c FROM OAuthClient c ORDER BY c.createdAt DESC", OAuthClient.class);
         return query.getResultList();
+    }
+
+    /**
+     * Returns clients matching the given clientIds, across all organisations.
+     * Uses NonMultitenancyOAuthClient to bypass the @TenantId discriminator so that
+     * clients owned by other orgs (e.g. subscribed public clients) are included.
+     */
+    public List<NonMultitenancyOAuthClient> findAllByClientIds(java.util.Set<String> clientIds) {
+        if (clientIds.isEmpty()) {
+            return java.util.List.of();
+        }
+        return em.createQuery(
+            "SELECT c FROM NonMultitenancyOAuthClient c WHERE c.clientId IN :clientIds",
+            NonMultitenancyOAuthClient.class)
+            .setParameter("clientIds", clientIds)
+            .getResultList();
     }
 
     /**

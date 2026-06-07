@@ -81,6 +81,8 @@ export class Controller {
     redirectUris: string;
     allowedScopes: string;
     requirePkce: boolean;
+    autoSubscribe: boolean;
+    publik: boolean;
   }): Promise<OAuthClient> {
     try {
       const response = await firstValueFrom(

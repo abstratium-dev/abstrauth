@@ -305,17 +305,19 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddAccountRoleSuccessfully() throws Exception {
+        // Use the default org so that the "test-client" created in @BeforeEach
+        // (which lives in the default org) matches the caller's orgId claim.
+        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         
-        // Create admin account first
+        // Create admin account in the default org
         String adminEmail = "roleadmin_" + System.currentTimeMillis() + "@example.com";
-        Account admin = accountService.createAccount(adminEmail, "Role Admin", "roleadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account admin = accountService.createAccountForOrg(adminEmail, "Role Admin", "roleadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String adminId = admin.getId();
-        String adminOrgId = organisationService.listOrganisationsForAccount(adminId).get(0).getId();
         
-        // Create target account in admin's org
+        // Create target account in the same (default) org
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
-        Account account = accountService.createAccountForOrg(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, adminOrgId);
+        Account account = accountService.createAccountForOrg(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String accountId = account.getId();
         
         transactionHelper.commitTransaction();
@@ -329,7 +331,7 @@ public class AccountsResourceTest {
             """, accountId);
         
         given()
-            .auth().oauth2(generateAdminToken(adminId, adminOrgId))
+            .auth().oauth2(generateAdminToken(adminId, defaultOrgId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -612,18 +614,20 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddRoleToNewClientAsAdmin() throws Exception {
+        // Use the default org so that "abstratium-abstrauth" (which lives in the default org)
+        // matches the caller's orgId claim.
+        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         
-        // Create admin account first
+        // Create admin account in the default org
         String adminEmail = "admin_" + System.currentTimeMillis() + "@example.com";
-        Account admin = accountService.createAccount(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account admin = accountService.createAccountForOrg(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         // Give admin the admin role
         accountRoleService.addRole(admin.getId(), "abstratium-abstrauth", "admin");
-        String adminOrgId = organisationService.listOrganisationsForAccount(admin.getId()).get(0).getId();
         
-        // Create target account in admin's org
+        // Create target account in the same (default) org
         String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
-        Account targetAccount = accountService.createAccountForOrg(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, adminOrgId);
+        Account targetAccount = accountService.createAccountForOrg(targetEmail, "Target User 3", "target3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         // Give target account a role in abstratium-abstrauth
         accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
         
@@ -640,7 +644,7 @@ public class AccountsResourceTest {
             """, targetAccount.getId());
         
         given()
-            .auth().oauth2(generateAdminToken(admin.getId(), adminOrgId))
+            .auth().oauth2(generateAdminToken(admin.getId(), defaultOrgId))
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
@@ -1141,8 +1145,9 @@ public class AccountsResourceTest {
             .claim("orgId", secondOrgId)
             .sign();
 
-        // Call /api/accounts — the user should see their own account with the abstrauth "user" role,
+        // Call /api/accounts — the user should see their own account with the abstrauth roles,
         // even though that role's row in T_account_roles has org_id = default org, not secondOrgId
+        // The account has 3 abstrauth roles: user + manage_accounts + manage_clients (owner gets management roles)
         given()
             .auth().oauth2(token)
             .when()
@@ -1152,9 +1157,73 @@ public class AccountsResourceTest {
             .contentType(ContentType.JSON)
             .body("size()", equalTo(1))
             .body("[0].email", equalTo(secondEmail))
-            .body("[0].roles.size()", equalTo(1))
-            .body("[0].roles[0].clientId", equalTo(Roles.CLIENT_ID))
-            .body("[0].roles[0].role", equalTo(Roles._USER_PLAIN));
+            .body("[0].roles.size()", equalTo(3))
+            .body("[0].roles.find { it.role == 'user' }.clientId", equalTo(Roles.CLIENT_ID))
+            .body("[0].roles.find { it.role == 'manage-accounts' }.clientId", equalTo(Roles.CLIENT_ID))
+            .body("[0].roles.find { it.role == 'manage-clients' }.clientId", equalTo(Roles.CLIENT_ID));
+    }
+
+    /**
+     * Verifies that a user cannot add a role to an OAuthClient that belongs to a
+     * different organisation than the one in their JWT orgId claim, even if the target
+     * account already has a role for that client.
+     */
+    @Test
+    public void testCannotAddRoleToClientInDifferentOrg() throws Exception {
+        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
+
+        // Create attacker's org and account
+        transactionHelper.beginTransaction();
+        String attackerEmail = "attacker_" + System.currentTimeMillis() + "@example.com";
+        Account attacker = accountService.createAccount(attackerEmail, "Attacker", "attacker_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Attacker Org");
+        String attackerId = attacker.getId();
+        String attackerOrgId = organisationService.listOrganisationsForAccount(attackerId).get(0).getId();
+        transactionHelper.commitTransaction();
+
+        // Create a victim account in the default org
+        transactionHelper.beginTransaction();
+        String victimEmail = "victim_" + System.currentTimeMillis() + "@example.com";
+        Account victim = accountService.createAccountForOrg(victimEmail, "Victim", "victim_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, attackerOrgId);
+        String victimId = victim.getId();
+
+        // Create a client that belongs to the DEFAULT org (not the attacker's org).
+        // Use a native update to override the @TenantId value after persisting.
+        String foreignClientId = "foreign-client-" + System.currentTimeMillis();
+        dev.abstratium.abstrauth.entity.OAuthClient foreignClient = new dev.abstratium.abstrauth.entity.OAuthClient();
+        foreignClient.setClientId(foreignClientId);
+        foreignClient.setClientName("Foreign Client");
+        foreignClient.setClientType("confidential");
+        foreignClient.setRedirectUris("[\"http://localhost:8080/callback\"]");
+        foreignClient.setAllowedScopes("[\"openid\"]");
+        foreignClient.setRequirePkce(false);
+        em.persist(foreignClient);
+        em.flush();
+        // Force the client's org_id to the default org (different from attackerOrgId)
+        em.createNativeQuery("UPDATE T_oauth_clients SET org_id = :orgId WHERE client_id = :clientId")
+            .setParameter("orgId", defaultOrgId)
+            .setParameter("clientId", foreignClientId)
+            .executeUpdate();
+        em.flush();
+
+        // Give the victim an existing role on the foreign client so that
+        // checkOnlyAddingToClientWhichTheyAlreadyHave would pass the old (weak) check
+        em.createNativeQuery("INSERT INTO T_account_roles (id, account_id, client_id, role, created_at, org_id) VALUES (UUID(), :accountId, :clientId, 'viewer', NOW(), :orgId)")
+            .setParameter("accountId", victimId)
+            .setParameter("clientId", foreignClientId)
+            .setParameter("orgId", defaultOrgId)
+            .executeUpdate();
+        transactionHelper.commitTransaction();
+
+        // Attacker attempts to add a role on the foreign-org client — must be 403
+        String body = String.format("{\"accountId\":\"%s\",\"clientId\":\"%s\",\"role\":\"attacker-role\"}", victimId, foreignClientId);
+        given()
+            .auth().oauth2(generateManageAccountsToken(attackerId, attackerOrgId))
+            .contentType(ContentType.JSON)
+            .body(body)
+            .when()
+            .post("/api/accounts/role")
+            .then()
+            .statusCode(403);
     }
 
     @Test

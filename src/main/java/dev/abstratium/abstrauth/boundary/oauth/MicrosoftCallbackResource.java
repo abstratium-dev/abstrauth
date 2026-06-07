@@ -3,6 +3,8 @@ package dev.abstratium.abstrauth.boundary.oauth;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import static dev.abstratium.abstrauth.entity.AuthorizationRequest.AUTHORIZATION_REQUEST_TIMEOUT_MINUTES;
+import static dev.abstratium.abstrauth.entity.AuthorizationRequest.SESSION_COOKIE_NAME;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
@@ -14,6 +16,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
@@ -153,7 +156,18 @@ public class MicrosoftCallbackResource {
                 // Multiple orgs: redirect to org selection page
                 authorizationService.markAuthenticatedPendingOrgSelection(authRequest.getId(), account.getId(), AccountService.MICROSOFT);
                 log.info("User " + account.getEmail() + " authenticated via Microsoft, redirecting to org selection for request " + authRequest.getId() + " from IP " + clientIp);
-                return Response.seeOther(URI.create("/org-selection/" + authRequest.getId())).build();
+                // Set session cookie for org selection security
+                NewCookie sessionCookie = new NewCookie.Builder(SESSION_COOKIE_NAME)
+                    .value(account.getId())
+                    .path("/")
+                    .maxAge(AUTHORIZATION_REQUEST_TIMEOUT_MINUTES * 60)
+                    .httpOnly(true)
+                    .secure(true)
+                    .sameSite(NewCookie.SameSite.STRICT)
+                    .build();
+                return Response.seeOther(URI.create("/org-selection/" + authRequest.getId()))
+                    .cookie(sessionCookie)
+                    .build();
             }
 
         } catch (Exception e) {

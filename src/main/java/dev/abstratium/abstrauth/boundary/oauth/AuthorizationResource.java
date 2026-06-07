@@ -7,6 +7,7 @@ import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
@@ -17,6 +18,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
@@ -55,6 +57,9 @@ public class AuthorizationResource {
 
     @Inject
     OrganisationService organisationService;
+
+    @Inject
+    ClientAllowedRoleService clientAllowedRoleService;
 
     @Inject
     SecurityIdentity securityIdentity;
@@ -402,17 +407,22 @@ public class AuthorizationResource {
         Account account = accountOpt.get();
         AuthorizationRequest authRequest = requestOpt.get();
 
-        // Check if user has at least one role for this client
+        // Check if user has at least one role for this client, or will be seeded on first access
         // Force initialization of roles collection to avoid LazyInitializationException
         boolean hasRoleForClient = account.getRoles() != null && account.getRoles().stream()
                 .anyMatch(role -> role.getClientId().equals(authRequest.getClientId()));
 
         if (!hasRoleForClient) {
-            log.warn("User " + account.getEmail() + " attempted to authenticate for client " + authRequest.getClientId() + 
-                    " but has no roles for this client");
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity("You do not have any roles for this application. Please contact your administrator.")
-                    .build();
+            boolean hasDefaultRoles = !clientAllowedRoleService.findDefaultRolesByClientId(authRequest.getClientId()).isEmpty();
+            if (!hasDefaultRoles) {
+                log.warn("User " + account.getEmail() + " attempted to authenticate for client " + authRequest.getClientId() +
+                        " but has no roles for this client and the client has no default roles to seed");
+                return Response.status(Response.Status.FORBIDDEN)
+                        .entity("You do not have any roles for this application. Please contact your administrator.")
+                        .build();
+            }
+            log.info("User " + account.getEmail() + " has no roles for client " + authRequest.getClientId() +
+                    " — default roles will be seeded at token exchange");
         }
 
         // Determine which org(s) the account belongs to
@@ -432,7 +442,18 @@ public class AuthorizationResource {
         } else {
             // Multiple orgs: park the request and tell the UI to show the org selection page
             authorizationService.markAuthenticatedPendingOrgSelection(requestId, account.getId(), AccountService.NATIVE);
-            return Response.ok(new AuthenticationResponse(account.getName(), "/api/org-selection/" + requestId)).build();
+            // Set session cookie for org selection security
+            NewCookie sessionCookie = new NewCookie.Builder(AuthorizationRequest.SESSION_COOKIE_NAME)
+                .value(account.getId())
+                .path("/")
+                .maxAge(AuthorizationRequest.AUTHORIZATION_REQUEST_TIMEOUT_MINUTES * 60)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite(NewCookie.SameSite.STRICT)
+                .build();
+            return Response.ok(new AuthenticationResponse(account.getName(), "/api/org-selection/" + requestId))
+                .cookie(sessionCookie)
+                .build();
         }
     }
 

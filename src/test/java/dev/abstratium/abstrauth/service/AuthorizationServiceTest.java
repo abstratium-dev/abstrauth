@@ -22,6 +22,9 @@ public class AuthorizationServiceTest {
 
     @Inject
     AccountService accountService;
+
+    @Inject
+    SubscriptionService subscriptionService;
     
     @Inject
     jakarta.persistence.EntityManager em;
@@ -411,5 +414,79 @@ public class AuthorizationServiceTest {
         // In test profile, allow.signup=true
         boolean signupAllowed = authorizationService.isSignupAllowed();
         assertTrue(signupAllowed);
+    }
+
+    // ---- publik + autoSubscribe interaction tests ----
+
+    private dev.abstratium.abstrauth.entity.OAuthClient createClientWithFlags(String clientId, boolean publik, boolean autoSubscribe) throws Exception {
+        transactionHelper.beginTransaction();
+        var q = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :cid", dev.abstratium.abstrauth.entity.OAuthClient.class);
+        q.setParameter("cid", clientId);
+        if (q.getResultList().isEmpty()) {
+            dev.abstratium.abstrauth.entity.OAuthClient c = new dev.abstratium.abstrauth.entity.OAuthClient();
+            c.setClientId(clientId);
+            c.setClientName("Flag Test " + clientId);
+            c.setClientType("confidential");
+            c.setRedirectUris("[]");
+            c.setAllowedScopes("[]");
+            c.setRequirePkce(true);
+            c.setPublik(publik);
+            c.setAutoSubscribe(autoSubscribe);
+            em.persist(c);
+        }
+        transactionHelper.commitTransaction();
+        return em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :cid", dev.abstratium.abstrauth.entity.OAuthClient.class)
+                 .setParameter("cid", clientId).getSingleResult();
+    }
+
+    @Test
+    public void testCheckSubscription_publicAutoSubscribe_createsSubscription() throws Exception {
+        String clientId = "publik_auto_" + System.nanoTime();
+        String orgId = java.util.UUID.randomUUID().toString();
+        createClientWithFlags(clientId, true, true);
+
+        authorizationService.checkSubscription(orgId, clientId);
+
+        assertTrue(subscriptionService.subscriptionExists(orgId, clientId),
+                "Subscription should have been auto-created for public+autoSubscribe client");
+    }
+
+    @Test
+    public void testCheckSubscription_privateAutoSubscribeTrue_throwsNoSubscription() throws Exception {
+        String clientId = "private_auto_" + System.nanoTime();
+        String orgId = java.util.UUID.randomUUID().toString();
+        createClientWithFlags(clientId, false, true);
+
+        assertThrows(NoSubscriptionException.class,
+                () -> authorizationService.checkSubscription(orgId, clientId),
+                "Private client must not auto-subscribe even when autoSubscribe=true");
+    }
+
+    @Test
+    public void testCheckSubscription_publicAutoSubscribeFalse_throwsNoSubscription() throws Exception {
+        String clientId = "publik_noauto_" + System.nanoTime();
+        String orgId = java.util.UUID.randomUUID().toString();
+        createClientWithFlags(clientId, true, false);
+
+        assertThrows(NoSubscriptionException.class,
+                () -> authorizationService.checkSubscription(orgId, clientId),
+                "Public client with autoSubscribe=false must require explicit subscription");
+    }
+
+    @Test
+    public void testCheckSubscription_alreadySubscribed_doesNotThrow() throws Exception {
+        String clientId = "already_sub_" + System.nanoTime();
+        String orgId = java.util.UUID.randomUUID().toString();
+        createClientWithFlags(clientId, false, false);
+
+        transactionHelper.beginTransaction();
+        dev.abstratium.abstrauth.entity.Subscription sub = new dev.abstratium.abstrauth.entity.Subscription();
+        sub.setOrgId(orgId);
+        sub.setClientId(clientId);
+        em.persist(sub);
+        transactionHelper.commitTransaction();
+
+        assertDoesNotThrow(() -> authorizationService.checkSubscription(orgId, clientId),
+                "Already-subscribed org must be allowed regardless of publik/autoSubscribe flags");
     }
 }

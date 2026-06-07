@@ -37,6 +37,14 @@ public class SubscriptionService {
         return findSubscription(orgId, clientId).isPresent();
     }
 
+    public java.util.List<String> findClientIdsByOrgId(String orgId) {
+        return em.createQuery(
+                "SELECT s.clientId FROM Subscription s WHERE s.orgId = :orgId",
+                String.class)
+                .setParameter("orgId", orgId)
+                .getResultList();
+    }
+
     public Optional<Subscription> findSubscription(String orgId, String clientId) {
         return em.createQuery(
                 "SELECT s FROM Subscription s WHERE s.orgId = :orgId AND s.clientId = :clientId",
@@ -45,25 +53,5 @@ public class SubscriptionService {
                 .setParameter("clientId", clientId)
                 .getResultStream()
                 .findFirst();
-    }
-
-    /**
-     * Ensures the org is subscribed to the client.
-     * If not subscribed and autoSubscribe is true, creates the subscription automatically.
-     * If not subscribed and autoSubscribe is false, throws {@link NoSubscriptionException}.
-     */
-    @Transactional
-    public void ensureSubscribed(String orgId, String clientId, boolean autoSubscribe) {
-        if (subscriptionExists(orgId, clientId)) {
-            return;
-        }
-        if (autoSubscribe) {
-            Subscription subscription = new Subscription();
-            subscription.setOrgId(orgId);
-            subscription.setClientId(clientId);
-            em.persist(subscription);
-        } else {
-            throw new NoSubscriptionException(orgId, clientId);
-        }
     }
 }

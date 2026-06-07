@@ -25,6 +25,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.service.AccountRoleService;
@@ -69,6 +70,9 @@ public class TokenResource {
 
     @Inject
     AccountRoleService accountRoleService;
+
+    @Inject
+    NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
 
     @Inject
     ServiceAccountRoleService serviceAccountRoleService;
@@ -344,11 +348,13 @@ public class TokenResource {
                     "Account is no longer a member of the selected organisation");
         }
 
-        // Seed default roles if no AccountRole rows exist for this account + clientId
-        if (!accountRoleService.hasAnyRoleForClient(account.getId(), clientId)) {
+        // not convinced this is the right time to do this? e.g. what about when the account is created?
+        // aha, they might not sign into a client until a later time!
+        // so: Seed default roles if no AccountRole rows exist for this account + clientId + orgId
+        if (orgId != null && !accountRoleService.hasAnyRoleForClient(account.getId(), clientId, orgId)) {
             var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
             if (!defaultRoles.isEmpty()) {
-                accountRoleService.seedDefaultRoles(account.getId(), clientId, defaultRoles);
+                accountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, defaultRoles);
             }
         }
 
@@ -432,7 +438,7 @@ public class TokenResource {
 
         // Get roles (groups) for this account and client from the database
         // Roles are stored as just the role name, so we need to prefix with clientId
-        Set<String> dbRoles = accountRoleService.findRolesByAccountIdAndClientId(account.getId(), clientId);
+        Set<String> dbRoles = nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(account.getId(), clientId, orgId);
         Set<String> groups = new HashSet<>();
         for (String role : dbRoles) {
             groups.add(clientId + "_" + role);
@@ -502,7 +508,7 @@ public class TokenResource {
         Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
 
         // Get roles (groups) for this account and client
-        Set<String> dbRoles = accountRoleService.findRolesByAccountIdAndClientId(account.getId(), clientId);
+        Set<String> dbRoles = nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(account.getId(), clientId, orgId);
         Set<String> groups = new HashSet<>();
         for (String role : dbRoles) {
             groups.add(clientId + "_" + role);

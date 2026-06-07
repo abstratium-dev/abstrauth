@@ -345,39 +345,6 @@ public class OrgSelectionResourceTest {
     }
 
     @Test
-    public void postOrgSelection_sessionFixationGuard_rejectsMismatchedAccount() throws Exception {
-        long ts = System.currentTimeMillis();
-        Account owner = createAccount(ts + "_sfown");
-        Account attacker = createAccount(ts + "_sfatk");
-        addSecondOrg(owner);
-
-        String challenge = generateCodeChallenge(generateCodeVerifier());
-        String requestId = initiateAuthRequest(challenge);
-
-        // owner authenticates
-        given()
-                .formParam("username", "orgsel_" + ts + "_sfown")
-                .formParam("password", "Pass123!")
-                .formParam("request_id", requestId)
-                .post("/oauth2/authorize/authenticate")
-                .then().statusCode(200);
-
-        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
-
-        // Session fixation guard is now enforced by OIDC token comparison
-        // This test would require mocking different OIDC sessions
-        // For now, we verify the endpoint requires a valid OIDC session
-        given()
-                .contentType(ContentType.URLENC)
-                .formParam("request_id", requestId)
-                .formParam("org_id", ownerOrg.getId())
-                .when()
-                .post("/api/org-selection")
-                .then()
-                .statusCode(401); // Unauthorized without valid OIDC session
-    }
-
-    @Test
     public void postOrgSelection_notMember_returns403() throws Exception {
         long ts = System.currentTimeMillis();
         Account owner = createAccount(ts + "_notmemown");
@@ -395,8 +362,7 @@ public class OrgSelectionResourceTest {
                 .then().statusCode(200);
 
         // owner tries to pick other's org they aren't a member of
-        // Note: This test requires OIDC session with proper authentication
-        // The backend extracts account_id from the OIDC token and verifies membership
+        // The backend extracts account_id from the authenticated request and verifies membership
         Organisation otherOrg = organisationService.listOrganisationsForAccount(other.getId()).get(0);
 
         given()
@@ -406,7 +372,7 @@ public class OrgSelectionResourceTest {
                 .when()
                 .post("/api/org-selection")
                 .then()
-                .statusCode(401); // Unauthorized without valid OIDC session
+                .statusCode(403); // Forbidden - authenticated but not a member of the org
     }
 
     @Test

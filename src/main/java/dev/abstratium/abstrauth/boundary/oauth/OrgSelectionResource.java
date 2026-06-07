@@ -8,6 +8,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
+import static dev.abstratium.abstrauth.entity.AuthorizationRequest.SESSION_COOKIE_NAME;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AuthorizationService;
@@ -16,6 +17,7 @@ import dev.abstratium.abstrauth.service.NoSubscriptionException;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.CookieParam;
 import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -23,6 +25,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
 
 /**
@@ -30,8 +33,8 @@ import jakarta.ws.rs.core.Response;
  * This resource is used when an account belongs to more than one organisation.
  *
  * Security: session fixation is prevented by verifying that the account_id
- * stored on the AuthorizationRequest matches the account_id supplied by the
- * caller before accepting an org_id submission.
+ * in the session cookie matches the account_id stored on the AuthorizationRequest.
+ * The cookie is set during authentication when multiple orgs are detected.
  */
 @Path("/api/org-selection")
 @Tag(name = "Org Selection", description = "Organisation selection during OAuth sign-in")
@@ -80,7 +83,7 @@ public class OrgSelectionResource {
      * stores the orgId on the request and marks it approved.
      *
      * Returns JSON so the Angular UI can proceed to the consent step.
-     * The accountId is extracted from the OIDC session token for security.
+     * The accountId is extracted from the session cookie for security.
      */
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -91,7 +94,8 @@ public class OrgSelectionResource {
     )
     public Response selectOrg(
             @FormParam("request_id") String requestId,
-            @FormParam("org_id") String orgId) {
+            @FormParam("org_id") String orgId,
+            @CookieParam(SESSION_COOKIE_NAME) String sessionAccountId) {
 
         if (requestId == null || requestId.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -110,6 +114,14 @@ public class OrgSelectionResource {
         if (authRequest == null) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(new ErrorResponse("Authorization request not found"))
+                    .build();
+        }
+
+        // Verify session cookie exists
+        if (sessionAccountId == null || sessionAccountId.isBlank()) {
+            log.warn("Org selection attempted without session cookie for request " + requestId);
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("Session cookie required"))
                     .build();
         }
 
@@ -139,12 +151,11 @@ public class OrgSelectionResource {
         }
 
         try {
-            // selectOrg enforces session fixation guard: accountId from token must match request.accountId
-            authorizationService.selectOrg(requestId, orgId, accountId);
+            authorizationService.selectOrg(requestId, orgId, sessionAccountId);
         } catch (IllegalArgumentException e) {
-            log.warn("Session fixation guard rejected org selection for request " + requestId + ": " + e.getMessage());
+            log.warn("Session fixation guard rejected for request " + requestId + ": " + e.getMessage());
             return Response.status(Response.Status.FORBIDDEN)
-                    .entity(new ErrorResponse("Session validation failed"))
+                    .entity(new ErrorResponse("Session mismatch: authentication required"))
                     .build();
         } catch (IllegalStateException e) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -152,7 +163,19 @@ public class OrgSelectionResource {
                     .build();
         }
 
-        return Response.ok(new OrgSelectedResponse(true)).build();
+        // Clear the session cookie after successful org selection
+        NewCookie clearedSessionCookie = new NewCookie.Builder(SESSION_COOKIE_NAME)
+            .value("")
+            .path("/")
+            .maxAge(0) // Delete the cookie
+            .httpOnly(true)
+            .secure(true)
+            .sameSite(NewCookie.SameSite.STRICT)
+            .build();
+
+        return Response.ok(new OrgSelectedResponse(true))
+            .cookie(clearedSessionCookie)
+            .build();
     }
 
     @RegisterForReflection

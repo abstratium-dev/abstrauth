@@ -103,6 +103,24 @@
                 [disabled]="true">
             <small class="form-hint">Required by abstrauth</small>
           </div>
+
+          <div class="form-group">
+            <label for="autoSubscribe">
+              Auto-subscribe
+            </label>
+            <input type="checkbox" id="autoSubscribe" name="autoSubscribe" [(ngModel)]="formData.autoSubscribe"
+                [disabled]="formSubmitting || !formData.publik">
+            <small class="form-hint">If enabled, any organisation can subscribe automatically on first sign-in. If disabled, an org owner must explicitly subscribe before their users can sign in. Note: subscription is created lazily — it only happens the first time a user from that organisation initiates a sign-in against this specific client.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="publik">
+              Public
+            </label>
+            <input type="checkbox" id="publik" name="publik" [(ngModel)]="formData.publik"
+                [disabled]="formSubmitting" (change)="onPublikChange()">
+            <small class="form-hint">If enabled, third-party organisations can subscribe to this client. If disabled, only the owning organisation can use it.</small>
+          </div>
         </div>
 
         <div class="form-group">
@@ -160,7 +178,7 @@
                 {{ client.clientType }}
               </span>
             </div>
-            <div *ngIf="hasManageClientsRole() && editingClientId !== client.id" class="card-actions">
+            <div *ngIf="hasManageClientsRole() && matchesTokenOrgId(client.orgId) && editingClientId !== client.id" class="card-actions">
               <button class="btn-icon" (click)="startEdit(client)" title="Edit client"
                 [disabled]="editingClientId !== null">
                 ✏️
@@ -205,6 +223,20 @@
                 <label for="edit-requirePkce">Require PKCE</label>
                 <input type="checkbox" id="edit-requirePkce" name="requirePkce" [(ngModel)]="formData.requirePkce"
                   [disabled]="true">
+              </div>
+
+              <div class="form-group">
+                <label for="edit-publik">Public</label>
+                <input type="checkbox" id="edit-publik" name="publik" [(ngModel)]="formData.publik"
+                  [disabled]="formSubmitting" (change)="onPublikChange()">
+                <small class="form-hint">If enabled, third-party organisations can subscribe to this client. If disabled, only the owning organisation can use it.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="edit-autoSubscribe">Auto-subscribe</label>
+                <input type="checkbox" id="edit-autoSubscribe" name="autoSubscribe" [(ngModel)]="formData.autoSubscribe"
+                  [disabled]="formSubmitting || !formData.publik">
+                <small class="form-hint">If enabled, any organisation can subscribe automatically on first sign-in. Requires Public to be enabled. Note: subscription is created lazily — it only happens the first time a user from that organisation initiates a sign-in against this specific client.</small>
               </div>
 
               <div class="form-group">
@@ -265,6 +297,16 @@
             </div>
 
             <div class="detail-row">
+              <span class="label">Public:</span>
+              <span class="value">{{ client.publik ? 'Yes' : 'No' }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Auto-subscribe:</span>
+              <span class="value">{{ client.publik && client.autoSubscribe ? 'Yes' : 'No' }}</span>
+            </div>
+
+            <div class="detail-row">
               <span class="label">Created:</span>
               <span class="value">{{ client.createdAt }}</span>
             </div>
@@ -279,7 +321,7 @@
             </div>
 
             <!-- Secret Management Section -->
-            <div *ngIf="hasManageClientsRole()" class="detail-row secret-management">
+            <div *ngIf="hasManageClientsRole() && matchesTokenOrgId(client.orgId)" class="detail-row secret-management">
               <button class="btn-secondary" (click)="toggleSecretsView(client)">
                 {{ viewingSecretsFor === client.clientId ? '🔒 Hide Secrets' : '🔑 Manage Secrets' }}
               </button>
@@ -381,7 +423,7 @@
             </div>
 
             <!-- Role Management Section (for service clients) -->
-            <div *ngIf="hasManageClientsRole()" class="detail-row role-management">
+            <div *ngIf="hasManageClientsRole() && matchesTokenOrgId(client.orgId)" class="detail-row role-management">
               <button class="btn-secondary" (click)="toggleRolesView(client)" [disabled]="!canManageRoles(client)">
                 {{ viewingRolesFor === client.clientId ? '👥 Hide Roles' : '👥 Manage Roles' }}
               </button>

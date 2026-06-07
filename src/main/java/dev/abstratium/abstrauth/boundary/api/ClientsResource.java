@@ -1,8 +1,12 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
 
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -12,11 +16,14 @@ import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
+import dev.abstratium.abstrauth.service.CurrentOrgContext;
 import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.service.SubscriptionService;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -56,6 +63,12 @@ public class ClientsResource {
     SecurityIdentity securityIdentity;
 
     @Inject
+    SubscriptionService subscriptionService;
+
+    @Inject
+    CurrentOrgContext currentOrgContext;
+
+    @Inject
     @IdToken
     JsonWebToken token;    
 
@@ -64,20 +77,29 @@ public class ClientsResource {
     @Operation(summary = "List all OAuth clients", description = "Returns a list of all registered OAuth clients")
     @RolesAllowed(Roles.USER)
     public List<ClientResponse> listClients() {
-        // Get the current user's ID from the JWT token (sub claim)
-        String accountId = token.getSubject();
+        String orgId = currentOrgContext.getOrgId();
+
+        // The set of clientIds this org is subscribed to drives visibility.
+        // This includes own org's clients (subscribed by default) and cross-org public clients
+        // that the org owner has explicitly subscribed to.
+        Set<String> subscribedClientIds = new HashSet<>(subscriptionService.findClientIdsByOrgId(orgId));
+
+        Map<String, ClientResponse> merged = new LinkedHashMap<>();
+
+        // Add subscribed clients that belong to other orgs (cross-org) via non-multitenancy entity
+        oauthClientService.findAllByClientIds(subscribedClientIds).stream()
+                .map(this::toClientResponse)
+                .forEach(r -> merged.put(r.clientId, r));
 
         if (securityIdentity.hasRole(Roles.MANAGE_CLIENTS)) {
-            // findAll() is automatically scoped to current org via @TenantId discriminator
-            return oauthClientService.findAll().stream()
+            // Also include all clients owned by the caller's org, regardless of subscription
+            oauthClientService.findAll().stream()
+                    .filter(c -> !merged.containsKey(c.getClientId()))
                     .map(this::toClientResponse)
-                    .collect(Collectors.toList());
+                    .forEach(r -> merged.put(r.clientId, r));
         }
-        List<String> clientIds = accountRoleService.findClientsByAccountId(accountId);
-        // findByClientIds is automatically scoped to current org via @TenantId discriminator
-        return oauthClientService.findByClientIds(new HashSet<>(clientIds)).stream()
-                .map(this::toClientResponse)
-                .collect(Collectors.toList());
+
+        return new ArrayList<>(merged.values());
     }
 
     @GET
@@ -145,6 +167,10 @@ public class ClientsResource {
         client.setRedirectUris(hasRedirectUris ? request.redirectUris : "[]");
         client.setAllowedScopes(hasScopes ? request.allowedScopes : "[]");
         client.setRequirePkce(true);  // Always require PKCE
+        boolean publik = request.publik != null ? request.publik : false;
+        boolean autoSubscribe = publik && (request.autoSubscribe != null ? request.autoSubscribe : false);
+        client.setPublik(publik);
+        client.setAutoSubscribe(autoSubscribe);
 
         OAuthClientService.ClientWithSecret result = oauthClientService.createWithSecret(client);
         metricsService.recordClientCreation();
@@ -209,6 +235,10 @@ public class ClientsResource {
         existing.setRedirectUris(hasRedirectUris ? request.redirectUris : "[]");
         existing.setAllowedScopes(hasScopes ? request.allowedScopes : "[]");
         existing.setRequirePkce(true);  // Always require PKCE
+        boolean updatedPublik = request.publik != null ? request.publik : Boolean.TRUE.equals(existing.getPublik());
+        boolean updatedAutoSubscribe = updatedPublik && (request.autoSubscribe != null ? request.autoSubscribe : Boolean.TRUE.equals(existing.getAutoSubscribe()));
+        existing.setPublik(updatedPublik);
+        existing.setAutoSubscribe(updatedAutoSubscribe);
 
         OAuthClient updated = oauthClientService.update(existing);
         return Response.ok(toClientResponse(updated)).build();
@@ -260,26 +290,49 @@ public class ClientsResource {
     private ClientResponse toClientResponse(OAuthClient client) {
         return new ClientResponse(
                 client.getId(),
+                client.getOrgId(),
                 client.getClientId(),
                 client.getClientName(),
                 client.getClientType(),
                 client.getRedirectUris(),
                 client.getAllowedScopes(),
                 client.getRequirePkce(),
+                client.getAutoSubscribe(),
+                client.getPublik(),
                 client.getCreatedAt() != null ? client.getCreatedAt().toString() : null,
                 null  // No secret in normal responses
+        );
+    }
+
+    private ClientResponse toClientResponse(NonMultitenancyOAuthClient client) {
+        return new ClientResponse(
+                client.getId(),
+                client.getOrgId(),
+                client.getClientId(),
+                client.getClientName(),
+                client.getClientType(),
+                client.getRedirectUris(),
+                client.getAllowedScopes(),
+                client.getRequirePkce(),
+                client.getAutoSubscribe(),
+                client.getPublik(),
+                client.getCreatedAt() != null ? client.getCreatedAt().toString() : null,
+                null
         );
     }
 
     private ClientResponse toClientResponseWithSecret(OAuthClient client, String plainSecret) {
         return new ClientResponse(
                 client.getId(),
+                client.getOrgId(),
                 client.getClientId(),
                 client.getClientName(),
                 client.getClientType(),
                 client.getRedirectUris(),
                 client.getAllowedScopes(),
                 client.getRequirePkce(),
+                client.getAutoSubscribe(),
+                client.getPublik(),
                 client.getCreatedAt() != null ? client.getCreatedAt().toString() : null,
                 plainSecret  // Include plain secret for one-time display
         );
@@ -288,25 +341,31 @@ public class ClientsResource {
     @RegisterForReflection
     public static class ClientResponse {
         public String id;
+        public String orgId;
         public String clientId;
         public String clientName;
         public String clientType;
         public String redirectUris;
         public String allowedScopes;
         public Boolean requirePkce;
+        public Boolean autoSubscribe;
+        public Boolean publik;
         public String createdAt;
         public String clientSecret;  // Only populated on creation, null otherwise
 
-        public ClientResponse(String id, String clientId, String clientName, String clientType,
-                            String redirectUris, String allowedScopes, Boolean requirePkce, String createdAt,
-                            String clientSecret) {
+        public ClientResponse(String id, String orgId, String clientId, String clientName, String clientType,
+                            String redirectUris, String allowedScopes, Boolean requirePkce,
+                            Boolean autoSubscribe, Boolean publik, String createdAt, String clientSecret) {
             this.id = id;
+            this.orgId = orgId;
             this.clientId = clientId;
             this.clientName = clientName;
             this.clientType = clientType;
             this.redirectUris = redirectUris;
             this.allowedScopes = allowedScopes;
             this.requirePkce = requirePkce;
+            this.autoSubscribe = autoSubscribe;
+            this.publik = publik;
             this.createdAt = createdAt;
             this.clientSecret = clientSecret;
         }
@@ -343,6 +402,14 @@ public class ClientsResource {
         public String allowedScopes;
         
         public Boolean requirePkce;
+
+        // Whether any organisation may subscribe to this client automatically on first sign-in.
+        // If false, an org owner must explicitly subscribe before users can sign in.
+        public Boolean autoSubscribe;
+
+        // Whether third-party organisations may subscribe to this client at all.
+        // If false, only the owning organisation may use it.
+        public Boolean publik;
     }
 
     @RegisterForReflection
@@ -360,6 +427,14 @@ public class ClientsResource {
         public String allowedScopes;
         
         public Boolean requirePkce;
+
+        // Whether any organisation may subscribe to this client automatically on first sign-in.
+        // Coerced to false if publik is false.
+        public Boolean autoSubscribe;
+
+        // Whether third-party organisations may subscribe to this client at all.
+        // If false, only the owning organisation may use it.
+        public Boolean publik;
     }
 
 }
