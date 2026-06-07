@@ -1,8 +1,10 @@
-package dev.abstratium.abstrauth.boundary;
+package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
 import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.OrganisationService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
@@ -31,6 +33,12 @@ public class TokenRolesTest {
 
     @Inject
     AccountRoleService accountRoleService;
+
+    @Inject
+    NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
+
+    @Inject
+    OrganisationService organisationService;
     
     @Inject
     jakarta.persistence.EntityManager em;
@@ -46,6 +54,7 @@ public class TokenRolesTest {
     private String testEmail;
     private String testPassword = "SecurePassword123";
     private String testAccountId;
+    private String testOrgId;
 
     @BeforeEach
     public void setup() throws Exception {
@@ -70,6 +79,7 @@ public class TokenRolesTest {
             "Test Org");
         testAccountId = account.getId();
         userTransaction.commit();
+        testOrgId = organisationService.listOrganisationsForAccount(testAccountId).get(0).getId();
     }
     
     private void ensureClientExists(String clientId) {
@@ -299,7 +309,7 @@ public class TokenRolesTest {
     void addRolesInTransaction(String clientId, String... roles) throws Exception {
         userTransaction.begin();
         for (String role : roles) {
-            accountRoleService.addRole(testAccountId, clientId, role);
+            nonMultitenancyAccountRoleService.addRole(testOrgId, testAccountId, clientId, role);
         }
         userTransaction.commit();
     }

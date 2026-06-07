@@ -3,8 +3,6 @@ package dev.abstratium.abstrauth.service;
 import dev.abstratium.abstrauth.boundary.TimedOutException;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
-import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -35,8 +33,6 @@ public class AuthorizationService {
     @Inject
     OAuthClientService oAuthClientService;
 
-    @Inject
-    NonMultitenancySubscriptionService nonMultitenancySubscriptionService;
 
     @ConfigProperty(name = "allow.signup", defaultValue = "false")
     boolean allowSignup;
@@ -95,38 +91,6 @@ public class AuthorizationService {
         request.setStatus("approved");
         em.merge(request);
         metricsService.recordAuthorizationApproval();
-    }
-
-    /**
-     * Checks the subscription gate for the given org and client.
-     * Auto-creates a subscription if auto_subscribe = true AND publik = true;
-     * throws {@link NoSubscriptionException} otherwise.
-     * A private client (publik = false) can never be auto-subscribed by a non-owning org.
-     * Used by the org-selection path where approval is handled separately.
-     */
-    @Transactional
-    public void checkSubscription(String orgId, String clientId) {
-        OAuthClient client = oAuthClientService.findByClientId(clientId).orElse(null);
-        boolean isPublik = client == null || Boolean.TRUE.equals(client.getPublik());
-        boolean autoSubscribe = isPublik && (client == null || Boolean.TRUE.equals(client.getAutoSubscribe()));
-        nonMultitenancySubscriptionService.ensureSubscribed(orgId, clientId, autoSubscribe);
-    }
-
-    /**
-     * Approves the authorization request for the given account, checks the subscription
-     * gate for the chosen org, and records the orgId — all in one call.
-     * Throws {@link NoSubscriptionException} if the org is not subscribed and
-     * the client has auto_subscribe = false.
-     */
-    @Transactional
-    public void approveWithSubscriptionCheck(String requestId, String accountId, String authMethod, String orgId) {
-        AuthorizationRequest request = em.find(AuthorizationRequest.class, requestId);
-        if (request == null) {
-            throw new NotFoundException("Authorization request not found");
-        }
-        checkSubscription(orgId, request.getClientId());
-        approveAuthorizationRequest(requestId, accountId, authMethod);
-        setOrgId(requestId, orgId);
     }
 
     /**

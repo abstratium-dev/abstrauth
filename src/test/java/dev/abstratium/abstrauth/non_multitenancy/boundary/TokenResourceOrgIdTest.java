@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary.oauth;
+package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;

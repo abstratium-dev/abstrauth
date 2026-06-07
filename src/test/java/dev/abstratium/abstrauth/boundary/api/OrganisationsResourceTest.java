@@ -10,12 +10,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import dev.abstratium.abstrauth.entity.Organisation;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
-import dev.abstratium.abstrauth.service.SubscriptionService;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
@@ -35,7 +34,7 @@ public class OrganisationsResourceTest {
     OrganisationService organisationService;
 
     @Inject
-    SubscriptionService subscriptionService;
+    NonMultitenancySubscriptionService subscriptionService;
 
     @Inject
     EntityManager em;
@@ -67,14 +66,6 @@ public class OrganisationsResourceTest {
                 "Test Org " + suffix);
         transactionHelper.commitTransaction();
         return account;
-    }
-
-    private String getAccountOrgId(String accountId) throws Exception {
-        transactionHelper.beginTransaction();
-        java.util.List<Organisation> orgs = organisationService.listOrganisationsForAccount(accountId);
-        String orgId = orgs.isEmpty() ? DEFAULT_ORG_ID : orgs.get(0).getId();
-        transactionHelper.commitTransaction();
-        return orgId;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -327,7 +318,7 @@ public class OrganisationsResourceTest {
         String clientId = "dup-sub-client-" + ts;
         transactionHelper.beginTransaction();
         createTestClient(clientId, ownerOrg.getId());
-        subscriptionService.subscribe(ownerOrg.getId(), clientId);
+        subscriptionService.ensureSubscribed(ownerOrg.getId(), clientId, true);
         transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
@@ -379,7 +370,7 @@ public class OrganisationsResourceTest {
         String clientId = "unsub-client-" + ts;
         transactionHelper.beginTransaction();
         createTestClient(clientId, ownerOrg.getId());
-        subscriptionService.subscribe(ownerOrg.getId(), clientId);
+        subscriptionService.ensureSubscribed(ownerOrg.getId(), clientId, true);
         transactionHelper.commitTransaction();
 
         String token = userToken(owner.getId(), ownerOrg.getId());
@@ -391,7 +382,7 @@ public class OrganisationsResourceTest {
                 .then()
                 .statusCode(204);
 
-        assertFalse(subscriptionService.subscriptionExists(ownerOrg.getId(), clientId));
+        assertFalse(subscriptionService.findNonMultitenancySubscription(ownerOrg.getId(), clientId).isPresent());
     }
 
     @Test
@@ -404,7 +395,7 @@ public class OrganisationsResourceTest {
         String clientId = "unsub-f-client-" + ts;
         transactionHelper.beginTransaction();
         createTestClient(clientId, ownerOrg.getId());
-        subscriptionService.subscribe(ownerOrg.getId(), clientId);
+        subscriptionService.ensureSubscribed(ownerOrg.getId(), clientId, true);
         transactionHelper.commitTransaction();
 
         String token = userToken(nonOwner.getId(), ownerOrg.getId());
@@ -438,71 +429,6 @@ public class OrganisationsResourceTest {
                 .statusCode(400);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // GET /api/clients/{clientId}/allowed-roles
-    // ─────────────────────────────────────────────────────────
-
-    @Test
-    public void testListAllowedRoles_empty() throws Exception {
-        long ts = System.currentTimeMillis();
-        Account account = createAccount(ts + "_roleemp");
-        String clientId = "roles-empty-client-" + ts;
-        String orgId = getAccountOrgId(account.getId());
-
-        transactionHelper.beginTransaction();
-        createTestClient(clientId, orgId);
-        transactionHelper.commitTransaction();
-        String token = userToken(account.getId(), orgId);
-
-        given()
-                .auth().oauth2(token)
-                .when()
-                .get("/api/clients/" + clientId + "/allowed-roles")
-                .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("$", empty());
-    }
-
-    @Test
-    public void testListAllowedRoles_withRoles() throws Exception {
-        long ts = System.currentTimeMillis();
-        Account account = createAccount(ts + "_rolewith");
-        String clientId = "roles-with-client-" + ts;
-        String orgId = getAccountOrgId(account.getId());
-
-        transactionHelper.beginTransaction();
-        createTestClient(clientId, orgId);
-        insertAllowedRole(clientId, "viewer", false);
-        insertAllowedRole(clientId, "editor", true);
-        transactionHelper.commitTransaction();
-
-        String token = userToken(account.getId(), orgId);
-
-        given()
-                .auth().oauth2(token)
-                .when()
-                .get("/api/clients/" + clientId + "/allowed-roles")
-                .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("role", hasItems("viewer", "editor"))
-                .body("isDefault", hasItems(false, true));
-    }
-
-    @Test
-    public void testListAllowedRoles_unauthenticated_returns401() {
-        given()
-                .when()
-                .get("/api/clients/some-client/allowed-roles")
-                .then()
-                .statusCode(401);
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────
-
     private void createTestClient(String clientId, String orgId) {
         em.createNativeQuery(
             "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, org_id) " +
@@ -516,10 +442,4 @@ public class OrganisationsResourceTest {
             .executeUpdate();
     }
 
-    private void insertAllowedRole(String clientId, String role, boolean isDefault) {
-        ClientAllowedRole r = new ClientAllowedRole();
-        r.setId(new ClientAllowedRole.Id(clientId, role));
-        r.setIsDefault(isDefault);
-        em.persist(r);
-    }
 }

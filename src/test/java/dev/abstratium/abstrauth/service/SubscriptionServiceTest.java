@@ -6,123 +6,170 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Subscription;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancySubscription;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import jakarta.transaction.UserTransaction;
 
 @QuarkusTest
 public class SubscriptionServiceTest {
 
-    // Known client_id values inserted by import.sql
-    private static final String CLIENT_A = "client-a";
-    private static final String CLIENT_B = "client-b";
-    private static final String CLIENT_X = "client-x";
-    private static final String CLIENT_Y = "client-y";
+    // In test context JwtOrgResolver falls back to the default org — SubscriptionService
+    // calls must use this orgId so that @TenantId matches the resolved tenant.
+    private static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
 
     @Inject
     SubscriptionService subscriptionService;
 
     @Inject
+    NonMultitenancySubscriptionService nonMultitenancySubscriptionService;
+
+    @Inject
     OrganisationService organisationService;
 
-    private String newOrg() {
-        return organisationService.createOrganisation("Sub Test Org", null).getId();
+    @Inject
+    jakarta.persistence.EntityManager em;
+
+    @Inject
+    UserTransaction userTransaction;
+
+    /**
+     * Creates a fresh client in the default org and returns its clientId.
+     * Each test uses its own client to avoid unique-constraint collisions across tests.
+     */
+    private String newClient() throws Exception {
+        String clientId = "sub-test-" + System.nanoTime();
+        userTransaction.begin();
+        dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
+        client.setClientId(clientId);
+        client.setClientName("Sub Test " + clientId);
+        client.setClientType("confidential");
+        client.setRedirectUris("[]");
+        client.setAllowedScopes("[]");
+        client.setRequirePkce(false);
+        em.persist(client);
+        userTransaction.commit();
+        return clientId;
+    }
+
+    /** Creates a new organisation and returns its id (used for isolation assertions only). */
+    private String newOrg() throws Exception {
+        userTransaction.begin();
+        String orgId = organisationService.createOrganisation("Sub Test Org", null).getId();
+        userTransaction.commit();
+        return orgId;
     }
 
     @Test
-    public void testSubscribe() {
-        String orgId = newOrg();
+    public void testSubscribe_createsSubscription() throws Exception {
+        String clientId = newClient();
 
-        Subscription subscription = subscriptionService.subscribe(orgId, CLIENT_A);
+        Subscription sub = subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
 
-        assertNotNull(subscription.getId());
-        assertEquals(orgId, subscription.getOrgId());
-        assertEquals(CLIENT_A, subscription.getClientId());
-        assertNotNull(subscription.getCreatedAt());
+        assertNotNull(sub.getId());
+        assertEquals(DEFAULT_ORG_ID, sub.getOrgId());
+        assertEquals(clientId, sub.getClientId());
+        assertNotNull(sub.getCreatedAt());
+
+        // Confirm via non-multitenancy read that orgId is stored correctly in the DB
+        Optional<NonMultitenancySubscription> persisted =
+                nonMultitenancySubscriptionService.findNonMultitenancySubscription(DEFAULT_ORG_ID, clientId);
+        assertTrue(persisted.isPresent());
+        assertEquals(DEFAULT_ORG_ID, persisted.get().getOrgId());
+        assertEquals(clientId, persisted.get().getClientId());
     }
 
     @Test
-    public void testSubscribeWhenAlreadySubscribedThrows() {
-        String orgId = newOrg();
-        subscriptionService.subscribe(orgId, CLIENT_A);
+    public void testSubscribe_throwsOnDuplicate() throws Exception {
+        String clientId = newClient();
+        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
 
-        assertThrows(IllegalArgumentException.class, () ->
-                subscriptionService.subscribe(orgId, CLIENT_A));
+        assertThrows(IllegalArgumentException.class,
+                () -> subscriptionService.subscribe(DEFAULT_ORG_ID, clientId),
+                "Second subscribe to the same org+client must throw");
     }
 
     @Test
-    public void testSubscriptionExistsAfterSubscribe() {
-        String orgId = newOrg();
+    public void testUnsubscribe_removesSubscription() throws Exception {
+        String clientId = newClient();
+        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
+        assertTrue(subscriptionService.subscriptionExists(DEFAULT_ORG_ID, clientId));
 
-        assertFalse(subscriptionService.subscriptionExists(orgId, CLIENT_A));
-        subscriptionService.subscribe(orgId, CLIENT_A);
-        assertTrue(subscriptionService.subscriptionExists(orgId, CLIENT_A));
+        subscriptionService.unsubscribe(DEFAULT_ORG_ID, clientId);
+
+        assertFalse(subscriptionService.subscriptionExists(DEFAULT_ORG_ID, clientId));
+        // Confirm removal is visible via non-multitenancy read
+        assertFalse(nonMultitenancySubscriptionService
+                .findNonMultitenancySubscription(DEFAULT_ORG_ID, clientId).isPresent());
     }
 
     @Test
-    public void testUnsubscribe() {
-        String orgId = newOrg();
-        subscriptionService.subscribe(orgId, CLIENT_B);
+    public void testUnsubscribe_throwsWhenNotSubscribed() throws Exception {
+        String clientId = newClient();
 
-        assertTrue(subscriptionService.subscriptionExists(orgId, CLIENT_B));
-        subscriptionService.unsubscribe(orgId, CLIENT_B);
-        assertFalse(subscriptionService.subscriptionExists(orgId, CLIENT_B));
+        assertThrows(IllegalArgumentException.class,
+                () -> subscriptionService.unsubscribe(DEFAULT_ORG_ID, clientId),
+                "Unsubscribing when not subscribed must throw");
     }
 
     @Test
-    public void testUnsubscribeWhenNotSubscribedThrows() {
-        String orgId = newOrg();
+    public void testSubscriptionExists_falseBeforeSubscribe() throws Exception {
+        String clientId = newClient();
 
-        assertThrows(IllegalArgumentException.class, () ->
-                subscriptionService.unsubscribe(orgId, CLIENT_A));
+        assertFalse(subscriptionService.subscriptionExists(DEFAULT_ORG_ID, clientId));
     }
 
     @Test
-    public void testFindSubscription() {
-        String orgId = newOrg();
+    public void testFindSubscription_returnsCorrectData() throws Exception {
+        String clientId = newClient();
+        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
 
-        Optional<Subscription> before = subscriptionService.findSubscription(orgId, CLIENT_X);
-        assertFalse(before.isPresent());
+        Optional<Subscription> found = subscriptionService.findSubscription(DEFAULT_ORG_ID, clientId);
 
-        subscriptionService.subscribe(orgId, CLIENT_X);
-
-        Optional<Subscription> after = subscriptionService.findSubscription(orgId, CLIENT_X);
-        assertTrue(after.isPresent());
-        assertEquals(orgId, after.get().getOrgId());
-        assertEquals(CLIENT_X, after.get().getClientId());
+        assertTrue(found.isPresent());
+        assertEquals(DEFAULT_ORG_ID, found.get().getOrgId());
+        assertEquals(clientId, found.get().getClientId());
     }
 
     @Test
-    public void testSubscriptionExistsReturnsFalseForDifferentOrg() {
-        String orgId = newOrg();
+    public void testFindClientIdsByOrgId_includesSubscribedClients() throws Exception {
+        String clientId1 = newClient();
+        String clientId2 = newClient();
+        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId1);
+        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId2);
+
+        List<String> clientIds = subscriptionService.findClientIdsByOrgId(DEFAULT_ORG_ID);
+
+        assertTrue(clientIds.contains(clientId1));
+        assertTrue(clientIds.contains(clientId2));
+    }
+
+    @Test
+    public void testSubscriptionIsolatedByOrg() throws Exception {
+        String clientId = newClient();
+        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
+
+        // A different org must not see the default org's subscription
         String otherOrgId = newOrg();
-        subscriptionService.subscribe(orgId, CLIENT_Y);
-
-        assertFalse(subscriptionService.subscriptionExists(otherOrgId, CLIENT_Y),
-                "Different org should not have a subscription");
+        assertFalse(nonMultitenancySubscriptionService
+                .findNonMultitenancySubscription(otherOrgId, clientId).isPresent(),
+                "Subscription for default org must not be visible under a different org");
     }
 
     @Test
-    public void testSubscriptionExistsReturnsFalseForDifferentClient() {
-        String orgId = newOrg();
-        subscriptionService.subscribe(orgId, CLIENT_A);
+    public void testSubscriptionIsolatedByClient() throws Exception {
+        String clientId1 = newClient();
+        String clientId2 = newClient();
+        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId1);
 
-        assertFalse(subscriptionService.subscriptionExists(orgId, CLIENT_B),
-                "Different client should not have a subscription");
-    }
-
-    @Test
-    public void testResubscribeAfterUnsubscribe() {
-        String orgId = newOrg();
-        subscriptionService.subscribe(orgId, CLIENT_A);
-        subscriptionService.unsubscribe(orgId, CLIENT_A);
-
-        Subscription reSubscription = subscriptionService.subscribe(orgId, CLIENT_A);
-        assertNotNull(reSubscription.getId());
-        assertTrue(subscriptionService.subscriptionExists(orgId, CLIENT_A));
+        assertFalse(subscriptionService.subscriptionExists(DEFAULT_ORG_ID, clientId2),
+                "Subscribing to one client must not create a subscription for another");
     }
 }

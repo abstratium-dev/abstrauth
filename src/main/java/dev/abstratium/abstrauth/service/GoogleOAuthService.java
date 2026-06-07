@@ -99,7 +99,7 @@ public class GoogleOAuthService {
             Boolean emailVerified = emailVerifiedFromToken != null ? emailVerifiedFromToken : userInfo.getEmailVerified();
             
             // Create a new account for this Google user
-            account = accountService.createFederatedAccount(
+            account = accountService.createAccountFromFederatedProvider(
                     userInfo.getEmail(),
                     userInfo.getName(),
                     convertToProxyUrl(userInfo.getPicture()),

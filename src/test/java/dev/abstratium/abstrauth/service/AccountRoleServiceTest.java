@@ -1,17 +1,22 @@
 package dev.abstratium.abstrauth.service;
 
-import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.entity.AccountRole;
-import dev.abstratium.abstrauth.util.TestTransactionHelper;
-import io.quarkus.test.junit.QuarkusTest;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static io.restassured.RestAssured.given;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AccountRole;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccountRole;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
+import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.http.ContentType;
+import io.smallrye.jwt.build.Jwt;
+import jakarta.inject.Inject;
 
 @QuarkusTest
 public class AccountRoleServiceTest {
@@ -21,6 +26,9 @@ public class AccountRoleServiceTest {
 
     @Inject
     AccountService accountService;
+
+    @Inject
+    OrganisationService organisationService;
     
     @Inject
     jakarta.persistence.EntityManager em;
@@ -29,6 +37,7 @@ public class AccountRoleServiceTest {
     TestTransactionHelper transactionHelper;
 
     private String testAccountId;
+    private String testOrgId;
     private static final String TEST_CLIENT_ID = "test_client_123";
     private static final String TEST_CLIENT_ID_2 = "test_client_456";
 
@@ -71,8 +80,8 @@ public class AccountRoleServiceTest {
             AccountService.NATIVE,
             "Test Org");
         testAccountId = account.getId();
-        
         transactionHelper.commitTransaction();
+        testOrgId = organisationService.listOrganisationsForAccount(testAccountId).get(0).getId();
     }
 
     @Test
@@ -128,15 +137,46 @@ public class AccountRoleServiceTest {
     @Test
     public void testFindRolesByAccountId() {
         // Add roles for multiple clients (note: account already has automatic roles:
-        // "user", "manage_accounts", "manage_clients" because account is an owner)
+        // "user", "manage-accounts", "manage-clients" because account is an owner)
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "editor");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID_2, "viewer");
 
-        List<AccountRole> roles = accountRoleService.findRolesByAccountId(testAccountId);
-        
-        // Expect 6 roles: 3 automatic (user, manage_accounts, manage_clients) + 3 manually added
-        assertEquals(6, roles.size());
+        // Use NonMultitenancyAccountRole to read all rows regardless of tenant filter
+        List<NonMultitenancyAccountRole> allRoles = em.createQuery(
+            "SELECT ar FROM NonMultitenancyAccountRole ar WHERE ar.accountId = :accountId",
+            NonMultitenancyAccountRole.class)
+            .setParameter("accountId", testAccountId)
+            .getResultList();
+
+        // Expect 6 roles: 3 automatic (user, manage-accounts, manage-clients) + 3 manually added
+        assertEquals(6, allRoles.size());
+
+        // Automatic roles: user, manage-accounts, manage-clients — scoped to abstratium-abstrauth and testOrgId
+        List<NonMultitenancyAccountRole> autoRoles = allRoles.stream()
+            .filter(r -> Roles.CLIENT_ID.equals(r.getClientId()))
+            .toList();
+        assertEquals(3, autoRoles.size());
+        assertTrue(autoRoles.stream().map(r -> r.getRole()).toList()
+            .containsAll(List.of(Roles._MANAGE_ACCOUNTS_PLAIN, Roles._MANAGE_CLIENTS_PLAIN, Roles._USER_PLAIN)),
+            "Automatic roles should be user, manage-accounts, manage-clients");
+        assertTrue(autoRoles.stream().allMatch(r -> testOrgId.equals(r.getOrgId())),
+            "Automatic roles should have the account's orgId");
+
+        // Manually added roles for TEST_CLIENT_ID
+        List<NonMultitenancyAccountRole> client1Roles = allRoles.stream()
+            .filter(r -> TEST_CLIENT_ID.equals(r.getClientId()))
+            .toList();
+        assertEquals(2, client1Roles.size());
+        assertTrue(client1Roles.stream().map(r -> r.getRole()).toList()
+            .containsAll(List.of("admin", "editor")));
+
+        // Manually added role for TEST_CLIENT_ID_2
+        List<NonMultitenancyAccountRole> client2Roles = allRoles.stream()
+            .filter(r -> TEST_CLIENT_ID_2.equals(r.getClientId()))
+            .toList();
+        assertEquals(1, client2Roles.size());
+        assertEquals("viewer", client2Roles.get(0).getRole());
     }
 
     @Test
@@ -318,14 +358,30 @@ public class AccountRoleServiceTest {
         
         transactionHelper.commitTransaction();
         
-        // Should be able to add a role that is in the allowlist
-        assertDoesNotThrow(() -> {
-            accountRoleService.addRole(testAccountId, publicClientId, "viewer");
-        });
+        // Call via HTTP so securityIdentity is populated and checkRoleAgainstAllowlist is enforced
+        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+            .subject(testAccountId)
+            .upn("caller@example.com")
+            .groups(Set.of(Roles.MANAGE_ACCOUNTS))
+            .claim("orgId", testOrgId)
+            .sign();
         
-        // Verify the role was added
-        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, publicClientId);
-        assertTrue(roles.contains("viewer"));
+        given()
+            .auth().oauth2(token)
+            .contentType(ContentType.JSON)
+            .body(String.format("{\"accountId\":\"%s\",\"clientId\":\"%s\",\"role\":\"viewer\"}",
+                testAccountId, publicClientId))
+            .when().post("/api/accounts/role")
+            .then().statusCode(201);
+        
+        // Verify the role was added using NonMultitenancyAccountRole to bypass tenant filter
+        boolean hasViewer = em.createQuery(
+            "SELECT COUNT(ar) FROM NonMultitenancyAccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.role = 'viewer'",
+            Long.class)
+            .setParameter("accountId", testAccountId)
+            .setParameter("clientId", publicClientId)
+            .getSingleResult() > 0;
+        assertTrue(hasViewer);
     }
 
     @Test
@@ -352,13 +408,25 @@ public class AccountRoleServiceTest {
         
         transactionHelper.commitTransaction();
         
-        // Should NOT be able to add "admin" since it's not in the allowlist
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            accountRoleService.addRole(testAccountId, publicClientId, "admin");
-        });
+        // Call via HTTP so securityIdentity is populated and checkRoleAgainstAllowlist is enforced
+        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+            .subject(testAccountId)
+            .upn("caller@example.com")
+            .groups(Set.of(Roles.MANAGE_ACCOUNTS))
+            .claim("orgId", testOrgId)
+            .sign();
         
-        assertTrue(exception.getMessage().contains("not in the allowlist"));
-        assertTrue(exception.getMessage().contains(publicClientId));
+        // Should NOT be able to add "hacker-role" since it's not in the allowlist — expect 400
+        // (use a non-admin role so checkNonAdminCannotAddAdminRole doesn't fire first)
+        given()
+            .auth().oauth2(token)
+            .contentType(ContentType.JSON)
+            .body(String.format("{\"accountId\":\"%s\",\"clientId\":\"%s\",\"role\":\"hacker-role\"}",
+                testAccountId, publicClientId))
+            .when().post("/api/accounts/role")
+            .then()
+            .statusCode(400)
+            .body("error", org.hamcrest.Matchers.containsString("not in the allowlist"));
     }
 
     @Test

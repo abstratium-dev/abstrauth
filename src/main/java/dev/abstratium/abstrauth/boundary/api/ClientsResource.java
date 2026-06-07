@@ -1,32 +1,19 @@
 package dev.abstratium.abstrauth.boundary.api;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.LinkedHashMap;
-
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
-import dev.abstratium.abstrauth.entity.ClientAllowedRole;
-import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
+import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
-import dev.abstratium.abstrauth.service.CurrentOrgContext;
 import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
-import dev.abstratium.abstrauth.service.SubscriptionService;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
-import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
@@ -60,47 +47,8 @@ public class ClientsResource {
     MetricsService metricsService;
 
     @Inject
-    SecurityIdentity securityIdentity;
-
-    @Inject
-    SubscriptionService subscriptionService;
-
-    @Inject
-    CurrentOrgContext currentOrgContext;
-
-    @Inject
     @IdToken
     JsonWebToken token;    
-
-    @GET
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "List all OAuth clients", description = "Returns a list of all registered OAuth clients")
-    @RolesAllowed(Roles.USER)
-    public List<ClientResponse> listClients() {
-        String orgId = currentOrgContext.getOrgId();
-
-        // The set of clientIds this org is subscribed to drives visibility.
-        // This includes own org's clients (subscribed by default) and cross-org public clients
-        // that the org owner has explicitly subscribed to.
-        Set<String> subscribedClientIds = new HashSet<>(subscriptionService.findClientIdsByOrgId(orgId));
-
-        Map<String, ClientResponse> merged = new LinkedHashMap<>();
-
-        // Add subscribed clients that belong to other orgs (cross-org) via non-multitenancy entity
-        oauthClientService.findAllByClientIds(subscribedClientIds).stream()
-                .map(this::toClientResponse)
-                .forEach(r -> merged.put(r.clientId, r));
-
-        if (securityIdentity.hasRole(Roles.MANAGE_CLIENTS)) {
-            // Also include all clients owned by the caller's org, regardless of subscription
-            oauthClientService.findAll().stream()
-                    .filter(c -> !merged.containsKey(c.getClientId()))
-                    .map(this::toClientResponse)
-                    .forEach(r -> merged.put(r.clientId, r));
-        }
-
-        return new ArrayList<>(merged.values());
-    }
 
     @GET
     @Path("/{id}")
@@ -267,26 +215,6 @@ public class ClientsResource {
         return Response.noContent().build();
     }
 
-    @GET
-    @Path("/{clientId}/allowed-roles")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "List allowed roles for a client", description = "Returns the roles that subscribing organisations may assign to their users for this client")
-    @RolesAllowed(Roles.USER)
-    public Response listAllowedRoles(@PathParam("clientId") String clientId) {
-        // Verify client exists in caller's org (findByClientId is tenant-scoped)
-        if (oauthClientService.findByClientId(clientId).isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(new ErrorResponse("Client not found"))
-                    .build();
-        }
-
-        List<ClientAllowedRole> roles = clientAllowedRoleService.findByClientId(clientId);
-        List<AllowedRoleResponse> response = roles.stream()
-                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault()))
-                .collect(Collectors.toList());
-        return Response.ok(response).build();
-    }
-
     private ClientResponse toClientResponse(OAuthClient client) {
         return new ClientResponse(
                 client.getId(),
@@ -301,23 +229,6 @@ public class ClientsResource {
                 client.getPublik(),
                 client.getCreatedAt() != null ? client.getCreatedAt().toString() : null,
                 null  // No secret in normal responses
-        );
-    }
-
-    private ClientResponse toClientResponse(NonMultitenancyOAuthClient client) {
-        return new ClientResponse(
-                client.getId(),
-                client.getOrgId(),
-                client.getClientId(),
-                client.getClientName(),
-                client.getClientType(),
-                client.getRedirectUris(),
-                client.getAllowedScopes(),
-                client.getRequirePkce(),
-                client.getAutoSubscribe(),
-                client.getPublik(),
-                client.getCreatedAt() != null ? client.getCreatedAt().toString() : null,
-                null
         );
     }
 

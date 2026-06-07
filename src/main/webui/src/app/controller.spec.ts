@@ -317,7 +317,7 @@ describe('Controller', () => {
   describe('loadClients', () => {
     it('should load clients and update model service', () => {
       const mockClients = [
-        { id: '1', clientId: 'test-client', clientName: 'Test Client', clientType: 'confidential', redirectUris: '[]', allowedScopes: '[]', requirePkce: true, createdAt: '2024-01-01' }
+        { id: '1', orgId: 'test-org', clientId: 'test-client', clientName: 'Test Client', clientType: 'confidential', redirectUris: '[]', allowedScopes: '[]', requirePkce: true, autoSubscribe: true, publik: false, createdAt: '2024-01-01' }
       ];
 
       controller.loadClients();
@@ -397,12 +397,17 @@ describe('Controller', () => {
       clientType: 'confidential',
       redirectUris: '["http://localhost:3000/callback"]',
       allowedScopes: '["openid", "profile"]',
-      requirePkce: true
+      requirePkce: true,
+      autoSubscribe: true,
+      publik: false
     };
 
     const mockCreatedClient = {
       id: '123',
+      orgId: 'test-org',
       ...mockClientData,
+      autoSubscribe: true,
+      publik: false,
       createdAt: '2024-01-01T00:00:00Z'
     };
 
@@ -503,7 +508,9 @@ describe('Controller', () => {
         clientType: 'confidential',
         redirectUris: '["https://example.com/callback"]',
         allowedScopes: '["openid", "email", "profile"]',
-        requirePkce: false
+        requirePkce: false,
+        autoSubscribe: true,
+        publik: false
       };
 
       const promise = controller.createClient(clientData);
@@ -516,7 +523,7 @@ describe('Controller', () => {
       expect(createReq.request.body.allowedScopes).toBe('["openid", "email", "profile"]');
       expect(createReq.request.body.requirePkce).toBe(false);
       
-      createReq.flush({ id: '456', ...clientData, createdAt: '2024-01-01' });
+      createReq.flush({ id: '456', orgId: 'test-org', ...clientData, autoSubscribe: true, publik: false, createdAt: '2024-01-01' });
       
       await Promise.resolve();
       const loadReq = httpMock.expectOne('/api/clients');
@@ -552,8 +559,11 @@ describe('Controller', () => {
 
     const mockUpdatedClient = {
       id: mockClientId,
+      orgId: 'test-org',
       clientId: 'test-client',
       ...mockUpdateData,
+      autoSubscribe: true,
+      publik: false,
       createdAt: '2024-01-01T00:00:00Z'
     };
 
@@ -653,7 +663,9 @@ describe('Controller', () => {
         clientType: 'confidential',
         redirectUris: '["https://example.com/callback"]',
         allowedScopes: '["openid"]',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       const promise = controller.updateClient(mockClientId, updateData);
@@ -665,7 +677,7 @@ describe('Controller', () => {
       expect(updateReq.request.body.allowedScopes).toBe('["openid"]');
       expect(updateReq.request.body.requirePkce).toBe(true);
       
-      updateReq.flush({ id: mockClientId, ...updateData, createdAt: '2024-01-01' });
+      updateReq.flush({ id: mockClientId, orgId: 'test-org', ...updateData, autoSubscribe: true, publik: false, createdAt: '2024-01-01' });
       
       await Promise.resolve();
       const loadReq = httpMock.expectOne('/api/clients');
@@ -698,12 +710,15 @@ describe('Controller', () => {
       const mockClients: OAuthClient[] = [
         {
           id: '456',
+          orgId: 'test-org',
           clientId: 'remaining-client',
           clientName: 'Remaining Client',
           clientType: 'confidential',
           redirectUris: '["http://localhost:3000/callback"]',
           allowedScopes: '["openid"]',
           requirePkce: true,
+          autoSubscribe: true,
+          publik: false,
           createdAt: '2024-01-01T00:00:00Z'
         }
       ];

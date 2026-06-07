@@ -11,6 +11,7 @@ import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import static dev.abstratium.abstrauth.entity.AuthorizationRequest.SESSION_COOKIE_NAME;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.Organisation;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthorizationService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.NoSubscriptionException;
@@ -44,6 +45,9 @@ public class OrgSelectionResource {
 
     @Inject
     AuthorizationService authorizationService;
+
+    @Inject
+    NonMultitenancyAuthorizationService nonMultitenancyAuthorizationService;
 
     @Inject
     OrganisationService organisationService;
@@ -142,7 +146,7 @@ public class OrgSelectionResource {
         }
 
         try {
-            authorizationService.checkSubscription(orgId, authRequest.getClientId());
+            nonMultitenancyAuthorizationService.checkSubscription(orgId, authRequest.getClientId());
         } catch (NoSubscriptionException e) {
             log.warn("Organisation " + orgId + " has no subscription to client " + authRequest.getClientId());
             return Response.status(Response.Status.FORBIDDEN)

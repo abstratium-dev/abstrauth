@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary.oauth;
+package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -26,11 +26,12 @@ import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
-import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
-import dev.abstratium.abstrauth.service.ClientSecretService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientSecretService;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
+import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.OrganisationService;
@@ -51,6 +52,11 @@ import jakarta.ws.rs.core.Response;
  * OAuth 2.0 Token Endpoint
  * RFC 6749 Section 3.2 - Token Endpoint
  * RFC 7636 - PKCE Extension
+ * 
+ * NOTE: This endpoint is located in the non_multitenancy package because it uses
+ * NonMultitenancyAccountRoleService to retrieve roles without tenant discrimination
+ * during token generation. This is necessary because the orgId comes from the
+ * AuthorizationRequest (not the JWT) during the token exchange flow.
  */
 @Path("/oauth2/token")
 @Tag(name = "OAuth 2.0 Token", description = "OAuth 2.0 Token management endpoints")
@@ -64,7 +70,10 @@ public class TokenResource {
 
     @Inject
     ClientSecretService clientSecretService;
-    
+
+    @Inject
+    NonMultitenancyClientSecretService nonMultitenancyClientSecretService;
+
     @Inject
     AccountService accountService;
 
@@ -328,7 +337,7 @@ public class TokenResource {
 
             if (!verifyPKCE(codeVerifier, authCode.getCodeChallenge(), authCode.getCodeChallengeMethod())) {
                 return buildErrorResponse(Response.Status.BAD_REQUEST, "invalid_grant",
-                        "Invalid code_verifier");
+                        "PKCE code_verifier verification failed");
             }
         }
 
@@ -348,9 +357,7 @@ public class TokenResource {
                     "Account is no longer a member of the selected organisation");
         }
 
-        // not convinced this is the right time to do this? e.g. what about when the account is created?
-        // aha, they might not sign into a client until a later time!
-        // so: Seed default roles if no AccountRole rows exist for this account + clientId + orgId
+        // Seed default roles if no AccountRole rows exist for this account + clientId + orgId
         if (orgId != null && !accountRoleService.hasAnyRoleForClient(account.getId(), clientId, orgId)) {
             var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
             if (!defaultRoles.isEmpty()) {
@@ -362,7 +369,7 @@ public class TokenResource {
         authorizationService.markCodeAsUsed(code);
 
         // Generate access token with the authentication method and orgId used for this session
-        String accessToken = generateAccessToken(account, authCode.getScope(), clientId, authMethod, orgId);
+        String accessToken = generateAccessToken(account, clientId, authMethod, authCode.getScope(), orgId);
         
         // Generate ID token for OIDC (if openid scope is requested)
         String idToken = null;
@@ -370,66 +377,73 @@ public class TokenResource {
             idToken = generateIdToken(account, clientId, authMethod, authCode.getScope(), orgId);
         }
 
-        // Build token response
+        // Record metrics
+        metricsService.recordTokenRequestSuccess();
+
+        // Build response
         TokenResponse response = new TokenResponse();
         response.access_token = accessToken;
         response.token_type = "Bearer";
         response.expires_in = sessionTimeoutSeconds;
-        response.scope = authCode.getScope();
         response.id_token = idToken;
-        // TODO only allow confidential clients to have refresh tokens, never allow SPAs to have them as they can be used for continuous access
-        // TODO later when we support refresh tokens:
-        // response.refresh_token = generateRefreshToken(account, authCode.getScope(), clientId);
-        // the refresh token should be an http only cookie, with path set to the url used to refresh, so that it can only be used then
+        response.scope = authCode.getScope();
 
-        metricsService.recordTokenRequestSuccess();
         return Response.ok(response).build();
     }
 
+    /**
+     * Verify PKCE code_verifier against code_challenge.
+     * RFC 7636 - Proof Key for Code Exchange by OAuth Public Clients
+     * 
+     * @param codeVerifier The code_verifier from the client
+     * @param codeChallenge The code_challenge stored in the authorization code
+     * @param codeChallengeMethod The code_challenge_method (S256 or plain)
+     * @return true if verification succeeds, false otherwise
+     */
     private boolean verifyPKCE(String codeVerifier, String codeChallenge, String codeChallengeMethod) {
-        try {
-            String computedChallenge;
-            
-            if ("S256".equals(codeChallengeMethod)) {
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hash = digest.digest(codeVerifier.getBytes(StandardCharsets.UTF_8));
-                computedChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-            } else if ("plain".equals(codeChallengeMethod)) {
-                computedChallenge = codeVerifier;
-            } else {
-                return false;
-            }
-
-            // SECURITY FIX: Use constant-time comparison to prevent timing attacks
-            // This prevents attackers from using timing differences to brute-force the code_verifier
-            return MessageDigest.isEqual(
-                computedChallenge.getBytes(StandardCharsets.UTF_8),
-                codeChallenge.getBytes(StandardCharsets.UTF_8)
-            );
-        } catch (Exception e) {
+        if (codeVerifier == null || codeChallenge == null) {
             return false;
         }
+
+        // Default to S256 if not specified
+        String method = codeChallengeMethod != null ? codeChallengeMethod : "S256";
+
+        if ("plain".equals(method)) {
+            // For "plain" method, direct comparison
+            return codeVerifier.equals(codeChallenge);
+        } else if ("S256".equals(method)) {
+            // For "S256" method, hash the verifier with SHA-256 and base64url encode
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
+                String computedChallenge = Base64.getUrlEncoder()
+                        .withoutPadding()
+                        .encodeToString(hash);
+                return computedChallenge.equals(codeChallenge);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        // Unknown method
+        return false;
     }
 
     /**
      * Generate access token with RFC-compliant scope-based claim filtering.
      * 
-     * According to OpenID Connect Core 1.0 Section 5.4:
-     * - 'profile' scope: Grants access to name, family_name, given_name, middle_name, nickname,
-     *   preferred_username, profile, picture, website, gender, birthdate, zoneinfo, locale, updated_at
-     * - 'email' scope: Grants access to email, email_verified
-     * - 'openid' scope: Required for OpenID Connect, grants access to sub (subject identifier)
-     * 
-     * The 'sub' claim is ALWAYS included as it's the primary subject identifier (RFC 7519 Section 4.1.2).
-     * The 'groups' claim is always included for @RolesAllowed authorization.
+     * This method uses NonMultitenancyAccountRoleService to retrieve roles because
+     * during token generation the orgId comes from the AuthorizationRequest (not the JWT),
+     * so we cannot rely on Hibernate's @TenantId discriminator.
      * 
      * @param account The authenticated user account
-     * @param scope Space-delimited scope string (e.g., "openid profile email")
      * @param clientId The OAuth client ID
-     * @param authMethod The authentication method used (e.g., "native", "google")
+     * @param authMethod The authentication method used
+     * @param scope Space-delimited scope string from the authorization request
+     * @param orgId The organization ID from the authorization request
      * @return Signed JWT access token
      */
-    private String generateAccessToken(Account account, String scope, String clientId, String authMethod, String orgId) {
+    private String generateAccessToken(Account account, String clientId, String authMethod, String scope, String orgId) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
 
@@ -437,7 +451,7 @@ public class TokenResource {
         String jti = UUID.randomUUID().toString();
 
         // Get roles (groups) for this account and client from the database
-        // Roles are stored as just the role name, so we need to prefix with clientId
+        // Uses non-multitenancy service because orgId comes from AuthorizationRequest, not JWT
         Set<String> dbRoles = nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(account.getId(), clientId, orgId);
         Set<String> groups = new HashSet<>();
         for (String role : dbRoles) {
@@ -497,10 +511,14 @@ public class TokenResource {
      * Note: This method is only called when 'openid' scope is present, so we know
      * the client requested OpenID Connect authentication.
      * 
+     * This method uses NonMultitenancyAccountRoleService because the orgId comes from
+     * the AuthorizationRequest, not the JWT, during token generation.
+     * 
      * @param account The authenticated user account
      * @param clientId The OAuth client ID
      * @param authMethod The authentication method used
      * @param scope Space-delimited scope string from the authorization request
+     * @param orgId The organization ID from the authorization request
      * @return Signed JWT ID token
      */
     private String generateIdToken(Account account, String clientId, String authMethod, String scope, String orgId) {
@@ -508,6 +526,7 @@ public class TokenResource {
         Instant expiresAt = now.plusSeconds(sessionTimeoutSeconds);
 
         // Get roles (groups) for this account and client
+        // Uses non-multitenancy service because orgId comes from AuthorizationRequest, not JWT
         Set<String> dbRoles = nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(account.getId(), clientId, orgId);
         Set<String> groups = new HashSet<>();
         for (String role : dbRoles) {
@@ -662,8 +681,9 @@ public class TokenResource {
             return false;
         }
 
-        // Get all active secrets for this client
-        var activeSecrets = clientSecretService.findActiveSecrets(client.getClientId());
+        // Get all active secrets for this client using non-multitenancy service
+        // Client secrets are owned by the client-owning org, not the user's org
+        var activeSecrets = nonMultitenancyClientSecretService.findActiveSecrets(client.getClientId());
         if (activeSecrets.isEmpty()) {
             return false;
         }
@@ -699,10 +719,10 @@ public class TokenResource {
                 return null;
             }
             
-            String clientId = credentials.substring(0, colonIndex);
-            String clientSecret = credentials.substring(colonIndex + 1);
+            String extractedClientId = credentials.substring(0, colonIndex);
+            String extractedClientSecret = credentials.substring(colonIndex + 1);
             
-            return new String[]{clientId, clientSecret};
+            return new String[]{extractedClientId, extractedClientSecret};
         } catch (IllegalArgumentException e) {
             return null;
         }

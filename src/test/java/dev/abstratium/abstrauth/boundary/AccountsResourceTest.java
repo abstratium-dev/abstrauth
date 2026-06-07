@@ -544,28 +544,37 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddRoleToNewClientAsNonAdmin() throws Exception {
-        // Create two accounts in default org to match token
+        // Non-admin with manage-accounts CAN add allowlisted (or private client) roles
+        // to accounts in their own org for any client.
         String defaultOrgId = "00000000-0000-0000-0000-000000000000";
+        String newClientId = "new-client-" + System.currentTimeMillis();
         transactionHelper.beginTransaction();
         String targetEmail = "target_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccountForOrg(targetEmail, "Target User", "target_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
-        // Give target account a role in abstratium-abstrauth
-        accountRoleService.addRole(targetAccount.getId(), "abstratium-abstrauth", "viewer");
-        
+
+        // Create the client (private — no allowlist, so any role is allowed)
+        dev.abstratium.abstrauth.entity.OAuthClient newClient = new dev.abstratium.abstrauth.entity.OAuthClient();
+        newClient.setClientId(newClientId);
+        newClient.setClientName("New Test Client");
+        newClient.setClientType("confidential");
+        newClient.setRedirectUris("[\"http://localhost/callback\"]");
+        newClient.setAllowedScopes("[\"openid\"]");
+        newClient.setRequirePkce(false);
+        em.persist(newClient);
+
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         transactionHelper.commitTransaction();
-        
-        // Try to add target account to a NEW client (test-client) - should fail for non-admin
-        // Note: test-client doesn't exist, so this will also test FK constraint
+
+        // Non-admin can add a role on a private client (no allowlist)
         String requestBody = String.format("""
             {
                 "accountId": "%s",
-                "clientId": "test-client",
+                "clientId": "%s",
                 "role": "viewer"
             }
-            """, targetAccount.getId());
-        
+            """, targetAccount.getId(), newClientId);
+
         given()
             .auth().oauth2(generateManageAccountsToken(manager.getId()))
             .contentType(ContentType.JSON)
@@ -573,8 +582,7 @@ public class AccountsResourceTest {
             .when()
             .post("/api/accounts/role")
             .then()
-            .statusCode(400)
-            .body("error", equalTo("Only admin can add roles to accounts that are not members of the client"));
+            .statusCode(201);
     }
 
     @Test
@@ -592,11 +600,12 @@ public class AccountsResourceTest {
         transactionHelper.commitTransaction();
         
         // Try to add another role to the SAME client (abstratium-abstrauth) - should succeed for non-admin
+        // Use a role that is in the abstratium-abstrauth allowlist (manage-accounts)
         String requestBody = String.format("""
             {
                 "accountId": "%s",
                 "clientId": "abstratium-abstrauth",
-                "role": "editor"
+                "role": "manage-accounts"
             }
             """, targetAccount.getId());
         
@@ -609,7 +618,7 @@ public class AccountsResourceTest {
             .then()
             .statusCode(201)
             .body("clientId", equalTo("abstratium-abstrauth"))
-            .body("role", equalTo("editor"));
+            .body("role", equalTo("manage-accounts"));
     }
 
     @Test
@@ -634,12 +643,12 @@ public class AccountsResourceTest {
         transactionHelper.commitTransaction();
         
         // Admin should be able to add target account role even if they don't have that client yet
-        // Since test-client doesn't exist, we'll add another role to the existing client to verify admin bypass
+        // Use manage-clients which is in the abstratium-abstrauth allowlist
         String requestBody = String.format("""
             {
                 "accountId": "%s",
                 "clientId": "abstratium-abstrauth",
-                "role": "admin"
+                "role": "manage-clients"
             }
             """, targetAccount.getId());
         
@@ -652,7 +661,7 @@ public class AccountsResourceTest {
             .then()
             .statusCode(201)
             .body("clientId", equalTo("abstratium-abstrauth"))
-            .body("role", equalTo("admin"));
+            .body("role", equalTo("manage-clients"));
     }
 
     @Test
@@ -662,8 +671,8 @@ public class AccountsResourceTest {
         transactionHelper.beginTransaction();
         String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccountForOrg(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
-        // Add initial role (user role is already added automatically)
-        accountRoleService.addRole(account.getId(), "abstratium-abstrauth", "viewer");
+        // Add initial role (user role is already added automatically, use manage-accounts which is in allowlist)
+        accountRoleService.addRole(account.getId(), "abstratium-abstrauth", "manage-accounts");
         
         String managerEmail = "manager_dup_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Manager Dup", "manager_dup_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -674,7 +683,7 @@ public class AccountsResourceTest {
             {
                 "accountId": "%s",
                 "clientId": "abstratium-abstrauth",
-                "role": "viewer"
+                "role": "manage-accounts"
             }
             """, account.getId());
         
@@ -1164,12 +1173,13 @@ public class AccountsResourceTest {
     }
 
     /**
-     * Verifies that a user cannot add a role to an OAuthClient that belongs to a
-     * different organisation than the one in their JWT orgId claim, even if the target
-     * account already has a role for that client.
+     * Verifies that a user with manage-accounts CAN add a role to any client for accounts
+     * in their own org, regardless of which org owns the client. The security boundary is
+     * (1) the account must be a member of the caller's org, and (2) the role must be in
+     * the client's allowlist (or the client has no allowlist = private client).
      */
     @Test
-    public void testCannotAddRoleToClientInDifferentOrg() throws Exception {
+    public void testAddRoleToClientInDifferentOrgIsAllowed() throws Exception {
         String defaultOrgId = "00000000-0000-0000-0000-000000000000";
 
         // Create attacker's org and account
@@ -1214,8 +1224,11 @@ public class AccountsResourceTest {
             .executeUpdate();
         transactionHelper.commitTransaction();
 
-        // Attacker attempts to add a role on the foreign-org client — must be 403
-        String body = String.format("{\"accountId\":\"%s\",\"clientId\":\"%s\",\"role\":\"attacker-role\"}", victimId, foreignClientId);
+        // Caller adds a role on a client owned by a different org — allowed because:
+        // (1) victim IS in attackerOrgId (isMember check passes)
+        // (2) foreignClient has no allowlist (private client, any role allowed)
+        // Use 'editor' (not 'viewer' which is already seeded above)
+        String body = String.format("{\"accountId\":\"%s\",\"clientId\":\"%s\",\"role\":\"editor\"}", victimId, foreignClientId);
         given()
             .auth().oauth2(generateManageAccountsToken(attackerId, attackerOrgId))
             .contentType(ContentType.JSON)
@@ -1223,7 +1236,7 @@ public class AccountsResourceTest {
             .when()
             .post("/api/accounts/role")
             .then()
-            .statusCode(403);
+            .statusCode(201);
     }
 
     @Test

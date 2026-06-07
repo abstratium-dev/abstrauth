@@ -16,22 +16,28 @@ describe('ClientsComponent', () => {
   const mockClients = [
     {
       id: '1',
+      orgId: 'test-org',
       clientId: 'test-client-1',
       clientName: 'Test Client 1',
       clientType: 'confidential',
       redirectUris: '["http://localhost:3000/callback"]',
       allowedScopes: '["openid", "profile", "email"]',
       requirePkce: true,
+      autoSubscribe: true,
+      publik: false,
       createdAt: '2024-01-01T00:00:00Z'
     },
     {
       id: '2',
+      orgId: 'test-org',
       clientId: 'test-client-2',
       clientName: 'Test Client 2',
       clientType: 'confidential',
       redirectUris: '["http://localhost:4000/callback", "http://localhost:4000/auth"]',
       allowedScopes: '["openid", "admin"]',
       requirePkce: true,
+      autoSubscribe: true,
+      publik: false,
       createdAt: '2024-01-02T00:00:00Z'
     }
   ];
@@ -419,7 +425,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid profile',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       const submitPromise = component.onSubmit();
@@ -432,12 +440,15 @@ describe('ClientsComponent', () => {
       
       createReq.flush({
         id: '3',
+        orgId: 'test-org',
         clientId: 'new-client',
         clientName: 'New Client',
         clientType: 'confidential',
         redirectUris: '["http://localhost:3000/callback"]',
         allowedScopes: '["openid", "profile"]',
         requirePkce: true,
+        autoSubscribe: true,
+        publik: false,
         createdAt: '2024-01-03T00:00:00Z'
       });
 
@@ -461,7 +472,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback\nhttp://localhost:4000/callback',
         allowedScopes: 'openid',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       const submitPromise = component.onSubmit();
@@ -469,7 +482,7 @@ describe('ClientsComponent', () => {
       const createReq = httpMock.expectOne('/api/clients');
       expect(createReq.request.body.redirectUris).toBe('["http://localhost:3000/callback","http://localhost:4000/callback"]');
       
-      createReq.flush({ id: '3', ...component.formData });
+      createReq.flush({ id: '3', orgId: 'test-org', ...component.formData, autoSubscribe: true, publik: false });
       
       await Promise.resolve();
       const reloadReq = httpMock.expectOne('/api/clients');
@@ -485,7 +498,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid, profile, email',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       const submitPromise = component.onSubmit();
@@ -493,7 +508,7 @@ describe('ClientsComponent', () => {
       const createReq = httpMock.expectOne('/api/clients');
       expect(createReq.request.body.allowedScopes).toBe('["openid","profile","email"]');
       
-      createReq.flush({ id: '3', ...component.formData });
+      createReq.flush({ id: '3', orgId: 'test-org', ...component.formData, autoSubscribe: true, publik: false });
       
       await Promise.resolve();
       const reloadReq = httpMock.expectOne('/api/clients');
@@ -509,7 +524,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: '',
         allowedScopes: 'openid',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       await component.onSubmit();
@@ -525,7 +542,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: '',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       await component.onSubmit();
@@ -541,7 +560,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: '',
         allowedScopes: '',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       const submitPromise = component.onSubmit();
@@ -554,12 +575,15 @@ describe('ClientsComponent', () => {
       
       createReq.flush({
         id: '3',
+        orgId: 'test-org',
         clientId: 'm2m-client',
         clientName: 'M2M Client',
         clientType: 'confidential',
         redirectUris: '[]',
         allowedScopes: '[]',
         requirePkce: true,
+        autoSubscribe: true,
+        publik: false,
         createdAt: '2024-01-03T00:00:00Z'
       });
 
@@ -581,7 +605,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       const submitPromise = component.onSubmit();
@@ -602,7 +628,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       const submitPromise = component.onSubmit();
@@ -622,7 +650,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       const submitPromise = component.onSubmit();
@@ -642,7 +672,9 @@ describe('ClientsComponent', () => {
         clientType: 'confidential',
         redirectUris: 'http://localhost:3000/callback',
         allowedScopes: 'openid',
-        requirePkce: true
+        requirePkce: true,
+        autoSubscribe: true,
+        publik: false
       };
 
       expect(component.formSubmitting).toBe(false);
@@ -653,7 +685,7 @@ describe('ClientsComponent', () => {
       expect(component.formSubmitting).toBe(true);
 
       const createReq = httpMock.expectOne('/api/clients');
-      createReq.flush({ id: '3', ...component.formData });
+      createReq.flush({ id: '3', orgId: 'test-org', ...component.formData, autoSubscribe: true, publik: false });
       await Promise.resolve();
       const reloadReq = httpMock.expectOne('/api/clients');
       reloadReq.flush([]);

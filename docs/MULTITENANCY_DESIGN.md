@@ -26,7 +26,7 @@ classDiagram
 - **`Account`** — a user's login identity. Belongs to one or more organisations. When someone first registers with abstrauth, an organisation is automatically created; the account becomes both owner and member.
 - **`Subscription`** — links an organisation to an application (via `clientId`). Its existence grants the org access to the application.
 - **`ClientId`** — represents an application registered in abstrauth. A client can be **private** (`publik = false`, only the owning org can subscribe) or **public** (`publik = true`, any org can subscribe).
-- **`AccountRole`** (entity: `T_account_roles`) — models "client & role": an account is assigned roles per `clientId`. These rows are the sole source of truth for roles placed in the JWT `groups` claim at sign-in time.
+- **`AccountRole`** (entity: `T_account_roles`) — models "client & role": an account is assigned roles per `clientId`. These rows are the sole source of truth for roles placed in the JWT `groups` claim at sign-in time. For public clients the backend enforces that every assigned role appears in `T_client_allowed_roles`; for private (own-org) clients roles are free text.
 
 ## Runtime Flow
 
@@ -307,20 +307,150 @@ Owners of organisations also manage subscriptions so that they decide which appl
 (clients) the organisations users may use.
 
 
+## Requirements
+
+### Data Access by Role
+
+Org membership roles (`owner`, `member`) come from `T_organisation_accounts` and are checked programatically. Application roles (`user`, `manage-accounts`, `manage-clients`, `admin`) are `AccountRole` values for `client_id = 'abstratium-abstrauth'` and are emitted in the JWT `groups` claim and checked using RBAC (implemented with `@RolesAllowed` in the backend).
+
+| Entity | Reading requires | Writing requires |
+|--------|------|-------|
+| `T_organisations` | `user` + org `member` (own orgs only) | Create: `user` so that users can create their own organisations; Update/delete members: `user` + org `owner` |
+| `T_organisation_accounts` | `user` + org `member` (own orgs only) | Add/remove: `user` + org `owner` |
+| `T_subscriptions` | `user` + org `member` (own org's subscriptions) | Add/remove: `user` + org `owner` |
+| `T_accounts` | `manage-accounts` (members of own org only) | Create: public (signup); Update/delete: `manage-accounts` |
+| `T_account_roles` | `manage-accounts` (own org) or `user` (own roles via token) | Add/remove: `manage-accounts`; role must be in client's allowlist or client must be private |
+| `T_oauth_clients` | List: `user` (own org) which reads all clients in their org as well as all clients to which their org is subscribed; Detail: `manage-clients` | Create/update/delete: `manage-clients` |
+| `T_oauth_client_secrets` | `manage-clients` (own org only) | Create/revoke/delete: `manage-clients` |
+| `T_client_allowed_roles` | `user` + org `member` (own org's clients only) | Managed by `manage-clients` of the org that owns the client |
+
+**Notes:**
+- `admin` (`abstratium-abstrauth_admin`) bypasses org scoping and can read/write all of the above across all organisations via non-`@TenantId` entities.
+- "Own org" means the `orgId` in the caller's JWT must match the `org_id` of the data row (enforced by Hibernate discriminator or explicit `isMember` check).
+- `T_account_roles` write additionally requires: the target account is a member of the caller's org; the role is in the client's `T_client_allowed_roles` if the client is public.
+
+### Brain Dump from Ant 20260607
+
+- `T_oauth_clients` - abstrauth lives here by default. These belong to an organisation. Users with the `abstratum-abstrauth_manage-clients` `AccountRole` (in `T_account_roles`) can manage these clients. They can be public, in which case other organisations can subscribe to them. They can be auto-subscribed by setting that property in which case all users that sign in are given the default allowed roles (see `T_client_allowed_roles`). A client is almost a synonym for an application.
+- `T_oauth_client_secrets` - OAuth client secrets are required so that an application can forward a user to abstrauth for them to sign into the client (application).
+- `T_accounts` - Users sign up themselves, or an admin/org owner creates an account for them via the accounts API, which automatically adds the new account to the caller's org (taken from the caller's JWT `orgId` claim). The first account created in abstrauth automatically receives the `admin` role and can manage other users.
+- `T_account_roles` - These roles are added to the JWT that a user gets when they sign in and are used by abstrauth and other applications to do RBAC. In Quarkus that is done using the `@RolesAllowed` annotation. Roles are added to accounts, for existing clients. The client choice is all the clients belonging to the org as well as all the clients that the org subscribes to. The roles that the user can choose are either free text for clients within the org, or from the `T_client_allowed_roles` for clients which the users org is subscribed to.
+- `T_organisations` - Every user that signs in is added to their own organisation, except for the very first user that signs in, who is added to just the `rename-me` org. Users can always create new organisations, and become the org owner when they do that. Membership of an organisation is stored in `T_organisation_accounts`. Org owners can also manage subscriptions to public clients, so that their users can use those applications.
+- `T_organisation_accounts` - Stores the membership of accounts to organisations. Roles are either `owner` or `member`. Everyone in the org is a `member` and some of the people in an org are also `owner`s.
+- `T_subscriptions` - When a user signs in to a public client, abstrauth checks that their organisation has a subscription to the application. If not, one is created if the client allows auto-subscription. Org owners can manage subscriptions to applications. They can also set their org to not auto-subscribe.
+- `T_client_allowed_roles` - A list of roles that can be added to `T_account_roles` by org owners who are managing public clients that do not belong to their org.
+
+## Non-Multitenancy Package (`non_multitenancy`)
+
+The `src/main/java/dev/abstratium/abstrauth/non_multitenancy` package contains entity classes and services that **bypass Hibernate's discriminator-based multitenancy** (they do not use the `@TenantId` annotation). This separation is critical for maintaining security boundaries while enabling specific cross-tenant operations.
+
+### When Non-Multitenancy Entities Are Used
+
+| Scenario | Entity/Service Used | Reason |
+|----------|---------------------|--------|
+| **Account creation & initial role assignment** | `NonMultitenancyAccountRoleService.addRole()` | During signup, no JWT exists yet, so `JwtOrgResolver` cannot determine the tenant. Roles must be persisted with an explicit `orgId` before the session is bound to a tenant. |
+| **Token generation (access/id tokens)** | `NonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId()` | When generating tokens, the `orgId` comes from the `AuthorizationRequest` (not the JWT), so queries must bypass the discriminator to fetch roles for the correct org. |
+| **Cross-org public client access** | `NonMultitenancyOAuthClientService.findAllByClientIds()` | Users can view public clients owned by other orgs that their org subscribes to. The `@TenantId` discriminator would filter these out. |
+| **Subscription checking during auth** | `NonMultitenancySubscriptionService.ensureSubscribed()` | During the authorization flow (before token issuance), subscriptions must be queried/created without a tenant context. |
+| **Reading allowed roles for public clients** | `NonMultitenancyOAuthClientService` (via `ClientsResource`) | When listing allowed roles for a subscribed public client, the client may belong to another org. |
+
+### Package Structure
+
+```
+non_multitenancy/
+├── boundary/                              # Cross-tenant REST endpoints
+│   └── NonMultitenancyClientsResource.java    # Endpoints accessing cross-org clients
+├── entity/
+│   ├── NonMultitenancyAccountRole.java    # T_account_roles without @TenantId
+│   ├── NonMultitenancyOAuthClient.java    # T_oauth_clients without @TenantId
+│   └── NonMultitenancySubscription.java   # T_subscriptions without @TenantId
+└── service/
+    ├── NonMultitenancyAccountRoleService.java    # addRole(), findRolesByAccountIdAndClientIdAndOrgId()
+    ├── NonMultitenancyOAuthClientService.java    # findAllByClientIds()
+    └── NonMultitenancySubscriptionService.java   # ensureSubscribed(), findNonMultitenancySubscription()
+```
+
+### Security Considerations
+
+- **Cross-tenant calls are isolated to this package** - All code that bypasses the tenant discriminator is contained within `non_multitenancy`, making it easier to audit and maintain.
+- **Explicit orgId required** - All service methods require an explicit `orgId` parameter; they never rely on the `JwtOrgResolver` implicit tenant context.
+- **ADMIN role still required for global access** - The `admin` role (`abstratium-abstrauth_admin`) uses these entities but still requires explicit role checks via `@RolesAllowed`.
+
+### Callers of Non-Multitenancy Services
+
+| Caller | Service Method Used | Context |
+|--------|---------------------|---------|
+| `AccountService.addAbstrauthRoles()` | `NonMultitenancyAccountRoleService.addRole()` | During account creation to assign initial roles |
+| `TokenResource.generateAccessToken()` | `NonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId()` | When building JWT groups claim |
+| `TokenResource.generateIdToken()` | `NonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId()` | When building ID token groups claim |
+| `AuthorizationService.checkSubscription()` | `NonMultitenancySubscriptionService.ensureSubscribed()` | During OAuth authorization flow |
+| `ClientsResource.listClients()` | `NonMultitenancyOAuthClientService.findAllByClientIds()` | To include subscribed public clients from other orgs |
+| `ClientsResource.listAllowedRoles()` | `NonMultitenancyOAuthClientService.findAllByClientIds()`, `NonMultitenancySubscriptionService.findNonMultitenancySubscription()` | To verify cross-org client access |
+
 ## API Endpoints
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
+| **Accounts** ||||
+| GET | `/api/accounts` | List accounts (self/org/all based on role) | `user` |
+| POST | `/api/accounts` | Create account for existing org | `manage-accounts` |
+| POST | `/api/accounts/role` | Add role to account | `manage-accounts` |
+| DELETE | `/api/accounts/role` | Remove role from account | `manage-accounts` |
+| DELETE | `/api/accounts/{accountId}` | Delete account | `manage-accounts` |
+| POST | `/api/accounts/reset-password` | Reset own password | Authenticated |
+| **Authentication** ||||
 | POST | `/api/signup` | Create account and first organisation | Public |
-| GET | `/api/organisations` | List organisations for current user | Authenticated |
-| POST | `/api/organisations` | Create a new organisation | Authenticated |
-| POST | `/api/organisations/{orgId}/members` | Add an account to an organisation | Authenticated (org `owner`) |
-| DELETE | `/api/organisations/{orgId}/members/{accountId}` | Remove a member | Authenticated (org `owner`) |
-| POST | `/api/organisations/{orgId}/subscriptions` | Subscribe org to a client | Authenticated (org `owner`) |
-| DELETE | `/api/organisations/{orgId}/subscriptions/{clientId}` | Unsubscribe | Authenticated (org `owner`) |
-| GET | `/api/clients/{clientId}/allowed-roles` | List assignable roles for a client | Authenticated |
-| POST | `/api/org-selection` | Select organisation during sign-in flow | Authenticated (session) |
-| GET | `/api/org-selection/{requestId}` | List organisations for selection | Authenticated (session) |
+| GET | `/api/userinfo` | Get current user info | Authenticated |
+| POST | `/api/auth/bff` | BFF authentication endpoint | `user` |
+| GET | `/api/auth/callback` | OAuth callback handler | Authenticated (session) |
+| GET | `/api/auth/error` | Error page redirect | Authenticated (session) |
+| **Organisations** ||||
+| GET | `/api/organisations` | List organisations for current user | `user` |
+| GET | `/api/organisations/current` | Get current organisation from JWT | `user` |
+| GET | `/api/organisations/{orgId}` | Get organisation by ID | `user` |
+| POST | `/api/organisations` | Create a new organisation | `user` |
+| PUT | `/api/organisations/{orgId}` | Update organisation name | `user` (org `owner`) |
+| POST | `/api/organisations/{orgId}/members` | Add an account to an organisation | `user` (org `owner`) |
+| DELETE | `/api/organisations/{orgId}/members/{accountId}` | Remove a member | `user` (org `owner`) |
+| POST | `/api/organisations/{orgId}/subscriptions` | Subscribe org to a client | `user` (org `owner`) |
+| DELETE | `/api/organisations/{orgId}/subscriptions/{clientId}` | Unsubscribe | `user` (org `owner`) |
+| **Clients** ||||
+| GET | `/api/clients` | List OAuth clients (own + subscribed) | `user` |
+| GET | `/api/clients/{id}` | Get OAuth client by ID | `manage-clients` |
+| POST | `/api/clients` | Create new OAuth client | `manage-clients` |
+| PUT | `/api/clients/{id}` | Update OAuth client | `manage-clients` |
+| DELETE | `/api/clients/{id}` | Delete OAuth client | `manage-clients` |
+| GET | `/api/clients/{clientId}/allowed-roles` | List assignable roles for a client | `user` |
+| **Client Secrets** ||||
+| GET | `/api/clients/{clientId}/secrets` | List client secrets | `manage-clients` |
+| POST | `/api/clients/{clientId}/secrets` | Create new client secret | `manage-clients` |
+| DELETE | `/api/clients/{clientId}/secrets/{secretId}` | Revoke (deactivate) secret | `manage-clients` |
+| DELETE | `/api/clients/{clientId}/secrets/{secretId}/permanent` | Permanently delete secret | `manage-clients` |
+| **Service Account Roles** ||||
+| GET | `/api/clients/{clientId}/roles` | List service account roles | `manage-clients` |
+| POST | `/api/clients/{clientId}/roles` | Add service account role | `manage-clients` |
+| DELETE | `/api/clients/{clientId}/roles/{role}` | Remove service account role | `manage-clients` |
+| **OAuth 2.0 / OIDC** ||||
+| GET | `/oauth2/authorize` | Authorization endpoint | Public/Session |
+| POST | `/oauth2/authorize` | Approve authorization request | Session |
+| POST | `/oauth2/authorize/authenticate` | Native authentication | Session |
+| POST | `/oauth2/token` | Token endpoint (code, refresh, client_credentials) | Public |
+| POST | `/oauth2/revoke` | Revoke token | Public |
+| POST | `/oauth2/introspect` | Introspect token | Public |
+| GET | `/oauth2/logout` | Logout/Session termination | Authenticated |
+| GET | `/oauth2/federated/{provider}` | Initiate federated login | Session |
+| GET | `/oauth2/callback/google` | Google OAuth callback | Session |
+| GET | `/oauth2/callback/microsoft` | Microsoft OAuth callback | Session |
+| **Org Selection** ||||
+| POST | `/api/org-selection` | Select organisation during sign-in | Session |
+| GET | `/api/org-selection/{requestId}` | List organisations for selection | Session |
+| **Well-Known** ||||
+| GET | `/.well-known/openid-configuration` | OIDC discovery document | Public |
+| GET | `/.well-known/jwks.json` | JWKS public keys | Public |
+| **Public** ||||
+| GET | `/config` | Public configuration endpoint | Public |
+| **Proxy** ||||
+| GET | `/api/profile-picture` | Proxy for profile pictures | Authenticated |
 
 ## Angular UI Changes
 

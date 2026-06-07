@@ -586,22 +586,28 @@ describe('AccountsComponent', () => {
     const mockClients = [
       { 
         id: '1',
+        orgId: 'test-org',
         clientId: 'client-1', 
         clientName: 'Client 1', 
         clientType: 'confidential',
         redirectUris: 'http://localhost', 
         allowedScopes: 'openid profile',
         requirePkce: false,
+        autoSubscribe: true,
+        publik: false,
         createdAt: '2024-01-01T00:00:00Z'
       },
       { 
         id: '2',
+        orgId: 'test-org',
         clientId: 'client-2', 
         clientName: 'Client 2', 
         clientType: 'public',
         redirectUris: 'http://localhost', 
         allowedScopes: 'openid',
         requirePkce: true,
+        autoSubscribe: true,
+        publik: true,
         createdAt: '2024-01-02T00:00:00Z'
       }
     ];
@@ -787,12 +793,15 @@ describe('AccountsComponent', () => {
     const mockClients = [
       { 
         id: '1',
+        orgId: 'test-org',
         clientId: 'client-1', 
         clientName: 'Client 1', 
         clientType: 'confidential',
         redirectUris: 'http://localhost', 
         allowedScopes: 'openid profile',
         requirePkce: false,
+        autoSubscribe: true,
+        publik: false,
         createdAt: '2024-01-01T00:00:00Z'
       }
     ];
@@ -920,12 +929,15 @@ describe('AccountsComponent', () => {
     const mockClients = [
       { 
         id: '1',
+        orgId: 'test-org',
         clientId: 'client-1', 
         clientName: 'Client 1', 
         clientType: 'confidential',
         redirectUris: 'http://localhost', 
         allowedScopes: 'openid profile',
         requirePkce: false,
+        autoSubscribe: true,
+        publik: false,
         createdAt: '2024-01-01T00:00:00Z'
       }
     ];
@@ -1135,12 +1147,15 @@ describe('AccountsComponent', () => {
     const mockClients = [
       { 
         id: '1',
+        orgId: 'test-org',
         clientId: 'client-1', 
         clientName: 'Client 1', 
         clientType: 'confidential',
         redirectUris: 'http://localhost', 
         allowedScopes: 'openid profile',
         requirePkce: false,
+        autoSubscribe: true,
+        publik: false,
         createdAt: '2024-01-01T00:00:00Z'
       }
     ];

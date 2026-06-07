@@ -38,16 +38,53 @@ The backend OrganisationsResource exposes all of these endpoints (as noted in MU
   - extend MetricsService with orgs, etc.
   - testing
     - the created_by_account_id of things like org aren't set upon first sign in, that can be improved.
-    - why can't a user create a new client? perhaps they are not in the role manage-clients in their org?
-    - why can't a user create a new account? perhaps they are not in the role manage-clients in their org?
     - ensure that when a user adds a client, the client is in their org
-    - ensure that when a user adds a client-role, the client is in their org
-    - ensure that when a user adds an account, ... well... they can do that. but it can only be added to their org.
-    - ensure that when a user sets an OrganisationAccount, it can only be done for their own org.
+    - ensure that when a user adds a role to an account for a client, the AccountRole is in their org
+    - ensure that a user can add accounts to their org and that the OrganisationAccount is in their org
     - added new account from ant@abstratium.dev: test@abstratium.dev
       - ant can't see the new account in the list of accounts.
     - add a test for src/main/java/dev/abstratium/abstrauth/service/SecurityProblemLogger.java
     - when a user adds a second org, will they have the necessary abstratium roles? no!!
+    - see TODOs in AccountService
+    - REALLY IMPORTANT: T_client_allowed_roles check that users
+      cannot update the list if they are not a client manager in the org that owns the client. in fact, they can only do that if their current orgId matches that of the client! otherwise a malicious user could change the list and then add themselves as an admin to abstrauth in a second step
+    - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
+    - allow org owners who manage subscriptions to turn of auto-subscription on their subscription object (auto-subscription is marked on the client), as a field on the org, so that users cannot just start using any old app. this is a security feature like MS has
+    - bugs
+      - native auth with two orgs -> no org selection
+      - microsoft auth with two orgs -> org selection but then error.
+      - fixed but run all tests in that session to check that they work.
+
+      - got a bug: see @AccountsComponent . it uses GET http://localhost:8080/api/accounts
+to find the accounts and their roles, e.g.  
+
+[
+    {
+        "id": "442f68c4-f910-4e05-a90a-c4abb03239a5",
+        "email": "test2@abstratium.dev",
+        "name": "Test",
+        "emailVerified": false,
+        "authProvider": "native",
+        "picture": null,
+        "createdAt": "2026-06-07T22:45:46",
+        "roles": [
+            {
+                "clientId": "abstratium-abstrauth",
+                "role": "user"
+            },
+            {
+                "clientId": "abstratium-abstrauth",
+                "role": "user"
+            }
+        ]
+    }
+]
+
+first: the logic for finding accounts needs to change. see @MULTITENANCY_DESIGN.md . all accounts that are a member of the orgId in the JWT should be loaded and shown. 
+
+second, the current code fetches the account-roles and whatever it does, it should only be fetching the roles within the same org.
+
+@VerifyOrgMembership.java  should be used to ensure that the user is in the org that they want to read from. there should be no need to use any @non_multitenancy  classes. see @AGENTS.md .
 
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream?
 

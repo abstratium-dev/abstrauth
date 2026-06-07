@@ -12,3 +12,5 @@ The database follows strict naming conventions for consistency and clarity:
 - **Timestamps**: Use `created_at` and `expires_at` naming pattern
 
 SQL files must support MySQL (production) and H2 (testing).
+
+You may read the database using something like the following docker command: `docker run -it --rm --network abstratium mysql mysql -h abstratium-mysql --port 3306 -u abstrauth -psecret` but DO NOT CREATE, DELETE or UPDATE data without asking first! this is primarly meant for you to read the data if it helps during debugging.

@@ -13,6 +13,8 @@ import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
+import static dev.abstratium.abstrauth.entity.AuthorizationRequest.SESSION_COOKIE_NAME;
+
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountService;
@@ -290,16 +292,18 @@ public class OrgSelectionResourceTest {
         String challenge = generateCodeChallenge(generateCodeVerifier());
         String requestId = initiateAuthRequest(challenge);
 
-        given()
+        Response authResponse = given()
                 .formParam("username", "orgsel_" + ts + "_postok")
                 .formParam("password", "Pass123!")
                 .formParam("request_id", requestId)
                 .post("/oauth2/authorize/authenticate")
-                .then().statusCode(200);
+                .then().statusCode(200)
+                .extract().response();
+        String sessionCookie = authResponse.getCookie(SESSION_COOKIE_NAME);
 
-        // Note: account_id is now extracted from OIDC session token by the backend
         given()
                 .contentType(ContentType.URLENC)
+                .cookie(SESSION_COOKIE_NAME, sessionCookie)
                 .formParam("request_id", requestId)
                 .formParam("org_id", org1.getId())
                 .when()
@@ -320,16 +324,18 @@ public class OrgSelectionResourceTest {
         String challenge = generateCodeChallenge(generateCodeVerifier());
         String requestId = initiateAuthRequest(challenge);
 
-        given()
+        Response authResponse = given()
                 .formParam("username", "orgsel_" + ts + "_postapproved")
                 .formParam("password", "Pass123!")
                 .formParam("request_id", requestId)
                 .post("/oauth2/authorize/authenticate")
-                .then().statusCode(200);
+                .then().statusCode(200)
+                .extract().response();
+        String sessionCookie = authResponse.getCookie(SESSION_COOKIE_NAME);
 
-        // Note: account_id is now extracted from OIDC session token by the backend
         given()
                 .contentType(ContentType.URLENC)
+                .cookie(SESSION_COOKIE_NAME, sessionCookie)
                 .formParam("request_id", requestId)
                 .formParam("org_id", org1.getId())
                 .post("/api/org-selection")
@@ -397,16 +403,18 @@ public class OrgSelectionResourceTest {
         String challenge = generateCodeChallenge(verifier);
         String requestId = initiateAuthRequest(challenge);
 
-        given()
+        Response authResponse = given()
                 .formParam("username", "orgsel_" + ts + "_fullflow")
                 .formParam("password", "Pass123!")
                 .formParam("request_id", requestId)
                 .post("/oauth2/authorize/authenticate")
-                .then().statusCode(200);
+                .then().statusCode(200)
+                .extract().response();
+        String sessionCookie = authResponse.getCookie(SESSION_COOKIE_NAME);
 
-        // Note: account_id is now extracted from OIDC session token by the backend
         given()
                 .contentType(ContentType.URLENC)
+                .cookie(SESSION_COOKIE_NAME, sessionCookie)
                 .formParam("request_id", requestId)
                 .formParam("org_id", org1.getId())
                 .post("/api/org-selection")

@@ -6,6 +6,7 @@ import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import static dev.abstratium.abstrauth.entity.AuthorizationRequest.AUTHORIZATION_REQUEST_TIMEOUT_MINUTES;
 import static dev.abstratium.abstrauth.entity.AuthorizationRequest.SESSION_COOKIE_NAME;
 import dev.abstratium.abstrauth.entity.Organisation;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthorizationService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.MicrosoftOAuthService;
@@ -45,6 +46,9 @@ public class MicrosoftCallbackResource {
 
     @Inject
     AuthorizationService authorizationService;
+
+    @Inject
+    NonMultitenancyAuthorizationService nonMultitenancyAuthorizationService;
 
     @Inject
     OrganisationService organisationService;
@@ -135,7 +139,7 @@ public class MicrosoftCallbackResource {
             if (orgs.size() == 1) {
                 String selectedOrgId = orgs.get(0).getId();
                 try {
-                    authorizationService.approveWithSubscriptionCheck(authRequest.getId(), account.getId(), AccountService.MICROSOFT, selectedOrgId);
+                    nonMultitenancyAuthorizationService.approveWithSubscriptionCheck(authRequest.getId(), account.getId(), AccountService.MICROSOFT, selectedOrgId);
                 } catch (RuntimeException subEx) {
                     log.warn("Organisation " + selectedOrgId + " has no subscription to client " + authRequest.getClientId());
                     return Response.status(Response.Status.FORBIDDEN)

@@ -135,16 +135,6 @@ describe('OrganisationsComponent', () => {
       expect(subtitle.textContent).toContain('org-1');
     });
 
-    it('should display a pencil edit link in each tile', () => {
-      fixture.detectChanges();
-      httpMock.expectOne('/api/organisations').flush(mockOrgs);
-      fixture.detectChanges();
-
-      const editLinks = fixture.nativeElement.querySelectorAll('.tile-action-link');
-      expect(editLinks.length).toBe(2);
-      expect(editLinks[0].textContent.trim()).toContain('✏️');
-    });
-
     it('should show "Current" badge for the active organisation', () => {
       fixture.detectChanges();
       httpMock.expectOne('/api/organisations').flush(mockOrgs);

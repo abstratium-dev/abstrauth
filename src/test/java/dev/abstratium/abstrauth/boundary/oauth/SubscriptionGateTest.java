@@ -12,10 +12,10 @@ import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.OrganisationService;
-import dev.abstratium.abstrauth.service.SubscriptionService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
@@ -40,7 +40,7 @@ public class SubscriptionGateTest {
     OAuthClientService oAuthClientService;
 
     @Inject
-    SubscriptionService subscriptionService;
+    NonMultitenancySubscriptionService subscriptionService;
 
     @Inject
     UserTransaction userTransaction;
@@ -103,9 +103,7 @@ public class SubscriptionGateTest {
 
         // Ensure subscribed (auto_subscribe = true by default, so this is idempotent)
         userTransaction.begin();
-        if (!subscriptionService.subscriptionExists(orgId, CLIENT_ID)) {
-            subscriptionService.subscribe(orgId, CLIENT_ID);
-        }
+        subscriptionService.ensureSubscribed(orgId, CLIENT_ID, true);
         userTransaction.commit();
 
         String verifier = generateCodeVerifier();
@@ -123,20 +121,15 @@ public class SubscriptionGateTest {
     @Test
     public void testSignInBlockedWhenNoSubscriptionAndAutoSubscribeFalse() throws Exception {
         long ts = System.currentTimeMillis();
-        Account account = createAccount(ts + "_nosub");
-
-        String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
+        createAccount(ts + "_nosub");
 
         // Set auto_subscribe = false on the client
         userTransaction.begin();
         OAuthClient client = oAuthClientService.findByClientId(CLIENT_ID).orElseThrow();
         client.setAutoSubscribe(false);
         oAuthClientService.update(client);
-        // Remove any existing subscription for this org so the gate fires
-        if (subscriptionService.subscriptionExists(orgId, CLIENT_ID)) {
-            subscriptionService.unsubscribe(orgId, CLIENT_ID);
-        }
         userTransaction.commit();
+        // Fresh org from createAccount has no subscription yet — no removal needed
 
         try {
             String verifier = generateCodeVerifier();
@@ -167,7 +160,7 @@ public class SubscriptionGateTest {
         String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
 
         // Ensure no subscription exists yet for this fresh org
-        assertFalse(subscriptionService.subscriptionExists(orgId, CLIENT_ID),
+        assertFalse(subscriptionService.findNonMultitenancySubscription(orgId, CLIENT_ID).isPresent(),
                 "Fresh org should have no subscription");
 
         String verifier = generateCodeVerifier();
@@ -182,7 +175,7 @@ public class SubscriptionGateTest {
                 .post("/oauth2/authorize/authenticate")
                 .then().statusCode(200);
 
-        assertTrue(subscriptionService.subscriptionExists(orgId, CLIENT_ID),
+        assertTrue(subscriptionService.findNonMultitenancySubscription(orgId, CLIENT_ID).isPresent(),
                 "Subscription should have been auto-created during sign-in");
     }
 
@@ -195,7 +188,7 @@ public class SubscriptionGateTest {
 
         // Subscribe first
         userTransaction.begin();
-        subscriptionService.subscribe(orgId, CLIENT_ID);
+        subscriptionService.ensureSubscribed(orgId, CLIENT_ID, true);
         userTransaction.commit();
 
         // Sign in again — should not throw even though subscription already exists

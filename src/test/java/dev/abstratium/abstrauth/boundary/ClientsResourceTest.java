@@ -1,13 +1,14 @@
 package dev.abstratium.abstrauth.boundary;
 
-import io.quarkus.test.junit.QuarkusTest;
-import io.smallrye.jwt.build.Jwt;
-import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.Test;
-
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+
+import org.junit.jupiter.api.Test;
+
+import io.quarkus.test.junit.QuarkusTest;
+import io.smallrye.jwt.build.Jwt;
+import jakarta.transaction.Transactional;
 
 /**
  * Tests for ClientsResource
@@ -15,6 +16,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
  */
 @QuarkusTest
 public class ClientsResourceTest {
+
 
     /**
      * Generate a valid JWT token with the required role for testing

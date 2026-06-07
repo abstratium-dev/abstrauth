@@ -309,7 +309,7 @@ public class AccountServiceTest {
         String email = "firstfed_" + System.currentTimeMillis() + "@example.com";
         
         long accountCountBefore = accountService.countAccounts();
-        Account account = accountService.createFederatedAccount(
+        Account account = accountService.createAccountFromFederatedProvider(
             email, "First Fed User", "https://example.com/pic.jpg", true, AccountService.GOOGLE
         );
         

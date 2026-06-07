@@ -60,22 +60,6 @@ public class OAuthClientService {
     }
 
     /**
-     * Returns clients matching the given clientIds, across all organisations.
-     * Uses NonMultitenancyOAuthClient to bypass the @TenantId discriminator so that
-     * clients owned by other orgs (e.g. subscribed public clients) are included.
-     */
-    public List<NonMultitenancyOAuthClient> findAllByClientIds(java.util.Set<String> clientIds) {
-        if (clientIds.isEmpty()) {
-            return java.util.List.of();
-        }
-        return em.createQuery(
-            "SELECT c FROM NonMultitenancyOAuthClient c WHERE c.clientId IN :clientIds",
-            NonMultitenancyOAuthClient.class)
-            .setParameter("clientIds", clientIds)
-            .getResultList();
-    }
-
-    /**
      * Count the total number of OAuth clients in the database
      * @return The number of clients
      */

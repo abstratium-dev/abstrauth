@@ -104,7 +104,7 @@ public class MicrosoftOAuthService {
             }
 
             // Create a new account for this Microsoft user
-            account = accountService.createFederatedAccount(
+            account = accountService.createAccountFromFederatedProvider(
                     email,
                     userInfo.getName(),
                     null, // No picture support for Microsoft in this version

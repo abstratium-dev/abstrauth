@@ -108,7 +108,7 @@ public class AccountService {
     }
 
     @Transactional
-    public Account createFederatedAccount(String email, String name, String picture,
+    public Account createAccountFromFederatedProvider(String email, String name, String picture,
                                          Boolean emailVerified, String authProvider) {
         // Check if email already exists
         if (findByEmail(email).isPresent()) {

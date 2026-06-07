@@ -5,6 +5,7 @@ import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.entity.Organisation;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthorizationService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
@@ -33,6 +34,7 @@ import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -51,6 +53,9 @@ public class AuthorizationResource {
 
     @Inject
     AuthorizationService authorizationService;
+
+    @Inject
+    NonMultitenancyAuthorizationService nonMultitenancyAuthorizationService;
 
     @Inject
     AccountService accountService;
@@ -426,12 +431,12 @@ public class AuthorizationResource {
         }
 
         // Determine which org(s) the account belongs to
-        java.util.List<Organisation> orgs = organisationService.listOrganisationsForAccount(account.getId());
+        List<Organisation> orgs = organisationService.listOrganisationsForAccount(account.getId());
 
         if (orgs.size() == 1) {
             String selectedOrgId = orgs.get(0).getId();
             try {
-                authorizationService.approveWithSubscriptionCheck(requestId, account.getId(), AccountService.NATIVE, selectedOrgId);
+                nonMultitenancyAuthorizationService.approveWithSubscriptionCheck(requestId, account.getId(), AccountService.NATIVE, selectedOrgId);
             } catch (RuntimeException e) {
                 log.warn("Organisation " + selectedOrgId + " has no subscription to client " + authRequest.getClientId());
                 return Response.status(Response.Status.FORBIDDEN)
@@ -451,7 +456,7 @@ public class AuthorizationResource {
                 .secure(true)
                 .sameSite(NewCookie.SameSite.STRICT)
                 .build();
-            return Response.ok(new AuthenticationResponse(account.getName(), "/api/org-selection/" + requestId))
+            return Response.ok(new AuthenticationResponse(account.getName(), "/org-selection/" + requestId))
                 .cookie(sessionCookie)
                 .build();
         }
@@ -483,19 +488,19 @@ public class AuthorizationResource {
     @RegisterForReflection
     public static final class AuthenticationResponse {
         private final String name;
-        private final String orgSelectionUri;
+        private final String redirectTo;
 
-        public AuthenticationResponse(String name, String orgSelectionUri) {
+        public AuthenticationResponse(String name, String redirectTo) {
             this.name = name;
-            this.orgSelectionUri = orgSelectionUri;
+            this.redirectTo = redirectTo;
         }
 
         public String getName() {
             return name;
         }
 
-        public String getOrgSelectionUri() {
-            return orgSelectionUri;
+        public String getRedirectTo() {
+            return redirectTo;
         }
     }
 }

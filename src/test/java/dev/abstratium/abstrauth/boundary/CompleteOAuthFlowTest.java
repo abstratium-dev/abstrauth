@@ -211,7 +211,7 @@ public class CompleteOAuthFlowTest {
             .then()
             .statusCode(400)
             .body("error", equalTo("invalid_grant"))
-            .body("error_description", containsString("Invalid code_verifier"));
+            .body("error_description", containsString("PKCE code_verifier verification failed"));
     }
 
     @Test

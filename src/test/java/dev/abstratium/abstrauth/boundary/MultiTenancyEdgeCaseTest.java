@@ -256,7 +256,13 @@ public class MultiTenancyEdgeCaseTest {
         Account account = accountService.createAccount(email, "Deleted Org Test", email, "Pass123!", AccountService.NATIVE, "Deleted Org " + ts);
         String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
 
-        // Delete the organisation via native SQL
+        // Delete the organisation via native SQL — must clear FK-referencing rows first
+        em.createNativeQuery("DELETE FROM T_account_roles WHERE org_id = :orgId")
+            .setParameter("orgId", orgId)
+            .executeUpdate();
+        em.createNativeQuery("DELETE FROM T_subscriptions WHERE org_id = :orgId")
+            .setParameter("orgId", orgId)
+            .executeUpdate();
         em.createNativeQuery("DELETE FROM T_organisation_accounts WHERE org_id = :orgId")
             .setParameter("orgId", orgId)
             .executeUpdate();
