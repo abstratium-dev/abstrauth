@@ -294,7 +294,9 @@ export class ClientsComponent implements OnInit {
           clientType: this.formData.clientType,
           redirectUris: JSON.stringify(redirectUrisArray),
           allowedScopes: JSON.stringify(allowedScopesArray),
-          requirePkce: this.formData.requirePkce
+          requirePkce: this.formData.requirePkce,
+          publik: this.formData.publik,
+          autoSubscribe: this.formData.autoSubscribe
         };
         await this.controller.updateClient(this.editingClientId, updateData);
         const clientName = this.formData.clientName;

@@ -492,6 +492,11 @@ h2 {
   color: var(--color-success-text);
 }
 
+.badge-info {
+  background: var(--color-badge-role);
+  color: white;
+}
+
 /* ===== DETAIL ROWS ===== */
 .detail-section {
   display: flex;

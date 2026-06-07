@@ -177,6 +177,9 @@
                 [class.badge-secondary]="client.clientType === 'confidential'">
                 {{ client.clientType }}
               </span>
+              <span *ngIf="!matchesTokenOrgId(client.orgId)" class="badge badge-info" title="This client is owned by a different organisation">
+                External
+              </span>
             </div>
             <div *ngIf="hasManageClientsRole() && matchesTokenOrgId(client.orgId) && editingClientId !== client.id" class="card-actions">
               <button class="btn-icon" (click)="startEdit(client)" title="Edit client"
