@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

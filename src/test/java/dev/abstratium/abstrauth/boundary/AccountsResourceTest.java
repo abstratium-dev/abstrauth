@@ -5,7 +5,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -24,6 +23,7 @@ import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.service.SubscriptionService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
@@ -40,7 +40,10 @@ public class AccountsResourceTest {
 
     @Inject
     OrganisationService organisationService;
-    
+
+    @Inject
+    SubscriptionService subscriptionService;
+
     @Inject
     jakarta.persistence.EntityManager em;
     
@@ -163,7 +166,7 @@ public class AccountsResourceTest {
         accountRoleService.addRole(other.getId(), "client-b", "viewer");
         transactionHelper.commitTransaction();
 
-        // Manager should see manager and shared user (same client-a), but not other user (client-b)
+        // All org members see all accounts in the org (simplified behavior)
         given()
             .auth().oauth2(generateManageAccountsToken(managerId, defaultOrgId))
             .when()
@@ -172,8 +175,7 @@ public class AccountsResourceTest {
             .statusCode(200)
             .contentType(ContentType.JSON)
             .body("$", notNullValue())
-            .body("email", hasItems(managerEmail, userEmail))
-            .body("email", not(hasItem(otherEmail)));
+            .body("email", hasItems(managerEmail, userEmail, otherEmail));
     }
 
     @Test
@@ -185,14 +187,14 @@ public class AccountsResourceTest {
         Account manager = accountService.createAccountForOrg(managerEmail, "Unique Manager", "uniquemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
         accountRoleService.addRole(managerId, "client-unique", "manager");
-        
+
         // Create other accounts with different clients in default org
         String otherEmail = "differentuser_" + System.currentTimeMillis() + "@example.com";
         Account other = accountService.createAccountForOrg(otherEmail, "Different User", "differentuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(other.getId(), "client-different", "viewer");
         transactionHelper.commitTransaction();
-        
-        // Manager should only see their own account
+
+        // All org members see all accounts in the org (simplified behavior)
         given()
             .auth().oauth2(generateManageAccountsToken(managerId))
             .when()
@@ -201,23 +203,20 @@ public class AccountsResourceTest {
             .statusCode(200)
             .contentType(ContentType.JSON)
             .body("$", notNullValue())
-            .body("email", hasItem(managerEmail))
-            .body("email", not(hasItem(otherEmail)));
+            .body("email", hasItems(managerEmail, otherEmail));
     }
 
     @Test
     public void testListAccountsAsManagerWithNoRoles() throws Exception {
-        // Create manager account with no roles in default org
+        // Create manager account with no additional roles in default org
         String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "norolemanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "No Role Manager", "norolemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
         transactionHelper.commitTransaction();
-        
-        // Don't add any roles
-        
-        // Manager should only see their own account
+
+        // All org members see all accounts in the org (simplified behavior)
         given()
             .auth().oauth2(generateManageAccountsToken(managerId))
             .when()
@@ -238,8 +237,8 @@ public class AccountsResourceTest {
         Account user = accountService.createAccountForOrg(userEmail, "Regular User", "regularuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String userId = user.getId();
         transactionHelper.commitTransaction();
-        
-        // Regular users with only USER role can see their own account
+
+        // Regular users with only USER role can see all accounts in their org (simplified behavior)
         given()
             .auth().oauth2(generateUserToken(userId))
             .when()
@@ -248,8 +247,7 @@ public class AccountsResourceTest {
             .statusCode(200)
             .contentType(ContentType.JSON)
             .body("$", notNullValue())
-            .body("email", hasItem(userEmail))
-            .body("size()", equalTo(1)); // Should only see their own account
+            .body("email", hasItem(userEmail));
     }
 
     @Test
@@ -284,13 +282,13 @@ public class AccountsResourceTest {
         Account user2 = accountService.createAccountForOrg(user2Email, "User 2", "user2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(user2.getId(), "client-y", "viewer");
 
-        // Create user3 with no shared clients in default org (to test client-based filter)
+        // Create user3 with different client in default org
         String user3Email = "user3_" + System.currentTimeMillis() + "@example.com";
         Account user3 = accountService.createAccountForOrg(user3Email, "User 3", "user3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         accountRoleService.addRole(user3.getId(), "client-z", "viewer");
         transactionHelper.commitTransaction();
 
-        // Manager should see manager, user1, and user2, but not user3 (different client)
+        // All org members see all accounts in the org (simplified behavior)
         given()
             .auth().oauth2(generateManageAccountsToken(managerId, defaultOrgId))
             .when()
@@ -299,8 +297,7 @@ public class AccountsResourceTest {
             .statusCode(200)
             .contentType(ContentType.JSON)
             .body("$", notNullValue())
-            .body("email", hasItems(managerEmail, user1Email, user2Email))
-            .body("email", not(hasItem(user3Email)));
+            .body("email", hasItems(managerEmail, user1Email, user2Email, user3Email));
     }
 
     @Test
@@ -1048,27 +1045,27 @@ public class AccountsResourceTest {
     }
 
     @Test
-    public void testCreateAccountWithDuplicateEmail() throws Exception {
+    public void testCreateAccountWithDuplicateEmailInSameOrg() throws Exception {
         // Create manager account in default org
         String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "createmanager4_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 4", "createmanager4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
-        
+
         // Create first account in default org
         String existingEmail = "existing_" + System.currentTimeMillis() + "@example.com";
         accountService.createAccountForOrg(existingEmail, "Existing User", "existing_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         transactionHelper.commitTransaction();
-        
-        // Try to create account with same email
+
+        // Try to create account with same email - should fail since already in same org
         String requestBody = String.format("""
             {
                 "email": "%s",
                 "authProvider": "native"
             }
             """, existingEmail);
-        
+
         given()
             .auth().oauth2(generateManageAccountsToken(managerId))
             .contentType(ContentType.JSON)
@@ -1077,7 +1074,65 @@ public class AccountsResourceTest {
             .post("/api/accounts")
             .then()
             .statusCode(409)
-            .body("error", equalTo("Email already exists"));
+            .body("error", equalTo("Email already exists and is a member of your organization"));
+    }
+
+    @Test
+    public void testCreateAccountWithDuplicateEmailInDifferentOrg() throws Exception {
+        // Create manager account in default org
+        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
+        transactionHelper.beginTransaction();
+        String managerEmail = "createmanager_diff_" + System.currentTimeMillis() + "@example.com";
+        Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager Diff", "createmanager_diff_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        String managerId = manager.getId();
+
+        // Create account in a DIFFERENT org (not the default org)
+        String existingEmail = "existing_diff_" + System.currentTimeMillis() + "@example.com";
+        Account existingAccount = accountService.createAccount(existingEmail, "Existing User Diff", "existing_diff_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Different Org");
+        transactionHelper.commitTransaction();
+
+        // Verify the existing account is NOT in the default org
+        String existingAccountOrgId = organisationService.listOrganisationsForAccount(existingAccount.getId()).get(0).getId();
+        assertTrue(!defaultOrgId.equals(existingAccountOrgId), "Existing account should be in a different org");
+
+        // Subscribe the default org to a test client so we can verify roles are seeded
+        transactionHelper.beginTransaction();
+        subscriptionService.subscribe(defaultOrgId, "test-client");
+        // Add default roles for the test client
+        dev.abstratium.abstrauth.entity.ClientAllowedRole defaultRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
+        defaultRole.setClientId("test-client");
+        defaultRole.setRole("viewer");
+        defaultRole.setIsDefault(true);
+        em.persist(defaultRole);
+        transactionHelper.commitTransaction();
+
+        // Try to create account with same email - should add to caller's org
+        String requestBody = String.format("""
+            {
+                "email": "%s",
+                "authProvider": "native"
+            }
+            """, existingEmail);
+
+        given()
+            .auth().oauth2(generateManageAccountsToken(managerId))
+            .contentType(ContentType.JSON)
+            .body(requestBody)
+            .when()
+            .post("/api/accounts")
+            .then()
+            .statusCode(200)
+            .body("account.email", equalTo(existingEmail))
+            .body("message", equalTo("Account added to organization"));
+
+        // Verify the account is now a member of the default org
+        assertTrue(organisationService.isMember(defaultOrgId, existingAccount.getId()), "Account should now be a member of the default org");
+
+        // Verify default roles were seeded
+        var roles = accountRoleService.findRolesByAccountId(existingAccount.getId());
+        boolean hasViewerRole = roles.stream()
+            .anyMatch(r -> r.getClientId().equals("test-client") && r.getRole().equals("viewer"));
+        assertTrue(hasViewerRole, "Account should have the 'viewer' role for test-client");
     }
 
     @Test
@@ -1216,7 +1271,6 @@ public class AccountsResourceTest {
         em.flush();
 
         // Give the victim an existing role on the foreign client so that
-        // checkOnlyAddingToClientWhichTheyAlreadyHave would pass the old (weak) check
         em.createNativeQuery("INSERT INTO T_account_roles (id, account_id, client_id, role, created_at, org_id) VALUES (UUID(), :accountId, :clientId, 'viewer', NOW(), :orgId)")
             .setParameter("accountId", victimId)
             .setParameter("clientId", foreignClientId)

@@ -94,7 +94,7 @@ Declares which roles a public client permits subscribing organisations to assign
 Organisation-scoped (receive `org_id` VARCHAR(36) column) and JPA entities use @TenantId:
 - `T_oauth_clients` — also has `auto_subscribe BOOLEAN` (whether subscriptions are created automatically on first sign-in) and `publik BOOLEAN` (whether third-party organisations may subscribe at all)
 - `T_account_roles`
-- `T_client_secrets`
+- `T_oauth_client_secrets`
 - `T_service_account_roles`
 
 Global (no `org_id`):

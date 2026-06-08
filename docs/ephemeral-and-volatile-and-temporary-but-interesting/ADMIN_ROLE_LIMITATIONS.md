@@ -8,7 +8,6 @@ The `ADMIN` role (`abstratium-abstrauth_admin`) is **not** a gate on any HTTP en
 |---|---|
 | `AccountsResource.listAccounts()` | Admin sees all accounts in **their current org** (bypasses the client-role filter that `MANAGE_ACCOUNTS` uses) |
 | `AccountRoleService.checkNonAdminCannotAddAdminRole()` | Only an admin can assign the `admin` role to another account |
-| `AccountRoleService.checkOnlyAddingToClientWhichTheyAlreadyHave()` | Only an admin can add roles to an account for a `clientId` the account has no existing membership in |
 | `AccountService` (bootstrap) | The first registered account automatically receives `admin`, `manage-accounts`, and `manage-clients` |
 | `AccountService` / `AccountRoleService` (guards) | The last `admin` row for `abstratium-abstrauth` cannot be deleted |
 

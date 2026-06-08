@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
+import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccountRole;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
@@ -456,5 +457,118 @@ public class AccountRoleServiceTest {
         Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, privateClientId);
         assertTrue(roles.contains("custom-role"));
         assertTrue(roles.contains("another-role"));
+    }
+
+    @Test
+    public void testFindClientsByAccountId() {
+        // Add roles for multiple clients
+        accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
+        accountRoleService.addRole(testAccountId, TEST_CLIENT_ID_2, "viewer");
+        accountRoleService.addRole(testAccountId, "abstratium-abstrauth", "user");
+
+        // Get all clients for the account
+        List<String> clients = accountRoleService.findClientsByAccountId(testAccountId);
+
+        // Should contain all three clients (may also contain automatic roles from account creation)
+        assertTrue(clients.contains(TEST_CLIENT_ID));
+        assertTrue(clients.contains(TEST_CLIENT_ID_2));
+        assertTrue(clients.contains("abstratium-abstrauth"));
+    }
+
+    @Test
+    public void testFindClientsByAccountIdWithNoRoles() throws Exception {
+        // Create a fresh account in default org so tenant context matches
+        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
+        transactionHelper.beginTransaction();
+        String uniqueEmail = "noclients_" + System.nanoTime() + "@example.com";
+        String uniqueUsername = "noclients_" + System.nanoTime();
+        Account freshAccount = accountService.createAccountForOrg(
+            uniqueEmail,
+            "No Clients Test",
+            uniqueUsername,
+            "TestPassword123",
+            AccountService.NATIVE,
+            defaultOrgId);
+        transactionHelper.commitTransaction();
+
+        // Get clients - should return abstratium-abstrauth from automatic roles
+        List<String> clients = accountRoleService.findClientsByAccountId(freshAccount.getId());
+
+        // Account gets automatic roles for abstratium-abstrauth during creation
+        assertTrue(clients.contains("abstratium-abstrauth"));
+    }
+
+    @Test
+    public void testSeedDefaultRoles() {
+        // Create default roles
+        ClientAllowedRole role1 = new ClientAllowedRole();
+        role1.setClientId(TEST_CLIENT_ID);
+        role1.setRole("viewer");
+        role1.setIsDefault(true);
+
+        ClientAllowedRole role2 = new ClientAllowedRole();
+        role2.setClientId(TEST_CLIENT_ID);
+        role2.setRole("editor");
+
+        List<ClientAllowedRole> defaultRoles = List.of(role1, role2);
+
+        // Seed roles
+        accountRoleService.seedDefaultRoles(testAccountId, TEST_CLIENT_ID, defaultRoles);
+
+        // Verify roles were added
+        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
+        assertTrue(roles.contains("viewer"));
+        assertTrue(roles.contains("editor"));
+    }
+
+    @Test
+    public void testSeedDefaultRolesSkipsExisting() {
+        // First add a role manually
+        accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "viewer");
+
+        // Create default roles including the existing one
+        ClientAllowedRole role1 = new ClientAllowedRole();
+        role1.setClientId(TEST_CLIENT_ID);
+        role1.setRole("viewer");
+
+        ClientAllowedRole role2 = new ClientAllowedRole();
+        role2.setClientId(TEST_CLIENT_ID);
+        role2.setRole("editor");
+
+        List<ClientAllowedRole> defaultRoles = List.of(role1, role2);
+
+        // Seed roles
+        accountRoleService.seedDefaultRoles(testAccountId, TEST_CLIENT_ID, defaultRoles);
+
+        // Verify both roles exist but viewer wasn't duplicated
+        List<NonMultitenancyAccountRole> allRoles = em.createQuery(
+            "SELECT ar FROM NonMultitenancyAccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId",
+            NonMultitenancyAccountRole.class)
+            .setParameter("accountId", testAccountId)
+            .setParameter("clientId", TEST_CLIENT_ID)
+            .getResultList();
+
+        // Count viewer roles - should be exactly 1
+        long viewerCount = allRoles.stream()
+            .filter(r -> "viewer".equals(r.getRole()))
+            .count();
+        assertEquals(1, viewerCount);
+
+        // Both roles should exist
+        Set<String> roleNames = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
+        assertTrue(roleNames.contains("viewer"));
+        assertTrue(roleNames.contains("editor"));
+    }
+
+    @Test
+    public void testSeedDefaultRolesWithEmptyList() {
+        // Should not throw exception with empty list
+        assertDoesNotThrow(() -> {
+            accountRoleService.seedDefaultRoles(testAccountId, TEST_CLIENT_ID, List.of());
+        });
+
+        // Verify no additional roles were created
+        Set<String> roles = accountRoleService.findRolesByAccountIdAndClientId(testAccountId, TEST_CLIENT_ID);
+        assertTrue(roles.isEmpty());
     }
 }

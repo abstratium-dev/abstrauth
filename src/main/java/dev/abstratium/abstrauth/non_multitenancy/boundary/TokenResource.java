@@ -27,7 +27,6 @@ import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientSecretService;
-import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
@@ -76,9 +75,6 @@ public class TokenResource {
 
     @Inject
     AccountService accountService;
-
-    @Inject
-    AccountRoleService accountRoleService;
 
     @Inject
     NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
@@ -358,10 +354,10 @@ public class TokenResource {
         }
 
         // Seed default roles if no AccountRole rows exist for this account + clientId + orgId
-        if (orgId != null && !accountRoleService.hasAnyRoleForClient(account.getId(), clientId, orgId)) {
+        if (orgId != null && !nonMultitenancyAccountRoleService.hasAnyRoleForClient(account.getId(), clientId, orgId)) {
             var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
             if (!defaultRoles.isEmpty()) {
-                accountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, defaultRoles);
+                nonMultitenancyAccountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, defaultRoles);
             }
         }
 

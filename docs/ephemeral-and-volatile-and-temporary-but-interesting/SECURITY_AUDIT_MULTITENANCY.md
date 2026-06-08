@@ -32,7 +32,7 @@ flowchart TB
     subgraph "Data Layer"
         F --> G[(T_oauth_clients)]
         F --> H[(T_account_roles)]
-        F --> I[(T_client_secrets)]
+        F --> I[(T_oauth_client_secrets)]
         F --> J[(T_service_account_roles)]
     end
 ```
@@ -51,7 +51,7 @@ flowchart TB
 **Organisation-Scoped (with `org_id` column and `@TenantId`):**
 - `T_oauth_clients`
 - `T_account_roles`
-- `T_client_secrets`
+- `T_oauth_client_secrets`
 - `T_service_account_roles`
 
 **Global (no `org_id`):**

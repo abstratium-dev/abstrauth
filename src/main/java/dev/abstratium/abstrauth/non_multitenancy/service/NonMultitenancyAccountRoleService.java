@@ -1,11 +1,13 @@
 package dev.abstratium.abstrauth.non_multitenancy.service;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.jboss.logging.Logger;
 
 import dev.abstratium.abstrauth.boundary.ConflictException;
+import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccountRole;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
@@ -45,10 +47,6 @@ public class NonMultitenancyAccountRoleService {
     public NonMultitenancyAccountRole addRole(String orgId, String accountId, String clientId, String role) {
         long accountCount = accountService.countAccounts();
         accountRoleService.checkNonAdminCannotAddAdminRole(role, accountCount);
-
-        // accountRoleService.checkOnlyAddingToClientWhichTheyAlreadyHave(accountId, clientId, accountCount);
-
-        // TODO no point since orgId used within the following call is always the default: accountRoleService.checkClientBelongsToCallerOrg(clientId, accountCount);
 
         // Validate role against allowlist for public clients
         accountRoleService.checkRoleAgainstAllowlist(clientId, role);
@@ -92,5 +90,61 @@ public class NonMultitenancyAccountRoleService {
             .collect(Collectors.toSet());
         log.debugf("Found roles for accountId %s and clientId %s: %s", accountId, clientId, roles);
         return roles;
+    }
+
+    /**
+     * Check if account has any roles for the given client within a specific org.
+     * Uses NonMultitenancyAccountRole to bypass the @TenantId discriminator and query
+     * by explicit orgId, preventing false negatives when the Hibernate tenant context
+     * does not match the orgId of existing rows.
+     * 
+     * @param accountId The account ID
+     * @param clientId The OAuth client ID
+     * @param orgId The organisation ID
+     * @return true if account has at least one role for this client in this org
+     */
+    public boolean hasAnyRoleForClient(String accountId, String clientId, String orgId) {
+        var query = em.createQuery(
+            "SELECT COUNT(ar) FROM NonMultitenancyAccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.orgId = :orgId",
+            Long.class
+        );
+        query.setParameter("accountId", accountId);
+        query.setParameter("clientId", clientId);
+        query.setParameter("orgId", orgId);
+        return query.getSingleResult() > 0;
+    }
+
+    /**
+     * Seed default roles from ClientAllowedRoles to an account for a specific client and org.
+     * Uses NonMultitenancyAccountRole to bypass the @TenantId discriminator so that both
+     * the existence check and the insert use the explicit orgId, preventing duplicate inserts.
+     * 
+     * @param accountId The account ID
+     * @param clientId The OAuth client ID
+     * @param orgId The organisation ID
+     * @param defaultRoles List of default roles to seed
+     */
+    @Transactional
+    public void seedDefaultRoles(String accountId, String clientId, String orgId, List<ClientAllowedRole> defaultRoles) {
+        var query = em.createQuery(
+            "SELECT ar.role FROM NonMultitenancyAccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.orgId = :orgId",
+            String.class
+        );
+        query.setParameter("accountId", accountId);
+        query.setParameter("clientId", clientId);
+        query.setParameter("orgId", orgId);
+        Set<String> existingRoles = query.getResultStream().collect(Collectors.toSet());
+
+        for (ClientAllowedRole allowedRole : defaultRoles) {
+            String roleName = allowedRole.getRole();
+            if (!existingRoles.contains(roleName)) {
+                NonMultitenancyAccountRole accountRole = new NonMultitenancyAccountRole();
+                accountRole.setAccountId(accountId);
+                accountRole.setClientId(clientId);
+                accountRole.setRole(roleName);
+                accountRole.setOrgId(orgId);
+                em.persist(accountRole);
+            }
+        }
     }
 }

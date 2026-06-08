@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.boundary.api;
 
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.eclipse.microprofile.jwt.JsonWebToken;
@@ -11,11 +12,13 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
+import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
-import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
+import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.service.SubscriptionService;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -52,7 +55,13 @@ public class AccountsResource {
     
     @Inject
     OrganisationService organisationService;
-    
+
+    @Inject
+    SubscriptionService subscriptionService;
+
+    @Inject
+    ClientAllowedRoleService clientAllowedRoleService;
+
     @Inject
     SecurityIdentity securityIdentity;
     
@@ -66,44 +75,17 @@ public class AccountsResource {
     @RolesAllowed({Roles.USER})
     public List<AccountResponse> listAccounts() {
         // Get the current user's ID and org from the JWT token
-        String accountId = token.getSubject();
         String orgId = token.getClaim("orgId");
 
-        // If user is admin, return all accounts in their org
-        if (securityIdentity.hasRole(Roles.ADMIN)) {
-            if (orgId != null && !orgId.isBlank()) {
-                return accountService.findAccountsInOrg(orgId).stream()
-                        .map(this::toAccountResponse)
-                        .collect(Collectors.toList());
-            }
-            return accountService.findAll().stream()
-                    .map(this::toAccountResponse)
-                    .collect(Collectors.toList());
-        }
-        
-        // If user has manage-accounts role, return org-scoped accounts filtered by user's client roles
-        if (securityIdentity.hasRole(Roles.MANAGE_ACCOUNTS)) {
-            if (orgId != null && !orgId.isBlank()) {
-                return accountService.findAccountsByUserClientRolesInOrg(accountId, orgId).stream()
-                        .map(this::toAccountResponse)
-                        .collect(Collectors.toList());
-            }
-            return accountService.findAccountsByUserClientRoles(accountId).stream()
-                    .map(this::toAccountResponse)
-                    .collect(Collectors.toList());
-        }
-        
-        // Otherwise, return only the current user's account
-        return accountService.findById(accountId)
+        return accountService.findAccountsInOrg(orgId).stream()
                 .map(this::toAccountResponse)
-                .map(List::of)
-                .orElse(List.of());
+                .collect(Collectors.toList());
     }
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Create account", description = "Creates a new account manually. Designed to be used when registration is disabled, so that an admin can add new accounts.")
+    @Operation(summary = "Create account", description = "Creates a new account manually. Designed to be used when registration is disabled, so that an admin can add new accounts. If the account already exists but is not a member of the caller's organization, it will be added to that organization with default roles from subscribed clients.")
     @RolesAllowed(Roles.MANAGE_ACCOUNTS)
     public Response createAccount(@Valid CreateAccountRequest request) {
         // Validate authProvider
@@ -113,10 +95,40 @@ public class AccountsResource {
                     .build();
         }
 
+        // When an admin/owner creates an account, they do so within their own organisation
+        // The orgId comes from the JWT claim of the requesting user
+        String orgId = token.getClaim("orgId");
+        if (orgId == null || orgId.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("orgId claim is required in JWT"))
+                    .build();
+        }
+
         // Check if email already exists
-        if (accountService.findByEmail(request.email).isPresent()) {
-            return Response.status(Response.Status.CONFLICT)
-                    .entity(new ErrorResponse("Email already exists"))
+        var existingAccount = accountService.findByEmail(request.email);
+        if (existingAccount.isPresent()) {
+            Account account = existingAccount.get();
+
+            // Check if account is already a member of the caller's org
+            if (organisationService.isMember(orgId, account.getId())) {
+                return Response.status(Response.Status.CONFLICT)
+                        .entity(new ErrorResponse("Email already exists and is a member of your organization"))
+                        .build();
+            }
+
+            // Add existing account to the caller's org
+            organisationService.addMember(orgId, account.getId());
+
+            // For every client the org subscribes to, add the default allowed roles
+            var subscribedClientIds = subscriptionService.findClientIdsByOrgId(orgId);
+            for (String clientId : subscribedClientIds) {
+                var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
+                accountRoleService.seedDefaultRoles(account.getId(), clientId, defaultRoles);
+            }
+
+            // Return 200 OK (not 201 since we didn't create the account, just added to org)
+            return Response.ok()
+                    .entity(new AddToOrgResponse(toAccountResponse(account), "Account added to organization"))
                     .build();
         }
 
@@ -137,21 +149,12 @@ public class AccountsResource {
             name = "NOT YET SIGNED IN";
         }
 
-        // When an admin/owner creates an account, they do so within their own organisation
-        // The orgId comes from the JWT claim of the requesting user
-        String orgId = token.getClaim("orgId");
-        if (orgId == null || orgId.isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse("orgId claim is required in JWT"))
-                    .build();
-        }
-        
         // Create account without organisation - we'll link it manually to the admin's org
         Account account = accountService.createAccountForOrg(request.email, name, request.email, generatedPassword, request.authProvider, orgId);
-        
+
         // Create invite token
         String inviteToken = createInviteToken(request.authProvider, request.email, generatedPassword);
-        
+
         return Response.status(Response.Status.CREATED)
                 .entity(new CreateAccountResponse(toAccountResponse(account), inviteToken))
                 .build();
@@ -300,6 +303,7 @@ public class AccountsResource {
     private AccountResponse toAccountResponse(Account account) {
         List<RoleInfo> roles = account.getRoles().stream()
                 .map(role -> new RoleInfo(role.getClientId(), role.getRole()))
+                .distinct()
                 .collect(Collectors.toList());
         
         return new AccountResponse(
@@ -346,6 +350,19 @@ public class AccountsResource {
         public RoleInfo(String clientId, String role) {
             this.clientId = clientId;
             this.role = role;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof RoleInfo)) return false;
+            RoleInfo that = (RoleInfo) o;
+            return Objects.equals(clientId, that.clientId) && Objects.equals(role, that.role);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(clientId, role);
         }
     }
 
@@ -396,13 +413,24 @@ public class AccountsResource {
     public static class CreateAccountResponse {
         public AccountResponse account;
         public String inviteToken;
-        
+
         public CreateAccountResponse(AccountResponse account, String inviteToken) {
             this.account = account;
             this.inviteToken = inviteToken;
         }
     }
-    
+
+    @RegisterForReflection
+    public static class AddToOrgResponse {
+        public AccountResponse account;
+        public String message;
+
+        public AddToOrgResponse(AccountResponse account, String message) {
+            this.account = account;
+            this.message = message;
+        }
+    }
+
     @RegisterForReflection
     public static class ResetPasswordRequest {
         @NotBlank(message = "Old password is required")

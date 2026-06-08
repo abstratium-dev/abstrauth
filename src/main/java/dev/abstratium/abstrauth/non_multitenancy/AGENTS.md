@@ -21,6 +21,20 @@ The `boundary` sub-package contains REST endpoints that perform cross-tenant (cr
 |----------|---------|
 | `NonMultitenancyClientsResource` | Access public OAuth clients owned by other organisations that the caller's org subscribes to |
 
+## Approved Exceptions (Usage Outside This Package)
+
+The following classes outside this package are permitted to reference `non_multitenancy` types for specific, justified reasons:
+
+| Class | References | Justification |
+|-------|-----------|---------------|
+| `service/AccountService` | `NonMultitenancyAccountRoleService` | Must assign initial roles during account creation before the orgId is known to Hibernate |
+| `boundary/oauth/AuthorizationResource` | `NonMultitenancyAuthorizationService` | OAuth authorization flow requires cross-tenant client lookup before a tenant session exists |
+| `boundary/oauth/OrgSelectionResource` | `NonMultitenancyAuthorizationService` | Org selection step of the auth flow — tenant context not yet established |
+| `boundary/oauth/GoogleCallbackResource` | `NonMultitenancyAuthorizationService` | Federated login callback — orgId resolved from external identity, not Hibernate session |
+| `boundary/oauth/MicrosoftCallbackResource` | `NonMultitenancyAuthorizationService` | Federated login callback — orgId resolved from external identity, not Hibernate session |
+
+Any new usage outside this package must be added to the above table with a justification, and approved by the chief architect.
+
 ### Security Requirements for Boundary Endpoints
 
 All boundary endpoints MUST:
