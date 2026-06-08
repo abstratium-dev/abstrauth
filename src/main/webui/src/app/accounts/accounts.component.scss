@@ -73,3 +73,50 @@
   color: var(--color-success);
   margin-left: 0.25rem;
 }
+
+.info-note-box {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background-color: #e0f2fe;
+  border: 1px solid #7dd3fc;
+  border-radius: 6px;
+
+  .info-note-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+
+    .info-note-icon {
+      font-size: 1.1rem;
+      line-height: 1.5;
+      flex-shrink: 0;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #0c4a6e;
+      line-height: 1.5;
+    }
+  }
+
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 0.9rem;
+    color: #0369a1;
+    line-height: 1;
+    flex-shrink: 0;
+
+    &:hover {
+      color: #0c4a6e;
+    }
+  }
+}

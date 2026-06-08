@@ -128,19 +128,6 @@ public class OrganisationsResource {
     }
 
     @POST
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Create organisation", description = "Creates a new organisation and links the current user as owner and member")
-    @RolesAllowed(Roles.USER)
-    public Response createOrganisation(@Valid CreateOrganisationRequest request) {
-        String accountId = token.getSubject();
-        Organisation org = organisationService.createOrganisation(request.name, accountId);
-        organisationService.addOwner(org.getId(), accountId);
-        organisationService.addMember(org.getId(), accountId);
-        return Response.status(Response.Status.CREATED).entity(toOrganisationResponse(org)).build();
-    }
-
-    @POST
     @Path("/{orgId}/members")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
@@ -301,12 +288,6 @@ public class OrganisationsResource {
             this.clientId = clientId;
             this.createdAt = createdAt;
         }
-    }
-
-    @RegisterForReflection
-    public static class CreateOrganisationRequest {
-        @NotBlank(message = "Organisation name is required")
-        public String name;
     }
 
     @RegisterForReflection

@@ -118,6 +118,11 @@ public class OAuthClientService {
 
     @Transactional
     public OAuthClient update(OAuthClient client) {
+        // Prevent changing the clientId - it's immutable after creation
+        OAuthClient existing = em.find(OAuthClient.class, client.getId());
+        if (existing != null && !existing.getClientId().equals(client.getClientId())) {
+            throw new IllegalArgumentException("Client ID cannot be changed");
+        }
         return em.merge(client);
     }
 

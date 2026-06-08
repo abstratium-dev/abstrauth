@@ -69,6 +69,11 @@ public class ClientsResource {
     @Operation(summary = "Create a new OAuth client", description = "Creates a new OAuth client with the provided details")
     @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response createClient(@Valid CreateClientRequest request) {
+
+        // ensure clientId is unique by prepending the orgId
+        var orgId = token.getClaim("orgId");
+        request.clientId = orgId + "::" + request.clientId;
+
         // Check if client ID already exists
         if (oauthClientService.findByClientId(request.clientId).isPresent()) {
             return Response.status(Response.Status.CONFLICT)

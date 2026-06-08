@@ -15,10 +15,8 @@ import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
-import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
-import dev.abstratium.abstrauth.service.SubscriptionService;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -57,12 +55,6 @@ public class AccountsResource {
     OrganisationService organisationService;
 
     @Inject
-    SubscriptionService subscriptionService;
-
-    @Inject
-    ClientAllowedRoleService clientAllowedRoleService;
-
-    @Inject
     SecurityIdentity securityIdentity;
     
     @Inject
@@ -78,7 +70,7 @@ public class AccountsResource {
         String orgId = token.getClaim("orgId");
 
         return accountService.findAccountsInOrg(orgId).stream()
-                .map(this::toAccountResponse)
+                .map(account -> toAccountResponse(account, orgId))
                 .collect(Collectors.toList());
     }
 
@@ -119,16 +111,9 @@ public class AccountsResource {
             // Add existing account to the caller's org
             organisationService.addMember(orgId, account.getId());
 
-            // For every client the org subscribes to, add the default allowed roles
-            var subscribedClientIds = subscriptionService.findClientIdsByOrgId(orgId);
-            for (String clientId : subscribedClientIds) {
-                var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
-                accountRoleService.seedDefaultRoles(account.getId(), clientId, defaultRoles);
-            }
-
             // Return 200 OK (not 201 since we didn't create the account, just added to org)
             return Response.ok()
-                    .entity(new AddToOrgResponse(toAccountResponse(account), "Account added to organization"))
+                    .entity(new AddToOrgResponse(toAccountResponse(account, orgId), "Account added to organization"))
                     .build();
         }
 
@@ -156,7 +141,7 @@ public class AccountsResource {
         String inviteToken = createInviteToken(request.authProvider, request.email, generatedPassword);
 
         return Response.status(Response.Status.CREATED)
-                .entity(new CreateAccountResponse(toAccountResponse(account), inviteToken))
+                .entity(new CreateAccountResponse(toAccountResponse(account, orgId), inviteToken))
                 .build();
     }
     
@@ -300,8 +285,9 @@ public class AccountsResource {
         return Response.ok().entity(new SuccessResponse("Password updated successfully")).build();
     }
 
-    private AccountResponse toAccountResponse(Account account) {
+    private AccountResponse toAccountResponse(Account account, String orgId) {
         List<RoleInfo> roles = account.getRoles().stream()
+                .filter(role -> role.getOrgId().equals(orgId))
                 .map(role -> new RoleInfo(role.getClientId(), role.getRole()))
                 .distinct()
                 .collect(Collectors.toList());

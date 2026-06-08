@@ -99,54 +99,6 @@ public class OrganisationsResourceTest {
     }
 
     // ─────────────────────────────────────────────────────────
-    // POST /api/organisations
-    // ─────────────────────────────────────────────────────────
-
-    @Test
-    public void testCreateOrganisation_success() throws Exception {
-        Account account = createAccount(System.currentTimeMillis() + "_create");
-        String token = userToken(account.getId());
-
-        given()
-                .auth().oauth2(token)
-                .contentType(ContentType.JSON)
-                .body("{\"name\":\"New Org " + System.currentTimeMillis() + "\"}")
-                .when()
-                .post("/api/organisations")
-                .then()
-                .statusCode(201)
-                .contentType(ContentType.JSON)
-                .body("id", notNullValue())
-                .body("name", containsString("New Org"));
-    }
-
-    @Test
-    public void testCreateOrganisation_blankName_returns400() throws Exception {
-        Account account = createAccount(System.currentTimeMillis() + "_blankname");
-        String token = userToken(account.getId());
-
-        given()
-                .auth().oauth2(token)
-                .contentType(ContentType.JSON)
-                .body("{\"name\":\"\"}")
-                .when()
-                .post("/api/organisations")
-                .then()
-                .statusCode(400);
-    }
-
-    @Test
-    public void testCreateOrganisation_unauthenticated_returns401() {
-        given()
-                .contentType(ContentType.JSON)
-                .body("{\"name\":\"Org\"}")
-                .when()
-                .post("/api/organisations")
-                .then()
-                .statusCode(401);
-    }
-
-    // ─────────────────────────────────────────────────────────
     // POST /api/organisations/{orgId}/members
     // ─────────────────────────────────────────────────────────
 

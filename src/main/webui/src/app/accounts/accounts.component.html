@@ -115,6 +115,17 @@
       (filterChange)="onFilterChange($event)">
     </url-filter>
 
+    <!-- Roles Info Note -->
+    <div *ngIf="!rolesInfoHidden && !loading && filteredAccounts.length > 0" class="info-box-dismissible">
+      <div class="info-box-content">
+        <span class="info-box-icon">ℹ️</span>
+        <p>Additional default roles from subscribed clients are automatically assigned when users sign in to each client.</p>
+      </div>
+      <button class="btn-icon" (click)="hideRolesInfo()" title="Hide this note">
+        ✕
+      </button>
+    </div>
+
     <!-- No Results Message -->
     <div *ngIf="filteredAccounts.length === 0" class="info-message">
       <p>No accounts match your filter criteria.</p>

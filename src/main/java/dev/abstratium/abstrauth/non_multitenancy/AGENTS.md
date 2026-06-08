@@ -20,6 +20,8 @@ The `boundary` sub-package contains REST endpoints that perform cross-tenant (cr
 | Resource | Purpose |
 |----------|---------|
 | `NonMultitenancyClientsResource` | Access public OAuth clients owned by other organisations that the caller's org subscribes to |
+| `NonMultitenancyOrganisationsResource` | Create new organisations with initial role assignment (bypasses tenant discriminator before orgId is established in Hibernate session) |
+| `TokenResource` | OAuth 2.0 token endpoint — retrieves and seeds roles using non-multitenancy services (orgId from request, not Hibernate session) |
 
 ## Approved Exceptions (Usage Outside This Package)
 

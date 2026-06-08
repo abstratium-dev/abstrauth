@@ -56,6 +56,10 @@ export class AccountsComponent implements OnInit {
   loadingAllowedRoles = false;
   isPrivateClient = false; // true if client has no allowlist (private client)
 
+  // Roles info note visibility (stored in localStorage)
+  rolesInfoHidden = false;
+  private readonly ROLES_INFO_HIDDEN_KEY = 'abstrauth_roles_info_hidden';
+
   constructor() {
     effect(() => {
       const newAccounts = this.modelService.accounts$();
@@ -84,10 +88,18 @@ export class AccountsComponent implements OnInit {
   ngOnInit(): void {
     this.loadAccounts();
     this.controller.loadClients();
-    
+
+    // Check if user has previously hidden the roles info note
+    this.rolesInfoHidden = localStorage.getItem(this.ROLES_INFO_HIDDEN_KEY) === 'true';
+
     // Apply initial filter after first render
     this.isFirstLoad = false;
     this.applyFilter();
+  }
+
+  hideRolesInfo(): void {
+    this.rolesInfoHidden = true;
+    localStorage.setItem(this.ROLES_INFO_HIDDEN_KEY, 'true');
   }
 
   loadAccounts(): void {

@@ -33,7 +33,10 @@ The backend OrganisationsResource exposes all of these endpoints (as noted in MU
 
 
 - multi-tenancy
+  - add "add owner" API endpoint to promote member to owner (currently only `addMember` exists; `addOwner` method exists in service but isn't exposed). When implemented, ensure management roles are assigned (or require manual assignment as per design decision).
+
   - auto subscription. what if a user is already associated with multiple orgs, are all new subscribers? wait, they subscribe t o the clientId in the request. but it could be wrong for all of their orgs to subscribe. so only the one that they CHOSE during sign in should subscribe! so auto subscribe happens after they choose the org that they are signing in under
+
   - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs. Add a `platform-admin` role (or equivalent) with cross-org read/write access for true platform administration. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`.
   - extend MetricsService with orgs, etc.
   - testing
@@ -45,15 +48,14 @@ The backend OrganisationsResource exposes all of these endpoints (as noted in MU
       - ant can't see the new account in the list of accounts.
     - add a test for src/main/java/dev/abstratium/abstrauth/service/SecurityProblemLogger.java
     - when a user adds a second org, will they have the necessary abstratium roles? no!!
-    - see TODOs in AccountService
     - REALLY IMPORTANT: T_client_allowed_roles check that users
       cannot update the list if they are not a client manager in the org that owns the client. in fact, they can only do that if their current orgId matches that of the client! otherwise a malicious user could change the list and then add themselves as an admin to abstrauth in a second step
     - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
     - allow org owners who manage subscriptions to turn of auto-subscription on their subscription object (auto-subscription is marked on the client), as a field on the org, so that users cannot just start using any old app. this is a security feature like MS has
     - bugs
-      - native auth with two orgs -> no org selection
-      - microsoft auth with two orgs -> org selection but then error.
-      - fixed but run all tests in that session to check that they work.
+      - when creating a client, make it clear that the chosen clientId will get the org id prepended to it
+      - abstratium.dev@gmail.com creates client and new test@abstratium.dev account. then assigns role to that new client. when test@abstratium.dev signs in, they don't see the client, even tho they have a role for it.
+      - when test@abstratium.dev invites abstratium.dev@gmail.com, a sign in link is shown. the message needs to be different, namely that the user was successfully added to your org.
 
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream?
 
@@ -91,6 +93,9 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 
 
 ## Tomorrow
+
+- inviting user to join your org, the invite should expire and if they don't accept, delete the account that was created.
+  - also make it so that the new user has to accept before they are shown in the org - or at least show them as invited but not yet accepted or something.
 
 - organisations can set domain names, to allow anyone with that domain name to automatically be part of the org when they sign in, by creating a TXT dns record which we read regularly to verify that they really own that domain.
 

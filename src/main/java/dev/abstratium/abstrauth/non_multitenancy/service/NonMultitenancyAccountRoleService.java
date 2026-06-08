@@ -29,6 +29,9 @@ public class NonMultitenancyAccountRoleService {
     @Inject
     AccountRoleService accountRoleService;
 
+    @Inject
+    NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
+
     /**
      * Add a role to an account for a specific client AND GIVEN ORG ID.
      * WARNING: this method DOES NOT automatically add the AccountRole to the
@@ -52,7 +55,7 @@ public class NonMultitenancyAccountRoleService {
         accountRoleService.checkRoleAgainstAllowlist(clientId, role);
 
         // Check if role already exists
-        if (accountRoleService.findRolesByAccountIdAndClientId(accountId, clientId).contains(role)) {
+        if (nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(accountId, clientId, orgId).contains(role)) {
             throw new ConflictException("Role already exists");
         }
 

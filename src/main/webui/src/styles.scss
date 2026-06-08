@@ -1552,3 +1552,51 @@ button {
   color: var(--color-text-primary);
   text-align: center;
 }
+
+/* Dismissible info box with flex layout */
+.info-box-dismissible {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info);
+  border-radius: 6px;
+  margin: 1rem 0;
+
+  .info-box-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+
+    .info-box-icon {
+      font-size: 1.1rem;
+      line-height: 1.5;
+      flex-shrink: 0;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--color-info-text);
+      line-height: 1.5;
+    }
+  }
+
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 0.9rem;
+    color: var(--color-info);
+    line-height: 1;
+    flex-shrink: 0;
+
+    &:hover {
+      color: var(--color-info-text);
+    }
+  }
+}

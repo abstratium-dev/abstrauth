@@ -329,6 +329,36 @@ Org membership roles (`owner`, `member`) come from `T_organisation_accounts` and
 - "Own org" means the `orgId` in the caller's JWT must match the `org_id` of the data row (enforced by Hibernate discriminator or explicit `isMember` check).
 - `T_account_roles` write additionally requires: the target account is a member of the caller's org; the role is in the client's `T_client_allowed_roles` if the client is public.
 
+### Role Assignment Rules
+
+Roles are assigned to accounts in the following circumstances:
+
+| Scenario | Roles Assigned | Mechanism |
+|----------|---------------|-----------|
+| **New user registers** (signup) | `user` + `manage-accounts` + `manage-clients` (if org owner) + `admin` (if first account ever) | `AccountService.addAbstrauthRoles()` assigns all abstrauth roles based on ownership status |
+| **Account created by existing user** (via `/api/accounts`) | `user` for abstrauth only (at creation time) | `addAbstrauthRoles()` assigns `user` role immediately. Roles for other subscribed clients are assigned on first sign-in to each client. |
+| **User signs in to a non-abstrauth client** | Only default roles (`is_default = true` from `T_client_allowed_roles`) | `TokenResource` seeds default roles on first access if no roles exist for account+client+org |
+| **User creates new organisation** | `manage-accounts` + `manage-clients` for abstrauth client | `OrganisationsResource.createOrganisation()` assigns management roles so owner can manage their org |
+
+Note: if an org owner adds another member as an owner, they do not automatically get the abstrauth management roles, those need to be added manually by the original org owner.
+
+#### Use Case: Application with User and Management Roles
+
+Consider a client (application) registered in abstrauth with these allowed roles:
+- `user` (marked as `is_default = true`) — allows basic application access
+- `manager` (marked as `is_default = false`) — allows managing data within the user's org
+
+**When a user signs in to this application:**
+1. If they have no existing roles for this client in their org, they receive only the `user` role automatically
+2. The org owner (who already has `manage-accounts` role for abstrauth) can assign the `manager` role to specific users via the accounts UI
+3. Only users explicitly granted `manager` can manage data within their org in that application
+
+This design ensures:
+- New users get basic access automatically via default roles
+- Management privileges require explicit assignment by the org owner
+- Data isolation is maintained — users can only manage data within their own organisation
+- The application owner (who defines `T_client_allowed_roles`) controls which roles exist, but org owners control which users hold those roles
+
 ### Brain Dump from Ant 20260607
 
 - `T_oauth_clients` - abstrauth lives here by default. These belong to an organisation. Users with the `abstratum-abstrauth_manage-clients` `AccountRole` (in `T_account_roles`) can manage these clients. They can be public, in which case other organisations can subscribe to them. They can be auto-subscribed by setting that property in which case all users that sign in are given the default allowed roles (see `T_client_allowed_roles`). A client is almost a synonym for an application.
