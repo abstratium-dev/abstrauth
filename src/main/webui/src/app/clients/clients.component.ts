@@ -261,6 +261,14 @@ export class ClientsComponent implements OnInit {
     this.formError = null;
     this.formSubmitting = true;
 
+    // Validate client ID format: only letters, numbers, and underscores allowed
+    const clientIdPattern = /^[a-zA-Z0-9_]+$/;
+    if (!this.editingClientId && !clientIdPattern.test(this.formData.clientId)) {
+      this.formError = 'Client ID must contain only letters, numbers, and underscores';
+      this.formSubmitting = false;
+      return;
+    }
+
     try {
       // Convert redirect URIs and scopes to JSON arrays
       const redirectUrisArray = this.formData.redirectUris

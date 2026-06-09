@@ -70,6 +70,13 @@ public class ClientsResource {
     @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response createClient(@Valid CreateClientRequest request) {
 
+        // Validate client ID format: only letters, numbers, and underscores allowed
+        if (!request.clientId.matches("^[a-zA-Z0-9_]+$")) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Client ID must contain only letters, numbers, and underscores"))
+                    .build();
+        }
+
         // ensure clientId is unique by prepending the orgId
         var orgId = token.getClaim("orgId");
         request.clientId = orgId + "__" + request.clientId;

@@ -27,6 +27,7 @@ public class ClientsResourceTest {
             .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
             .claim("email", "test@example.com")
             .claim("name", "Test User")
+            .claim("orgId", "test-org-id")
             .sign();
     }
 
@@ -240,7 +241,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientSuccessfully() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -260,7 +261,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(201)
-            .body("clientId", equalTo(uniqueClientId))
+            .body("clientId", equalTo("test-org-id__" + uniqueClientId))
             .body("clientName", equalTo("Test Client"))
             .body("clientType", equalTo("confidential"))
             .body("requirePkce", equalTo(true))
@@ -340,7 +341,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithMissingRedirectUrisReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-no-redirect-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_no_redirect_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -364,7 +365,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithEmptyScopesAndRedirectsReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-empty-scopes-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_empty_scopes_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -394,7 +395,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithNeitherScopesNorRedirectsSucceeds() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-m2m-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_m2m_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -411,7 +412,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(201)
-            .body("clientId", equalTo(uniqueClientId))
+            .body("clientId", equalTo("test-org-id__" + uniqueClientId))
             .body("clientName", equalTo("Test M2M Client"))
             .body("clientType", equalTo("confidential"))
             .body("id", notNullValue())
@@ -422,7 +423,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithMissingAllowedScopesReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-missing-scopes-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_missing_scopes_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -446,21 +447,45 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithDuplicateClientIdReturns409() {
         String token = generateValidToken();
-        // Try to create a client with the same ID as the default client
-        String requestBody = """
+        String uniqueClientId = "test_client_dup_" + System.currentTimeMillis();
+
+        // First create a client successfully
+        String requestBody = String.format("""
             {
-                "clientId": "abstratium-abstrauth",
-                "clientName": "Duplicate Client",
-                "clientType": "public",
+                "clientId": "%s",
+                "clientName": "Original Client",
+                "clientType": "confidential",
                 "redirectUris": "[\\"http://localhost:3000/callback\\"]",
-                "allowedScopes": "[\\"openid\\", \\"profile\\"]"
+                "allowedScopes": "[\\"openid\\"]",
+                "requirePkce": true
             }
-            """;
-        
+            """, uniqueClientId);
+
         given()
             .header("Authorization", "Bearer " + token)
             .contentType("application/json")
             .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201);
+
+        // Try to create another client with the same ID
+        String duplicateRequestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Duplicate Client",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\"]",
+                "requirePkce": true
+            }
+            """, uniqueClientId);
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(duplicateRequestBody)
             .when()
             .post("/api/clients")
             .then()
@@ -676,7 +701,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientDefaultsRequirePkceToTrue() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-pkce-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_pkce_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -701,7 +726,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithPublicTypeReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-public-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_public_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -725,9 +750,88 @@ public class ClientsResourceTest {
     }
 
     @Test
+    public void testCreateClientWithInvalidClientIdCharactersReturns400() {
+        String token = generateValidToken();
+        // Client ID with invalid characters (dash is not allowed)
+        String requestBody = """
+            {
+                "clientId": "my-client-id",
+                "clientName": "Test Client",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\"]",
+                "requirePkce": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("Client ID must contain only letters, numbers, and underscores"));
+    }
+
+    @Test
+    public void testCreateClientWithSpecialCharactersInClientIdReturns400() {
+        String token = generateValidToken();
+        // Client ID with special characters
+        String requestBody = """
+            {
+                "clientId": "my@client#id!",
+                "clientName": "Test Client",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\"]",
+                "requirePkce": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("Client ID must contain only letters, numbers, and underscores"));
+    }
+
+    @Test
+    public void testCreateClientWithValidClientIdUnderscoresSucceeds() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_" + System.currentTimeMillis();
+        String requestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client With Underscores",
+                "clientType": "confidential",
+                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
+                "allowedScopes": "[\\"openid\\"]",
+                "requirePkce": true
+            }
+            """, uniqueClientId);
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .body("clientId", equalTo("test-org-id__" + uniqueClientId))
+            .body("clientName", equalTo("Test Client With Underscores"));
+    }
+
+    @Test
     public void testCreateClientWithRequirePkceFalseReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-no-pkce-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_no_pkce_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -856,7 +960,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientGeneratesValidSecret() {
         String token = generateValidToken();
-        String uniqueClientId = "test-client-secret-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_secret_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -893,7 +997,7 @@ public class ClientsResourceTest {
         String token = generateValidToken();
         
         // Create a client first
-        String uniqueClientId = "test-client-no-secret-" + System.currentTimeMillis();
+        String uniqueClientId = "test_client_no_secret_" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
