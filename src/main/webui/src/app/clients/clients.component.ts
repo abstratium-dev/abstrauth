@@ -45,7 +45,9 @@ export class ClientsComponent implements OnInit {
 
   // Client secret display state
   newClientSecret: string | null = null;
+  newClientId: string | null = null;
   newClientName: string | null = null;
+  clientIdCopied = false;
   secretCopied = false;
 
   // Secret management state
@@ -223,6 +225,18 @@ export class ClientsComponent implements OnInit {
     this.formError = null;
   }
 
+  copyClientId(): void {
+    if (this.newClientId) {
+      navigator.clipboard.writeText(this.newClientId).then(() => {
+        this.clientIdCopied = true;
+        this.toastService.success('Client ID copied to clipboard');
+      }).catch(err => {
+        console.error('Failed to copy client ID:', err);
+        this.toastService.error('Failed to copy client ID to clipboard');
+      });
+    }
+  }
+
   copySecret(): void {
     if (this.newClientSecret) {
       navigator.clipboard.writeText(this.newClientSecret).then(() => {
@@ -237,7 +251,9 @@ export class ClientsComponent implements OnInit {
 
   closeSecretDialog(): void {
     this.newClientSecret = null;
+    this.newClientId = null;
     this.newClientName = null;
+    this.clientIdCopied = false;
     this.secretCopied = false;
   }
 
@@ -305,14 +321,17 @@ export class ClientsComponent implements OnInit {
       } else {
         // Create new client
         const response = await this.controller.createClient(clientData);
-        const clientName = this.formData.clientName;
+        const clientName = response.clientName;
+        const clientId = response.clientId;
         this.showForm = false;
         this.resetForm();
-        
+
         // Show the client secret if present
         if (response.clientSecret) {
           this.newClientSecret = response.clientSecret;
+          this.newClientId = clientId;
           this.newClientName = clientName;
+          this.clientIdCopied = false;
           this.secretCopied = false;
         } else {
           this.toastService.success(`Client "${clientName}" created successfully`);
@@ -396,7 +415,9 @@ export class ClientsComponent implements OnInit {
       
       // Show the new secret in a dialog
       this.newClientSecret = response.secret;
+      this.newClientId = `${this.clients.find(c => c.clientId === clientId)?.clientId}`;
       this.newClientName = `${this.clients.find(c => c.clientId === clientId)?.clientName} - New Secret`;
+      this.clientIdCopied = false;
       this.secretCopied = false;
       
       // Reload secrets list

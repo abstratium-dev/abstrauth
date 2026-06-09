@@ -72,7 +72,7 @@ public class ClientsResource {
 
         // ensure clientId is unique by prepending the orgId
         var orgId = token.getClaim("orgId");
-        request.clientId = orgId + "::" + request.clientId;
+        request.clientId = orgId + "__" + request.clientId;
 
         // Check if client ID already exists
         if (oauthClientService.findByClientId(request.clientId).isPresent()) {

@@ -17,6 +17,16 @@
         </div>
 
         <div class="form-group">
+          <label><strong>Client ID:</strong></label>
+          <div class="secret-display">
+            <code class="secret-value">{{ newClientId }}</code>
+            <button type="button" class="btn-copy" (click)="copyClientId()" [class.copied]="clientIdCopied">
+              {{ clientIdCopied ? '✓ Copied' : '📋 Copy' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label><strong>Client Secret:</strong></label>
           <div class="secret-display">
             <code class="secret-value">{{ newClientSecret }}</code>
@@ -30,7 +40,7 @@
           <strong>Next steps:</strong>
           <ul>
             <li>Store this secret in a secure location (e.g., password manager, environment variables)</li>
-            <li>Use this secret when configuring your OAuth client application</li>
+            <li>Use the client ID and this secret when configuring your OAuth client application</li>
             <li>Never commit this secret to version control</li>
           </ul>
         </div>
@@ -74,7 +84,7 @@
             <label for="clientId">Client ID *</label>
             <input type="text" id="clientId" name="clientId" [(ngModel)]="formData.clientId" required
               placeholder="e.g., my-app-client" [disabled]="formSubmitting">
-            <small class="form-hint">Unique identifier for this client</small>
+            <small class="form-hint">Unique identifier for this client. Note that the actual client id to use in your application will be prepended with a unique id for your organisation.</small>
           </div>
 
           <div class="form-group">
