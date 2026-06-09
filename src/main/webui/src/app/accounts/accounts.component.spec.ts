@@ -996,7 +996,7 @@ describe('AccountsComponent', () => {
         createdAt: '2024-01-04T00:00:00Z',
         roles: []
       };
-      createReq.flush(newAccount);
+      createReq.flush({ account: newAccount, inviteToken: 'test-invite-token' });
       tick();
 
       // Expect accounts to be reloaded
@@ -1009,9 +1009,55 @@ describe('AccountsComponent', () => {
       tick(); // Ensure all async operations complete
       fixture.detectChanges();
       
-      // After successful creation, invite link is shown, form is not reset yet
+      // New account: invite link is shown
       expect(component.showInviteLink).toBe(true);
-      expect(component.inviteLink).toBeTruthy();
+      expect(component.showAddedToOrg).toBe(false);
+      expect(component.inviteLink).toContain('test-invite-token');
+      expect(component.formError).toBeNull();
+    }));
+
+    it('should show added-to-org message when account already exists', fakeAsync(async () => {
+      fixture.detectChanges();
+
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      component.accountFormData = { email: 'existing@example.com', name: '', authProvider: 'google' };
+      const promise = component.onSubmitAddAccount();
+
+      const createReq = httpMock.expectOne('/api/accounts');
+      const existingAccount = {
+        id: '1',
+        email: 'existing@example.com',
+        name: 'Existing User',
+        emailVerified: true,
+        authProvider: 'google',
+        picture: null,
+        createdAt: '2024-01-01T00:00:00Z',
+        roles: []
+      };
+      // Backend returns 200 with no inviteToken when adding existing account to org
+      createReq.flush({ account: existingAccount });
+      tick();
+
+      const reloadReq = httpMock.expectOne('/api/accounts');
+      reloadReq.flush(mockAccounts);
+      tick();
+      fixture.detectChanges();
+
+      await promise;
+      tick();
+      fixture.detectChanges();
+
+      // Existing account added to org: show success message, no invite link
+      expect(component.showAddedToOrg).toBe(true);
+      expect(component.showInviteLink).toBe(false);
+      expect(component.inviteLink).toBeNull();
       expect(component.formError).toBeNull();
     }));
 

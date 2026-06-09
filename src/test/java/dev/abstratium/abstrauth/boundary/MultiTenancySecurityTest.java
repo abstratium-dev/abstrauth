@@ -1,11 +1,11 @@
 package dev.abstratium.abstrauth.boundary;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,16 +17,14 @@ import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.entity.Organisation;
-import dev.abstratium.abstrauth.entity.OrganisationAccount;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import dev.abstratium.abstrauth.util.TestTransactionHelper;
 
 /**
  * Comprehensive security tests for multi-tenancy isolation.
@@ -1006,46 +1004,6 @@ public class MultiTenancySecurityTest {
     // ====================================================================================
     // TEST 8: Organisation Endpoint Security
     // ====================================================================================
-
-    @Test
-    public void testNonOwnerCannotAddMemberToAnotherOrg() throws Exception {
-        long ts = System.currentTimeMillis();
-
-        transactionHelper.beginTransaction();
-
-        // Create Org A with owner
-        String emailA = "orgA_owner_" + ts + "@example.com";
-        Account accountA = accountService.createAccount(emailA, "Org A Owner", emailA, "Pass123!", AccountService.NATIVE, "Org A " + ts);
-        String orgAId = organisationService.listOrganisationsForAccount(accountA.getId()).get(0).getId();
-
-        // Create Org B with owner
-        String emailB = "orgB_owner_" + ts + "@example.com";
-        Account accountB = accountService.createAccount(emailB, "Org B Owner", emailB, "Pass123!", AccountService.NATIVE, "Org B " + ts);
-        String orgBId = organisationService.listOrganisationsForAccount(accountB.getId()).get(0).getId();
-
-        // Create a user to be added
-        String emailUser = "user_to_add_" + ts + "@example.com";
-        Account userAccount = accountService.createAccount(emailUser, "User To Add", emailUser, "Pass123!", AccountService.NATIVE, "User Org " + ts);
-
-        transactionHelper.commitTransaction();
-
-        // Org B owner attempts to add member to Org A (using Org B token)
-        // The endpoint checks isOwnerOfOrg with the caller's account ID from JWT
-        String requestBody = """
-            {
-                "accountId": "%s"
-            }
-            """.formatted(userAccount.getId());
-
-        given()
-            .auth().oauth2(userTokenForOrg(accountB.getId(), orgBId))
-            .contentType(ContentType.JSON)
-            .body(requestBody)
-            .when()
-            .post("/api/organisations/" + orgAId + "/members")
-            .then()
-            .statusCode(403);
-    }
 
     @Test
     public void testNonOwnerCannotRemoveMemberFromAnotherOrg() throws Exception {

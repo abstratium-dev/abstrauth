@@ -12,7 +12,6 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import io.quarkus.test.junit.QuarkusTest;
-import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -285,52 +284,6 @@ public class MultiTenancyEdgeCaseTest {
     }
 
     // ====================================================================================
-    // TEST 5: Path Parameter Tampering
-    // ====================================================================================
-
-    @Test
-    public void testPathParameterOrgIdMismatchWithToken() throws Exception {
-        long ts = System.currentTimeMillis();
-
-        transactionHelper.beginTransaction();
-
-        // Create Org A
-        String emailA = "path_orgA_" + ts + "@example.com";
-        Account accountA = accountService.createAccount(emailA, "Path Org A Test", emailA, "Pass123!", AccountService.NATIVE, "Path Org A " + ts);
-        String orgAId = organisationService.listOrganisationsForAccount(accountA.getId()).get(0).getId();
-
-        // Create Org B
-        String emailB = "path_orgB_" + ts + "@example.com";
-        Account accountB = accountService.createAccount(emailB, "Path Org B Test", emailB, "Pass123!", AccountService.NATIVE, "Path Org B " + ts);
-        String orgBId = organisationService.listOrganisationsForAccount(accountB.getId()).get(0).getId();
-
-        // Create a user to add
-        String emailUser = "path_user_" + ts + "@example.com";
-        Account userAccount = accountService.createAccount(emailUser, "Path User", emailUser, "Pass123!", AccountService.NATIVE, "Path User Org " + ts);
-
-        transactionHelper.commitTransaction();
-
-        // User has token for Org A, but tries to modify Org B via path parameter
-        String requestBody = """
-            {
-                "accountId": "%s"
-            }
-            """.formatted(userAccount.getId());
-
-        // The token has orgA claim, but path has orgB
-        // The endpoint checks ownership using caller from token + path orgId
-        // Since caller from token is not owner of orgB, this should fail
-        given()
-            .auth().oauth2(userTokenForOrg(accountA.getId(), orgAId))
-            .contentType(ContentType.JSON)
-            .body(requestBody)
-            .when()
-            .post("/api/organisations/" + orgBId + "/members")
-            .then()
-            .statusCode(403);
-    }
-
-    // ====================================================================================
     // TEST 6: SQL Injection Attempts via orgId
     // ====================================================================================
 
@@ -362,36 +315,6 @@ public class MultiTenancyEdgeCaseTest {
             .get("/api/accounts")
             .then()
             .statusCode(anyOf(is(200), is(400), is(403)));
-    }
-
-    @Test
-    public void testSqlInjectionInOrgIdPathParam() throws Exception {
-        long ts = System.currentTimeMillis();
-
-        transactionHelper.beginTransaction();
-
-        // Create account and org
-        String email = "sqlpath_test_" + ts + "@example.com";
-        Account account = accountService.createAccount(email, "SQL Path Test", email, "Pass123!", AccountService.NATIVE, "SQL Path Org " + ts);
-        String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
-
-        transactionHelper.commitTransaction();
-
-        // Attempt SQL injection via path parameter using POST
-        // The endpoint is POST /api/organisations/{orgId}/members
-        String requestBody = """
-            {
-                "accountId": "%s"
-            }
-            """.formatted(account.getId());
-        given()
-            .auth().oauth2(userTokenForOrg(account.getId(), orgId))
-            .contentType(ContentType.JSON)
-            .body(requestBody)
-            .when()
-            .post("/api/organisations/1'%20OR%20'1'='1/members")
-            .then()
-            .statusCode(anyOf(is(404), is(400), is(403)));
     }
 
     // ====================================================================================

@@ -130,10 +130,9 @@ export class SigninComponent implements OnInit {
                             null
                         ).subscribe({
                             next: (response) => {
-                                this.getApproval = true;
                                 this.name = response.name;
                                 
-                                // Check for stored approval after setting up approval UI
+                                // Check for stored approval - will set getApproval = true only if UI needs to be shown
                                 setTimeout(() => this.checkStoredApproval(), 100);
                             },
                             error: (error) => {
@@ -191,7 +190,6 @@ export class SigninComponent implements OnInit {
                     return;
                 }
 
-                this.getApproval = true;
                 this.name = authenticationResponse.name;
 
                 // Check if we need to redirect to password change for native invite
@@ -202,6 +200,7 @@ export class SigninComponent implements OnInit {
                 }
 
                 // Check for stored approval after successful authentication
+                // This will set getApproval = true only if UI needs to be shown
                 setTimeout(() => this.checkStoredApproval(), 100);
             },
             error: (error) => {
@@ -234,6 +233,7 @@ export class SigninComponent implements OnInit {
         console.debug("[SIGNIN] Checking stored approval: " + stored);
         
         if (!stored) {
+            this.getApproval = true;
             this.shouldShowApproval = true;
             console.debug("[SIGNIN] No stored approval found");
             return;
@@ -270,6 +270,7 @@ export class SigninComponent implements OnInit {
             this.autoApproveDirectly();
         } catch (err) {
             console.error('Error checking stored approval:', err);
+            this.getApproval = true;
             this.shouldShowApproval = true;
             localStorage.removeItem(key);
         }

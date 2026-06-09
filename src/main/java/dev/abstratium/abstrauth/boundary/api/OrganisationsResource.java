@@ -127,37 +127,6 @@ public class OrganisationsResource {
                         .build());
     }
 
-    @POST
-    @Path("/{orgId}/members")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Add member", description = "Adds an account as a member of the organisation. Caller must be owner of that organisation.")
-    @RolesAllowed(Roles.USER)
-    public Response addMember(@PathParam("orgId") String orgId, @Valid AddMemberRequest request) {
-        String callerId = token.getSubject();
-
-        if (!isOwnerOfOrg(callerId, orgId)) {
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity(new ErrorResponse("You must be an owner of this organisation"))
-                    .build();
-        }
-
-        if (organisationService.findById(orgId).isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(new ErrorResponse("Organisation not found"))
-                    .build();
-        }
-
-        if (accountService.findById(request.accountId).isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(new ErrorResponse("Account not found"))
-                    .build();
-        }
-
-        organisationService.addMember(orgId, request.accountId);
-        return Response.status(Response.Status.CREATED).build();
-    }
-
     @DELETE
     @Path("/{orgId}/members/{accountId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -294,12 +263,6 @@ public class OrganisationsResource {
     public static class UpdateOrganisationRequest {
         @NotBlank(message = "Organisation name is required")
         public String name;
-    }
-
-    @RegisterForReflection
-    public static class AddMemberRequest {
-        @NotBlank(message = "Account ID is required")
-        public String accountId;
     }
 
     @RegisterForReflection

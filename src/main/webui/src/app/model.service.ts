@@ -91,7 +91,7 @@ export interface UpdateOrganisationRequest {
 
 export interface CreateAccountResponse {
   account: Account;
-  inviteToken: string;
+  inviteToken?: string;
 }
 
 export interface ConfigResponse {

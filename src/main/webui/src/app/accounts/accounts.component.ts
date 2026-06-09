@@ -43,6 +43,7 @@ export class AccountsComponent implements OnInit {
   formError: string | null = null;
   inviteLink: string | null = null;
   showInviteLink = false;
+  showAddedToOrg = false;
 
   // Role Form state
   addingRoleForAccountId: string | null = null;
@@ -217,12 +218,16 @@ export class AccountsComponent implements OnInit {
         this.accountFormData.name,
         this.accountFormData.authProvider
       );
-      // Success - generate invite link and show it
-      const email = this.accountFormData.email;
-      const baseUrl = window.location.origin;
-      this.inviteLink = `${baseUrl}/signin-after-invite?token=${encodeURIComponent(response.inviteToken)}`;
-      this.showInviteLink = true;
-      this.toastService.success(`Account created successfully for ${email}`);
+      if (response.inviteToken) {
+        // New account created — show invite link
+        const baseUrl = window.location.origin;
+        this.inviteLink = `${baseUrl}/signin-after-invite?token=${encodeURIComponent(response.inviteToken)}`;
+        this.showInviteLink = true;
+      } else {
+        // Existing account added to org — no invite link needed
+        this.showAddedToOrg = true;
+      }
+      this.toastService.success(`${this.accountFormData.email} added to your organisation`);
     } catch (err: any) {
       if (err.status === 400) {
         // Check for validation error structure
@@ -256,6 +261,7 @@ export class AccountsComponent implements OnInit {
 
   closeInviteLink(): void {
     this.showInviteLink = false;
+    this.showAddedToOrg = false;
     this.inviteLink = null;
     this.showAddAccountForm = false;
     this.accountFormData = {

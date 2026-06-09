@@ -434,7 +434,6 @@ non_multitenancy/
 | GET | `/api/organisations/{orgId}` | Get organisation by ID | `user` |
 | POST | `/api/organisations` | Create a new organisation | `user` |
 | PUT | `/api/organisations/{orgId}` | Update organisation name | `user` (org `owner`) |
-| POST | `/api/organisations/{orgId}/members` | Add an account to an organisation | `user` (org `owner`) |
 | DELETE | `/api/organisations/{orgId}/members/{accountId}` | Remove a member | `user` (org `owner`) |
 | POST | `/api/organisations/{orgId}/subscriptions` | Subscribe org to a client | `user` (org `owner`) |
 | DELETE | `/api/organisations/{orgId}/subscriptions/{clientId}` | Unsubscribe | `user` (org `owner`) |

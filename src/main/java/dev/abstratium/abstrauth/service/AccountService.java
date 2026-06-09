@@ -401,7 +401,7 @@ public class AccountService {
         }
 
         // Prevent deletion if this account has the only admin role for abstratium-abstrauth
-        if (hasOnlyAdminRoleForAbstrauthClient(accountId)) {
+        if (hasTheOnlyAdminRoleForAbstrauthClient(accountId)) {
             throw new IllegalArgumentException("Cannot delete the account with the only admin role for " + Roles.CLIENT_ID);
         }
 
@@ -420,7 +420,7 @@ public class AccountService {
      * @param accountId The account ID to check
      * @return true if this account has the only admin role for abstratium-abstrauth
      */
-    private boolean hasOnlyAdminRoleForAbstrauthClient(String accountId) {
+    private boolean hasTheOnlyAdminRoleForAbstrauthClient(String accountId) {
         // Check if this account has the admin role for abstratium-abstrauth
         var accountRoleQuery = em.createQuery(
             "SELECT COUNT(ar) FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.role = :role",

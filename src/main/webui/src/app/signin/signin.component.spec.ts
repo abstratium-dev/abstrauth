@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -121,7 +121,7 @@ describe('SigninComponent', () => {
       httpMock.expectOne('/oauth2/authorize/details/test-request-id').flush({ clientName: 'Test', scope: 'openid' });
     });
 
-    it('should submit credentials successfully', () => {
+    it('should submit credentials successfully', fakeAsync(() => {
       component.signinForm.patchValue({ username: 'testuser', password: 'testpass' });
       component.signin();
 
@@ -138,11 +138,14 @@ describe('SigninComponent', () => {
 
       req.flush({ name: 'Test User' });
 
+      // Allow setTimeout in checkStoredApproval to execute
+      tick(100);
+
       expect(component.getApproval).toBe(true);
       expect(component.name).toBe('Test User');
       expect(component.isSubmitting).toBe(false);
       expect(component.errorMessage).toBe('');
-    });
+    }));
 
     it('should handle authentication failure with error details', () => {
       component.signinForm.patchValue({ username: 'wrong', password: 'wrong' });
