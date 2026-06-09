@@ -107,14 +107,6 @@ Not scoped (no `org_id`):
 
 A non-unique index on `org_id` is added to each scoped table to support efficient discriminator filtering — without it, every query would require a full table scan. Named `I_{table}_org_id` (e.g. `I_oauth_clients_org_id`).
 
-### Migration Files
-
-- `V01.016__create_organisations_table.sql`
-- `V01.017__create_organisation_accounts_table.sql`
-- `V01.018__create_subscriptions_table.sql`
-- `V01.019__create_client_allowed_roles_table.sql`
-- `V01.020__add_org_id_to_scoped_tables.sql`
-- `V01.021__migrate_existing_data_to_default_org.sql` — creates organisation "rename-me"; links all existing accounts as `member`; additionally links accounts that hold the `admin` role in `T_account_roles` (for `client_id = 'abstratium-abstrauth'`) as `owner`; sets `org_id` on all scoped rows
 
 ## Organisation Resolution
 
@@ -258,7 +250,7 @@ When a user is invited, an org owner creates `T_organisation_accounts` rows for 
 
 1. User creates a new `clientId` in abstrauth (generates client secret).
 2. Client is created with `publik = false` (default).
-3. A subscription from the org to that client is created (manually or automatically).
+3. A subscription from the owning org to that client is created automatically at creation time (`ClientsResource.createClient` calls `SubscriptionService.subscribe`).
 4. No other organisation can subscribe to it.
 
 ### Creating a Public Application
@@ -320,7 +312,7 @@ Org membership roles (`owner`, `member`) come from `T_organisation_accounts` and
 | `T_subscriptions` | `user` + org `member` (own org's subscriptions) | Add/remove: `user` + org `owner` |
 | `T_accounts` | `manage-accounts` (members of own org only) | Create: public (signup); Update/delete: `manage-accounts` |
 | `T_account_roles` | `manage-accounts` (own org) or `user` (own roles via token) | Add/remove: `manage-accounts`; role must be in client's allowlist or client must be private |
-| `T_oauth_clients` | List: `user` (own org) which reads all clients in their org as well as all clients to which their org is subscribed; Detail: `manage-clients` | Create/update/delete: `manage-clients` |
+| `T_oauth_clients` | List: `user` — own org's clients (always visible) plus cross-org subscribed clients; Detail: `manage-clients` | Create/update/delete: `manage-clients` (subscription to owning org created automatically on create) |
 | `T_oauth_client_secrets` | `manage-clients` (own org only) | Create/revoke/delete: `manage-clients` |
 | `T_client_allowed_roles` | `user` + org `member` (own org's clients only) | Managed by `manage-clients` of the org that owns the client |
 
@@ -389,7 +381,8 @@ The `src/main/java/dev/abstratium/abstrauth/non_multitenancy` package contains e
 ```
 non_multitenancy/
 ├── boundary/                              # Cross-tenant REST endpoints
-│   └── NonMultitenancyClientsResource.java    # Endpoints accessing cross-org clients
+│   ├── NonMultitenancyClientsResource.java       # List own-org + subscribed cross-org clients; allowed-roles
+│   └── NonMultitenancyOrganisationsResource.java # Create org with initial role assignment (bypasses discriminator)
 ├── entity/
 │   ├── NonMultitenancyAccountRole.java    # T_account_roles without @TenantId
 │   ├── NonMultitenancyOAuthClient.java    # T_oauth_clients without @TenantId
@@ -414,6 +407,7 @@ non_multitenancy/
 | `TokenResource.generateAccessToken()` | `NonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId()` | When building JWT groups claim |
 | `TokenResource.generateIdToken()` | `NonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId()` | When building ID token groups claim |
 | `AuthorizationService.checkSubscription()` | `NonMultitenancySubscriptionService.ensureSubscribed()` | During OAuth authorization flow |
+| `ClientsResource.createClient()` | `SubscriptionService.subscribe()` | Auto-subscribe the owning org at client creation time |
 | `ClientsResource.listClients()` | `NonMultitenancyOAuthClientService.findAllByClientIds()` | To include subscribed public clients from other orgs |
 | `ClientsResource.listAllowedRoles()` | `NonMultitenancyOAuthClientService.findAllByClientIds()`, `NonMultitenancySubscriptionService.findNonMultitenancySubscription()` | To verify cross-org client access |
 
@@ -492,7 +486,7 @@ non_multitenancy/
 
 ## Quarkus Changes
 
-- **Database**: create migration files V01.016–V01.021 (see above); update `DATABASE.md`
+- **Database**: create migration files V01.016–V01.029 (see above); update `DATABASE.md`
 - **Backend Entities**: add `@TenantId`/`org_id` to `OAuthClient`, `AccountRole`, `ClientSecret`, `ServiceAccountRole`; create `Organisation`, `OrganisationAccount`, `Subscription`, `ClientAllowedRole` entities
 - **Backend Services**: create `OrganisationService`, `SubscriptionService`, `JwtOrgResolver`; update `SignupResource` / `AccountService`; update `TokenResource` to emit `orgId` claim, verify membership, and seed `AccountRole` rows from client default roles on first access; create `OrganisationsResource`, `OrgSelectionResource`; update `UserInfoResource`
 - **Backend Configuration**: `quarkus.hibernate-orm.multitenant=DISCRIMINATOR`

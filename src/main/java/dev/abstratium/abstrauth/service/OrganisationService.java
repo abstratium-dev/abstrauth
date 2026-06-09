@@ -33,6 +33,14 @@ public class OrganisationService {
     }
 
     @Transactional
+    public void updateCreatedBy(String orgId, String accountId) {
+        Organisation org = em.find(Organisation.class, orgId);
+        if (org != null && org.getCreatedByAccountId() == null) {
+            org.setCreatedByAccountId(accountId);
+        }
+    }
+
+    @Transactional
     public Organisation updateName(String orgId, String name) {
         Organisation org = em.find(Organisation.class, orgId);
         if (org != null) {

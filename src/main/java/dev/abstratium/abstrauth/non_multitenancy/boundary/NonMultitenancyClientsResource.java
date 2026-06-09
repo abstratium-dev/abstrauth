@@ -24,7 +24,6 @@ import dev.abstratium.abstrauth.service.CurrentOrgContext;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.service.SubscriptionService;
-import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.RolesAllowed;
@@ -75,14 +74,11 @@ public class NonMultitenancyClientsResource {
     @Inject
     SubscriptionService subscriptionService;
 
-    @Inject
-    SecurityIdentity securityIdentity;
-
     /**
      * Lists all OAuth clients visible to the caller's organisation.
      * This includes:
      * 1. Cross-org public clients that the caller's org subscribes to (via non-multitenancy)
-     * 2. The caller's own org's clients (if they have MANAGE_CLIENTS role)
+     * 2. All clients owned by the caller's own org (any user in the org may see these)
      * 
      * This endpoint uses non-multitenancy entities for cross-tenant access to subscribed public clients.
      * 
@@ -107,13 +103,12 @@ public class NonMultitenancyClientsResource {
                 .map(this::toClientResponse)
                 .forEach(r -> merged.put(r.clientId, r));
 
-        if (securityIdentity.hasRole(Roles.MANAGE_CLIENTS)) {
-            // Also include all clients owned by the caller's org, regardless of subscription
-            oauthClientService.findAll().stream()
-                    .filter(c -> !merged.containsKey(c.getClientId()))
-                    .map(this::toClientResponse)
-                    .forEach(r -> merged.put(r.clientId, r));
-        }
+        // Also include all clients owned by the caller's org (tenant-scoped), regardless of subscription.
+        // Any user in the org may see their own org's clients.
+        oauthClientService.findAll().stream()
+                .filter(c -> !merged.containsKey(c.getClientId()))
+                .map(this::toClientResponse)
+                .forEach(r -> merged.put(r.clientId, r));
 
         return new ArrayList<>(merged.values());
     }

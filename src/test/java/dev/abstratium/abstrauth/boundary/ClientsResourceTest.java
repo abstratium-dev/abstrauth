@@ -3,11 +3,14 @@ package dev.abstratium.abstrauth.boundary;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import dev.abstratium.abstrauth.service.SubscriptionService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 /**
@@ -17,6 +20,22 @@ import jakarta.transaction.Transactional;
 @QuarkusTest
 public class ClientsResourceTest {
 
+    @Inject
+    SubscriptionService subscriptionService;
+
+
+    /**
+     * Generate a JWT token with only the user role (no manage-clients)
+     */
+    private String generateUserOnlyToken() {
+        return Jwt.issuer("https://abstrauth.abstratium.dev")
+            .upn("user@example.com")
+            .groups(java.util.Set.of("abstratium-abstrauth_user"))
+            .claim("email", "user@example.com")
+            .claim("name", "User Only")
+            .claim("orgId", "00000000-0000-0000-0000-000000000000")
+            .sign();
+    }
 
     /**
      * Generate a valid JWT token with the required role for testing
@@ -27,7 +46,7 @@ public class ClientsResourceTest {
             .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
             .claim("email", "test@example.com")
             .claim("name", "Test User")
-            .claim("orgId", "test-org-id")
+            .claim("orgId", "00000000-0000-0000-0000-000000000000")
             .sign();
     }
 
@@ -261,7 +280,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(201)
-            .body("clientId", equalTo("test-org-id__" + uniqueClientId))
+            .body("clientId", equalTo("00000000-0000-0000-0000-000000000000__" + uniqueClientId))
             .body("clientName", equalTo("Test Client"))
             .body("clientType", equalTo("confidential"))
             .body("requirePkce", equalTo(true))
@@ -412,7 +431,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(201)
-            .body("clientId", equalTo("test-org-id__" + uniqueClientId))
+            .body("clientId", equalTo("00000000-0000-0000-0000-000000000000__" + uniqueClientId))
             .body("clientName", equalTo("Test M2M Client"))
             .body("clientType", equalTo("confidential"))
             .body("id", notNullValue())
@@ -824,7 +843,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(201)
-            .body("clientId", equalTo("test-org-id__" + uniqueClientId))
+            .body("clientId", equalTo("00000000-0000-0000-0000-000000000000__" + uniqueClientId))
             .body("clientName", equalTo("Test Client With Underscores"));
     }
 
@@ -990,6 +1009,67 @@ public class ClientsResourceTest {
         assert clientSecret != null;
         assert clientSecret.length() >= 40; // At least 40 characters
         assert clientSecret.matches("[A-Za-z0-9_-]+"); // URL-safe base64 pattern
+    }
+
+    @Test
+    public void testCreateClientCreatesSubscriptionForOwningOrg() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_sub_" + System.currentTimeMillis();
+        String requestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Subscription Client",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201);
+
+        String fullClientId = "00000000-0000-0000-0000-000000000000__" + uniqueClientId;
+        assertTrue(
+            subscriptionService.subscriptionExists("00000000-0000-0000-0000-000000000000", fullClientId),
+            "Owning org should be subscribed to the newly created client"
+        );
+    }
+
+    @Test
+    public void testUserWithoutManageClientsCanSeeOwnOrgClients() {
+        String managerToken = generateValidToken();
+        String uniqueClientId = "test_client_visibility_" + System.currentTimeMillis();
+        String requestBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Visibility Test Client",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        given()
+            .header("Authorization", "Bearer " + managerToken)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201);
+
+        String fullClientId = "00000000-0000-0000-0000-000000000000__" + uniqueClientId;
+
+        String userToken = generateUserOnlyToken();
+        given()
+            .header("Authorization", "Bearer " + userToken)
+            .when()
+            .get("/api/clients")
+            .then()
+            .statusCode(200)
+            .body("clientId", hasItem(fullClientId));
     }
 
     @Test

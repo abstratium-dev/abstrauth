@@ -185,9 +185,10 @@ public class AccountService {
         // since adding roles happens long after creating the account
         boolean isFirstAccount = countAccounts() == 1;
 
-        // First account also gets admin roles
+        // First account also gets admin roles, and is recorded as the creator of the default org
         if (isFirstAccount) {
             nonMultitenancyAccountRoleService.addRole(orgId, account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+            organisationService.updateCreatedBy(orgId, account.getId());
         }
 
         // All accounts get the "user" role for abstrauth, so that they can actually use it.

@@ -12,6 +12,7 @@ import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.service.SubscriptionService;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.RolesAllowed;
@@ -45,6 +46,9 @@ public class ClientsResource {
 
     @Inject
     MetricsService metricsService;
+
+    @Inject
+    SubscriptionService subscriptionService;
 
     @Inject
     @IdToken
@@ -133,6 +137,7 @@ public class ClientsResource {
         client.setAutoSubscribe(autoSubscribe);
 
         OAuthClientService.ClientWithSecret result = oauthClientService.createWithSecret(client);
+        subscriptionService.subscribe(orgId.toString(), client.getClientId());
         metricsService.recordClientCreation();
         return Response.status(Response.Status.CREATED)
                 .entity(toClientResponseWithSecret(result.getClient(), result.getPlainSecret()))

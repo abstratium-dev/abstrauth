@@ -53,7 +53,7 @@ The backend OrganisationsResource exposes all of these endpoints (as noted in MU
     - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
     - allow org owners who manage subscriptions to turn of auto-subscription on their subscription object (auto-subscription is marked on the client), as a field on the org, so that users cannot just start using any old app. this is a security feature like MS has
     - bugs
-      - abstratium.dev@gmail.com creates client and new test@abstratium.dev account. then assigns role to that new client. when test@abstratium.dev signs in, they don't see the client, even tho they have a role for it.
+      - X abstratium.dev@gmail.com creates client and new test@abstratium.dev account. then assigns role to that new client. when test@abstratium.dev signs in, they don't see the client, even tho they have a role for it.
       - when test@abstratium.dev invites abstratium.dev@gmail.com, a sign in link is shown. the message needs to be different, namely that the user was successfully added to your org.
 
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream?
