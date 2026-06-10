@@ -11,6 +11,6 @@ export class DomainService {
     const hostname = inject(DOCUMENT).location.hostname;
     this.isAbstratiumDomain =
       hostname.endsWith('.abstratium.dev') ||
-      hostname === 'localhostTODO';
+      hostname === 'localhost';
   }
 }

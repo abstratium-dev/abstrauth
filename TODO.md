@@ -19,7 +19,7 @@
     - ensure that when a user adds a role to an account for a client, the AccountRole is in their org
     - ensure that a user can add accounts to their org and that the OrganisationAccount is in their org
   - add "add owner" API endpoint to promote member to owner (currently only `addMember` exists; `addOwner` method exists in service but isn't exposed). When implemented, ensure management roles are assigned (or require manual assignment as per design decision).
-  - managing default roles and allowed roles in a client
+!!  - managing default roles and allowed roles in a client
     - REALLY IMPORTANT: T_client_allowed_roles check that users
       cannot update the list if they are not a client manager in the org that owns the client. in fact, they can only do that if their current orgId matches that of the client! otherwise a malicious user could change the list and then add themselves as an admin to abstrauth in a second step
 
@@ -32,6 +32,12 @@
 - add envers and viewing history
   - based on the impl in abstoggle! but that really needs to go into abstracore.
 
+- allow installer to set logo and name like in abstracore
+
+    brand.logo.url=${ABSTRA_BRAND_LOGO_URL:https://abstratium.dev/abstratium-logo-small.png}
+    brand.logo.alt=${ABSTRA_BRAND_LOGO_ALT:Abstratium Logo}
+    brand.name=${ABSTRA_BRAND_NAME:ABSTRATIUM}
+
 - add a test for src/main/java/dev/abstratium/abstrauth/service/SecurityProblemLogger.java and copy that to abstracore. or is the test already there? then copy it here
 
 
@@ -41,8 +47,6 @@
   - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
 
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream? -> see RFCs
-
-- update userguide to describe all the multi-tenancy stuff
 
 - take flows, security design? and multitenancy design and get rid of stuff related to what has already been implemented (primarily in multitenancy design doc) and create a single spec and design document from that.
 

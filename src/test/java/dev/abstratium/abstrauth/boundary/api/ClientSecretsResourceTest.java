@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -228,7 +229,7 @@ public class ClientSecretsResourceTest {
     public void testRevokeSecretWrongClient() {
         // Get a secret ID
         Long secretId = em.createQuery(
-            "SELECT cs.id FROM ClientSecret cs WHERE cs.clientId = :clientId", 
+            "SELECT cs.id FROM ClientSecret cs WHERE cs.clientId = :clientId",
             Long.class)
             .setParameter("clientId", testClientId)
             .getSingleResult();
@@ -238,6 +239,58 @@ public class ClientSecretsResourceTest {
             .header("Authorization", "Bearer " + adminToken)
             .when()
             .delete("/api/clients/wrong-client/secrets/" + secretId)
+            .then()
+            .statusCode(404);
+    }
+
+    @Test
+    public void testDeleteRevokedSecretPermanently() {
+        // Create a second secret, revoke one, then permanently delete it
+        createSecondSecret();
+        Long secretId = getFirstSecretId();
+
+        // Revoke first
+        given()
+            .header("Authorization", "Bearer " + adminToken)
+            .when()
+            .delete("/api/clients/" + testClientId + "/secrets/" + secretId)
+            .then()
+            .statusCode(204);
+
+        // Permanently delete
+        given()
+            .header("Authorization", "Bearer " + adminToken)
+            .when()
+            .delete("/api/clients/" + testClientId + "/secrets/" + secretId + "/permanent")
+            .then()
+            .statusCode(204);
+
+        // Verify it's gone
+        em.clear();
+        assertNull(em.find(ClientSecret.class, secretId));
+    }
+
+    @Test
+    public void testDeleteActiveSecret_returns400() {
+        // Create a second secret so we can try to delete one while it's active
+        createSecondSecret();
+        Long secretId = getFirstSecretId();
+
+        given()
+            .header("Authorization", "Bearer " + adminToken)
+            .when()
+            .delete("/api/clients/" + testClientId + "/secrets/" + secretId + "/permanent")
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("Bad request"));
+    }
+
+    @Test
+    public void testDeleteSecretNotFound() {
+        given()
+            .header("Authorization", "Bearer " + adminToken)
+            .when()
+            .delete("/api/clients/" + testClientId + "/secrets/99999/permanent")
             .then()
             .statusCode(404);
     }
