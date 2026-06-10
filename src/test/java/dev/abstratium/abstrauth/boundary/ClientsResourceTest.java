@@ -641,7 +641,8 @@ public class ClientsResourceTest {
         String token = generateValidToken();
         
         // Create a specific client to delete
-        String uniqueClientId = "test-delete-client-" + System.currentTimeMillis();
+        String uniqueClientId = "test_delete_client_" + System.currentTimeMillis();
+        String actualClientId = "00000000-0000-0000-0000-000000000000__" + uniqueClientId;
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -673,7 +674,7 @@ public class ClientsResourceTest {
             .statusCode(204);
 
         // Verify client is deleted by trying to get all clients and checking it's not in the list
-        String deletedClientId = uniqueClientId;
+        String deletedClientId = actualClientId;
         given()
             .header("Authorization", "Bearer " + token)
             .when()

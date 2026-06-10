@@ -42,15 +42,6 @@
 
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream? -> see RFCs
 
-- add public page to abstrauth WITH ™ symbol!
-  - in list of things which abstrauth is, describe it is also an "identity broker" as written in microsoft doc
-
-- add legal page to abstrauth
-
-- GDPR - allow user to view all of their data
-
-- GDPR - allow user to delete all of their data
-
 - update userguide to describe all the multi-tenancy stuff
 
 - take flows, security design? and multitenancy design and get rid of stuff related to what has already been implemented (primarily in multitenancy design doc) and create a single spec and design document from that.
@@ -83,6 +74,10 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 
 
 ## Tomorrow
+
+- GDPR - allow user to view all of their data
+
+- GDPR - allow user to delete all of their data
 
 - inviting user to join your org, the invite should expire and if they don't accept, delete the account that was created.
   - also make it so that the new user has to accept before they are shown in the org - or at least show them as invited but not yet accepted or something.

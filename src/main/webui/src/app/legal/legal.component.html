@@ -1,0 +1,356 @@
+<div class="legal-page">
+
+  <!-- Custom legal content provided by the operator via ABSTRA_LEGAL_CONTENT_FILE -->
+  <div *ngIf="legalContent$()" class="legal-custom-content" [innerHTML]="legalContent$()"></div>
+
+  <ng-container *ngIf="!legalContent$()">
+
+    <!-- MISCONFIGURATION WARNING: shown on any domain that is not abstratium.dev -->
+    <div *ngIf="!isCorrectDomain" class="misconfiguration-warning">
+      <div class="misconfiguration-warning-icon">⚠️</div>
+      <h2>This legal page is invalid and must not be relied upon</h2>
+      <p>
+        This software is open source and has been deployed on a domain that is
+        <strong>not owned or operated by abstratium informatique sàrl</strong>.
+        The legal text below was written exclusively for the official deployment at
+        <strong>abstratium.dev</strong> and is entirely inapplicable to this installation.
+      </p>
+      <p>
+        <strong>If you are a user of this site:</strong> the operator of this deployment has
+        not configured a valid legal page. You should contact the operator of this site
+        directly. abstratium informatique sàrl is not responsible for this deployment, does
+        not operate it, does not process your data, and has no contractual or legal
+        relationship with you as a result of your use of this site.
+      </p>
+      <p>
+        <strong>If you are the operator:</strong> you MUST replace this legal page with one
+        that accurately describes your own organisation, data controller identity, and
+        applicable legal obligations before making this service available to users. Failure
+        to do so may expose you to regulatory action under the GDPR, revDSG, and other
+        applicable law.
+      </p>
+      <p class="misconfiguration-source">
+        Source: <a href="https://github.com/abstratium-dev/abstrauth" target="_blank" rel="noopener noreferrer">https://github.com/abstratium-dev/abstrauth</a>
+        — see the USER_GUIDE.md for configuration instructions.
+      </p>
+    </div>
+
+    <section *ngIf="isCorrectDomain" class="legal-hero">
+      <h1 class="legal-title">Legal &amp; Imprint</h1>
+      <p class="legal-subtitle">
+        Imprint, legal notices, contact details, and privacy information for this platform and transparency about how this platform was built.
+      </p>
+    </section>
+
+    <div *ngIf="isCorrectDomain" class="legal-content">
+
+      <!-- Section: Copyright -->
+      <section class="notice-card">
+        <div class="notice-card-header">
+          <div class="notice-icon">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="24" r="18" stroke="currentColor" stroke-width="2"/>
+              <path d="M30 19a8 8 0 1 0 0 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h2 class="notice-card-title">Copyright Notice</h2>
+        </div>
+        <div class="notice-body">
+          <p>
+            The concept, design, source code, and structure of this platform — including the
+            selection, coordination, and arrangement of all content displayed on
+            <a class="alink" href="https://abstratium.dev" target="_blank" rel="noopener noreferrer">https://abstratium.dev</a>
+            and its subdomains — are protected by copyright,
+            &copy;{{ copyrightYears }}, by <strong>abstratium informatique s&#224;rl</strong>.
+            ALL RIGHTS RESERVED.
+          </p>
+          <p>
+            Permission is granted to electronically copy and to print portions of this site for the
+            sole purpose of personal use of the platform. Any other use —
+            including reproduction, modification, distribution, transmission, or republication —
+            without the prior written permission of
+            <strong>abstratium informatique s&#224;rl</strong> is strictly prohibited.
+          </p>
+          <p>
+            This site uses free FontAwesome icons, which are not copyrighted by
+            abstratium informatique s&#224;rl.
+          </p>
+        </div>
+      </section>
+
+      <!-- Section: Terms of Use & Disclaimer -->
+      <section class="notice-card">
+        <div class="notice-card-header">
+          <div class="notice-icon">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="6" width="28" height="36" rx="3" stroke="currentColor" stroke-width="2"/>
+              <path d="M16 16 L32 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M16 23 L32 23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M16 30 L24 30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h2 class="notice-card-title">Terms of Use &amp; Disclaimer</h2>
+        </div>
+        <div class="notice-body">
+
+          <h3 class="notice-section-heading">Acceptance of Terms</h3>
+          <p>
+            By signing in and using our services, or by submitting any form on this site, you
+            give your express consent for <strong>abstratium informatique s&#224;rl</strong> to
+            process your data in accordance with this legal notice and applicable Swiss and EU law,
+            including the Swiss Federal Act on Data Protection (nFADP / revDSG) and the EU General
+            Data Protection Regulation (GDPR). You may withdraw consent and delete your data at any
+            time by closing your account. Your use of the services constitutes agreement with the
+            following terms and conditions, which may be updated from time to time.
+          </p>
+
+          <h3 class="notice-section-heading">Permitted Use</h3>
+          <p>
+            You agree to use our services only for lawful purposes in accordance with the laws of
+            Switzerland and the European Union. In particular, you agree:
+          </p>
+          <ul class="notice-list">
+            <li>
+              not to use the service for any illegal activity, including unauthorised access to
+              computer systems, identity fraud, or any activity that is defamatory, fraudulent,
+              or otherwise unlawful;
+            </li>
+            <li>
+              not to attempt to compromise, probe, reverse-engineer, or disrupt this platform
+              or any connected infrastructure;
+            </li>
+            <li>
+              not to register accounts on behalf of others without their consent;
+            </li>
+            <li>
+              that any personal data of third parties you manage via this service (e.g. by
+              creating accounts for employees) is processed in compliance with applicable data
+              protection law, and that you hold the necessary legal basis to do so.
+            </li>
+          </ul>
+
+          <h3 class="notice-section-heading">Account Termination</h3>
+          <p>
+            We reserve the right to suspend or terminate any account at our discretion. Where no
+            paid contract is in place, we will make a reasonable effort to notify you in advance,
+            provide an export of your data, and allow you to remedy the issue before termination.
+            For paid contracts, termination rights are governed by the terms of that contract.
+          </p>
+
+          <h3 class="notice-section-heading">Disclaimer of Warranty</h3>
+          <p>
+            To the extent permitted by Swiss and EU law, our services and all content are provided
+            on an <strong>&ldquo;AS IS&rdquo;</strong> basis, without warranties or conditions of
+            any kind, whether express or implied, including but not limited to implied warranties
+            of merchantability, fitness for a particular purpose, or non-infringement. You assume
+            sole responsibility for determining the suitability of our services for your purposes.
+          </p>
+
+          <h3 class="notice-section-heading">Limitation of Liability</h3>
+          <p>
+            To the maximum extent permitted by applicable law — and subject to the mandatory
+            provisions of Swiss law (in particular the Swiss Code of Obligations) and EU consumer
+            protection law — <strong>abstratium informatique s&#224;rl</strong> shall not be liable
+            for any indirect, special, incidental, or consequential damages arising from your use
+            of the services, including but not limited to loss of data, loss of revenue, service
+            interruption, or security breaches, even if we have been advised of the possibility
+            of such damages. This limitation does not apply in cases of intentional misconduct
+            (dol) or gross negligence (faute grave) as defined under Swiss law.
+          </p>
+
+          <h3 class="notice-section-heading">Third-Party Liability</h3>
+          <p>
+            If you offer support, warranties, or additional liability obligations to your own
+            customers in connection with content or applications you run using our services, you
+            do so entirely on your own behalf and at your own risk.
+            <strong>abstratium informatique s&#224;rl</strong> shall bear no liability arising from
+            such arrangements.
+          </p>
+
+          <h3 class="notice-section-heading">Governing Law &amp; Jurisdiction</h3>
+          <p>
+            These terms and any disputes arising from use of this service are governed exclusively
+            by Swiss law, excluding conflict-of-law rules. The exclusive place of jurisdiction
+            is the registered seat of <strong>abstratium informatique s&#224;rl</strong> in
+            Switzerland. Mandatory consumer protection provisions applicable in the EU are not
+            affected by this choice of law.
+          </p>
+
+        </div>
+      </section>
+
+      <!-- Section: AI Transparency & Authorship Notice -->
+      <section class="notice-card">
+        <div class="notice-card-header">
+          <div class="notice-icon">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M24 6 L30 18 L42 20 L34 30 L36 42 L24 36 L12 42 L14 30 L6 20 L18 18 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h2 class="notice-card-title">AI Transparency &amp; Authorship Notice</h2>
+        </div>
+        <div class="notice-body">
+          <p>
+            Parts of this platform were built with the assistance of artificial intelligence tools.
+            All AI-generated content has been reviewed, edited, and approved by human authors
+            before publication. <strong>abstratium informatique s&#224;rl</strong> retains full
+            editorial control and assumes full responsibility for all content and code published
+            on this site.
+          </p>
+        </div>
+      </section>
+
+      <!-- Section: Privacy & Data -->
+      <section class="notice-card">
+        <div class="notice-card-header">
+          <div class="notice-icon">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="20" width="28" height="22" rx="3" stroke="currentColor" stroke-width="2"/>
+              <path d="M16 20v-6a8 8 0 0 1 16 0v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="24" cy="31" r="2.5" fill="currentColor"/>
+              <path d="M24 33.5 L24 37" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h2 class="notice-card-title">Privacy &amp; Data Protection</h2>
+        </div>
+        <div class="notice-body">
+
+          <h3 class="notice-section-heading">Data Controller</h3>
+          <p>
+            The data controller responsible for the processing of your personal data is
+            <strong>abstratium informatique s&#224;rl</strong> (see Imprint below). For all
+            data protection enquiries, please contact us at the details below.
+          </p>
+
+          <h3 class="notice-section-heading">What Data We Collect and Why</h3>
+          <p>
+            When you register an account or sign in, we collect and process the following personal
+            data:
+          </p>
+          <ul class="notice-list">
+            <li>
+              <strong>Name and e-mail address</strong> — required to create and identify your
+              account. Legal basis: performance of a contract (Art. 6(1)(b) GDPR; Art. 31(2)(a)
+              revDSG).
+            </li>
+            <li>
+              <strong>Authentication credentials</strong> (hashed password or federated identity
+              reference) — required to authenticate you securely. Same legal basis as above.
+            </li>
+            <li>
+              <strong>Organisation membership and roles</strong> — required to enforce access
+              control to applications you or your organisation use. Same legal basis.
+            </li>
+            <li>
+              <strong>IP address and server logs</strong> — processed solely for network and
+              information security (prevention of abuse, unauthorised access, and fraud detection).
+              Legal basis: legitimate interest (Art. 6(1)(f) GDPR; Art. 31(1) revDSG).
+              Retained for a maximum of 30 days.
+            </li>
+          </ul>
+          <p>
+            We do not use your data for profiling, advertising, or any purpose other than
+            providing and securing the authentication service.
+          </p>
+
+          <h3 class="notice-section-heading">Cookies</h3>
+          <p>
+            This service uses cookies only where strictly necessary for it to function —
+            specifically to transport encrypted session tokens that authenticate your session.
+            No tracking, advertising, or analytics cookies are used.
+            The legal basis is our legitimate interest in providing a secure, stateless
+            authentication service and, where required, your consent as provided at sign-in.
+          </p>
+
+          <h3 class="notice-section-heading">Federated Login (Google, Microsoft)</h3>
+          <p>
+            If you choose to sign in using Google or Microsoft, your browser will be redirected
+            to that provider's authentication service. The provider will process your personal
+            data in accordance with its own privacy policy. Abstrauth receives only the identity
+            claims (e.g. name, e-mail, and a provider-issued identifier) returned by the provider
+            after successful authentication. We do not share your abstrauth account data with
+            these providers. You may use native e-mail/password authentication to avoid any
+            data transfer to third-party providers.
+          </p>
+
+          <h3 class="notice-section-heading">Retention</h3>
+          <p>
+            Account data (name, e-mail, roles, organisation membership) is retained for as long
+            as your account is active. Upon account deletion, personal data is erased unless we
+            are legally required to retain it (e.g. for tax, audit, or security investigation
+            purposes). Server logs containing IP addresses are deleted after a maximum of 30 days.
+          </p>
+
+          <h3 class="notice-section-heading">Your Rights</h3>
+          <p>
+            Under the revDSG and, where applicable, the GDPR, you have the following rights
+            regarding your personal data:
+          </p>
+          <ul class="notice-list">
+            <li><strong>Right of access</strong> — obtain confirmation of whether we process your data and receive a copy.</li>
+            <li><strong>Right to rectification</strong> — have inaccurate data corrected.</li>
+            <li><strong>Right to erasure</strong> — request deletion of your data (subject to legal retention obligations).</li>
+            <li><strong>Right to restriction</strong> — request that processing be restricted in certain circumstances.</li>
+            <li><strong>Right to data portability</strong> — receive your data in a structured, machine-readable format (GDPR Art. 20).</li>
+            <li><strong>Right to object</strong> — object to processing based on legitimate interest.</li>
+            <li><strong>Right to withdraw consent</strong> — where processing is based on consent, withdraw it at any time without affecting the lawfulness of prior processing.</li>
+          </ul>
+          <p>
+            To exercise any of these rights, contact us using the details below.
+            We will respond within 30 days. You also have the right to lodge a complaint with
+            the competent supervisory authority:
+          </p>
+          <ul class="notice-list">
+            <li>
+              <strong>Switzerland:</strong> Federal Data Protection and Information Commissioner (FDPIC) —
+              <a class="alink" href="https://www.edoeb.admin.ch" target="_blank" rel="noopener noreferrer">www.edoeb.admin.ch</a>
+            </li>
+            <li>
+              <strong>EU:</strong> the data protection authority of your EU member state of residence.
+            </li>
+          </ul>
+
+          <h3 class="notice-section-heading">Data Transfers Outside Switzerland</h3>
+          <p>
+            Your personal data is stored and processed within Switzerland or the EU/EEA. If you
+            use federated login, your browser interacts directly with the chosen identity provider
+            (Google LLC or Microsoft Corporation), which may process data in the United States.
+            Such transfers take place on the basis of Standard Contractual Clauses (SCCs) or an
+            equivalent adequacy mechanism as required by Art. 16 revDSG and GDPR Chapter V.
+            If you wish to avoid any transfer outside Switzerland/EEA, please use native
+            e-mail/password login.
+          </p>
+        </div>
+      </section>
+
+      <!-- Section: Contact -->
+      <section class="notice-card">
+        <div class="notice-card-header">
+          <div class="notice-icon">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="6" y="12" width="36" height="26" rx="3" stroke="currentColor" stroke-width="2"/>
+              <path d="M6 16 L24 28 L42 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h2 class="notice-card-title">Contact</h2>
+        </div>
+        <div class="notice-body">
+          <p>
+            For legal enquiries, data protection, licensing requests, or any questions about this platform,
+            please contact <strong>abstratium informatique s&#224;rl</strong> using the details below.
+          </p>
+          <div class="contact-card-wrapper">
+            <a href="https://abstratium.dev/contact.png" target="_blank" rel="noopener noreferrer">
+              <img src="https://abstratium.dev/contact.png"
+                  alt="abstratium informatique sàrl — contact details"
+                  class="contact-card-img" />
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </ng-container>
+
+</div>

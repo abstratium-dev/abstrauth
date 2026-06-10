@@ -1133,6 +1133,12 @@ public class AccountsResourceTest {
         boolean hasViewerRole = roles.stream()
             .anyMatch(r -> r.getClientId().equals("test-client") && r.getRole().equals("viewer"));
         assertTrue(hasViewerRole, "Account should have the 'viewer' role for test-client");
+
+        // Cleanup: remove the ClientAllowedRole added in this test to avoid polluting other tests
+        transactionHelper.beginTransaction();
+        em.createQuery("DELETE FROM ClientAllowedRole r WHERE r.id.clientId = 'test-client' AND r.id.role = 'viewer'")
+          .executeUpdate();
+        transactionHelper.commitTransaction();
     }
 
     @Test

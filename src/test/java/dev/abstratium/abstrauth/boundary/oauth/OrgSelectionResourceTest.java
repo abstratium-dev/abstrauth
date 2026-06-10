@@ -123,7 +123,7 @@ public class OrgSelectionResourceTest {
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("orgSelectionUri", nullValue());
+                .body("redirectTo", nullValue());
     }
 
     @Test
@@ -193,7 +193,7 @@ public class OrgSelectionResourceTest {
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("orgSelectionUri", equalTo("/api/org-selection/" + requestId));
+                .body("redirectTo", equalTo("/org-selection/" + requestId));
     }
 
     @Test

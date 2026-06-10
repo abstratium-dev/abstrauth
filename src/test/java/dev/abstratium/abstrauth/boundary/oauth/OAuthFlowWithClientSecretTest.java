@@ -61,10 +61,10 @@ public class OAuthFlowWithClientSecretTest {
     @Transactional
     public void setup() {
         // Clean up test data
-        em.createQuery("DELETE FROM ClientSecret WHERE clientId LIKE 'test-oauth-flow-%'").executeUpdate();
-        em.createQuery("DELETE FROM AuthorizationCode WHERE clientId LIKE 'test-oauth-flow-%'").executeUpdate();
-        em.createQuery("DELETE FROM AuthorizationRequest WHERE clientId LIKE 'test-oauth-flow-%'").executeUpdate();
-        em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE 'test-oauth-flow-%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientSecret WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
+        em.createQuery("DELETE FROM AuthorizationCode WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
+        em.createQuery("DELETE FROM AuthorizationRequest WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
+        em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM Credential WHERE username = 'oauthflowtest'").executeUpdate();
         em.createQuery("DELETE FROM AccountRole WHERE accountId IN (SELECT id FROM Account WHERE email = 'oauthflowtest@example.com')").executeUpdate();
         em.createQuery("DELETE FROM Account WHERE email = 'oauthflowtest@example.com'").executeUpdate();
@@ -108,7 +108,8 @@ public class OAuthFlowWithClientSecretTest {
      */
     @Test
     public void testCompleteOAuthFlowWithNewClientAndSecret() throws Exception {
-        String clientId = "test-oauth-flow-" + System.currentTimeMillis();
+        String clientId = "test_oauth_flow_" + System.currentTimeMillis();
+        String actualClientId = "00000000-0000-0000-0000-000000000000__" + clientId;
 
         // Step 1: Create a new OAuth client via REST API
         given()
@@ -126,7 +127,7 @@ public class OAuthFlowWithClientSecretTest {
                 .post("/api/clients")
                 .then()
                 .statusCode(201)
-                .body("clientId", equalTo(clientId));
+                .body("clientId", equalTo(actualClientId));
 
         // Step 2: Create a new client secret via REST API
         Response secretResponse = given()
@@ -137,7 +138,7 @@ public class OAuthFlowWithClientSecretTest {
                         "expiresInDays", 30
                 ))
                 .when()
-                .post("/api/clients/" + clientId + "/secrets")
+                .post("/api/clients/" + actualClientId + "/secrets")
                 .then()
                 .statusCode(201)
                 .body("secret", notNullValue())
@@ -155,7 +156,7 @@ public class OAuthFlowWithClientSecretTest {
         String redirectUri = "http://localhost:8080/callback";
 
         String requestId = createAndApproveAuthorizationRequest(
-                clientId, redirectUri, state, codeChallenge, "openid profile email"
+                actualClientId, redirectUri, state, codeChallenge, "openid profile email"
         );
 
         // Step 4: Generate authorization code
@@ -165,7 +166,7 @@ public class OAuthFlowWithClientSecretTest {
         Response tokenResponse = given()
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", authCode)
-                .formParam("client_id", clientId)
+                .formParam("client_id", actualClientId)
                 .formParam("client_secret", plainSecret)
                 .formParam("redirect_uri", redirectUri)
                 .formParam("code_verifier", codeVerifier)
@@ -198,7 +199,8 @@ public class OAuthFlowWithClientSecretTest {
      */
     @Test
     public void testRevokedSecretRejected() throws Exception {
-        String clientId = "test-oauth-flow-revoked-" + System.currentTimeMillis();
+        String clientId = "test_oauth_flow_revoked_" + System.currentTimeMillis();
+        String actualClientId = "00000000-0000-0000-0000-000000000000__" + clientId;
 
         // Create client via REST API
         given()
@@ -223,7 +225,7 @@ public class OAuthFlowWithClientSecretTest {
                 .contentType("application/json")
                 .body(Map.of("description", "Secret to be revoked"))
                 .when()
-                .post("/api/clients/" + clientId + "/secrets")
+                .post("/api/clients/" + actualClientId + "/secrets")
                 .then()
                 .statusCode(201)
                 .extract()
@@ -236,7 +238,7 @@ public class OAuthFlowWithClientSecretTest {
         given()
                 .header("Authorization", "Bearer " + adminToken)
                 .when()
-                .delete("/api/clients/" + clientId + "/secrets/" + secretId)
+                .delete("/api/clients/" + actualClientId + "/secrets/" + secretId)
                 .then()
                 .statusCode(204);
 
@@ -244,7 +246,7 @@ public class OAuthFlowWithClientSecretTest {
         String codeVerifier = generateCodeVerifier();
         String codeChallenge = generateCodeChallenge(codeVerifier);
         String requestId = createAndApproveAuthorizationRequest(
-                clientId, "http://localhost:8080/callback", UUID.randomUUID().toString(),
+                actualClientId, "http://localhost:8080/callback", UUID.randomUUID().toString(),
                 codeChallenge, "openid"
         );
         String authCode = generateAuthorizationCode(requestId);
@@ -252,7 +254,7 @@ public class OAuthFlowWithClientSecretTest {
         given()
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", authCode)
-                .formParam("client_id", clientId)
+                .formParam("client_id", actualClientId)
                 .formParam("client_secret", plainSecret)
                 .formParam("redirect_uri", "http://localhost:8080/callback")
                 .formParam("code_verifier", codeVerifier)
@@ -268,7 +270,8 @@ public class OAuthFlowWithClientSecretTest {
      */
     @Test
     public void testWrongSecretRejected() throws Exception {
-        String clientId = "test-oauth-flow-wrong-" + System.currentTimeMillis();
+        String clientId = "test_oauth_flow_wrong_" + System.currentTimeMillis();
+        String actualClientId = "00000000-0000-0000-0000-000000000000__" + clientId;
 
         // Create client via REST API
         given()
@@ -293,7 +296,7 @@ public class OAuthFlowWithClientSecretTest {
                 .contentType("application/json")
                 .body(Map.of("description", "Valid secret"))
                 .when()
-                .post("/api/clients/" + clientId + "/secrets")
+                .post("/api/clients/" + actualClientId + "/secrets")
                 .then()
                 .statusCode(201);
 
@@ -301,7 +304,7 @@ public class OAuthFlowWithClientSecretTest {
         String codeVerifier = generateCodeVerifier();
         String codeChallenge = generateCodeChallenge(codeVerifier);
         String requestId = createAndApproveAuthorizationRequest(
-                clientId, "http://localhost:8080/callback", UUID.randomUUID().toString(),
+                actualClientId, "http://localhost:8080/callback", UUID.randomUUID().toString(),
                 codeChallenge, "openid"
         );
         String authCode = generateAuthorizationCode(requestId);
@@ -309,7 +312,7 @@ public class OAuthFlowWithClientSecretTest {
         given()
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", authCode)
-                .formParam("client_id", clientId)
+                .formParam("client_id", actualClientId)
                 .formParam("client_secret", "wrong-secret-12345")
                 .formParam("redirect_uri", "http://localhost:8080/callback")
                 .formParam("code_verifier", codeVerifier)
@@ -325,7 +328,8 @@ public class OAuthFlowWithClientSecretTest {
      */
     @Test
     public void testMultipleActiveSecretsWork() throws Exception {
-        String clientId = "test-oauth-flow-multi-" + System.currentTimeMillis();
+        String clientId = "test_oauth_flow_multi_" + System.currentTimeMillis();
+        String actualClientId = "00000000-0000-0000-0000-000000000000__" + clientId;
 
         // Create client via REST API
         given()
@@ -350,7 +354,7 @@ public class OAuthFlowWithClientSecretTest {
                 .contentType("application/json")
                 .body(Map.of("description", "First secret"))
                 .when()
-                .post("/api/clients/" + clientId + "/secrets")
+                .post("/api/clients/" + actualClientId + "/secrets")
                 .then()
                 .statusCode(201)
                 .extract()
@@ -364,7 +368,7 @@ public class OAuthFlowWithClientSecretTest {
                 .contentType("application/json")
                 .body(Map.of("description", "Second secret"))
                 .when()
-                .post("/api/clients/" + clientId + "/secrets")
+                .post("/api/clients/" + actualClientId + "/secrets")
                 .then()
                 .statusCode(201)
                 .extract()
@@ -376,7 +380,7 @@ public class OAuthFlowWithClientSecretTest {
         String codeVerifier1 = generateCodeVerifier();
         String codeChallenge1 = generateCodeChallenge(codeVerifier1);
         String requestId1 = createAndApproveAuthorizationRequest(
-                clientId, "http://localhost:8080/callback", UUID.randomUUID().toString(),
+                actualClientId, "http://localhost:8080/callback", UUID.randomUUID().toString(),
                 codeChallenge1, "openid"
         );
         String authCode1 = generateAuthorizationCode(requestId1);
@@ -384,7 +388,7 @@ public class OAuthFlowWithClientSecretTest {
         given()
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", authCode1)
-                .formParam("client_id", clientId)
+                .formParam("client_id", actualClientId)
                 .formParam("client_secret", plainSecret1)
                 .formParam("redirect_uri", "http://localhost:8080/callback")
                 .formParam("code_verifier", codeVerifier1)
@@ -398,7 +402,7 @@ public class OAuthFlowWithClientSecretTest {
         String codeVerifier2 = generateCodeVerifier();
         String codeChallenge2 = generateCodeChallenge(codeVerifier2);
         String requestId2 = createAndApproveAuthorizationRequest(
-                clientId, "http://localhost:8080/callback", UUID.randomUUID().toString(),
+                actualClientId, "http://localhost:8080/callback", UUID.randomUUID().toString(),
                 codeChallenge2, "openid"
         );
         String authCode2 = generateAuthorizationCode(requestId2);
@@ -406,7 +410,7 @@ public class OAuthFlowWithClientSecretTest {
         given()
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", authCode2)
-                .formParam("client_id", clientId)
+                .formParam("client_id", actualClientId)
                 .formParam("client_secret", plainSecret2)
                 .formParam("redirect_uri", "http://localhost:8080/callback")
                 .formParam("code_verifier", codeVerifier2)

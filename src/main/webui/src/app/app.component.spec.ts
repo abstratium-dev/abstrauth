@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { ModelService } from './model.service';
+import { DomainService } from './domain.service';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 
 describe('AppComponent', () => {
   let mockModelService: jasmine.SpyObj<ModelService>;
@@ -16,7 +18,9 @@ describe('AppComponent', () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [
-        { provide: ModelService, useValue: mockModelService }
+        provideRouter([]),
+        { provide: ModelService, useValue: mockModelService },
+        { provide: DomainService, useValue: { isAbstratiumDomain: true } }
       ]
     }).compileComponents();
   });

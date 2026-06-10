@@ -42,3 +42,19 @@
     margin-top: 0.5rem;
   }
 }
+
+.host-disclaimer {
+  margin-top: 2rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #f97316;
+  border-radius: 0.5rem;
+  background-color: #431407;
+  color: #fed7aa;
+  font-size: 0.9rem;
+  line-height: 1.5;
+
+  a {
+    color: #fb923c;
+    text-decoration: underline;
+  }
+}

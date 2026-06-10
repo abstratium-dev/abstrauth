@@ -102,6 +102,7 @@ export interface ConfigResponse {
   sessionTimeoutSeconds: number;
   insecureClientSecret: boolean;
   warningMessage: string;
+  legalContent: string | null;
 }
 
 @Injectable({
@@ -127,7 +128,9 @@ export class ModelService {
   private organisationsLoading = signal<boolean>(false);
   private organisationsError = signal<string | null>(null);
   private currentOrganisation = signal<Organisation | null>(null);
+  private legalContent = signal<string | null>(null);
 
+  legalContent$: Signal<string | null> = this.legalContent.asReadonly();
   signUpUsername$: Signal<string> = this.signUpUsername.asReadonly();
   signUpPassword$: Signal<string> = this.signUpPassword.asReadonly();
   signInRequestId$: Signal<string> = this.signInRequestId.asReadonly();
@@ -193,6 +196,10 @@ export class ModelService {
 
   setSignupAllowed(allowed: boolean) {
     this.signupAllowed.set(allowed);
+  }
+
+  setLegalContent(legalContent: string | null) {
+    this.legalContent.set(legalContent);
   }
 
   setAllowNativeSignin(allowNativeSignin: boolean) {

@@ -8,6 +8,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.annotation.PostConstruct;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -16,6 +17,11 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Optional;
 
 @Path("/public/config")
 @Tag(name = "Config", description = "Application configuration endpoints")
@@ -37,6 +43,22 @@ public class ConfigResource {
     @ConfigProperty(name = "abstrauth.warning.message", defaultValue = "")
     String warningMessage;
 
+    @ConfigProperty(name = "legal.content.file")
+    Optional<String> legalContentFile;
+
+    private String legalContent = null;
+
+    @PostConstruct
+    void init() {
+        legalContentFile.ifPresent(path -> {
+            try {
+                legalContent = Files.readString(Paths.get(path));
+            } catch (IOException e) {
+                legalContent = null;
+            }
+        });
+    }
+
     private static final int MIN_SECRET_LENGTH = 32;
     private static final String DEFAULT_SECRET = "dev-secret-CHANGE-IN-PROD";
 
@@ -49,7 +71,7 @@ public class ConfigResource {
         boolean allowGoogleSignin = authorizationService.isGoogleSigninAllowed();
         boolean allowMicrosoftSignin = authorizationService.isMicrosoftSigninAllowed();
         boolean insecureClientSecret = isClientSecretInsecure();
-        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage)).build();
+        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage, legalContent)).build();
     }
 
     /**
@@ -75,8 +97,9 @@ public class ConfigResource {
         public int sessionTimeoutSeconds;
         public boolean insecureClientSecret;
         public String warningMessage;
+        public String legalContent;
 
-        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage) {
+        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage, String legalContent) {
             this.signupAllowed = signupAllowed;
             this.allowNativeSignin = allowNativeSignin;
             this.allowGoogleSignin = allowGoogleSignin;
@@ -84,6 +107,7 @@ public class ConfigResource {
             this.sessionTimeoutSeconds = sessionTimeoutSeconds;
             this.insecureClientSecret = insecureClientSecret;
             this.warningMessage = warningMessage;
+            this.legalContent = legalContent;
         }
     }
 }

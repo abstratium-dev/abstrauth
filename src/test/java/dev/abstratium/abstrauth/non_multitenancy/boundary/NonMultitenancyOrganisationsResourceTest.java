@@ -28,8 +28,6 @@ import jakarta.inject.Inject;
 @QuarkusTest
 public class NonMultitenancyOrganisationsResourceTest {
 
-    private static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
-
     @Inject
     AccountService accountService;
 
@@ -51,10 +49,6 @@ public class NonMultitenancyOrganisationsResourceTest {
                 .sign();
     }
 
-    private String userToken(String accountId) {
-        return userToken(accountId, DEFAULT_ORG_ID);
-    }
-
     private Account createAccount(String suffix) throws Exception {
         transactionHelper.beginTransaction();
         Account account = accountService.createAccount(
@@ -68,6 +62,10 @@ public class NonMultitenancyOrganisationsResourceTest {
         return account;
     }
 
+    private String accountOrgId(Account account) {
+        return organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
+    }
+
     // ─────────────────────────────────────────────────────────
     // POST /api/organisations (cross-tenant organisation creation)
     // ─────────────────────────────────────────────────────────
@@ -75,7 +73,7 @@ public class NonMultitenancyOrganisationsResourceTest {
     @Test
     public void testCreateOrganisation_success() throws Exception {
         Account account = createAccount(System.currentTimeMillis() + "_create");
-        String token = userToken(account.getId());
+        String token = userToken(account.getId(), accountOrgId(account));
 
         given()
                 .auth().oauth2(token)
@@ -93,7 +91,7 @@ public class NonMultitenancyOrganisationsResourceTest {
     @Test
     public void testCreateOrganisation_assignsManagementRoles() throws Exception {
         Account account = createAccount(System.currentTimeMillis() + "_roles");
-        String token = userToken(account.getId());
+        String token = userToken(account.getId(), accountOrgId(account));
 
         // Create organisation
         String orgId = given()
@@ -122,7 +120,7 @@ public class NonMultitenancyOrganisationsResourceTest {
     @Test
     public void testCreateOrganisation_blankName_returns400() throws Exception {
         Account account = createAccount(System.currentTimeMillis() + "_blankname");
-        String token = userToken(account.getId());
+        String token = userToken(account.getId(), accountOrgId(account));
 
         given()
                 .auth().oauth2(token)

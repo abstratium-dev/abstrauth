@@ -1,15 +1,14 @@
 import { Routes } from '@angular/router';
-import { UserComponent } from './user/user.component';
-import { NotFoundComponent } from './not-found/not-found.component';
+import { authGuard } from './auth.guard';
+import { AuthorizeComponent } from './authorize/authorize.component';
 import { HomeComponent } from './home/home.component';
+import { NotFoundComponent } from './not-found/not-found.component';
+import { SigninAfterInviteComponent } from './signin-after-invite/signin-after-invite.component';
 import { SigninComponent } from './signin/signin.component';
 import { SignupComponent } from './signup/signup.component';
-import { AuthorizeComponent } from './authorize/authorize.component';
-import { SigninAfterInviteComponent } from './signin-after-invite/signin-after-invite.component';
-import { authGuard } from './auth.guard';
 
 export const routes: Routes = [
-  { path: '',         component: HomeComponent, canActivate: [authGuard] },
+  { path: '',         component: HomeComponent },
   { path: 'authorize',   component: AuthorizeComponent },
   { path: 'signin/:requestId',   component: SigninComponent },
   { path: 'signin-after-invite',   component: SigninAfterInviteComponent },
@@ -25,5 +24,6 @@ export const routes: Routes = [
   { path: 'organisations', loadComponent: () => import('./organisations/organisations.component').then(m => m.OrganisationsComponent), canActivate: [authGuard] },
   { path: 'organisations/:orgId', loadComponent: () => import('./organisation-detail/organisation-detail.component').then(m => m.OrganisationDetailComponent), canActivate: [authGuard] },
   { path: 'user', loadComponent: () => import('./user/user.component').then(m => m.UserComponent), canActivate: [authGuard] },
+  { path: 'legal', loadComponent: () => import('./legal/legal.component').then(m => m.LegalComponent) },
   { path: '**',       component: NotFoundComponent }
 ];

@@ -18,6 +18,7 @@ export class HeaderComponent implements OnInit {
     private modelService = inject(ModelService);
     private router = inject(Router);
     themeService = inject(ThemeService);
+    emailMismatchWarning: string | null = null;
 
     token!: Token;
     isSignedIn = false;
@@ -38,10 +39,21 @@ export class HeaderComponent implements OnInit {
 
     ngOnInit(): void {
         this.controller.loadConfig();
+
+        // Check for email mismatch warning from invite flow
+        const warning = sessionStorage.getItem('emailMismatchWarning');
+        if (warning) {
+        this.emailMismatchWarning = warning;
+        sessionStorage.removeItem('emailMismatchWarning');
+        }
     }
 
     toggleTheme(): void {
         this.themeService.toggleTheme();
+    }
+
+    signin() {
+        this.router.navigate(['/authorize']);
     }
 
     signout() {

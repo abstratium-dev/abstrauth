@@ -1076,16 +1076,16 @@ describe('ClientsComponent', () => {
       expect(component.isSecretExpiringSoon(secret)).toBeTrue();
     });
 
-    it('should not detect secret expiring in 31 days as expiring soon', () => {
-      const thirtyOneDaysFromNow = new Date();
-      thirtyOneDaysFromNow.setDate(thirtyOneDaysFromNow.getDate() + 31);
+    it('should not detect secret expiring in 32 days as expiring soon', () => {
+      const thirtyTwoDaysFromNow = new Date();
+      thirtyTwoDaysFromNow.setDate(thirtyTwoDaysFromNow.getDate() + 32);
       
       const secret = {
         id: 107,
-        description: 'Expires in 31 days',
+        description: 'Expires in 32 days',
         active: true,
         createdAt: '2026-02-05T20:30:58Z',
-        expiresAt: thirtyOneDaysFromNow.toISOString()
+        expiresAt: thirtyTwoDaysFromNow.toISOString()
       };
       
       expect(component.isSecretExpiringSoon(secret)).toBeFalse();

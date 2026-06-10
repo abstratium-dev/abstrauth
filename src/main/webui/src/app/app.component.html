@@ -28,3 +28,18 @@
 
 <ux-toast></ux-toast>
 <ux-confirm-dialog></ux-confirm-dialog>
+
+
+<div *ngIf="!isCorrectDomain && !legalContent$()" class="host-disclaimer">
+  <strong>Notice:</strong> This software is not hosted by
+  <strong>abstratium informatique s&#224;rl</strong>. abstratium is not responsible for
+  this deployment. Use of this site is subject to the terms and conditions of the
+  operator of this deployment, not abstratium. See the
+  <a routerLink="/legal">legal page</a> for details.
+</div>
+
+<hr>
+<p class="footer">
+Abstrauth™ is a product made with 🩷 by <a href="https://abstratium.dev">abstratium informatique sàrl</a>
+copyright © {{copyrightYear}} all rights reserved
+</p>

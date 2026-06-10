@@ -64,6 +64,7 @@ export class Controller {
       this.modelService.setSessionTimeoutSeconds(response.sessionTimeoutSeconds);
       this.modelService.setInsecureClientSecret(response.insecureClientSecret);
       this.modelService.setWarningMessage(response.warningMessage || '');
+      this.modelService.setLegalContent(response.legalContent || null);
     }).catch(err => {
       console.error('Error loading config:', err);
       this.modelService.setSignupAllowed(false);
@@ -71,6 +72,7 @@ export class Controller {
       this.modelService.setSessionTimeoutSeconds(900); // Default to 15 minutes
       this.modelService.setInsecureClientSecret(false);
       this.modelService.setWarningMessage('');
+      this.modelService.setLegalContent(null);
     });
   }
 

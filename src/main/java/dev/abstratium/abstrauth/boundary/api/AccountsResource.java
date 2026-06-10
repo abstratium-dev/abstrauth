@@ -13,10 +13,13 @@ import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.service.SubscriptionService;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -53,6 +56,15 @@ public class AccountsResource {
     
     @Inject
     OrganisationService organisationService;
+
+    @Inject
+    SubscriptionService subscriptionService;
+
+    @Inject
+    ClientAllowedRoleService clientAllowedRoleService;
+
+    @Inject
+    NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
 
     @Inject
     SecurityIdentity securityIdentity;
@@ -110,6 +122,14 @@ public class AccountsResource {
 
             // Add existing account to the caller's org
             organisationService.addMember(orgId, account.getId());
+
+            // Seed default roles for all clients the org is subscribed to
+            for (String clientId : subscriptionService.findClientIdsByOrgId(orgId)) {
+                var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
+                if (!defaultRoles.isEmpty()) {
+                    nonMultitenancyAccountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, defaultRoles);
+                }
+            }
 
             // Return 200 OK (not 201 since we didn't create the account, just added to org)
             return Response.ok()

@@ -1,10 +1,15 @@
 package dev.abstratium.abstrauth.boundary.publik;
 
-import io.quarkus.test.junit.QuarkusTest;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.notNullValue;
+
 import org.junit.jupiter.api.Test;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.*;
+import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.http.ContentType;
 
 /**
  * Tests for ConfigResource
@@ -109,5 +114,16 @@ public class ConfigResourceTest {
             .then()
             .statusCode(200)
             .body("warningMessage", equalTo("You are in the test environment"));
+    }
+
+    @Test
+    void testLegalContentIsNullWhenFileNotConfigured() {
+        given()
+            .when()
+            .get("/public/config")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+            .body("legalContent", org.hamcrest.Matchers.nullValue());
     }
 }

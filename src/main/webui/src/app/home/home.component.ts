@@ -1,21 +1,20 @@
-import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { DomainService } from '../domain.service';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'home',
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
-export class HomeComponent implements OnInit {
-  emailMismatchWarning: string | null = null;
+export class HomeComponent {
+    private router = inject(Router);
+    isAbstratiumDomain = inject(DomainService).isAbstratiumDomain;
 
-  ngOnInit(): void {
-    // Check for email mismatch warning from invite flow
-    const warning = sessionStorage.getItem('emailMismatchWarning');
-    if (warning) {
-      this.emailMismatchWarning = warning;
-      sessionStorage.removeItem('emailMismatchWarning');
+    signin() {
+        this.router.navigate(['/authorize']);
     }
-  }
 }

@@ -1,36 +1,59 @@
-# abstrauth
+# Abstrauth™
 
-**Abstrauth** is a lightweight OAuth 2.0 Authorization Server and OpenID Connect Provider with federated identity support, designed to serve multiple client applications using the Backend For Frontend (BFF) pattern.
+| "Simple Yet Powerful Authentication That Scales With Your Business"
 
-## What is Abstrauth?
+**Abstrauth™** is a lightweight OAuth 2.0 Authorization Server and OpenID Connect Provider with multi-tenant organisation support and federated identity, designed for confidential clients using the Backend For Frontend (BFF) pattern.
 
-Abstrauth functions as:
+## Why Abstrauth™?
 
-- **OAuth 2.0 Authorization Server** - Implements Authorization Code Flow with PKCE (RFC 6749, RFC 7636) for confidential clients only
-- **OpenID Connect Provider** - Issues JWT tokens with OpenID Connect claims (`openid`, `profile`, `email` scopes)
-- **Identity Provider (IdP)** - Provides native username/password authentication
-- **Identity Broker** - Federates authentication with external IdPs (Google, Microsoft, GitHub)
-- **Identity and Access Management (IAM)** - Manages user accounts, roles, and client applications
+Your users deserve a sign-in experience that just works — and your team deserves full control over it without huge fees, accepting vendor lock-in, or wrestling with sprawling configuration consoles designed for enterprises ten times your size.
+
+Abstrauth™ is **self-hosted authentication and identity management** built around how modern SaaS products actually work:
+
+- **One server, many organisations.** Every customer gets their own isolated space. Users belong to organisations, organisations subscribe to your applications, and each session carries a cryptographically signed tenant identifier that your own services can use directly — no extra middleware, no per-request lookup.
+- **Your data, your infrastructure.** Abstrauth™ runs on a single server with as little as ~64 MB of RAM. You own the database, the keys, and the logs.
+- **Sign in how your users expect.** Native email/password accounts sit alongside "Sign in with Google" and "Sign in with Microsoft" — you choose which to offer.
+- **Roles that travel with the user.** When a user signs in, their roles for *that organisation and that application* are baked into the token. Downstream services get everything they need in a single verified claim — no extra round-trips, no shared session state.
+- **Control without complexity.** Organisation owners manage their own members and decide which applications their team can access. Application owners define which roles exist. Neither can exceed the boundaries the other has set.
+- **Security by default.** Tokens are stored in HTTP-only cookies, never touched by JavaScript. PKCE is mandatory. Rate limiting and CSRF protection are built in, not bolted on.
+- **Tiny footprint, production ready.** A GraalVM native image means near-instant startup, minimal memory, and a single deployable binary. No JVM warm-up, no bloat.
+
+If you are building a software application and need authentication that scales from one customer to thousands Abstrauth™ is for you.
+
+## A more technical overview 
+
+Abstrauth™ functions as:
+
+- **OAuth 2.0 Authorization Server** - Authorization Code Flow with PKCE (RFC 6749, RFC 7636); confidential clients only
+- **OpenID Connect Provider** - Issues JWT tokens with `openid`, `profile`, `email`, and `orgId` claims
+- **Identity Provider (IdP)** - Native username/password authentication
+- **Identity Broker** - Federated authentication with external IdPs (Google, Microsoft)
+- **Identity and Access Management (IAM)** - Manages user accounts, organisations, roles, subscriptions, and client applications
+- **Multi-tenant Platform** - Organisations subscribe to applications; each JWT carries an `orgId` claim used as a tenant discriminator by downstream services
 
 ## Key Features
 
-- **Backend For Frontend (BFF) Architecture** - All clients MUST be confidential clients using a backend to handle OAuth flows
-- **JWT-based authentication** - Tokens signed with PS256 using public/private key pairs for stateless verification
-- **HTTP-only encrypted cookies** - Tokens never exposed to JavaScript for maximum security
-- **Federated login** - Users can authenticate via Google OAuth or native credentials
-- **Multi-tenancy** - Single server instance serves multiple client applications with role-based access control (RBAC)
-- **Self-hosted admin UI** - Angular-based management interface secured by Abstrauth itself using BFF pattern
-- **Security hardened** - PKCE required, confidential clients only, HTTP-only cookies, CSRF protection, rate limiting, CSP headers
-- **Low footprint** - uses as little as 64MB RAM and a small amount of CPU for typical workloads, idles at near zero CPU, achieved by being built as a native image (GraalVM)
-- **Based on Quarkus and Angular** - industry standard frameworks
+- **Organisations** - Every user belongs to one or more organisations. A user selects their active organisation at sign-in; the resulting `orgId` JWT claim doubles as the `tenantId` for downstream services.
+- **Subscriptions** - Organisations subscribe to applications (OAuth clients). Access is denied unless a subscription exists; public clients support auto-subscription.
+- **Role-based access control** - Roles are scoped per account, client, and organisation. Public clients declare an allowlist of assignable roles; private clients allow free-form roles.
+- **BFF architecture** - All clients MUST be confidential clients with a backend; public (SPA-only) clients are rejected.
+- **JWT-based tokens** - Signed with PS256; carry `groups` (roles) and `orgId` claims for stateless RBAC and tenant resolution downstream.
+- **HTTP-only encrypted cookies** - Tokens never exposed to JavaScript.
+- **Federated login** - Google and Microsoft OAuth supported alongside native credentials.
+- **Self-hosted admin UI** - Angular management interface secured by Abstrauth™ itself using the BFF pattern.
+- **Security hardened** - PKCE required, CSRF protection, rate limiting, CSP headers, role allowlist enforcement, session-fixation protection during org selection.
+- **Low footprint** - ~64 MB RAM at idle; built as a GraalVM native image.
+- **Based on Quarkus and Angular** - industry-standard frameworks.
 
 **Security Architecture:**
-- Tokens are stored in encrypted HTTP-only cookies (never accessible to JavaScript)
-- PKCE is REQUIRED for all authorization requests
-- Only confidential clients are supported (public clients are rejected)
+- Tokens stored in encrypted HTTP-only cookies (never accessible to JavaScript)
+- PKCE required for all authorization requests
+- Only confidential clients supported
+- Org membership verified at token issuance; a token issued for one org cannot elevate privileges in another
+- Role allowlist enforced server-side for public clients, preventing privilege escalation via subscription
 - Compliant with [OAuth 2.0 for Browser-Based Apps](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps-26)
 
-Abstrauth uses itself as an authorization server for users signing into the admin UI, demonstrating the BFF pattern in practice.
+Abstrauth™ uses itself as its own authorization server for the admin UI, demonstrating the BFF pattern and multi-tenant org model in practice.
 
 ## Security
 
