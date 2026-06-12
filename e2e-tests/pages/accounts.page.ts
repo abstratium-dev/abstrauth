@@ -167,18 +167,42 @@ export async function addRoleToAccount(page: Page, accountEmail: string, clientI
     
     // Fill the client select dropdown
     await clientSelect.selectOption(clientId);
-    
-    // Fill the role input
+
+    // Wait for the role field to appear (either select for public clients or input for private)
+    const roleSelect = accountTile.locator('select[id^="role-"]');
     const roleInput = accountTile.locator('input[id^="role-"]');
-    await roleInput.fill(roleName);
-    
+
+    // Race between select and input appearing
+    try {
+        await Promise.race([
+            roleSelect.waitFor({ state: 'visible', timeout: 5000 }),
+            roleInput.waitFor({ state: 'visible', timeout: 5000 })
+        ]);
+    } catch (e) {
+        throw new Error('Neither role select nor input appeared after selecting client');
+    }
+
+    // Fill the role field based on which element is visible
+    if (await roleSelect.isVisible()) {
+        // Check if the option actually exists (role may not be in the client's allowlist)
+        const options = await roleSelect.evaluate(
+            (el: HTMLSelectElement) => Array.from(el.options).map(o => o.value)
+        );
+        if (!options.includes(roleName)) {
+            throw new Error(`Role '${roleName}' is not in the allowlist for this client; available options: ${options.join(', ')}`);
+        }
+        await roleSelect.selectOption(roleName);
+    } else {
+        await roleInput.fill(roleName);
+    }
+
     // Click the Add Role button
     const submitButton = accountTile.getByRole('button', { name: /Add Role/i });
     await submitButton.click();
-    
+
     // Wait for either form to close or error to appear
     const errorBox = page.locator('.error-box');
-    
+
     await Promise.race([
         clientSelect.waitFor({ state: 'hidden', timeout: 10000 }),
         errorBox.waitFor({ state: 'visible', timeout: 10000 })
@@ -237,18 +261,45 @@ export async function tryAddRoleToSelf(page: Page, clientId: string, roleName: s
     // Wait for the form to appear
     const clientSelect = accountTile.locator('select[id^="clientId-"]');
     await expect(clientSelect).toBeVisible({ timeout: 5000 });
-    
+
     // Fill the client select dropdown
     await clientSelect.selectOption(clientId);
-    
-    // Fill the role input
+
+    // Wait for the role field to appear (either select for public clients or input for private)
+    const roleSelect = accountTile.locator('select[id^="role-"]');
     const roleInput = accountTile.locator('input[id^="role-"]');
-    await roleInput.fill(roleName);
-    
+
+    try {
+        await Promise.race([
+            roleSelect.waitFor({ state: 'visible', timeout: 5000 }),
+            roleInput.waitFor({ state: 'visible', timeout: 5000 })
+        ]);
+    } catch (e) {
+        throw new Error('Neither role select nor input appeared after selecting client');
+    }
+
+    // Fill the role field based on which element is visible
+    if (await roleSelect.isVisible()) {
+        // Check if the option actually exists (role may not be in the client's allowlist)
+        const options = await roleSelect.evaluate(
+            (el: HTMLSelectElement) => Array.from(el.options).map(o => o.value)
+        );
+        if (!options.includes(roleName)) {
+            console.log(`Role '${roleName}' is not in the allowlist for this client; available options: ${options.join(', ')}`);
+            // Cancel the form so the button becomes enabled again
+            await _getCancelButton(page).click();
+            await accountTile.locator('select[id^="clientId-"]').waitFor({ state: 'hidden', timeout: 2000 });
+            return `Role '${roleName}' is not in the allowlist for this client`;
+        }
+        await roleSelect.selectOption(roleName);
+    } else {
+        await roleInput.fill(roleName);
+    }
+
     // Click the Add Role button
     const submitButton = accountTile.getByRole('button', { name: /Add Role/i });
     await submitButton.click();
-    
+
     // Wait for either error box to appear or form to disappear (success)
     // Don't use waitForTimeout as it can fail if page closes
     const errorBox = accountTile.locator('.error-box');
@@ -304,6 +355,15 @@ export async function tryDeleteRoleFromAccount(page: Page, accountEmail: string,
     const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
     await expect(accountTile).toBeVisible({ timeout: 10000 });
     
+    // Debug: log all sub-tile texts to understand what's on the page
+    const allSubTiles = accountTile.locator('.sub-tile');
+    const subTileCount = await allSubTiles.count();
+    console.log(`Found ${subTileCount} sub-tiles for account ${accountEmail}`);
+    for (let i = 0; i < subTileCount; i++) {
+        const text = await allSubTiles.nth(i).textContent();
+        console.log(`  Sub-tile ${i}: ${text?.replace(/\s+/g, ' ').trim()}`);
+    }
+
     // Find the sub-tile that contains both the role name and client ID
     const subTile = accountTile.locator('.sub-tile').filter({ hasText: roleName }).filter({ hasText: clientId });
     await expect(subTile).toBeVisible({ timeout: 5000 });

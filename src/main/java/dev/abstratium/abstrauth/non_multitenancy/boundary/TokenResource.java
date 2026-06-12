@@ -36,6 +36,7 @@ import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
+import dev.abstratium.abstrauth.util.ClientIdUtil;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
@@ -449,9 +450,10 @@ public class TokenResource {
         // Get roles (groups) for this account and client from the database
         // Uses non-multitenancy service because orgId comes from AuthorizationRequest, not JWT
         Set<String> dbRoles = nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(account.getId(), clientId, orgId);
+        String displayClientId = ClientIdUtil.stripOrgPrefix(clientId);
         Set<String> groups = new HashSet<>();
         for (String role : dbRoles) {
-            groups.add(clientId + "_" + role);
+            groups.add(displayClientId + "_" + role);
         }
         
         // Parse scopes for claim filtering
@@ -524,9 +526,10 @@ public class TokenResource {
         // Get roles (groups) for this account and client
         // Uses non-multitenancy service because orgId comes from AuthorizationRequest, not JWT
         Set<String> dbRoles = nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(account.getId(), clientId, orgId);
+        String displayClientId = ClientIdUtil.stripOrgPrefix(clientId);
         Set<String> groups = new HashSet<>();
         for (String role : dbRoles) {
-            groups.add(clientId + "_" + role);
+            groups.add(displayClientId + "_" + role);
         }
         
         // Parse scopes for claim filtering
@@ -617,9 +620,10 @@ public class TokenResource {
 
         // 5. Get service account roles for @RolesAllowed support
         Set<String> serviceRoles = serviceAccountRoleService.findRolesByClientId(clientId);
+        String displayClientId = ClientIdUtil.stripOrgPrefix(clientId);
         Set<String> groups = new HashSet<>();
         for (String role : serviceRoles) {
-            groups.add(clientId + "_" + role);  // Same format as user roles
+            groups.add(displayClientId + "_" + role);  // Same format as user roles
         }
 
         // 6. Generate service token with BOTH scopes AND groups

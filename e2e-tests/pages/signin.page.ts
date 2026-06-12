@@ -92,7 +92,7 @@ function _getDenyButton(page: Page) {
  * @param name - User display name (used for signup if needed)
  */
 async function ensureAuthenticated(page: Page, email: string, password: string, name: string) {
-    await navigateWithRetry(page, '/');
+    await navigateToSigninPage(page);
 
     // Wait for the signin page to be ready
     const usernameInput = _getUsernameInput(page);
@@ -126,7 +126,7 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
     
     if (isErrorVisible) {
         // Sign in failed, need to sign up
-        await navigateWithRetry(page, '/');
+        await navigateToSigninPage(page);
         
         // WebKit enforces form validation on link clicks inside forms
         // Clear the form fields first to prevent validation errors
@@ -250,22 +250,58 @@ export async function signInAsAdmin(page: Page) {
     console.log("Signed in as admin successfully");
 }
 
+export async function navigateToSigninPage(page: Page) {
+    // Clear any existing authentication state to ensure we get the signin page
+    try {
+        await page.evaluate(() => {
+            localStorage.clear();
+            sessionStorage.clear();
+        });
+    } catch (e) {
+        console.log("Note: storage.clear() skipped due to navigation");
+    }
+    await page.context().clearCookies();
+
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            // Navigate to BFF login endpoint which redirects unauthenticated users
+            // through the OAuth flow to /signin/{requestId}
+            await page.goto('/api/auth/login', { waitUntil: 'commit', timeout: 10000 });
+            await page.waitForURL(url => url.pathname.includes('/signin/'), { timeout: 15000 });
+            await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+            break;
+        } catch (error) {
+            retries--;
+            if (retries === 0) {
+                console.error(`Failed to navigate to signin page after 3 attempts`);
+                throw error;
+            }
+            console.log(`Navigation to signin page failed, retrying... (${retries} attempts left)`);
+            await page.waitForTimeout(1000);
+        }
+    }
+
+    // Wait for the signin form to be ready
+    await page.locator('#username').waitFor({ state: 'visible', timeout: 10000 });
+    console.log("On signin page - ready");
+}
+
 async function _waitForSigninPage(page: Page) {
     // Check if we're already on a signin page (e.g., after logout)
     const currentUrl = page.url();
     if (!currentUrl.includes('/signin/')) {
-        // Navigate to home page which will redirect to signin
-        await navigateWithRetry(page, '/');
-    }
-    
-    // Wait for the signin page to be ready by checking for the username input
-    // This ensures Angular has initialized and the page is interactive
-    try {
-        await page.locator('#username').waitFor({ state: 'visible', timeout: 10000 });
-        console.log("On signin page - ready");
-    } catch (error) {
-        console.error("Signin page not ready after navigation");
-        throw error;
+        // Navigate through the BFF OAuth flow to reach the signin page
+        await navigateToSigninPage(page);
+    } else {
+        // Already on signin page, just wait for it to be ready
+        try {
+            await page.locator('#username').waitFor({ state: 'visible', timeout: 10000 });
+            console.log("On signin page - ready");
+        } catch (error) {
+            console.error("Signin page not ready");
+            throw error;
+        }
     }
 }
 
@@ -348,7 +384,7 @@ export async function ensureManagerIsAuthenticated(page: Page) {
  */
 export async function trySignInAsAdmin(page: Page): Promise<boolean> {
     
-    await navigateWithRetry(page, '/');
+    await navigateToSigninPage(page);
     await _getUsernameInput(page).fill(ADMIN_EMAIL);
     await _getPasswordInput(page).fill(ADMIN_PASSWORD);
     await _getSigninButton(page).click();
@@ -428,7 +464,7 @@ export async function signInViaInviteLink(page: Page, inviteLink: string, expect
 export async function signUpAndSignIn(page: Page, email: string, name: string, password: string) {
     console.log(`Signing up new user: ${email}`);
     
-    await navigateWithRetry(page, '/');
+    await navigateToSigninPage(page);
     await _getSignupLink(page).click();
     
     await _getEmailInput(page).fill(email);

@@ -21,7 +21,7 @@ test.describe('Client Secrets Management', () => {
 
     test.beforeEach(async ({ page }) => {
         // Generate unique client ID for each test
-        testClientId = `test-secrets-${Date.now()}`;
+        testClientId = `test_secrets_${Date.now()}`;
         
         // Sign in as admin
         await signInAsAdmin(page);

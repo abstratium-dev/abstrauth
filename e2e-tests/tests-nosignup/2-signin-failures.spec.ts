@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ensureAdminIsAuthenticated, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, denyAuthorization, navigateWithRetry } from '../pages/signin.page';
+import { ensureAdminIsAuthenticated, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, denyAuthorization, navigateToSigninPage } from '../pages/signin.page';
 import { signout } from '../pages/header';
 
 test('user denies access', async ({ page }) => {
@@ -13,10 +13,7 @@ test('user denies access', async ({ page }) => {
   
   // Step 3: Sign in as admin again
   console.log("Step 3: Signing in as admin to test deny flow...");
-  await navigateWithRetry(page, '/');
-  
-  // Wait for page to load
-  await page.locator("#username").waitFor({ state: 'visible', timeout: 10000 });
+  await navigateToSigninPage(page);
   
   // Fill credentials
   await page.locator("#username").fill(ADMIN_EMAIL);
@@ -43,10 +40,7 @@ test('user denies access', async ({ page }) => {
 });
 
 test('wrong username or password', async ({ page }) => {
-  await navigateWithRetry(page, '/');
-
-  // Wait for the page to load and inputs to be visible
-  await page.locator("#username").waitFor({ state: 'visible', timeout: 10000 });
+  await navigateToSigninPage(page);
   
   await page.locator("#username").fill("wrong@doesnt-exist.com");
   await page.locator("#password").fill("wrong");

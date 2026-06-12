@@ -16,6 +16,7 @@ globs: e2e-tests/**/*.ts
 - if you are writing a test and the description that the user has provide is causing errors, you might have to fix the source code. if you are not sure, ask for help.
 - never set the URL directly with the `page.goto` function; use buttons and links to navigate through the application. This is NOT true for starting the test which requires you to use the `goto` function to get to the home page (root path).
 - when you run the tests (e.g. `npx playwright test happy.spec.ts`) run them so that playwright doesn't serve an html report at the end, because that blocks you from continuing until i kill the process. 
+- use `cd e2e-tests && ...` in order to be in the right folder when you run the tests. 
 - run the tests with just chromium, rather than running the tests in firefox or other browsers too.
 - add `data-testid` attributes to the html source if that makes the selection of elements easier or more deterministic
 - when you write page object models and tests, make sure that you add logging, so that you can debug the tests when they are failing

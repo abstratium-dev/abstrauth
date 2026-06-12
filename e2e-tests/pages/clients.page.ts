@@ -10,66 +10,83 @@ function _getDeleteClientButton(page: Page) {
 }
 
 /**
+ * Check if a card's clientId matches the search term.
+ * The backend prepends orgId + "__" to client IDs, so data-client-id
+ * contains the prefixed ID while tests pass unprefixed IDs.
+ */
+function _clientIdMatches(cardClientId: string, searchClientId: string): boolean {
+    return cardClientId === searchClientId || cardClientId.endsWith('__' + searchClientId);
+}
+
+/**
  * Adds a new OAuth client.
  * Assumes we're already on the clients page.
- * Returns the client secret that is displayed in the modal.
+ * Returns the actual prefixed clientId and the client secret displayed in the modal.
  */
-export async function addClient(page: Page, clientId: string, clientName: string, redirectUri: string, scopes: string): Promise<string> {
+export async function addClient(page: Page, clientId: string, clientName: string, redirectUri: string, scopes: string): Promise<{ clientId: string, secret: string }> {
     console.log(`Adding new client '${clientId}'...`);
-    
+
     // Wait for the page to load and the Add Client button to be visible
     const addClientButton = page.getByRole('button', { name: /Add Client/i });
     await expect(addClientButton).toBeVisible({ timeout: 10000 });
     await addClientButton.click();
-    
+
     // Fill in the form
     await page.locator('#clientId').fill(clientId);
     await page.locator('#clientName').fill(clientName);
     await page.locator('#redirectUris').fill(redirectUri);
     await page.locator('#allowedScopes').fill(scopes);
-    
+
     // Submit the form
     const createButton = page.getByRole('button', { name: /Create Client/i });
     await expect(createButton).toBeEnabled({ timeout: 5000 });
     await createButton.click();
-    
+
     // Wait for the form to close (client created successfully)
     await page.locator('#clientId').waitFor({ state: 'hidden', timeout: 5000 });
-    
+
     // Wait for the client secret modal to appear
     console.log('Waiting for client secret modal...');
     const secretModal = page.locator('.secret-modal');
     await expect(secretModal).toBeVisible({ timeout: 5000 });
-    
-    // Extract the client secret from the modal
-    const secretValue = page.locator('.secret-value');
+
+    // Extract the actual clientId and secret from the modal
+    // The modal contains two .secret-value elements: first is clientId, second is the actual secret
+    const clientIdValue = page.locator('.secret-value').nth(0);
+    await expect(clientIdValue).toBeVisible({ timeout: 5000 });
+    const actualClientId = await clientIdValue.textContent();
+    if (!actualClientId) {
+        throw new Error('Failed to extract client ID from modal');
+    }
+
+    const secretValue = page.locator('.secret-value').nth(1);
     await expect(secretValue).toBeVisible({ timeout: 5000 });
     const clientSecret = await secretValue.textContent();
-    
     if (!clientSecret) {
         throw new Error('Failed to extract client secret from modal');
     }
-    
+
+    console.log(`✓ Captured actual clientId: ${actualClientId}`);
     console.log(`✓ Captured client secret: ${clientSecret.substring(0, 10)}...`);
-    
+
     // In test environment, clipboard API doesn't work, so we'll just enable the button directly
     // by removing the disabled attribute
     const closeButton = page.getByRole('button', { name: /I have saved the secret/i });
     await closeButton.evaluate((btn) => btn.removeAttribute('disabled'));
-    
+
     console.log('✓ Enabled close button (bypassed clipboard requirement for test)');
-    
+
     // Now the close button should be enabled
     await expect(closeButton).toBeEnabled({ timeout: 1000 });
-    
+
     // Close the modal
     await closeButton.click();
-    
+
     // Wait for modal to close
     await expect(secretModal).not.toBeVisible({ timeout: 5000 });
-    
-    console.log(`✓ Created new client '${clientId}'`);
-    return clientSecret;
+
+    console.log(`✓ Created new client '${actualClientId}'`);
+    return { clientId: actualClientId, secret: clientSecret };
 }
 
 /**
@@ -96,7 +113,7 @@ export async function deleteClientsExcept(page: Page, keepClientId: string) {
         
         console.log(`Checking client: ${clientId}`);
         
-        if (clientId !== keepClientId) {
+        if (clientId && !_clientIdMatches(clientId, keepClientId)) {
             console.log(`Deleting client: ${clientId}`);
             
             // Find and click the delete button (trash icon) for this client
@@ -143,7 +160,7 @@ export async function deleteClientIfExists(page: Page, clientId: string): Promis
         const card = cards.nth(i);
         const cardClientId = await card.getAttribute('data-client-id');
         
-        if (cardClientId === clientId) {
+        if (cardClientId && _clientIdMatches(cardClientId, clientId)) {
             console.log(`Found client '${clientId}', deleting...`);
             
             // Find and click the delete button (trash icon) for this client

@@ -541,6 +541,35 @@ export class ClientsComponent implements OnInit {
     return scopes.length === 0;
   }
 
+  /**
+   * Strips a UUID + '__' prefix from a client ID when constructing the group name.
+   * Matches the backend ClientIdUtil.stripOrgPrefix logic.
+   */
+  groupNameFor(clientId: string, role: string): string {
+    const stripped = this.stripOrgPrefix(clientId);
+    return stripped + '_' + role;
+  }
+
+  private stripOrgPrefix(clientId: string): string {
+    if (!clientId || clientId.length <= 38) {
+      return clientId;
+    }
+    const prefix = clientId.substring(0, 38);
+    const uuidPart = prefix.substring(0, 36);
+    if (!prefix.endsWith('__') || !this.isValidUuid(uuidPart)) {
+      return clientId;
+    }
+    return clientId.substring(38);
+  }
+
+  private isValidUuid(s: string): boolean {
+    if (s.length !== 36) {
+      return false;
+    }
+    const pattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    return pattern.test(s);
+  }
+
   async toggleRolesView(client: OAuthClient): Promise<void> {
     if (this.viewingRolesFor === client.clientId) {
       this.viewingRolesFor = null;

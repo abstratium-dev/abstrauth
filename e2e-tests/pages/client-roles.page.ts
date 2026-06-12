@@ -7,8 +7,8 @@ import { expect, Page } from '@playwright/test';
 export async function toggleRolesView(page: Page, clientId: string) {
     console.log(`Toggling roles view for client '${clientId}'...`);
     
-    // Find the client card
-    const clientCard = page.locator(`.card[data-client-id="${clientId}"]`);
+    // Find the client card (backend prepends orgId + "__", so match exact or suffix)
+    const clientCard = page.locator(`.card[data-client-id="${clientId}"], .card[data-client-id$="__${clientId}"]`);
     await expect(clientCard).toBeVisible({ timeout: 5000 });
     
     // Click the "Manage Roles" button
@@ -114,8 +114,8 @@ export async function getRoleCount(page: Page): Promise<number> {
 export async function verifyRolesDisabledForScopedClient(page: Page, clientId: string) {
     console.log(`Verifying roles are disabled for scoped client '${clientId}'...`);
     
-    // Find the client card
-    const clientCard = page.locator(`.card[data-client-id="${clientId}"]`);
+    // Find the client card (backend prepends orgId + "__", so match exact or suffix)
+    const clientCard = page.locator(`.card[data-client-id="${clientId}"], .card[data-client-id$="__${clientId}"]`);
     await expect(clientCard).toBeVisible({ timeout: 5000 });
     
     // Verify the "Manage Roles" button is disabled

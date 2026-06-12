@@ -19,6 +19,7 @@ import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
+import dev.abstratium.abstrauth.util.ClientIdUtil;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -97,7 +98,7 @@ public class ServiceAccountRolesResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Add service account role",
-        description = "Assigns a new role to a service client. The role will be included in the JWT 'groups' claim as '{clientId}_{role}'."
+        description = "Assigns a new role to a service client. The role will be included in the JWT 'groups' claim as '{clientId}_{role}' (UUID prefix stripped when present)."
     )
     @APIResponses({
         @APIResponse(
@@ -150,8 +151,9 @@ public class ServiceAccountRolesResource {
         // Add the role
         roleService.addRole(clientId, request.role);
 
+        String displayClientId = ClientIdUtil.stripOrgPrefix(clientId);
         return Response.status(Response.Status.CREATED)
-                .entity(new RoleResponse(clientId, request.role, clientId + "_" + request.role))
+                .entity(new RoleResponse(clientId, request.role, displayClientId + "_" + request.role))
                 .build();
     }
 

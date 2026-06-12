@@ -38,7 +38,7 @@ async function signInOnOAuthPage(page: Page, email: string, password: string) {
  * - The example client server must be running on http://localhost:3333
  */
 
-const CLIENT_ID = 'test-oauth-client';
+const CLIENT_ID = 'test_oauth_client';
 const CLIENT_NAME = 'Test OAuth Client';
 const REDIRECT_URI = 'http://localhost:3333/oauth/callback';
 const SCOPES = 'openid profile email';
@@ -59,15 +59,17 @@ test('Admin creates OAuth client and signs in via example client application', a
     
     // Step 3: Create new client and capture the client secret
     console.log("Step 3: Creating new OAuth client...");
-    const clientSecret = await addClient(page, CLIENT_ID, CLIENT_NAME, REDIRECT_URI, SCOPES);
-    console.log(`✓ Created client '${CLIENT_ID}' with redirect URI '${REDIRECT_URI}'`);
+    const newClient = await addClient(page, CLIENT_ID, CLIENT_NAME, REDIRECT_URI, SCOPES);
+    const actualClientId = newClient.clientId;
+    const clientSecret = newClient.secret;
+    console.log(`✓ Created client '${actualClientId}' with redirect URI '${REDIRECT_URI}'`);
     console.log(`✓ Captured client secret: ${clientSecret.substring(0, 10)}...`);
-    
+
     // Step 4: Navigate to accounts page and add role to admin
     console.log("Step 4: Adding role to admin account...");
     await navigateToAccounts(page);
-    await addRoleToAccount(page, ADMIN_EMAIL, CLIENT_ID, ROLE_NAME);
-    console.log(`✓ Added role '${ROLE_NAME}' for client '${CLIENT_ID}' to admin account`);
+    await addRoleToAccount(page, ADMIN_EMAIL, actualClientId, ROLE_NAME);
+    console.log(`✓ Added role '${ROLE_NAME}' for client '${actualClientId}' to admin account`);
     
     // Step 4.5: Sign out from port 8080 to clear session
     console.log("Step 4.5: Signing out from authorization server...");
@@ -78,7 +80,7 @@ test('Admin creates OAuth client and signs in via example client application', a
     console.log("Step 4.6: Configuring example client server with client secret...");
     const configResponse = await page.request.post('http://localhost:3333/test/configure', {
         data: {
-            clientId: CLIENT_ID,
+            clientId: actualClientId,
             clientSecret: clientSecret
         },
         headers: {
@@ -90,7 +92,7 @@ test('Admin creates OAuth client and signs in via example client application', a
         throw new Error(`Failed to configure client server: ${configResponse.status()} ${await configResponse.text()}`);
     }
     
-    console.log(`✓ Configured example client server with CLIENT_ID=${CLIENT_ID}`);
+    console.log(`✓ Configured example client server with CLIENT_ID=${actualClientId}`);
     
     // Step 5: Visit the example client application on port 3333
     console.log("Step 5: Visiting example client application at http://localhost:3333");

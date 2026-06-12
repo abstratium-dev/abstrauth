@@ -213,6 +213,16 @@ The Angular application may not have loaded yet. Ensure you're waiting for eleme
 await page.locator("#username").waitFor({ state: 'visible', timeout: 10000 });
 ```
 
+### `admin@abstratium.dev` missing the `admin` role
+The `tests-nosignup/1-happy2.spec.ts` test expects `admin@abstratium.dev` to have the `admin` role for `abstratium-abstrauth`. This role is only granted to the **very first account** created in the database. If the database is not empty when the test starts (e.g. leftover data from previous runs), the pre-created `admin@abstratium.dev` account may lack the role and the test will fail with:
+```
+CRITICAL: admin@abstratium.dev does not have the 'admin' role.
+```
+**Fix:** Ensure the database starts empty. When running manually:
+- **H2 (e2e profile)**: Delete the H2 database file (e.g. `rm ~/test.h2.db`) or use the Maven `e2e` profile which starts a fresh server for each run.
+- **Dev mode**: Stop and restart `mvn quarkus:dev` so Flyway re-runs migrations on a fresh schema.
+- **MySQL**: Manually drop and recreate the database, or truncate all tables before running tests.
+
 ### Port 8080 already in use
 Another instance of Quarkus is running. Stop it before running e2e tests via Maven.
 

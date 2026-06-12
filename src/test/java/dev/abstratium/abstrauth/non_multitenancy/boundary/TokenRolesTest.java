@@ -176,6 +176,61 @@ public class TokenRolesTest {
     }
 
     @Test
+    public void testTokenWithPrefixedClientIdStripsUuidPrefix() throws Exception {
+        String prefixedClientId = "550e8400-e29b-41d4-a716-446655440000__myapp";
+        String expectedGroup = "myapp_service-role";
+        String testSecret = "test-secret-12345";
+        
+        // Create the prefixed client with a valid secret
+        userTransaction.begin();
+        dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
+        client.setClientId(prefixedClientId);
+        client.setClientName("Test Prefixed Client");
+        client.setClientType("confidential");
+        client.setRedirectUris("http://localhost:8080/callback");
+        client.setAllowedScopes("api:read");
+        em.persist(client);
+        
+        dev.abstratium.abstrauth.entity.ClientSecret secret = new dev.abstratium.abstrauth.entity.ClientSecret();
+        secret.setClientId(prefixedClientId);
+        secret.setSecretHash(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(testSecret));
+        secret.setDescription("Test secret");
+        secret.setActive(true);
+        em.persist(secret);
+        userTransaction.commit();
+        
+        // Add a service account role for this client
+        userTransaction.begin();
+        dev.abstratium.abstrauth.entity.ServiceAccountRole serviceRole = new dev.abstratium.abstrauth.entity.ServiceAccountRole();
+        serviceRole.setClientId(prefixedClientId);
+        serviceRole.setRole("service-role");
+        em.persist(serviceRole);
+        userTransaction.commit();
+        
+        // Use client_credentials grant (no user auth or subscription checks required)
+        Response tokenResponse = given()
+            .formParam("grant_type", "client_credentials")
+            .formParam("client_id", prefixedClientId)
+            .formParam("client_secret", testSecret)
+            .formParam("scope", "api:read")
+            .when()
+            .post("/oauth2/token")
+            .then()
+            .statusCode(200)
+            .body("access_token", notNullValue())
+            .extract()
+            .response();
+        
+        String accessToken = tokenResponse.jsonPath().getString("access_token");
+        String payload = decodeJwtPayload(accessToken);
+        
+        // Verify the UUID prefix is stripped in the groups claim
+        assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
+        assertTrue(payload.contains("\"" + expectedGroup + "\""), "JWT should contain stripped group name '" + expectedGroup + "'");
+        assertFalse(payload.contains("\"" + prefixedClientId + "_service-role\""), "JWT should not contain the unprefixed group name");
+    }
+
+    @Test
     public void testTokenWithCustomRoleName() throws Exception {
         // Assign a custom role
         addRolesInTransaction(CLIENT_ID, "custom_role_123");

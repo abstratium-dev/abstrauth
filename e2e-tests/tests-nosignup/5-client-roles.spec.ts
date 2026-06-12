@@ -27,8 +27,8 @@ test.describe('Client Roles Management', () => {
 
     test.beforeEach(async ({ page }) => {
         // Generate unique client IDs for each test
-        m2mClientId = `test-m2m-${Date.now()}`;
-        scopedClientId = `test-scoped-${Date.now()}`;
+        m2mClientId = `test_m2m_${Date.now()}`;
+        scopedClientId = `test_scoped_${Date.now()}`;
         
         // Sign in as admin
         await signInAsAdmin(page);

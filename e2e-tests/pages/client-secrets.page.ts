@@ -7,8 +7,8 @@ import { expect, Page } from '@playwright/test';
 export async function toggleSecretsView(page: Page, clientId: string) {
     console.log(`Toggling secrets view for client '${clientId}'...`);
     
-    // Find the client card
-    const clientCard = page.locator(`.card[data-client-id="${clientId}"]`);
+    // Find the client card (backend prepends orgId + "__", so match exact or suffix)
+    const clientCard = page.locator(`.card[data-client-id="${clientId}"], .card[data-client-id$="__${clientId}"]`);
     await expect(clientCard).toBeVisible({ timeout: 5000 });
     
     // Click the "Manage Secrets" button
@@ -62,7 +62,8 @@ export async function createSecret(page: Page, description: string, expiresInDay
     await expect(secretModal).toBeVisible({ timeout: 5000 });
     
     // Extract the client secret from the modal
-    const secretValue = page.locator('.secret-value');
+    // The modal contains two .secret-value elements: first is clientId, second is the actual secret
+    const secretValue = page.locator('.secret-value').nth(1);
     await expect(secretValue).toBeVisible({ timeout: 5000 });
     const clientSecret = await secretValue.textContent();
     

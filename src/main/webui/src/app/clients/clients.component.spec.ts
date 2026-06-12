@@ -1215,6 +1215,31 @@ describe('ClientsComponent', () => {
       expect(component.rolesLoading).toBeFalse();
     });
 
+    describe('groupNameFor', () => {
+      it('should return role without prefix for plain client IDs', () => {
+        expect(component.groupNameFor('myapp', 'admin')).toBe('myapp_admin');
+      });
+
+      it('should strip UUID + __ prefix from client ID', () => {
+        expect(component.groupNameFor('550e8400-e29b-41d4-a716-446655440000__myapp', 'admin'))
+          .toBe('myapp_admin');
+      });
+
+      it('should return original client ID if no UUID prefix', () => {
+        expect(component.groupNameFor('org__myapp', 'admin')).toBe('org__myapp_admin');
+      });
+
+      it('should return original client ID if only single underscore after UUID', () => {
+        expect(component.groupNameFor('550e8400-e29b-41d4-a716-446655440000_myapp', 'admin'))
+          .toBe('550e8400-e29b-41d4-a716-446655440000_myapp_admin');
+      });
+
+      it('should handle uppercase UUID prefix', () => {
+        expect(component.groupNameFor('550E8400-E29B-41D4-A716-446655440000__MYAPP', 'ADMIN'))
+          .toBe('MYAPP_ADMIN');
+      });
+    });
+
     it('should toggle add role form', () => {
       expect(component.showAddRoleForm).toBeFalse();
 

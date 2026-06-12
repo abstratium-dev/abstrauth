@@ -16,7 +16,6 @@
   - can we do all the stuff on the svg diagram and in the design document?
   - e2e tests
     - ensure that when a user adds a client, the client is in their org
-    - ensure that when a user adds a role to an account for a client, the AccountRole is in their org
     - ensure that a user can add accounts to their org and that the OrganisationAccount is in their org
   - add "add owner" API endpoint to promote member to owner (currently only `addMember` exists; `addOwner` method exists in service but isn't exposed). When implemented, ensure management roles are assigned (or require manual assignment as per design decision).
 !!  - managing default roles and allowed roles in a client

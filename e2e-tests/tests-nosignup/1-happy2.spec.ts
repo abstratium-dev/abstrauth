@@ -57,10 +57,25 @@ test('admin creates manager account and manager signs in via invite link', async
     console.log("Step 7: Signing out and back in to refresh JWT token...");
     await signout(page);
     await signInAsAdmin(page);
-    
+
+    // Pre-flight: verify admin account has the admin role
+    console.log("Pre-flight: Verifying admin@abstratium.dev has admin role...");
+    await navigateToAccounts(page);
+    const adminTile = page.locator('.tile').filter({ hasText: ADMIN_EMAIL });
+    const adminRoleSubTile = adminTile.locator('.sub-tile').filter({ hasText: 'admin' }).filter({ hasText: 'abstratium-abstrauth' });
+    const hasAdminRole = await adminRoleSubTile.isVisible().catch(() => false);
+    if (!hasAdminRole) {
+        const msg =
+            "CRITICAL: admin@abstratium.dev does not have the 'admin' role. " +
+            "This usually means the database did not start empty, or an existing admin@abstratium.dev account was created after other accounts. " +
+            "Please reset the database (e.g. drop and recreate the H2 file, or restart Quarkus dev mode so Flyway re-runs on a fresh DB) and re-run the test.";
+        console.error(msg);
+        throw new Error(msg);
+    }
+    console.log("Pre-flight passed: admin role confirmed");
+
     // Step 8: Navigate to accounts page and add manager account
     console.log("Step 8: Adding manager account...");
-    await navigateToAccounts(page);
     const inviteLink = await addAccount(page, MANAGER_EMAIL, MANAGER_NAME);
     
     // Step 9: Sign out as admin
@@ -83,23 +98,25 @@ test('admin creates manager account and manager signs in via invite link', async
     console.log("Step 13: Verifying signed in as Manager...");
     await verifySignedIn(page, MANAGER_NAME);
     
-    // Step 14: Verify manager only has "user" role and can only see their own account
-    console.log("Step 14: Verifying manager only has 'user' role and can only see their own account...");
+    // Step 14: Verify manager only has "user" role and can see all accounts in the org
+    console.log("Step 14: Verifying manager only has 'user' role and can see all accounts in the org...");
     await navigateToAccounts(page);
     
     // Wait for accounts to load - the first tile should appear
     const accountTiles = page.locator('.tile');
     await expect(accountTiles.first()).toBeVisible({ timeout: 10000 });
     
-    // Manager should only see their own account (not the admin account)
+    // Manager should see all accounts in the org (both admin and manager)
     const tileCount = await accountTiles.count();
-    expect(tileCount).toBe(1);
-    console.log("✓ Manager can only see their own account (1 tile visible)");
-    
-    // Verify the visible account is the manager's account
-    const visibleEmail = await accountTiles.first().locator('.tile-subtitle').textContent();
-    expect(visibleEmail?.trim()).toBe(MANAGER_EMAIL);
-    console.log(`✓ The visible account is ${MANAGER_EMAIL}`);
+    expect(tileCount).toBe(2);
+    console.log("✓ Manager can see all accounts in the org (2 tiles visible)");
+
+    // Verify both accounts are visible
+    const visibleEmails = await accountTiles.locator('.tile-subtitle').allTextContents();
+    const trimmedEmails = visibleEmails.map(e => e.trim());
+    expect(trimmedEmails).toContain(MANAGER_EMAIL);
+    expect(trimmedEmails).toContain(ADMIN_EMAIL);
+    console.log(`✓ Both admin and manager accounts are visible`);
     
     // Verify manager cannot see the "Add Role" button (no manage-accounts role yet)
     const addRoleButton = page.locator('.btn-add-small');
@@ -143,13 +160,13 @@ test('admin creates manager account and manager signs in via invite link', async
     console.log("Step 21: Signing back in as manager with username/password...");
     await signInAsManager(page);
     
-    // Step 22: Try to add admin role (should fail - only admin can add admin role)
+    // Step 22: Try to add admin role (should fail - not in the client's allowlist)
     console.log("Step 22: Attempting to add admin role (should fail)...");
     await navigateToAccounts(page);
-    
+
     const adminRoleError = await tryAddRoleToSelf(page, 'abstratium-abstrauth', 'admin');
-    expect(adminRoleError).toContain('Only admin can add the admin role');
-    console.log("✓ Correctly blocked from adding admin role");
+    expect(adminRoleError).toContain('not in the allowlist');
+    console.log("✓ Correctly blocked from adding admin role (not in allowlist)");
     
     // Note: Manager with manage-accounts role cannot see admin account because
     // findAccountsByUserClientRoles filters out the default abstratium-abstrauth client.
@@ -157,9 +174,10 @@ test('admin creates manager account and manager signs in via invite link', async
     // Therefore, we skip testing deletion protections as manager.
     
     // Step 23: Navigate to clients page and add a new client
-    console.log("Step 23: Adding new client 'anapp-acomp'...");
+    console.log("Step 23: Adding new client 'anapp_acomp'...");
     await navigateToClients(page);
-    await addClient(page, 'anapp-acomp', 'anapp-acomp', 'http://localhost:3333/callback', 'openid profile email');
+    const newClient = await addClient(page, 'anapp_acomp', 'anapp_acomp', 'http://localhost:3333/callback', 'openid profile email');
+    const anappClientId = newClient.clientId;
     
     // Step 24: Sign out as manager
     console.log("Step 24: Signing out as manager...");
@@ -174,36 +192,31 @@ test('admin creates manager account and manager signs in via invite link', async
     await navigateToAccounts(page);
     const auserInviteLink = await addAccount(page, 'auser@abstratium.dev', 'AUser');
     console.log("✓ Created new user 'AUser'");
-    
-    // Step 27: Add a role for AUser on the default client
-    console.log("Step 27: Adding 'viewer' role for AUser on 'abstratium-abstrauth'...");
-    await addRoleToAccount(page, 'auser@abstratium.dev', 'abstratium-abstrauth', 'viewer');
-    console.log("✓ Added 'viewer' role for AUser on 'abstratium-abstrauth'");
-    
-    // Step 28: Add a role for AUser on the new client
-    console.log("Step 28: Adding 'viewer' role for AUser on 'anapp-acomp' client...");
-    await addRoleToAccount(page, 'auser@abstratium.dev', 'anapp-acomp', 'viewer');
-    console.log("✓ Added 'viewer' role for AUser on 'anapp-acomp' client");
-    
+
+    // Step 27: Add a role for AUser on the new private client
+    console.log(`Step 27: Adding 'viewer' role for AUser on '${anappClientId}' client...`);
+    await addRoleToAccount(page, 'auser@abstratium.dev', anappClientId, 'viewer');
+    console.log(`✓ Added 'viewer' role for AUser on '${anappClientId}' client`);
+
     // Step 29: Navigate to clients page and verify the new client exists
-    console.log("Step 29: Verifying 'anapp-acomp' client exists...");
+    console.log(`Step 29: Verifying '${anappClientId}' client exists...`);
     await navigateToClients(page);
-    const clientCard = page.locator('.card').filter({ hasText: 'anapp-acomp' });
+    const clientCard = page.locator(`.card[data-client-id="${anappClientId}"]`);
     await expect(clientCard).toBeVisible({ timeout: 5000 });
-    console.log("✓ Client 'anapp-acomp' is visible");
-    
+    console.log(`✓ Client '${anappClientId}' is visible`);
+
     // Step 30: Click on the link to view accounts with roles for this client
     console.log("Step 30: Clicking link to view accounts with roles for this client...");
-    
+
     // Dismiss any toast notifications that might block the click
     await dismissToasts(page);
-    
+
     await clientCard.locator('.client-link').click();
     expect(page.url()).toContain('/accounts');
-    expect(page.url()).toContain('filter=anapp-acomp');
+    expect(page.url()).toContain(`filter=${anappClientId}`);
     console.log("✓ Navigated to accounts page with client filter");
-    
-    // Step 31: Verify only AUser account is visible (filtered by 'viewer' role on 'anapp-acomp')
+
+    // Step 31: Verify only AUser account is visible (filtered by 'viewer' role on the new client)
     console.log("Step 31: Verifying only AUser account is visible...");
     const filteredTiles = page.locator('.tile');
     await expect(filteredTiles.first()).toBeVisible({ timeout: 5000 });
@@ -211,7 +224,7 @@ test('admin creates manager account and manager signs in via invite link', async
     expect(filteredCount).toBe(1);
     const filteredEmail = await filteredTiles.first().locator('.tile-subtitle').textContent();
     expect(filteredEmail?.trim()).toBe('auser@abstratium.dev');
-    console.log("✓ Only AUser account is visible (filtered by 'viewer' role on 'anapp-acomp')");
+    console.log(`✓ Only AUser account is visible (filtered by 'viewer' role on '${anappClientId}')`);
     
     console.log("Test completed successfully!");
 });

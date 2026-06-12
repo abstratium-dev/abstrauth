@@ -177,6 +177,31 @@ public class ServiceAccountRolesResourceTest {
     }
 
     @Test
+    public void testAddRoleWithPrefixedClientIdStripsUuidPrefix() {
+        String prefixedClientId = "550e8400-e29b-41d4-a716-446655440000__test-roles-client";
+        try {
+            jakarta.transaction.UserTransaction tx = com.arjuna.ats.jta.UserTransaction.userTransaction();
+            tx.begin();
+            createTestClient(prefixedClientId);
+            tx.commit();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        given()
+                .header("Authorization", "Bearer " + testToken)
+                .contentType(ContentType.JSON)
+                .body("{\"role\": \"api-reader\"}")
+                .when()
+                .post("/api/clients/" + prefixedClientId + "/roles")
+                .then()
+                .statusCode(201)
+                .body("clientId", equalTo(prefixedClientId))
+                .body("role", equalTo("api-reader"))
+                .body("groupName", equalTo("test-roles-client_api-reader"));
+    }
+
+    @Test
     public void testAddMultipleRoles() {
         // Add first role
         given()
