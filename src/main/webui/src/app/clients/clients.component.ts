@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
 import { Controller } from '../controller';
-import { ClientSecret, ModelService, OAuthClient } from '../model.service';
+import { AllowedRole, ClientSecret, ModelService, OAuthClient } from '../model.service';
 import { UrlFilterComponent } from '../shared/url-filter/url-filter.component';
 import { ToastService } from '../shared/toast/toast.service';
 import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
@@ -69,6 +69,21 @@ export class ClientsComponent implements OnInit {
   showAddRoleForm = false;
   addRoleData = {
     role: ''
+  };
+
+  // Allowed roles management state
+  viewingAllowedRolesFor: string | null = null;
+  allowedRoles: AllowedRole[] = [];
+  allowedRolesLoading = false;
+  allowedRolesError: string | null = null;
+  showAddAllowedRoleForm = false;
+  addAllowedRoleData = {
+    role: '',
+    isDefault: false
+  };
+  editingAllowedRole: string | null = null;
+  editAllowedRoleData = {
+    isDefault: false
   };
 
   constructor() {
@@ -485,7 +500,7 @@ export class ClientsComponent implements OnInit {
     const now = new Date();
     const daysUntilExpiry = Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
-    return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+    return daysUntilExpiry <= 30 && daysUntilExpiry >= 0;
   }
 
   isSecretExpired(secret: ClientSecret): boolean {
@@ -660,6 +675,139 @@ export class ClientsComponent implements OnInit {
         this.toastService.error('Role not found');
       } else {
         this.toastService.error('Failed to remove role. Please try again.');
+      }
+    }
+  }
+
+  // Allowed Roles Management Methods
+
+  async toggleAllowedRolesView(client: OAuthClient): Promise<void> {
+    if (this.viewingAllowedRolesFor === client.clientId) {
+      this.viewingAllowedRolesFor = null;
+      this.allowedRoles = [];
+      this.showAddAllowedRoleForm = false;
+      this.editingAllowedRole = null;
+    } else {
+      this.viewingAllowedRolesFor = client.clientId;
+      this.showAddAllowedRoleForm = false;
+      this.editingAllowedRole = null;
+      await this.loadAllowedRoles(client.clientId);
+    }
+  }
+
+  async loadAllowedRoles(clientId: string): Promise<void> {
+    this.allowedRolesLoading = true;
+    this.allowedRolesError = null;
+    try {
+      this.allowedRoles = await this.controller.listAllowedRolesForUsersInClientsOrg(clientId);
+    } catch (err: any) {
+      console.error('Error loading allowed roles:', err);
+      this.allowedRolesError = 'Failed to load allowed roles';
+      this.allowedRoles = [];
+    } finally {
+      this.allowedRolesLoading = false;
+    }
+  }
+
+  toggleAddAllowedRoleForm(): void {
+    this.showAddAllowedRoleForm = !this.showAddAllowedRoleForm;
+    if (this.showAddAllowedRoleForm) {
+      this.addAllowedRoleData = { role: '', isDefault: false };
+      this.editingAllowedRole = null;
+    }
+  }
+
+  async addAllowedRole(clientId: string): Promise<void> {
+    if (!this.addAllowedRoleData.role || !this.addAllowedRoleData.role.trim()) {
+      this.toastService.error('Role name is required');
+      return;
+    }
+
+    const rolePattern = /^[a-z0-9-]+$/;
+    if (!rolePattern.test(this.addAllowedRoleData.role)) {
+      this.toastService.error('Role must contain only lowercase letters, numbers, and hyphens');
+      return;
+    }
+
+    try {
+      await this.controller.addAllowedRole(clientId, {
+        role: this.addAllowedRoleData.role,
+        isDefault: this.addAllowedRoleData.isDefault
+      });
+      this.toastService.success(`Role "${this.addAllowedRoleData.role}" added to allowlist`);
+      this.showAddAllowedRoleForm = false;
+      this.addAllowedRoleData = { role: '', isDefault: false };
+      await this.loadAllowedRoles(clientId);
+    } catch (err: any) {
+      console.error('Error adding allowed role:', err);
+      if (err.status === 409) {
+        this.toastService.error('Role already exists in allowlist');
+      } else if (err.status === 403) {
+        this.toastService.error('You do not have permission to manage allowed roles');
+      } else if (err.status === 404) {
+        this.toastService.error('Client not found');
+      } else {
+        this.toastService.error('Failed to add allowed role. Please try again.');
+      }
+    }
+  }
+
+  startEditAllowedRole(role: string, isDefault: boolean): void {
+    this.editingAllowedRole = role;
+    this.editAllowedRoleData = { isDefault };
+    this.showAddAllowedRoleForm = false;
+  }
+
+  cancelEditAllowedRole(): void {
+    this.editingAllowedRole = null;
+    this.editAllowedRoleData = { isDefault: false };
+  }
+
+  async updateAllowedRole(clientId: string, role: string): Promise<void> {
+    try {
+      await this.controller.updateAllowedRole(clientId, role, {
+        isDefault: this.editAllowedRoleData.isDefault
+      });
+      this.toastService.success(`Role "${role}" updated successfully`);
+      this.editingAllowedRole = null;
+      await this.loadAllowedRoles(clientId);
+    } catch (err: any) {
+      console.error('Error updating allowed role:', err);
+      if (err.status === 403) {
+        this.toastService.error('You do not have permission to manage allowed roles');
+      } else if (err.status === 404) {
+        this.toastService.error('Role or client not found');
+      } else {
+        this.toastService.error('Failed to update allowed role. Please try again.');
+      }
+    }
+  }
+
+  async removeAllowedRole(clientId: string, role: string): Promise<void> {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Remove Allowed Role',
+      message: `Are you sure you want to remove "${role}" from the allow-list? Subscribing organisations will no longer be able to assign this role to their users.`,
+      confirmText: 'Remove Role',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await this.controller.removeAllowedRole(clientId, role);
+      this.toastService.success(`Role "${role}" removed from allowlist`);
+      await this.loadAllowedRoles(clientId);
+    } catch (err: any) {
+      console.error('Error removing allowed role:', err);
+      if (err.status === 403) {
+        this.toastService.error('You do not have permission to manage allowed roles');
+      } else if (err.status === 404) {
+        this.toastService.error('Role or client not found');
+      } else {
+        this.toastService.error('Failed to remove allowed role. Please try again.');
       }
     }
   }

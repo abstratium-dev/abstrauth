@@ -30,6 +30,9 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Path("/api/clients")
 @Tag(name = "Clients", description = "OAuth client management endpoints")
 @VerifyOrgMembership
@@ -232,6 +235,78 @@ public class ClientsResource {
         return Response.noContent().build();
     }
 
+    @GET
+    @Path("/{clientId}/allowed-roles-for-users-in-clients-org")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "List allowed roles for a client", description = "Returns the roles that subscribing organisations may assign to their users for this client")
+    @RolesAllowed(Roles.USER)
+    public Response listAllowedRoles(@PathParam("clientId") String clientId) {
+        if (oauthClientService.findByClientId(clientId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Client not found"))
+                    .build();
+        }
+
+        var roles = clientAllowedRoleService.findByClientId(clientId);
+        List<AllowedRoleResponse> response = roles.stream()
+                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault()))
+                .collect(Collectors.toList());
+        return Response.ok(response).build();
+    }
+
+    @POST
+    @Path("/{clientId}/allowed-roles")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Add an allowed role to a client", description = "Adds a role to the allowlist for this client. Only the client owner can do this.")
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
+    public Response addAllowedRole(@PathParam("clientId") String clientId, @Valid AddAllowedRoleRequest request) {
+        try {
+            clientAllowedRoleService.addAllowedRole(clientId, request.role, Boolean.TRUE.equals(request.isDefault));
+            return Response.status(Response.Status.CREATED)
+                    .entity(new AllowedRoleResponse(clientId, request.role, Boolean.TRUE.equals(request.isDefault)))
+                    .build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+    }
+
+    @PUT
+    @Path("/{clientId}/allowed-roles/{role}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Update an allowed role", description = "Updates the default flag for a role in the client's allowlist")
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
+    public Response updateAllowedRole(@PathParam("clientId") String clientId, @PathParam("role") String role,
+                                      @Valid UpdateAllowedRoleRequest request) {
+        try {
+            clientAllowedRoleService.updateAllowedRole(clientId, role, Boolean.TRUE.equals(request.isDefault));
+            return Response.ok(new AllowedRoleResponse(clientId, role, Boolean.TRUE.equals(request.isDefault))).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+    }
+
+    @DELETE
+    @Path("/{clientId}/allowed-roles/{role}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Remove an allowed role", description = "Removes a role from the client's allowlist")
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
+    public Response removeAllowedRole(@PathParam("clientId") String clientId, @PathParam("role") String role) {
+        try {
+            clientAllowedRoleService.removeAllowedRole(clientId, role);
+            return Response.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+    }
+
     private ClientResponse toClientResponse(OAuthClient client) {
         return new ClientResponse(
                 client.getId(),
@@ -344,16 +419,16 @@ public class ClientsResource {
     public static class UpdateClientRequest {
         @NotBlank(message = "Client name is required")
         public String clientName;
-        
+
         @NotBlank(message = "Client type is required")
         public String clientType;
-        
+
         // Redirect URIs are optional for M2M clients (validated in updateClient)
         public String redirectUris;
-        
+
         // Allowed scopes are optional - empty for role-based M2M clients
         public String allowedScopes;
-        
+
         public Boolean requirePkce;
 
         // Whether any organisation may subscribe to this client automatically on first sign-in.
@@ -363,6 +438,18 @@ public class ClientsResource {
         // Whether third-party organisations may subscribe to this client at all.
         // If false, only the owning organisation may use it.
         public Boolean publik;
+    }
+
+    @RegisterForReflection
+    public static class AddAllowedRoleRequest {
+        @NotBlank(message = "Role is required")
+        public String role;
+        public Boolean isDefault;
+    }
+
+    @RegisterForReflection
+    public static class UpdateAllowedRoleRequest {
+        public Boolean isDefault;
     }
 
 }

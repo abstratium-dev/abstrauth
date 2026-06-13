@@ -62,7 +62,7 @@ test('admin creates manager account and manager signs in via invite link', async
     console.log("Pre-flight: Verifying admin@abstratium.dev has admin role...");
     await navigateToAccounts(page);
     const adminTile = page.locator('.tile').filter({ hasText: ADMIN_EMAIL });
-    const adminRoleSubTile = adminTile.locator('.sub-tile').filter({ hasText: 'admin' }).filter({ hasText: 'abstratium-abstrauth' });
+    const adminRoleSubTile = adminTile.locator('.sub-tile[data-client-id="abstratium-abstrauth"]').filter({ hasText: 'admin' });
     const hasAdminRole = await adminRoleSubTile.isVisible().catch(() => false);
     if (!hasAdminRole) {
         const msg =

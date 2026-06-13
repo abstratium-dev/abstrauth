@@ -151,6 +151,12 @@
           </small>
         </div>
 
+        <div class="form-group">
+          <small class="form-hint info-text">
+            <strong>Note:</strong> The roles that subscribing organisations are allowed to assign are managed separately after the client is created. Use the <strong>Manage Allowed Roles</strong> button on the client card.
+          </small>
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="btn-primary" [disabled]="formSubmitting">
             {{ formSubmitting ? 'Creating...' : 'Create Client' }}
@@ -265,6 +271,12 @@
                 <small class="form-hint">
                   <strong>Supported scopes:</strong> <code>openid</code> so that a user token can be generated, <code>profile</code> so that the users name can be read, <code>email</code> so that the users email can be read.<br>
                   Leave empty for role-based auth only.
+                </small>
+              </div>
+
+              <div class="form-group">
+                <small class="form-hint info-text">
+                  <strong>Note:</strong> The roles that subscribing organisations are allowed to assign are managed separately. Use the <strong>Manage Allowed Roles</strong> button below.
                 </small>
               </div>
 
@@ -498,6 +510,108 @@
                               (click)="removeRole(client.clientId, role)"
                               title="Remove role">
                         🗑️
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Allowed Roles Management Section -->
+            <div *ngIf="hasManageClientsRole() && matchesTokenOrgId(client.orgId)" class="detail-row role-management">
+              <button class="btn-secondary" (click)="toggleAllowedRolesView(client)">
+                {{ viewingAllowedRolesFor === client.clientId ? '📋 Hide Allowed Roles' : '📋 Manage Allowed Roles' }}
+              </button>
+            </div>
+
+            <!-- Allowed Roles List -->
+            <div *ngIf="viewingAllowedRolesFor === client.clientId" class="roles-section">
+              <div class="info-box">
+                <strong>About Allowed Roles:</strong> These are the roles that subscribing organisations may assign to their users for this client. When a role is marked as <strong>Default</strong>, it is automatically assigned to new users in subscribing organisations when they sign in.
+              </div>
+
+              <div class="roles-header">
+                <h3>Allowed Roles</h3>
+                <button class="btn-primary btn-sm" (click)="toggleAddAllowedRoleForm()" [disabled]="allowedRolesLoading">
+                  {{ showAddAllowedRoleForm ? 'Cancel' : '+ Add Allowed Role' }}
+                </button>  
+              </div>  
+
+              <!-- Add Allowed Role Form -->
+              <div *ngIf="showAddAllowedRoleForm" class="form-container role-form">
+                <h4>Add Allowed Role</h4>
+                <div class="form-group">
+                  <label for="allowed-role-name">Role Name *</label>
+                  <input type="text" id="allowed-role-name" [(ngModel)]="addAllowedRoleData.role"
+                         placeholder="e.g., viewer" pattern="^[a-z0-9-]+$" required>
+                  <small class="form-hint">Lowercase letters, numbers, and hyphens only</small>
+                </div>
+                <div class="form-group">
+                  <label for="allowed-role-default">
+                    <input type="checkbox" id="allowed-role-default" [(ngModel)]="addAllowedRoleData.isDefault">
+                    Default role
+                  </label>
+                  <small class="form-hint">Automatically assign this role to new users in subscribing organisations when they sign in</small>
+                </div>
+                <div class="form-actions">
+                  <button class="btn-primary" (click)="addAllowedRole(client.clientId)" [disabled]="!addAllowedRoleData.role">
+                    Add Role
+                  </button>
+                  <button class="btn-secondary" (click)="toggleAddAllowedRoleForm()">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <div *ngIf="allowedRolesLoading" class="loading">Loading allowed roles...</div>
+              <div *ngIf="allowedRolesError" class="error-box">{{ allowedRolesError }}</div>
+
+              <div *ngIf="!allowedRolesLoading && !allowedRolesError && allowedRoles.length === 0" class="info-box">
+                No allowed roles configured.
+              </div>
+
+              <div *ngIf="!allowedRolesLoading && allowedRoles.length > 0" class="roles-list">
+                <div *ngFor="let allowedRole of allowedRoles" class="role-card">
+                  <div class="role-header">
+                    <div class="role-info">
+                      <strong>{{ allowedRole.role }}</strong>
+                      <span *ngIf="allowedRole.isDefault" class="badge badge-success">Default</span>
+                    </div>
+                    <div class="role-actions">
+                      <ng-container *ngIf="editingAllowedRole === allowedRole.role">
+                        <button class="btn-secondary btn-sm" (click)="cancelEditAllowedRole()">
+                          Cancel
+                        </button>
+                      </ng-container>
+                      <ng-container *ngIf="editingAllowedRole !== allowedRole.role">
+                        <button class="btn-icon" (click)="startEditAllowedRole(allowedRole.role, allowedRole.isDefault)"
+                                title="Edit role">
+                          ✏️
+                        </button>
+                        <button class="btn-icon btn-icon-danger"
+                                (click)="removeAllowedRole(client.clientId, allowedRole.role)"
+                                title="Remove role">
+                          🗑️
+                        </button>
+                      </ng-container>
+                    </div>
+                  </div>
+
+                  <!-- Edit panel for this role -->
+                  <div *ngIf="editingAllowedRole === allowedRole.role" class="role-edit-panel">
+                    <div class="form-group">
+                      <label class="role-edit-label">
+                        <input type="checkbox" [(ngModel)]="editAllowedRoleData.isDefault">
+                        Default role
+                      </label>
+                    </div>
+                    <small class="form-hint">To change the role name, remove this role and add a new one with the desired name.</small>
+                    <div class="form-actions">
+                      <button class="btn-primary btn-sm" (click)="updateAllowedRole(client.clientId, allowedRole.role)">
+                        Save
+                      </button>
+                      <button class="btn-secondary btn-sm" (click)="cancelEditAllowedRole()">
+                        Cancel
                       </button>
                     </div>
                   </div>

@@ -1108,4 +1108,450 @@ public class ClientsResourceTest {
             .statusCode(200)
             .body("find { it.clientId == '" + uniqueClientId + "' }.clientSecret", nullValue());
     }
+
+    // ─────────────────────────────────────────────────────────
+    // Allowed Roles Management
+    // ─────────────────────────────────────────────────────────
+
+    @Test
+    public void testAddAllowedRoleSuccessfully() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_add_role_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client for Add Role",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        String actualClientId = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        String requestBody = """
+            {
+                "role": "viewer",
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients/" + actualClientId + "/allowed-roles")
+            .then()
+            .statusCode(201)
+            .body("clientId", equalTo(actualClientId))
+            .body("role", equalTo("viewer"))
+            .body("isDefault", equalTo(true));
+
+        // Verify via GET
+        given()
+            .header("Authorization", "Bearer " + generateUserOnlyToken())
+            .when()
+            .get("/api/clients/" + actualClientId + "/allowed-roles-for-users-in-clients-org")
+            .then()
+            .statusCode(200)
+            .body("role", hasItem("viewer"))
+            .body("isDefault", hasItem(true));
+    }
+
+    @Test
+    public void testAddAllowedRoleDuplicateReturns409() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_dup_role_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client for Dup Role",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        String actualClientId = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        String requestBody = """
+            {
+                "role": "editor",
+                "isDefault": false
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients/" + actualClientId + "/allowed-roles")
+            .then()
+            .statusCode(201);
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients/" + actualClientId + "/allowed-roles")
+            .then()
+            .statusCode(409)
+            .body("error", equalTo("Role already exists in allowlist"));
+    }
+
+    @Test
+    public void testAddAllowedRoleWithoutTokenReturns401() {
+        String requestBody = """
+            {
+                "role": "viewer",
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients/some-client/allowed-roles")
+            .then()
+            .statusCode(401);
+    }
+
+    @Test
+    public void testAddAllowedRoleWithoutRoleReturns403() {
+        String token = generateTokenWithoutRole();
+        String requestBody = """
+            {
+                "role": "viewer",
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients/some-client/allowed-roles")
+            .then()
+            .statusCode(403);
+    }
+
+    @Test
+    public void testAddAllowedRoleForNonExistentClientReturns404() {
+        String token = generateValidToken();
+        String requestBody = """
+            {
+                "role": "viewer",
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients/non-existent-client-id/allowed-roles")
+            .then()
+            .statusCode(404)
+            .body("error", equalTo("Client not found"));
+    }
+
+    @Test
+    public void testUpdateAllowedRoleSuccessfully() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_update_role_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client for Update Role",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        String actualClientId = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        // Add role first
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body("{\"role\": \"manager\", \"isDefault\": false}")
+            .when()
+            .post("/api/clients/" + actualClientId + "/allowed-roles")
+            .then()
+            .statusCode(201);
+
+        // Update to default
+        String updateBody = """
+            {
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(updateBody)
+            .when()
+            .put("/api/clients/" + actualClientId + "/allowed-roles/manager")
+            .then()
+            .statusCode(200)
+            .body("clientId", equalTo(actualClientId))
+            .body("role", equalTo("manager"))
+            .body("isDefault", equalTo(true));
+
+        // Verify via GET
+        given()
+            .header("Authorization", "Bearer " + generateUserOnlyToken())
+            .when()
+            .get("/api/clients/" + actualClientId + "/allowed-roles-for-users-in-clients-org")
+            .then()
+            .statusCode(200)
+            .body("role", hasItem("manager"))
+            .body("isDefault", hasItem(true));
+    }
+
+    @Test
+    public void testUpdateAllowedRoleNonExistentRoleReturns404() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_update_missing_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client for Update Missing",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        String actualClientId = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        String updateBody = """
+            {
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(updateBody)
+            .when()
+            .put("/api/clients/" + actualClientId + "/allowed-roles/nonexistent")
+            .then()
+            .statusCode(404)
+            .body("error", equalTo("Role not found in allowlist"));
+    }
+
+    @Test
+    public void testUpdateAllowedRoleWithoutTokenReturns401() {
+        String updateBody = """
+            {
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .contentType("application/json")
+            .body(updateBody)
+            .when()
+            .put("/api/clients/some-client/allowed-roles/viewer")
+            .then()
+            .statusCode(401);
+    }
+
+    @Test
+    public void testUpdateAllowedRoleWithoutRoleReturns403() {
+        String token = generateTokenWithoutRole();
+        String updateBody = """
+            {
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(updateBody)
+            .when()
+            .put("/api/clients/some-client/allowed-roles/viewer")
+            .then()
+            .statusCode(403);
+    }
+
+    @Test
+    public void testUpdateAllowedRoleForNonExistentClientReturns404() {
+        String token = generateValidToken();
+        String updateBody = """
+            {
+                "isDefault": true
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(updateBody)
+            .when()
+            .put("/api/clients/non-existent-client-id/allowed-roles/viewer")
+            .then()
+            .statusCode(404)
+            .body("error", equalTo("Client not found"));
+    }
+
+    @Test
+    public void testRemoveAllowedRoleSuccessfully() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_remove_role_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client for Remove Role",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        String actualClientId = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        // Add role first
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body("{\"role\": \"admin\", \"isDefault\": false}")
+            .when()
+            .post("/api/clients/" + actualClientId + "/allowed-roles")
+            .then()
+            .statusCode(201);
+
+        // Remove role
+        given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .delete("/api/clients/" + actualClientId + "/allowed-roles/admin")
+            .then()
+            .statusCode(204);
+
+        // Verify via GET
+        given()
+            .header("Authorization", "Bearer " + generateUserOnlyToken())
+            .when()
+            .get("/api/clients/" + actualClientId + "/allowed-roles-for-users-in-clients-org")
+            .then()
+            .statusCode(200)
+            .body("size()", equalTo(0));
+    }
+
+    @Test
+    public void testRemoveAllowedRoleNonExistentRoleReturns404() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_remove_missing_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client for Remove Missing",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        String actualClientId = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .delete("/api/clients/" + actualClientId + "/allowed-roles/nonexistent")
+            .then()
+            .statusCode(404)
+            .body("error", equalTo("Role not found in allowlist"));
+    }
+
+    @Test
+    public void testRemoveAllowedRoleWithoutTokenReturns401() {
+        given()
+            .when()
+            .delete("/api/clients/some-client/allowed-roles/viewer")
+            .then()
+            .statusCode(401);
+    }
+
+    @Test
+    public void testRemoveAllowedRoleWithoutRoleReturns403() {
+        String token = generateTokenWithoutRole();
+        given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .delete("/api/clients/some-client/allowed-roles/viewer")
+            .then()
+            .statusCode(403);
+    }
+
+    @Test
+    public void testRemoveAllowedRoleForNonExistentClientReturns404() {
+        String token = generateValidToken();
+        given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .delete("/api/clients/non-existent-client-id/allowed-roles/viewer")
+            .then()
+            .statusCode(404)
+            .body("error", equalTo("Client not found"));
+    }
 }

@@ -365,7 +365,7 @@ export async function tryDeleteRoleFromAccount(page: Page, accountEmail: string,
     }
 
     // Find the sub-tile that contains both the role name and client ID
-    const subTile = accountTile.locator('.sub-tile').filter({ hasText: roleName }).filter({ hasText: clientId });
+    const subTile = accountTile.locator(`.sub-tile[data-client-id="${clientId}"]`).filter({ hasText: roleName });
     await expect(subTile).toBeVisible({ timeout: 5000 });
     
     // Track error toast message

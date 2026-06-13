@@ -145,6 +145,11 @@ export class AccountsComponent implements OnInit {
     return token.sub === accountId;
   }
 
+  getClientName(clientId: string): string {
+    const client = this.clients.find(c => c.clientId === clientId);
+    return client ? client.clientName : clientId;
+  }
+
   onFilterChange(filter: string): void {
     this.currentFilter = filter;
     // Defer filter application to avoid change detection errors

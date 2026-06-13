@@ -366,4 +366,50 @@ export class Controller {
       throw error;
     }
   }
+
+  async listAllowedRolesForUsersInClientsOrg(clientId: string): Promise<AllowedRole[]> {
+    try {
+      return await firstValueFrom(
+        this.http.get<AllowedRole[]>(`/api/clients/${clientId}/allowed-roles-for-users-in-clients-org`)
+      );
+    } catch (error) {
+      console.error('Error listing allowed roles:', error);
+      throw error;
+    }
+  }
+
+  async addAllowedRole(clientId: string, request: { role: string; isDefault: boolean }): Promise<AllowedRole> {
+    try {
+      const response = await firstValueFrom(
+        this.http.post<AllowedRole>(`/api/clients/${clientId}/allowed-roles`, request)
+      );
+      return response;
+    } catch (error) {
+      console.error('Error adding allowed role:', error);
+      throw error;
+    }
+  }
+
+  async updateAllowedRole(clientId: string, role: string, request: { isDefault: boolean }): Promise<AllowedRole> {
+    try {
+      const response = await firstValueFrom(
+        this.http.put<AllowedRole>(`/api/clients/${clientId}/allowed-roles/${role}`, request)
+      );
+      return response;
+    } catch (error) {
+      console.error('Error updating allowed role:', error);
+      throw error;
+    }
+  }
+
+  async removeAllowedRole(clientId: string, role: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(`/api/clients/${clientId}/allowed-roles/${role}`)
+      );
+    } catch (error) {
+      console.error('Error removing allowed role:', error);
+      throw error;
+    }
+  }
 }

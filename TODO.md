@@ -45,6 +45,9 @@
   - extend MetricsService with orgs, etc.
   - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
 
+- what happens if we remove an allowed role? existing users won't lose it. but that needs to happen since the client owner is saying that the role no longer exists. change this so that no one can assign roles unless they are in the allowed roles list - and have two types: internal, public; and for each public one, it may be default. make a note in the ui that if no longer default, the users who have it won't lose it!
+- rename "service account" and similar to something else. it isn't a service account, it's a machine client. work out if we actually want those kind of clients!
+
 - deal with upstream components calling downstream ones with a token from upstream that has the wrong roles -> we could add an interceptor thingy that allows us to swap one token for a new one, with the roles that the original user has in the NEW client? do that upstream or downstream? -> see RFCs
 
 - take flows, security design? and multitenancy design and get rid of stuff related to what has already been implemented (primarily in multitenancy design doc) and create a single spec and design document from that.

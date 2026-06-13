@@ -258,7 +258,7 @@
           </div>
 
           <div *ngIf="account.roles && account.roles.length > 0" class="sub-tiles">
-            <div class="sub-tile" *ngFor="let role of account.roles">
+            <div class="sub-tile" *ngFor="let role of account.roles" [attr.data-client-id]="role.clientId">
               <div class="sub-tile-header">
                 <div class="sub-tile-title">
                   <a (click)="filterByRole(role.role)" class="role-link">{{ role.role }}</a>
@@ -271,7 +271,7 @@
                 </button>
               </div>
               <div class="sub-tile-content">
-                Client: <a [routerLink]="['/clients']" [queryParams]="{filter: role.clientId}" class="client-link">{{ role.clientId }}</a>
+                Client: <a [routerLink]="['/clients']" [queryParams]="{filter: role.clientId}" class="client-link">{{ getClientName(role.clientId) }}</a>
               </div>
             </div>
           </div>
