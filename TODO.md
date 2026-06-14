@@ -57,6 +57,20 @@ finally, create a new e2e test. see @e2e-testing.md and the existing tests in @e
 if it is possible, make the test also send an HTTP request in order to get the token, and assert that the token contains the correct roles and that it contains the org id of the client.
 
 -----
+fix this bug, including adding/amending angular tests or backend tests depending on where the failure is :
+
+POST http://localhost:8080/api/clients/8bc38237-f165-481e-96b9-b071d3efb231__asdf/client-roles
+
+{"targetClientId":"abstratium-abstrauth","role":"manage-accounts"}
+
+400 Bad Request
+{"error":"Target client not found","error_description":null,"error_uri":null}
+
+
+it is only a problem for client id abstratium-abstrauth, or maybe it's because that client isn't in the same org and when searching for target clients, the search isn't also looking for clients where the users org also has a subscription to the public client?
+
+
+-----
 
 
 
