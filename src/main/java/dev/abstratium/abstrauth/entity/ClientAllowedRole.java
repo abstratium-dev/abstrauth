@@ -49,6 +49,9 @@ public class ClientAllowedRole {
     @Column(name = "is_default")
     private Boolean isDefault = false;
 
+    @Column(name = "available_to_foreign_orgs")
+    private Boolean availableToForeignOrgs = false;
+
     public Id getId() { return id; }
     public void setId(Id id) { this.id = id; }
 
@@ -60,4 +63,7 @@ public class ClientAllowedRole {
 
     public Boolean getIsDefault() { return isDefault; }
     public void setIsDefault(Boolean isDefault) { this.isDefault = isDefault; }
+
+    public Boolean getAvailableToForeignOrgs() { return availableToForeignOrgs; }
+    public void setAvailableToForeignOrgs(Boolean availableToForeignOrgs) { this.availableToForeignOrgs = availableToForeignOrgs; }
 }

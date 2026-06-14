@@ -289,8 +289,8 @@ public class MultiTenancySecurityTest {
 
         // Add allowed role for Org A's client
         em.createNativeQuery(
-            "INSERT INTO T_client_allowed_roles (client_id, role, is_default) " +
-            "VALUES (:clientId, 'user', true)")
+            "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
+            "VALUES (:clientId, 'user', true, true)")
             .setParameter("clientId", clientIdA)
             .executeUpdate();
 

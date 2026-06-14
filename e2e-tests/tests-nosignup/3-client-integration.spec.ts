@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { signInAsAdmin, ADMIN_EMAIL, ADMIN_PASSWORD, navigateWithRetry } from '../pages/signin.page';
 import { navigateToAccounts, navigateToClients, signout } from '../pages/header';
-import { addClient, deleteClientIfExists } from '../pages/clients.page';
+import { addClient, deleteClientIfExists, addAllowedRoleToClient } from '../pages/clients.page';
 import { addRoleToAccount } from '../pages/accounts.page';
 import { approveAuthorization } from '../pages/authorize.page';
 
@@ -42,7 +42,7 @@ const CLIENT_ID = 'test_oauth_client';
 const CLIENT_NAME = 'Test OAuth Client';
 const REDIRECT_URI = 'http://localhost:3333/oauth/callback';
 const SCOPES = 'openid profile email';
-const ROLE_NAME = 'aRole';
+const ROLE_NAME = 'a-role';
 
 test('Admin creates OAuth client and signs in via example client application', async ({ page }) => {
     console.log("=== Starting OAuth Client Integration Test ===");
@@ -64,6 +64,9 @@ test('Admin creates OAuth client and signs in via example client application', a
     const clientSecret = newClient.secret;
     console.log(`✓ Created client '${actualClientId}' with redirect URI '${REDIRECT_URI}'`);
     console.log(`✓ Captured client secret: ${clientSecret.substring(0, 10)}...`);
+
+    // Add the role to the client's allowlist before assigning it to an account
+    await addAllowedRoleToClient(page, actualClientId, ROLE_NAME);
 
     // Step 4: Navigate to accounts page and add role to admin
     console.log("Step 4: Adding role to admin account...");

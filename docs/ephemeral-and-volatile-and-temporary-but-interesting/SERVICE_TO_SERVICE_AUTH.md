@@ -1,8 +1,10 @@
 # Service-to-Service Authentication Design
 
+> **Note:** This document captures the original design and decision history. For the current implementation, the key change from the original design is that roles are stored as **client-to-client role assignments** (`T_client_roles`, `ClientRole` entity) rather than flat service-account roles. See [SERVICE_ROLES_SOLUTION.md](./SERVICE_ROLES_SOLUTION.md) for the decision history.
+
 ## Overview
 
-This document describes the design for enabling microservices to authenticate with the abstrauth authorization server and obtain access tokens for calling their own endpoints or downstream microservices.
+This document describes the design for enabling microservices to authenticate with the abstrauth authorization server and obtain access tokens for calling downstream microservices.
 
 **Industry Standard:** OAuth 2.0 Client Credentials Grant (RFC 6749 Section 4.4)
 
@@ -76,11 +78,11 @@ sequenceDiagram
     AuthServer->>AuthServer: Check client type = SERVICE
     AuthServer->>AuthServer: Validate requested scopes
     
-    Note over AuthServer: 3. Lookup Service Roles
-    AuthServer->>AuthServer: Query T_service_account_roles<br/>for client_id
+    Note over AuthServer: 3. Lookup Client Roles
+    AuthServer->>AuthServer: Query T_client_roles<br/>WHERE src_client_id = service-a<br/>AND org_id = client's orgId
     
     Note over AuthServer: 4. Generate Token
-    AuthServer->>AuthServer: Create JWT with:<br/>- sub: service-a<br/>- client_id: service-a<br/>- scope: api:read api:write<br/>- groups: [service-a_writer]<br/>- aud: api.abstratium.dev<br/>- No user claims
+    AuthServer->>AuthServer: Create JWT with:<br/>- sub: service-a<br/>- client_id: service-a<br/>- orgId: &lt;owning-org-uuid&gt;<br/>- scope: api:read api:write<br/>- groups: [target-service_writer]<br/>- No user claims
     
     AuthServer->>Service: 200 OK + Access Token
     Note right of AuthServer: {<br/>  "access_token": "eyJhbG...",<br/>  "token_type": "Bearer",<br/>  "expires_in": 3600,<br/>  "scope": "api:read api:write"<br/>}
@@ -112,9 +114,9 @@ We need to add a new client type:
 |--------|----------------------------------|-------------------------------------|
 | Subject (`sub`) | User ID (UUID) | Service client ID |
 | User Claims | `email`, `name`, `preferred_username` | None |
-| Groups (`groups`) | User roles (e.g., `abstratium-abstrauth_admin`) | Service roles (e.g., `payment-service_accounting-writer`) |
+| Groups (`groups`) | User roles (e.g., `abstratium-abstrauth_admin`) | Client roles (e.g., `accounting-service_writer`) |
 | Scope | User-granted scopes | Service-assigned scopes |
-| Audience (`aud`) | Specific API or resource | Specific API or resource |
+| `orgId` claim | Org of authenticated user | Org that owns the service client |
 | Refresh Token | Yes (long-lived sessions) | No (short-lived, re-request) |
 | Use Case | User acting through UI | Service-to-service orchestration |
 
@@ -165,29 +167,26 @@ ALTER TABLE T_oauth_clients
   COMMENT 'Space-separated list of scopes allowed for SERVICE clients';
 ```
 
-**Migration V01.015: Create service account roles table**
+**Migration V01.032: Create client roles table**
 
 ```sql
-CREATE TABLE T_service_account_roles (
+CREATE TABLE T_client_roles (
     id VARCHAR(36) PRIMARY KEY,
-    client_id VARCHAR(255) NOT NULL,
     role VARCHAR(100) NOT NULL,
+    org_id VARCHAR(36) NOT NULL,
+    src_client_id VARCHAR(255) NOT NULL,
+    target_client_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT FK_service_account_roles_client FOREIGN KEY (client_id) REFERENCES T_oauth_clients(client_id) ON DELETE CASCADE
+    CONSTRAINT FK_client_roles_src_client FOREIGN KEY (src_client_id) REFERENCES T_oauth_clients(client_id) ON DELETE CASCADE,
+    CONSTRAINT FK_client_roles_target_client FOREIGN KEY (target_client_id) REFERENCES T_oauth_clients(client_id) ON DELETE CASCADE
 );
-
--- FK indexes
-CREATE INDEX I_service_account_roles_client ON T_service_account_roles(client_id);
-
--- other indexes
-CREATE UNIQUE INDEX I_service_account_roles_unique ON T_service_account_roles(client_id, role);
 ```
 
-**Why Service Account Roles Table?**
-- Enables `@RolesAllowed` annotations in resource servers
-- Provides audit trail (who did what)
-- Consistent with user role model (`T_account_roles`)
-- Follows Keycloak and Microsoft Entra ID patterns
+**Why `T_client_roles` instead of a flat service-account roles table?**
+- Enforces that the role must be declared in `T_client_allowed_roles` for the target client
+- The `org_id` column is used as the Hibernate `@TenantId` discriminator, enforcing tenant isolation automatically
+- A source client can only receive roles from target clients within its own organisation, preventing cross-org privilege escalation
+- Consistent with the existing `T_client_allowed_roles` model
 
 **Update `ClientType` enum:**
 
@@ -255,21 +254,24 @@ private Response handleClientCredentials(String clientId, String clientSecret, S
             .build();
     }
     
-    // 3. Get service account roles for @RolesAllowed support
-    Set<String> serviceRoles = serviceAccountRoleRepository.findRolesByClientId(clientId);
+    // 3. Get client roles for @RolesAllowed support
+    // ClientRole uses @TenantId — automatically filtered by the client's org
+    List<ClientRole> clientRoles = clientRoleService.findBySrcClientId(clientId);
     Set<String> groups = new HashSet<>();
-    for (String role : serviceRoles) {
-        groups.add(clientId + "_" + role);  // Same format as user roles
+    for (ClientRole cr : clientRoles) {
+        // Format: targetClientId_role (orgId prefix stripped from targetClientId)
+        String displayTargetId = ClientIdUtil.stripOrgPrefix(cr.getTargetClientId());
+        groups.add(displayTargetId + "_" + cr.getRole());
     }
     
     // 4. Generate service token with BOTH scopes AND groups
     String accessToken = Jwt.issuer(issuer)
         .claim("jti", UUID.randomUUID().toString())
-        .subject(clientId)  // Service ID as subject (for audit logging)
-        .groups(groups)     // Roles for @RolesAllowed
+        .subject(clientId)           // Service ID as subject (for audit logging)
+        .groups(groups)              // Roles for @RolesAllowed
         .claim("client_id", clientId)
+        .claim("orgId", client.getOrgId())  // Owning org of the service client
         .claim("scope", String.join(" ", requestedScopes))
-        .audience(audience)
         .issuedAt(Instant.now())
         .expiresAt(Instant.now().plusSeconds(3600))  // 1 hour
         .jws()
@@ -277,12 +279,12 @@ private Response handleClientCredentials(String clientId, String clientSecret, S
         .sign();
     
     // 5. Return token (no refresh token for client credentials)
-    return Response.ok(Map.of(
-        "access_token", accessToken,
-        "token_type", "Bearer",
-        "expires_in", 3600,
-        "scope", String.join(" ", requestedScopes)
-    )).build();
+    TokenResponse response = new TokenResponse();
+    response.access_token = accessToken;
+    response.token_type = "Bearer";
+    response.expires_in = 3600;
+    response.scope = String.join(" ", requestedScopes);
+    return Response.ok(response).build();
 }
 ```
 
@@ -337,20 +339,15 @@ public class ClientResponse {
 }
 ```
 
-### 4. Angular UI Changes
+### 4. Angular UI
 
-**Update client management UI:**
+The `ClientsComponent` manages client roles via the **Client Roles** section on each client card:
 
-1. Add "Client Type" dropdown: `WEB_APPLICATION` or `SERVICE`
-2. Show/hide fields based on client type:
-   - **WEB_APPLICATION**: Show redirect URIs, hide scopes
-   - **SERVICE**: Show scopes, hide redirect URIs
-3. Add scope input field with common presets:
-   - `api:read`
-   - `api:write`
-   - `clients:manage`
-   - `users:read`
-   - `users:write`
+- **View Client Roles**: lists all `ClientRole` entries where this client is the source
+- **Add Client Role**: dropdown selects a target client, then a role from that target's allowed-roles list
+- **Remove Client Role**: removes the `ClientRole` record
+
+Roles must be defined in the target client's **Allowed Roles** list before they can be assigned as client roles.
 
 ### 5. Discovery Endpoint Changes
 
@@ -866,30 +863,19 @@ void testWebApplicationCannotUseClientCredentials() {
 
 ## Migration Path
 
-### Phase 1: Core Implementation
-1. ✅ Add `SERVICE` client type to database schema
-2. ✅ Add `allowed_scopes` column
-3. ✅ Update `ClientType` enum
-4. ✅ Implement client credentials flow in `TokenResource`
-5. ✅ Update discovery endpoint
+### Implementation Status
 
-### Phase 2: Client Management
-1. ✅ Update `ClientsResource` to support SERVICE clients
-2. ✅ Add scope validation
-3. ✅ Update Angular UI for client creation/editing
-4. ✅ Add scope presets and validation
-
-### Phase 3: Documentation & Testing
-1. ✅ Write comprehensive tests
-2. ✅ Update API documentation
-3. ✅ Create service integration guide
-4. ✅ Add example microservice configurations
-
-### Phase 4: Production Deployment
-1. ✅ Run database migrations
-2. ✅ Create initial service clients
-3. ✅ Configure microservices with OIDC client
-4. ✅ Monitor token requests and errors
+| Feature | Status |
+|---------|--------|
+| `allowed_scopes` column in `T_oauth_clients` | ✅ Done (V01.011) |
+| `T_oauth_client_secrets` for secret rotation | ✅ Done (V01.011) |
+| Client credentials grant in `TokenResource` | ✅ Done |
+| `T_client_roles` table (replaces `T_service_account_roles`) | ✅ Done (V01.032) |
+| `ClientRole` entity with `@TenantId` isolation | ✅ Done |
+| `ClientRoleService.findBySrcClientId()` | ✅ Done |
+| `groups` claim populated from `ClientRole` records | ✅ Done |
+| Angular UI for managing client roles | ✅ Done |
+| `TokenResourceTest` covering cross-org hack attempts | ✅ Done |
 
 ## Example Use Cases
 

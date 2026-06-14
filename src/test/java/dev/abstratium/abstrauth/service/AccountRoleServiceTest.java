@@ -349,12 +349,14 @@ public class AccountRoleServiceTest {
         allowedRole1.setClientId(publicClientId);
         allowedRole1.setRole("viewer");
         allowedRole1.setIsDefault(false);
+        allowedRole1.setAvailableToForeignOrgs(true);
         em.persist(allowedRole1);
         
         dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole2 = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         allowedRole2.setClientId(publicClientId);
         allowedRole2.setRole("editor");
         allowedRole2.setIsDefault(true);
+        allowedRole2.setAvailableToForeignOrgs(true);
         em.persist(allowedRole2);
         
         transactionHelper.commitTransaction();

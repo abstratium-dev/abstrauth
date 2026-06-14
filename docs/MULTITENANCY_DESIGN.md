@@ -26,7 +26,7 @@ classDiagram
 - **`Account`** — a user's login identity. Belongs to one or more organisations. When someone first registers with abstrauth, an organisation is automatically created; the account becomes both owner and member.
 - **`Subscription`** — links an organisation to an application (via `clientId`). Its existence grants the org access to the application.
 - **`ClientId`** — represents an application registered in abstrauth. A client can be **private** (`publik = false`, only the owning org can subscribe) or **public** (`publik = true`, any org can subscribe).
-- **`AccountRole`** (entity: `T_account_roles`) — models "client & role": an account is assigned roles per `clientId`. These rows are the sole source of truth for roles placed in the JWT `groups` claim at sign-in time. For public clients the backend enforces that every assigned role appears in `T_client_allowed_roles`; for private (own-org) clients roles are free text.
+- **`AccountRole`** (entity: `T_account_roles`) — models "client & role": an account is assigned roles per `clientId`. These rows are the sole source of truth for roles placed in the JWT `groups` claim at sign-in time. Every assigned role must exist in the client's `T_client_allowed_roles` catalog. The `available_to_foreign_orgs` column controls whether a foreign (subscribing) organisation may assign that role.
 
 ## Runtime Flow
 
@@ -81,13 +81,14 @@ Models an organisation's subscription to an application. Its existence means the
 
 ### New Table: `T_client_allowed_roles`
 
-Declares which roles a public client permits subscribing organisations to assign to their users. The client owner populates this; subscribing orgs may only choose from it, preventing privilege escalation.
+Defines the complete catalog of roles that users may hold for a given client. The client owner populates this. Foreign (subscribing) organisations may only assign roles where `available_to_foreign_orgs = true`, preventing privilege escalation.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `client_id` | VARCHAR(255) PK/FK | References `T_oauth_clients.client_id` |
-| `role` | VARCHAR(100) PK | Role name that subscribing orgs may use |
+| `role` | VARCHAR(100) PK | Role name |
 | `is_default` | BOOLEAN | If true, this role is automatically assigned to new users on first sign-in |
+| `available_to_foreign_orgs` | BOOLEAN | If true, subscribing organisations may assign this role to their users |
 
 ### Modified Tables
 
@@ -170,8 +171,8 @@ Hibernate automatically appends `org_id = ?` to SELECT/UPDATE/DELETE by primary 
 Organisations subscribe to applications. A subscription links an `org_id` to a `client_id` and governs which roles the org's users may hold for that application.
 
 - **Automatic subscription**: enabled by an `auto_subscribe` flag on the client (defaults to `false`). When enabled and a user signs in from a client whose org does not yet have a subscription, abstrauth creates the subscription automatically. If `auto_subscribe` is `false` and no subscription exists, sign-in is denied with "no subscription" error.
-- **Private clients** (`publik = false`): only the owning organisation may subscribe. Useful when an org creates its own application backed by abstrauth.
-- **Public clients** (`publik = true`): any organisation may subscribe. The client owner declares assignable roles and their defaults via `T_client_allowed_roles`.
+- **Private clients** (`publik = false`): only the owning organisation may subscribe. The owning org still populates `T_client_allowed_roles`, but no foreign org can subscribe.
+- **Public clients** (`publik = true`): any organisation may subscribe. The client owner declares all roles in `T_client_allowed_roles`; the `available_to_foreign_orgs` flag controls which of those roles a subscribing org may assign.
 - **Unsubscribe**: an org can unsubscribe, which revokes all user access to the application.
 - **Billing vs subscriptions**: subscriptions govern access rights. Billing is related to contracts — a separate concern.
 
@@ -255,7 +256,7 @@ When a user is invited, an org owner creates `T_organisation_accounts` rows for 
 
 ### Creating a Public Application
 
-Same as above, but the client is created with `publik = true` and the owner populates `T_client_allowed_roles` with the roles subscribing orgs may assign. Other organisations can then subscribe and choose from that list.
+Same as above, but the client is created with `publik = true` and the owner populates `T_client_allowed_roles` with all roles users may have. The `available_to_foreign_orgs` flag controls which of those roles subscribing orgs may assign. Other organisations can then subscribe and choose from the allowed subset.
 
 ## Roles and Access Control
 
@@ -275,11 +276,16 @@ Same as above, but the client is created with `publik = true` and the owner popu
 
 When a user signs in to an application for the first time (no `AccountRole` rows exist for that account and clientId combination), abstrauth copies the client's default roles (rows in `T_client_allowed_roles` where `is_default = true`) into new `AccountRole` rows. Subsequent sign-ins just read the existing rows, so roles can be adjusted per-user after initial assignment.
 
-### Role allowlist for public clients
+### Role catalog enforcement
 
-A public client owner populates `T_client_allowed_roles` (marking some as `is_default`). When an org owner assigns roles to individual users, abstrauth enforces that every role name is in that allowlist — server-side. The UI presents a select element, never free text. This prevents an org owner from granting `abstratium-abstrauth_admin` to their users by subscribing to abstrauth. The backend enforces this during validation prior to saving the data.
+Every client owner populates `T_client_allowed_roles` with the complete set of roles that users may hold for that client. When an org owner assigns roles to individual users, abstrauth enforces two rules server-side:
 
-Users who want to assign roles to other users can choose from any client that is in the subscriptions within their organisation. They can assign roles to users who are in their organisation.
+1. The role must exist in the client's `T_client_allowed_roles` catalog.
+2. If the assigning org is not the client owner, the role must have `available_to_foreign_orgs = true`.
+
+The UI always presents a select element populated from the catalog, never free text. This prevents an org owner from granting arbitrary roles to their users. The backend enforces these rules during validation prior to saving the data.
+
+When a role is removed from the catalog, it is automatically removed from **all users across all organisations**. When a role is changed from `available_to_foreign_orgs = true` to `false`, it is automatically removed from all users in foreign organisations.
 
 ### Global `ADMIN` access
 
@@ -311,7 +317,7 @@ Org membership roles (`owner`, `member`) come from `T_organisation_accounts` and
 | `T_organisation_accounts` | `user` + org `member` (own orgs only) | Add/remove: `user` + org `owner` |
 | `T_subscriptions` | `user` + org `member` (own org's subscriptions) | Add/remove: `user` + org `owner` |
 | `T_accounts` | `manage-accounts` (members of own org only) | Create: public (signup); Update/delete: `manage-accounts` |
-| `T_account_roles` | `manage-accounts` (own org) or `user` (own roles via token) | Add/remove: `manage-accounts`; role must be in client's allowlist or client must be private |
+| `T_account_roles` | `manage-accounts` (own org) or `user` (own roles via token) | Add/remove: `manage-accounts`; role must be in client's `T_client_allowed_roles` catalog and, for foreign orgs, `available_to_foreign_orgs` must be true |
 | `T_oauth_clients` | List: `user` — own org's clients (always visible) plus cross-org subscribed clients; Detail: `manage-clients` | Create/update/delete: `manage-clients` (subscription to owning org created automatically on create) |
 | `T_oauth_client_secrets` | `manage-clients` (own org only) | Create/revoke/delete: `manage-clients` |
 | `T_client_allowed_roles` | `user` + org `member` (own org's clients only) | Managed by `manage-clients` of the org that owns the client |
@@ -319,7 +325,7 @@ Org membership roles (`owner`, `member`) come from `T_organisation_accounts` and
 **Notes:**
 - `admin` (`abstratium-abstrauth_admin`) bypasses org scoping and can read/write all of the above across all organisations via non-`@TenantId` entities.
 - "Own org" means the `orgId` in the caller's JWT must match the `org_id` of the data row (enforced by Hibernate discriminator or explicit `isMember` check).
-- `T_account_roles` write additionally requires: the target account is a member of the caller's org; the role is in the client's `T_client_allowed_roles` if the client is public.
+- `T_account_roles` write additionally requires: the target account is a member of the caller's org; the role is in the client's `T_client_allowed_roles` catalog; and if the caller's org does not own the client, the role must have `available_to_foreign_orgs = true`.
 
 ### Role Assignment Rules
 
@@ -329,7 +335,7 @@ Roles are assigned to accounts in the following circumstances:
 |----------|---------------|-----------|
 | **New user registers** (signup) | `user` + `manage-accounts` + `manage-clients` (if org owner) + `admin` (if first account ever) | `AccountService.addAbstrauthRoles()` assigns all abstrauth roles based on ownership status |
 | **Account created by existing user** (via `/api/accounts`) | `user` for abstrauth only (at creation time) | `addAbstrauthRoles()` assigns `user` role immediately. Roles for other subscribed clients are assigned on first sign-in to each client. |
-| **User signs in to a non-abstrauth client** | Only default roles (`is_default = true` from `T_client_allowed_roles`) | `TokenResource` seeds default roles on first access if no roles exist for account+client+org |
+| **User signs in to a non-abstrauth client** | Applicable default roles (`is_default = true` from `T_client_allowed_roles`, filtered by `available_to_foreign_orgs` for foreign orgs) | `TokenResource` seeds default roles on first access if no roles exist for account+client+org |
 | **User creates new organisation** | `manage-accounts` + `manage-clients` for abstrauth client | `OrganisationsResource.createOrganisation()` assigns management roles so owner can manage their org |
 
 Note: if an org owner adds another member as an owner, they do not automatically get the abstrauth management roles, those need to be added manually by the original org owner.
@@ -360,7 +366,7 @@ This design ensures:
 - `T_organisations` - Every user that signs in is added to their own organisation, except for the very first user that signs in, who is added to just the `rename-me` org. Users can always create new organisations, and become the org owner when they do that. Membership of an organisation is stored in `T_organisation_accounts`. Org owners can also manage subscriptions to public clients, so that their users can use those applications.
 - `T_organisation_accounts` - Stores the membership of accounts to organisations. Roles are either `owner` or `member`. Everyone in the org is a `member` and some of the people in an org are also `owner`s.
 - `T_subscriptions` - When a user signs in to a public client, abstrauth checks that their organisation has a subscription to the application. If not, one is created if the client allows auto-subscription. Org owners can manage subscriptions to applications. They can also set their org to not auto-subscribe.
-- `T_client_allowed_roles` - A list of roles that can be added to `T_account_roles` by org owners who are managing public clients that do not belong to their org.
+- `T_client_allowed_roles` - The complete role catalog for a client. Defines all roles that users may hold, plus a flag (`available_to_foreign_orgs`) controlling which roles subscribing orgs may assign to their users.
 
 ## Non-Multitenancy Package (`non_multitenancy`)
 

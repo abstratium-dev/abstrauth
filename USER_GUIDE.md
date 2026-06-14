@@ -271,26 +271,56 @@ Abstrauth™ supports service-to-service authentication using the OAuth 2.0 Clie
 - Microservice-to-microservice communication
 - Backend services accessing APIs
 - Automated jobs and scripts
-- Service accounts for CI/CD pipelines
+- CI/CD pipelines calling protected APIs
 
-#### Creating an M2M Service Client
+#### How Client Roles Work
 
-**Via UI:**
+M2M authorization uses **client roles** (stored in `T_client_roles`). A client role defines that a **source client** (the caller) may act with a specific **role** when calling a **target client** (the API). Roles must first be declared in the target client's allowed-roles list (`T_client_allowed_roles`) before they can be assigned as a client role.
 
-1. Navigate to **OAuth Clients** page
-2. Click **+ Add Client**
-3. Fill in the client details:
+When the source client authenticates via the client credentials grant, `TokenResource` looks up all `ClientRole` records for that client (filtered to the client's own organisation via `@TenantId`). Each role is formatted as `targetClientId_role` and placed in the JWT `groups` claim, enabling `@RolesAllowed` on the target service.
+
+```mermaid
+sequenceDiagram
+    participant Src as Source Client<br/>(my-service)
+    participant Auth as Abstrauth<br/>(TokenResource)
+    participant Tgt as Target API<br/>(accounting-service)
+
+    Src->>Auth: POST /oauth2/token<br/>grant_type=client_credentials
+    Auth->>Auth: Look up ClientRole records<br/>for src_client_id, filtered by orgId
+    Auth->>Src: JWT with groups:<br/>["accounting-service_writer"]
+    Src->>Tgt: GET /api/transactions<br/>Authorization: Bearer JWT
+    Tgt->>Tgt: @RolesAllowed("accounting-service_writer")
+    Tgt->>Src: 200 OK
+```
+
+#### Setting Up M2M
+
+Note that clients exist in order to model applications that use Abstrauth™ for authentication. It is highly likely that you will already have clients stored for those applications. When one needs to call a second one, you just need to configure the caller so that it has the roles that are required to call the target client (the second application).
+
+Note that it might be better to use the token exchange API to change a users token for one that allows a call to a downstream service to be made in their name. For that to work, the user needs all the required roles in the downstream client also, otherwise the call won't succeed.
+
+VERY IMPORTANT: the JWT that is created contains the organisation ID of the client that signed in. Calls made with that JWT will affect downstream data belonging to that organisation (if multitenancy is properly implemented downstream. See MULTITENANCY_DESIGN.md). If your organisation doesn't own the client, your organisation cannot know the client secret, and so cannot write software that will sign in as that client. This means you cannot re-use clients that dispayed just because your organisation subscribes to them. You will have to create your own clients in order to use them for M2M authentication.
+
+**Step 1 — Create the target API client** (if it doesn't exist) and add allowed roles:
+1. Navigate to **Clients** → find or create the target API client
+2. Click **Allowed Roles** and add the roles the client exposes (e.g., `writer`, `reader`)
+
+**Step 2 — Create the calling service client:**
+1. Navigate to **Clients** → **+ Add Client**
+2. Fill in:
    - **Client ID**: `my-service`
    - **Client Name**: `My Backend Service`
-   - **Client Type**: `confidential`
    - **Redirect URIs**: leave empty
-   - **Allowed Scopes**: leave empty (enables role-based authorization)
-4. Click **Create Client**
-5. **Copy the generated client secret** - you won't see it again!
-6. Click **Manage Roles**
-7. Add roles (e.g., `api-reader`, `api-writer`)
+   - **Allowed Scopes**: leave empty (role-based authorization only)
+3. Click **Create Client** and **copy the generated client secret** — shown only once
 
-**Important:** Roles can only be added to clients with **no scopes configured**. If you configure scopes (like `openid`, `profile`, `email`), the role management will be disabled.
+**Step 3 — Assign client roles:**
+1. On the source client card, click **Client Roles**
+2. Click **+ Add Client Role**
+3. Select the **target client** and the **role** from the dropdown
+4. Click **Add**
+
+**Important:** Scopes and redirect URIs should be left empty for M2M clients. If scopes are configured, the client is treated as a user-facing application.
 
 #### Obtaining an Access Token
 
@@ -331,7 +361,7 @@ curl -v -X GET http://localhost:8080/api/auth/check \
 {
   "authenticated": true,
   "clientId": "my-service",
-  "groups": ["my-service_api-reader"]
+  "groups": ["accounting-service_writer"]
 }
 ```
 
@@ -342,7 +372,7 @@ curl -v -X GET http://localhost:8080/api/auth/check \
 
 #### Role-Based Authorization
 
-Service clients use roles in the `groups` claim for `@RolesAllowed` authorization:
+M2M clients use the `groups` claim for `@RolesAllowed` authorization. The format is `{targetClientId}_{role}` — the `orgId` UUID prefix is stripped from the client ID when constructing the group name.
 
 **Token Claims:**
 ```json
@@ -353,17 +383,18 @@ Service clients use roles in the `groups` claim for `@RolesAllowed` authorizatio
   "iat": 1234564290,
   "jti": "unique-token-id",
   "client_id": "my-service",
-  "groups": ["my-service_api-reader", "my-service_api-writer"]
+  "orgId": "<owning-org-uuid>",
+  "groups": ["accounting-service_writer"]
 }
 ```
 
-**Backend Code:**
+**Backend Code (target API):**
 ```java
-@GET
-@Path("/data")
-@RolesAllowed("my-service_api-reader")
-public Response getData() {
-    // Only accessible to clients with api-reader role
+@POST
+@Path("/transactions")
+@RolesAllowed("accounting-service_writer")
+public Response createTransaction(TransactionRequest req) {
+    String caller = jwt.getSubject();  // "my-service" — useful for audit logs
     return Response.ok().build();
 }
 ```
@@ -379,10 +410,10 @@ public Response getData() {
 **Role-Based (M2M Services):**
 - Client configured with **empty** scopes: `[]`
 - Used for service-to-service authentication
-- Roles added to `groups` claim
+- Client roles (source → target) added to `groups` claim
 - Cannot request scopes
 
-**Important:** An M2M client has neither scopes nor redirect URIs; a User Client has scopes, redirect URIs, and optionally roles.
+**Important:** An M2M client needs neither scopes nor redirect URIs; a User Client needs scopes, redirect URIs, and optionally roles assigned to user accounts.  An M2M client can also be a User Client, but doesn't need to be, you can create extra M2M clients that are used like "Service Accounts" for connecting to downstream services.
 
 #### Security Best Practices
 

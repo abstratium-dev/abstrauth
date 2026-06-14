@@ -1278,6 +1278,48 @@ public class ClientsResourceTest {
     }
 
     @Test
+    public void testAddAllowedRoleWithInvalidCharactersReturns400() {
+        String token = generateValidToken();
+        String uniqueClientId = "test_client_invalid_role_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client for Invalid Role",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        String actualClientId = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        // Role with space and exclamation mark violates the pattern
+        String requestBody = """
+            {
+                "role": "invalid role!",
+                "isDefault": false
+            }
+            """;
+
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(requestBody)
+            .when()
+            .post("/api/clients/" + actualClientId + "/allowed-roles")
+            .then()
+            .statusCode(400);
+    }
+
+    @Test
     public void testUpdateAllowedRoleSuccessfully() {
         String token = generateValidToken();
         String uniqueClientId = "test_client_update_role_" + System.currentTimeMillis();

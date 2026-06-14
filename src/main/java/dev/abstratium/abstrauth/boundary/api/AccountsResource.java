@@ -125,7 +125,7 @@ public class AccountsResource {
 
             // Seed default roles for all clients the org is subscribed to
             for (String clientId : subscriptionService.findClientIdsByOrgId(orgId)) {
-                var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
+                var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientIdForOrg(clientId, orgId);
                 if (!defaultRoles.isEmpty()) {
                     nonMultitenancyAccountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, defaultRoles);
                 }

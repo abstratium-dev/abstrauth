@@ -7,7 +7,7 @@ import {
 } from '../pages/signin.page';
 import { navigateToAccounts, navigateToClients, signout } from '../pages/header';
 import { addAccount, addRoleToAccount, tryDeleteAccount } from '../pages/accounts.page';
-import { addClient, deleteClientIfExists } from '../pages/clients.page';
+import { addClient, deleteClientIfExists, addAllowedRoleToClient } from '../pages/clients.page';
 import { approveAuthorization, verifySignedIn } from '../pages/authorize.page';
 import { changePassword } from '../pages/change-password.page';
 import {
@@ -152,6 +152,9 @@ test('multitenancy end-to-end scenario', async ({ page }) => {
     );
     const actualNewClientId = newClient.clientId;
     console.log(`Created client '${actualNewClientId}'`);
+
+    // Add 'user' to the client's allowlist before it can be assigned to an account
+    await addAllowedRoleToClient(page, actualNewClientId, 'user');
 
     // ========================================================================
     // STEP 3: Admin assigns roles to the new user
@@ -299,8 +302,8 @@ test('multitenancy end-to-end scenario', async ({ page }) => {
         }
     }
 
-    expect(accountCount).toBe(2);
-
+    // We only assert that the two relevant accounts are visible.
+    // Total count may be higher if other tests created accounts in the same org.
     const multitenantTile = accountTiles.filter({ hasText: MULTITENANT_EMAIL });
     const adminTile = accountTiles.filter({ hasText: ADMIN_EMAIL });
     await expect(multitenantTile).toBeVisible({ timeout: 5000 });
@@ -309,9 +312,8 @@ test('multitenancy end-to-end scenario', async ({ page }) => {
 
     // Assert 'user' role for the new client
     const userRoleForNewClient = multitenantTile
-        .locator('.sub-tile')
-        .filter({ hasText: 'user' })
-        .filter({ hasText: actualNewClientId });
+        .locator(`.sub-tile[data-client-id="${actualNewClientId}"]`)
+        .filter({ hasText: 'user' });
     await expect(userRoleForNewClient).toBeVisible({ timeout: 5000 });
     console.log(`Multitenant has 'user' role for new client '${actualNewClientId}'`);
 
@@ -325,10 +327,10 @@ test('multitenancy end-to-end scenario', async ({ page }) => {
     expect(abstrauthRoleCount).toBe(2);
 
     await expect(
-        multitenantTile.locator('.sub-tile').filter({ hasText: 'user' }).filter({ has: page.locator('[data-client-id="abstratium-abstrauth"]') })
+        multitenantTile.locator('.sub-tile[data-client-id="abstratium-abstrauth"]').filter({ hasText: 'user' })
     ).toBeVisible({ timeout: 5000 });
     await expect(
-        multitenantTile.locator('.sub-tile').filter({ hasText: SOME_OTHER_ROLE }).filter({ has: page.locator('[data-client-id="abstratium-abstrauth"]') })
+        multitenantTile.locator('.sub-tile[data-client-id="abstratium-abstrauth"]').filter({ hasText: SOME_OTHER_ROLE })
     ).toBeVisible({ timeout: 5000 });
     console.log(`Multitenant has 'user' and '${SOME_OTHER_ROLE}' for abstratium-abstrauth in original org`);
     console.log('Step 7+8 passed: accounts and roles are correct');
@@ -437,13 +439,13 @@ test('multitenancy end-to-end scenario', async ({ page }) => {
     expect(abstrauthRoleCountSecond).toBe(3);
 
     await expect(
-        ownTile.locator('.sub-tile').filter({ hasText: 'user' }).filter({ has: page.locator('[data-client-id="abstratium-abstrauth"]') })
+        ownTile.locator('.sub-tile[data-client-id="abstratium-abstrauth"]').filter({ hasText: 'user' })
     ).toBeVisible({ timeout: 5000 });
     await expect(
-        ownTile.locator('.sub-tile').filter({ hasText: 'manage-accounts' }).filter({ has: page.locator('[data-client-id="abstratium-abstrauth"]') })
+        ownTile.locator('.sub-tile[data-client-id="abstratium-abstrauth"]').filter({ hasText: 'manage-accounts' })
     ).toBeVisible({ timeout: 5000 });
     await expect(
-        ownTile.locator('.sub-tile').filter({ hasText: 'manage-clients' }).filter({ has: page.locator('[data-client-id="abstratium-abstrauth"]') })
+        ownTile.locator('.sub-tile[data-client-id="abstratium-abstrauth"]').filter({ hasText: 'manage-clients' })
     ).toBeVisible({ timeout: 5000 });
     console.log('Multitenant has user, manage-accounts, and manage-clients for abstratium-abstrauth in "second" org');
     console.log('Step 12 passed: 1 account visible with 3 roles for abstrauth');
@@ -509,15 +511,8 @@ test('multitenancy end-to-end scenario', async ({ page }) => {
 
     // Navigate to accounts and verify roles
     await dismissToasts(page);
-
-    const accountsResponsePromise14 = page.waitForResponse(
-        response => response.url().includes('/api/accounts') && response.request().method() === 'GET',
-        { timeout: 15000 }
-    );
     await navigateToAccounts(page);
-    const accountsResponse14 = await accountsResponsePromise14;
-    console.log(`Accounts API responded with status: ${accountsResponse14.status()}`);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
     const accountTiles14 = page.locator('.tile');
     const ownTile14 = accountTiles14.filter({ hasText: MULTITENANT_EMAIL });
@@ -531,17 +526,16 @@ test('multitenancy end-to-end scenario', async ({ page }) => {
     expect(abstrauthRoleCount14).toBe(2);
 
     await expect(
-        ownTile14.locator('.sub-tile').filter({ hasText: 'user' }).filter({ has: page.locator('[data-client-id="abstratium-abstrauth"]') })
+        ownTile14.locator('.sub-tile[data-client-id="abstratium-abstrauth"]').filter({ hasText: 'user' })
     ).toBeVisible({ timeout: 5000 });
     await expect(
-        ownTile14.locator('.sub-tile').filter({ hasText: SOME_OTHER_ROLE }).filter({ has: page.locator('[data-client-id="abstratium-abstrauth"]') })
+        ownTile14.locator('.sub-tile[data-client-id="abstratium-abstrauth"]').filter({ hasText: SOME_OTHER_ROLE })
     ).toBeVisible({ timeout: 5000 });
 
     // Also confirm manage-clients (which existed in "second" org) is NOT present here
     const manageClientsInOriginal = ownTile14
-        .locator('.sub-tile')
-        .filter({ hasText: 'manage-clients' })
-        .filter({ has: page.locator('[data-client-id="abstratium-abstrauth"]') });
+        .locator('.sub-tile[data-client-id="abstratium-abstrauth"]')
+        .filter({ hasText: 'manage-clients' });
     const manageClientsCount = await manageClientsInOriginal.count();
     expect(manageClientsCount).toBe(0);
     console.log(`Multitenant has 'user' and '${SOME_OTHER_ROLE}' for abstratium-abstrauth in original org (manage-clients absent)`);

@@ -184,3 +184,46 @@ export async function deleteClientIfExists(page: Page, clientId: string): Promis
     console.log(`✓ Client '${clientId}' does not exist`);
     return false;
 }
+
+/**
+ * Adds an allowed role to a client via the "Manage Allowed Roles" UI.
+ * Assumes we're already on the clients page.
+ */
+export async function addAllowedRoleToClient(page: Page, clientId: string, roleName: string): Promise<void> {
+    console.log(`Adding allowed role '${roleName}' to client '${clientId}'...`);
+
+    // Find the client card by data-client-id
+    const card = page.locator(`.card[data-client-id="${clientId}"]`);
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    // Click "Manage Allowed Roles" button
+    const manageRolesButton = card.getByRole('button', { name: /Manage Allowed Roles/i });
+    await expect(manageRolesButton).toBeVisible({ timeout: 5000 });
+    await manageRolesButton.click();
+
+    // Click "+ Add Allowed Role" button
+    const addAllowedRoleBtn = card.getByRole('button', { name: /Add Allowed Role/i });
+    await expect(addAllowedRoleBtn).toBeVisible({ timeout: 5000 });
+    await addAllowedRoleBtn.click();
+
+    // Fill in the role name
+    const roleInput = card.locator('#allowed-role-name');
+    await expect(roleInput).toBeVisible({ timeout: 5000 });
+    await roleInput.fill(roleName);
+
+    // Find the submit button inside the visible allowed-role form
+    const roleForm = card.locator('.form-container.role-form').filter({ has: page.locator('#allowed-role-name') });
+    const submitButton = roleForm.getByRole('button', { name: /^Add Role$/i });
+    await expect(submitButton).toBeVisible({ timeout: 5000 });
+    await expect(submitButton).toBeEnabled({ timeout: 5000 });
+    await submitButton.click();
+
+    // Wait for the form to close (input hidden = success)
+    await roleInput.waitFor({ state: 'hidden', timeout: 10000 });
+
+    // Verify the role appears in the list
+    const roleCard = card.locator('.role-card').filter({ hasText: roleName });
+    await expect(roleCard).toBeVisible({ timeout: 5000 });
+
+    console.log(`✓ Added allowed role '${roleName}' to client '${clientId}'`);
+}

@@ -52,8 +52,6 @@ public class MetricsService {
     // Counters for role management
     private Counter roleAssignments;
     private Counter roleRemovals;
-    private Counter serviceAccountRoleAssignments;
-    private Counter serviceAccountRoleRemovals;
 
     // Counters for errors
     private Counter authenticationErrors;
@@ -149,14 +147,6 @@ public class MetricsService {
 
         roleRemovals = Counter.builder("abstrauth.role.removal")
                 .description("Number of role removals from users")
-                .register(registry);
-
-        serviceAccountRoleAssignments = Counter.builder("abstrauth.service.role.assignment")
-                .description("Number of role assignments to service accounts")
-                .register(registry);
-
-        serviceAccountRoleRemovals = Counter.builder("abstrauth.service.role.removal")
-                .description("Number of role removals from service accounts")
                 .register(registry);
 
         // Error metrics
@@ -281,16 +271,6 @@ public class MetricsService {
     // TODO: Integrate in AccountRolesResource when role removal endpoint is called
     // public void recordRoleRemoval() {
     //     roleRemovals.increment();
-    // }
-
-    // TODO: Integrate in ClientRolesResource when service account role assignment endpoint is called
-    // public void recordServiceAccountRoleAssignment() {
-    //     serviceAccountRoleAssignments.increment();
-    // }
-
-    // TODO: Integrate in ClientRolesResource when service account role removal endpoint is called
-    // public void recordServiceAccountRoleRemoval() {
-    //     serviceAccountRoleRemovals.increment();
     // }
 
     // Error metrics

@@ -136,20 +136,35 @@ public class AccountRoleService {
     }
 
     /**
-     * Validate that the role is in the client's allowlist for public clients.
-     * For private clients (no allowlist entries), any role is allowed.
+     * Validate that the role is in the client's allowlist.
+     * All clients now require roles to be declared in the catalog.
      * Skipped during bootstrap (first account) and when there is no security context.
      *
      * @param clientId The OAuth client ID
      * @param role The role name to validate
-     * @throws IllegalArgumentException if the role is not in the allowlist for a public client
+     * @throws IllegalArgumentException if the role is not in the allowlist
      */
     public void checkRoleAgainstAllowlist(String clientId, String role) {
+        String assigningOrgId = currentOrgContext.getOrgId();
+        checkRoleAgainstAllowlist(clientId, role, assigningOrgId);
+    }
+
+    /**
+     * Validate that the role is in the client's allowlist for a specific assigning org.
+     * All clients now require roles to be declared in the catalog.
+     * Skipped during bootstrap (first account) and when there is no security context.
+     *
+     * @param clientId The OAuth client ID
+     * @param role The role name to validate
+     * @param assigningOrgId The organisation attempting to assign the role
+     * @throws IllegalArgumentException if the role is not in the allowlist for the assigning org
+     */
+    public void checkRoleAgainstAllowlist(String clientId, String role, String assigningOrgId) {
         long accountCount = accountService.countAccounts();
         if (accountCount <= 1 || securityIdentity.isAnonymous()) {
             return;
         }
-        if (!clientAllowedRoleService.isRoleAllowed(clientId, role)) {
+        if (!clientAllowedRoleService.isRoleAllowed(clientId, role, assigningOrgId)) {
             throw new IllegalArgumentException(
                 "Role '" + role + "' is not in the allowlist for client '" + clientId + "'");
         }

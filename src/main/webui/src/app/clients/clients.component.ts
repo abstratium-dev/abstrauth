@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, effect, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
 import { Controller } from '../controller';
 import { AllowedRole, ClientSecret, ModelService, OAuthClient } from '../model.service';
@@ -21,12 +21,16 @@ export class ClientsComponent implements OnInit {
   private authService = inject(AuthService);
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmDialogService);
+  private route = inject(ActivatedRoute);
   
   clients: OAuthClient[] = [];
   filteredClients: OAuthClient[] = [];
   loading = true;
   error: string | null = null;
   
+  // Deep-link state for opening allowed roles from another page
+  private viewAllowedRolesClientId: string | null = null;
+
   // Form state
   showForm = false;
   editingClientId: string | null = null;
@@ -61,15 +65,22 @@ export class ClientsComponent implements OnInit {
     expiresInDays: null as number | null
   };
 
-  // Role management state
-  viewingRolesFor: string | null = null;
-  serviceAccountRoles: string[] = [];
-  rolesLoading = false;
-  rolesError: string | null = null;
-  showAddRoleForm = false;
-  addRoleData = {
+  // Client-to-Client (M2M) Role management state
+  viewingClientRolesFor: string | null = null;
+  clientRoles: { targetClientId: string; role: string; createdAt: string }[] = [];
+  clientRolesLoading = false;
+  clientRolesError: string | null = null;
+  showAddClientRoleForm = false;
+  addClientRoleData = {
+    targetClientId: '',
     role: ''
   };
+  // Available clients for target selection (subscribed clients)
+  availableTargetClients: OAuthClient[] = [];
+  loadingTargetClients = false;
+  // Allowed roles for selected target client
+  availableClientRoleRoles: AllowedRole[] = [];
+  loadingClientRoleRoles = false;
 
   // Allowed roles management state
   viewingAllowedRolesFor: string | null = null;
@@ -79,11 +90,13 @@ export class ClientsComponent implements OnInit {
   showAddAllowedRoleForm = false;
   addAllowedRoleData = {
     role: '',
-    isDefault: false
+    isDefault: false,
+    availableToForeignOrgs: false
   };
   editingAllowedRole: string | null = null;
   editAllowedRoleData = {
-    isDefault: false
+    isDefault: false,
+    availableToForeignOrgs: false
   };
 
   constructor() {
@@ -96,6 +109,9 @@ export class ClientsComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe(params => {
+      this.viewAllowedRolesClientId = params['viewAllowedRoles'] || null;
+    });
     this.loadClients();
   }
 
@@ -116,10 +132,8 @@ export class ClientsComponent implements OnInit {
     
     if (!searchTerm) {
       this.filteredClients = this.clients;
-      return;
-    }
-
-    this.filteredClients = this.clients.filter(client => {
+    } else {
+      this.filteredClients = this.clients.filter(client => {
       // Search in client name
       if (client.clientName.toLowerCase().includes(searchTerm)) {
         return true;
@@ -143,12 +157,36 @@ export class ClientsComponent implements OnInit {
         return true;
       }
       return false;
-    });
+      });
+    }
+    this.checkViewAllowedRoles();
+  }
+
+  private checkViewAllowedRoles(): void {
+    if (!this.viewAllowedRolesClientId) {
+      return;
+    }
+    const client = this.filteredClients.find(c => c.clientId === this.viewAllowedRolesClientId);
+    if (!client) {
+      return;
+    }
+    const clientId = this.viewAllowedRolesClientId;
+    this.viewAllowedRolesClientId = null;
+    setTimeout(async () => {
+      await this.toggleAllowedRolesView(client);
+      setTimeout(() => {
+        const card = document.querySelector(`[data-client-id="${clientId}"]`);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }, 0);
   }
 
   private applyFilter(): void {
     // Called from effect when clients change
     this.filteredClients = this.clients;
+    this.checkViewAllowedRoles();
   }
 
   hasManageClientsRole(): boolean {
@@ -585,75 +623,114 @@ export class ClientsComponent implements OnInit {
     return pattern.test(s);
   }
 
-  async toggleRolesView(client: OAuthClient): Promise<void> {
-    if (this.viewingRolesFor === client.clientId) {
-      this.viewingRolesFor = null;
-      this.serviceAccountRoles = [];
-      this.showAddRoleForm = false;
+  // Client-to-Client (M2M) Role Management Methods
+
+  async toggleClientRolesView(client: OAuthClient): Promise<void> {
+    if (this.viewingClientRolesFor === client.clientId) {
+      this.viewingClientRolesFor = null;
+      this.clientRoles = [];
+      this.showAddClientRoleForm = false;
     } else {
-      this.viewingRolesFor = client.clientId;
-      await this.loadServiceAccountRoles(client.clientId);
+      this.viewingClientRolesFor = client.clientId;
+      await this.loadClientRoles(client.clientId);
     }
   }
 
-  async loadServiceAccountRoles(clientId: string): Promise<void> {
-    this.rolesLoading = true;
-    this.rolesError = null;
+  async loadClientRoles(srcClientId: string): Promise<void> {
+    this.clientRolesLoading = true;
+    this.clientRolesError = null;
     try {
-      const response = await this.controller.listServiceAccountRoles(clientId);
-      this.serviceAccountRoles = response.roles;
+      const response = await this.controller.listClientRoles(srcClientId);
+      this.clientRoles = response.roles;
     } catch (err: any) {
-      console.error('Error loading roles:', err);
-      this.rolesError = 'Failed to load roles';
+      console.error('Error loading client roles:', err);
+      this.clientRolesError = 'Failed to load client roles';
+      this.clientRoles = [];
     } finally {
-      this.rolesLoading = false;
+      this.clientRolesLoading = false;
     }
   }
 
-  toggleAddRoleForm(): void {
-    this.showAddRoleForm = !this.showAddRoleForm;
-    if (this.showAddRoleForm) {
-      this.addRoleData.role = '';
+  async toggleAddClientRoleForm(): Promise<void> {
+    this.showAddClientRoleForm = !this.showAddClientRoleForm;
+    if (this.showAddClientRoleForm) {
+      this.addClientRoleData = { targetClientId: '', role: '' };
+      this.availableClientRoleRoles = [];
+      await this.loadAvailableTargetClients();
     }
   }
 
-  async addRole(clientId: string): Promise<void> {
-    if (!this.addRoleData.role || !this.addRoleData.role.trim()) {
-      this.toastService.error('Role name is required');
+  loadAvailableTargetClients(): void {
+    // Use the already loaded clients from the model service
+    // Filter out the current source client if viewing roles for a specific client
+    this.availableTargetClients = this.clients.filter(
+      c => c.clientId !== this.viewingClientRolesFor
+    );
+  }
+
+  async onTargetClientSelected(targetClientId: string): Promise<void> {
+    this.addClientRoleData.role = ''; // Reset role when target changes
+    this.availableClientRoleRoles = [];
+
+    if (!targetClientId) {
       return;
     }
 
-    // Validate role format
-    const rolePattern = /^[a-z0-9-]+$/;
-    if (!rolePattern.test(this.addRoleData.role)) {
-      this.toastService.error('Role must contain only lowercase letters, numbers, and hyphens');
+    this.loadingClientRoleRoles = true;
+    try {
+      // Load allowed roles for the selected target client
+      // This returns roles that can be assigned to users in the current org
+      this.availableClientRoleRoles = await this.controller.listAllowedRoles(targetClientId);
+    } catch (err: any) {
+      console.error('Error loading allowed roles for target client:', err);
+      this.toastService.error('Failed to load available roles for selected client');
+      this.availableClientRoleRoles = [];
+    } finally {
+      this.loadingClientRoleRoles = false;
+    }
+  }
+
+  async addClientRole(srcClientId: string): Promise<void> {
+    if (!this.addClientRoleData.targetClientId || !this.addClientRoleData.targetClientId.trim()) {
+      this.toastService.error('Target client is required');
+      return;
+    }
+
+    if (!this.addClientRoleData.role || !this.addClientRoleData.role.trim()) {
+      this.toastService.error('Role is required');
       return;
     }
 
     try {
-      await this.controller.addServiceAccountRole(clientId, { role: this.addRoleData.role });
-      this.toastService.success(`Role "${this.addRoleData.role}" added successfully`);
-      this.showAddRoleForm = false;
-      this.addRoleData.role = '';
-      await this.loadServiceAccountRoles(clientId);
+      await this.controller.addClientRole(srcClientId, {
+        targetClientId: this.addClientRoleData.targetClientId,
+        role: this.addClientRoleData.role
+      });
+      this.toastService.success(`Role "${this.addClientRoleData.role}" assigned for target client`);
+      this.showAddClientRoleForm = false;
+      this.addClientRoleData = { targetClientId: '', role: '' };
+      this.availableClientRoleRoles = [];
+      await this.loadClientRoles(srcClientId);
     } catch (err: any) {
-      console.error('Error adding role:', err);
+      console.error('Error adding client role:', err);
       if (err.status === 400) {
-        this.toastService.error('Role already exists or invalid role name');
+        this.toastService.error(err.error?.error || 'Role is not in the target client\'s allowed roles catalog');
+      } else if (err.status === 409) {
+        this.toastService.error('Role already assigned for this target client');
       } else if (err.status === 403) {
-        this.toastService.error('You do not have permission to add roles');
+        this.toastService.error('You do not have permission to assign client roles');
       } else if (err.status === 404) {
-        this.toastService.error('Client not found');
+        this.toastService.error('Source or target client not found');
       } else {
-        this.toastService.error('Failed to add role. Please try again.');
+        this.toastService.error('Failed to assign client role. Please try again.');
       }
     }
   }
 
-  async removeRole(clientId: string, role: string): Promise<void> {
+  async removeClientRole(srcClientId: string, targetClientId: string, role: string): Promise<void> {
     const confirmed = await this.confirmService.confirm({
-      title: 'Remove Role',
-      message: `Are you sure you want to remove the role "${role}"? This will affect JWT tokens issued for this service client.`,
+      title: 'Remove Client Role',
+      message: `Are you sure you want to remove the role "${role}" for target client "${targetClientId}"?`,
       confirmText: 'Remove Role',
       cancelText: 'Cancel',
       confirmClass: 'btn-danger'
@@ -664,17 +741,17 @@ export class ClientsComponent implements OnInit {
     }
 
     try {
-      await this.controller.removeServiceAccountRole(clientId, role);
+      await this.controller.removeClientRole(srcClientId, targetClientId, role);
       this.toastService.success(`Role "${role}" removed successfully`);
-      await this.loadServiceAccountRoles(clientId);
+      await this.loadClientRoles(srcClientId);
     } catch (err: any) {
-      console.error('Error removing role:', err);
+      console.error('Error removing client role:', err);
       if (err.status === 403) {
-        this.toastService.error('You do not have permission to remove roles');
+        this.toastService.error('You do not have permission to remove client roles');
       } else if (err.status === 404) {
-        this.toastService.error('Role not found');
+        this.toastService.error('Role assignment not found');
       } else {
-        this.toastService.error('Failed to remove role. Please try again.');
+        this.toastService.error('Failed to remove client role. Please try again.');
       }
     }
   }
@@ -712,7 +789,7 @@ export class ClientsComponent implements OnInit {
   toggleAddAllowedRoleForm(): void {
     this.showAddAllowedRoleForm = !this.showAddAllowedRoleForm;
     if (this.showAddAllowedRoleForm) {
-      this.addAllowedRoleData = { role: '', isDefault: false };
+      this.addAllowedRoleData = { role: '', isDefault: false, availableToForeignOrgs: false };
       this.editingAllowedRole = null;
     }
   }
@@ -732,11 +809,12 @@ export class ClientsComponent implements OnInit {
     try {
       await this.controller.addAllowedRole(clientId, {
         role: this.addAllowedRoleData.role,
-        isDefault: this.addAllowedRoleData.isDefault
+        isDefault: this.addAllowedRoleData.isDefault,
+        availableToForeignOrgs: this.addAllowedRoleData.availableToForeignOrgs
       });
       this.toastService.success(`Role "${this.addAllowedRoleData.role}" added to allowlist`);
       this.showAddAllowedRoleForm = false;
-      this.addAllowedRoleData = { role: '', isDefault: false };
+      this.addAllowedRoleData = { role: '', isDefault: false, availableToForeignOrgs: false };
       await this.loadAllowedRoles(clientId);
     } catch (err: any) {
       console.error('Error adding allowed role:', err);
@@ -752,21 +830,36 @@ export class ClientsComponent implements OnInit {
     }
   }
 
-  startEditAllowedRole(role: string, isDefault: boolean): void {
+  startEditAllowedRole(role: string, isDefault: boolean, availableToForeignOrgs: boolean): void {
     this.editingAllowedRole = role;
-    this.editAllowedRoleData = { isDefault };
+    this.editAllowedRoleData = { isDefault, availableToForeignOrgs };
     this.showAddAllowedRoleForm = false;
   }
 
   cancelEditAllowedRole(): void {
     this.editingAllowedRole = null;
-    this.editAllowedRoleData = { isDefault: false };
+    this.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
   }
 
-  async updateAllowedRole(clientId: string, role: string): Promise<void> {
+  async updateAllowedRole(clientId: string, role: string, wasAvailableToForeignOrgs: boolean): Promise<void> {
+    const isRetracting = wasAvailableToForeignOrgs && !this.editAllowedRoleData.availableToForeignOrgs;
+    if (isRetracting) {
+      const confirmed = await this.confirmService.confirm({
+        title: 'Retract Role from Foreign Organisations',
+        message: `Marking "${role}" as unavailable to foreign organisations will remove it from ALL users outside your organisation. This action cannot be undone.`,
+        confirmText: 'Retract Role',
+        cancelText: 'Cancel',
+        confirmClass: 'btn-danger'
+      });
+      if (!confirmed) {
+        return;
+      }
+    }
+
     try {
       await this.controller.updateAllowedRole(clientId, role, {
-        isDefault: this.editAllowedRoleData.isDefault
+        isDefault: this.editAllowedRoleData.isDefault,
+        availableToForeignOrgs: this.editAllowedRoleData.availableToForeignOrgs
       });
       this.toastService.success(`Role "${role}" updated successfully`);
       this.editingAllowedRole = null;
@@ -785,8 +878,8 @@ export class ClientsComponent implements OnInit {
 
   async removeAllowedRole(clientId: string, role: string): Promise<void> {
     const confirmed = await this.confirmService.confirm({
-      title: 'Remove Allowed Role',
-      message: `Are you sure you want to remove "${role}" from the allow-list? Subscribing organisations will no longer be able to assign this role to their users.`,
+      title: 'Remove Role from Catalog',
+      message: `Removing "${role}" will delete it from ALL users across ALL organisations. This action cannot be undone.`,
       confirmText: 'Remove Role',
       cancelText: 'Cancel',
       confirmClass: 'btn-danger'

@@ -30,6 +30,7 @@ The following classes outside this package are permitted to reference `non_multi
 | Class | References | Justification |
 |-------|-----------|---------------|
 | `service/AccountService` | `NonMultitenancyAccountRoleService` | Must assign initial roles during account creation before the orgId is known to Hibernate |
+| `service/ClientAllowedRoleService` | `NonMultitenancyOAuthClientService`, `NonMultitenancyAccountRoleService` | Must look up client owner org cross-tenant and remove AccountRole rows across all orgs when a catalog role is deleted or un-shared |
 | `boundary/oauth/AuthorizationResource` | `NonMultitenancyAuthorizationService` | OAuth authorization flow requires cross-tenant client lookup before a tenant session exists |
 | `boundary/oauth/OrgSelectionResource` | `NonMultitenancyAuthorizationService` | Org selection step of the auth flow — tenant context not yet established |
 | `boundary/oauth/GoogleCallbackResource` | `NonMultitenancyAuthorizationService` | Federated login callback — orgId resolved from external identity, not Hibernate session |

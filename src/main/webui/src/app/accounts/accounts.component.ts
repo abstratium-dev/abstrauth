@@ -55,7 +55,6 @@ export class AccountsComponent implements OnInit {
   roleFormError: string | null = null;
   allowedRoles: AllowedRole[] = [];
   loadingAllowedRoles = false;
-  isPrivateClient = false; // true if client has no allowlist (private client)
 
   // Roles info note visibility (stored in localStorage)
   rolesInfoHidden = false;
@@ -293,7 +292,6 @@ export class AccountsComponent implements OnInit {
     };
     this.roleFormError = null;
     this.allowedRoles = [];
-    this.isPrivateClient = false;
     this.loadingAllowedRoles = false;
   }
 
@@ -301,7 +299,6 @@ export class AccountsComponent implements OnInit {
     const clientId = this.roleFormData.clientId;
     if (!clientId) {
       this.allowedRoles = [];
-      this.isPrivateClient = false;
       return;
     }
 
@@ -312,12 +309,9 @@ export class AccountsComponent implements OnInit {
     try {
       const roles = await this.controller.listAllowedRoles(clientId);
       this.allowedRoles = roles;
-      // If no allowed roles returned, client is private (no allowlist restrictions)
-      this.isPrivateClient = roles.length === 0;
     } catch (err: any) {
       this.roleFormError = 'Failed to load allowed roles for this client.';
       this.allowedRoles = [];
-      this.isPrivateClient = false;
     } finally {
       this.loadingAllowedRoles = false;
     }

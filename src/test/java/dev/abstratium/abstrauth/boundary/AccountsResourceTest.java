@@ -316,9 +316,18 @@ public class AccountsResourceTest {
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccountForOrg(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String accountId = account.getId();
-        
+
         transactionHelper.commitTransaction();
-        
+
+        // Add 'admin' to test-client's role catalog so it can be assigned
+        transactionHelper.beginTransaction();
+        dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
+        allowedRole.setClientId("test-client");
+        allowedRole.setRole("admin");
+        allowedRole.setIsDefault(false);
+        em.persist(allowedRole);
+        transactionHelper.commitTransaction();
+
         String requestBody = String.format("""
             {
                 "accountId": "%s",
@@ -326,7 +335,7 @@ public class AccountsResourceTest {
                 "role": "admin"
             }
             """, accountId);
-        
+
         given()
             .auth().oauth2(generateAdminToken(adminId, defaultOrgId))
             .contentType(ContentType.JSON)
@@ -557,7 +566,15 @@ public class AccountsResourceTest {
         newClient.setRedirectUris("[\"http://localhost/callback\"]");
         newClient.setAllowedScopes("[\"openid\"]");
         newClient.setRequirePkce(false);
+        newClient.setOrgId(defaultOrgId);
         em.persist(newClient);
+
+        // Add 'viewer' to the new client's role catalog
+        dev.abstratium.abstrauth.entity.ClientAllowedRole newClientRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
+        newClientRole.setClientId(newClientId);
+        newClientRole.setRole("viewer");
+        newClientRole.setIsDefault(false);
+        em.persist(newClientRole);
 
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -1275,6 +1292,14 @@ public class AccountsResourceTest {
             .setParameter("clientId", foreignClientId)
             .executeUpdate();
         em.flush();
+
+        // Add 'editor' to the foreign client's role catalog so it can be assigned by foreign orgs
+        dev.abstratium.abstrauth.entity.ClientAllowedRole foreignRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
+        foreignRole.setClientId(foreignClientId);
+        foreignRole.setRole("editor");
+        foreignRole.setIsDefault(false);
+        foreignRole.setAvailableToForeignOrgs(true);
+        em.persist(foreignRole);
 
         // Give the victim an existing role on the foreign client so that
         em.createNativeQuery("INSERT INTO T_account_roles (id, account_id, client_id, role, created_at, org_id) VALUES (UUID(), :accountId, :clientId, 'viewer', NOW(), :orgId)")

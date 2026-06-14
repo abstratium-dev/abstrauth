@@ -1162,263 +1162,10 @@ describe('ClientsComponent', () => {
     });
   });
 
-  describe('Role Management', () => {
-    const mockClient = mockClients[0];
-    const mockRolesResponse = {
-      clientId: 'test_client_1',
-      roles: ['api-reader', 'api-writer']
-    };
-
-    beforeEach(() => {
-      // Trigger component initialization which loads clients
-      fixture.detectChanges();
-      const req = httpMock.expectOne('/api/clients');
-      req.flush(mockClients);
-    });
-
-    it('should toggle roles view and load roles', async () => {
-      expect(component.viewingRolesFor).toBeNull();
-      expect(component.serviceAccountRoles).toEqual([]);
-
-      const togglePromise = component.toggleRolesView(mockClient);
-
-      const rolesReq = httpMock.expectOne('/api/clients/test_client_1/roles');
-      rolesReq.flush(mockRolesResponse);
-
-      await togglePromise;
-
-      expect(component.viewingRolesFor).toBe('test_client_1');
-      expect(component.serviceAccountRoles).toEqual(['api-reader', 'api-writer']);
-      expect(component.rolesLoading).toBeFalse();
-    });
-
-    it('should hide roles view when toggling again', async () => {
-      // First toggle to show
-      component.viewingRolesFor = 'test_client_1';
-      component.serviceAccountRoles = ['api-reader'];
-
-      await component.toggleRolesView(mockClient);
-
-      expect(component.viewingRolesFor).toBeNull();
-      expect(component.serviceAccountRoles).toEqual([]);
-      expect(component.showAddRoleForm).toBeFalse();
-    });
-
-    it('should handle error when loading roles', async () => {
-      const togglePromise = component.toggleRolesView(mockClient);
-
-      const rolesReq = httpMock.expectOne('/api/clients/test_client_1/roles');
-      rolesReq.flush({ error: 'Failed to load' }, { status: 500, statusText: 'Internal Server Error' });
-
-      await togglePromise;
-
-      expect(component.rolesError).toBe('Failed to load roles');
-      expect(component.rolesLoading).toBeFalse();
-    });
-
-    describe('groupNameFor', () => {
-      it('should return role without prefix for plain client IDs', () => {
-        expect(component.groupNameFor('myapp', 'admin')).toBe('myapp_admin');
-      });
-
-      it('should strip UUID + __ prefix from client ID', () => {
-        expect(component.groupNameFor('550e8400-e29b-41d4-a716-446655440000__myapp', 'admin'))
-          .toBe('myapp_admin');
-      });
-
-      it('should return original client ID if no UUID prefix', () => {
-        expect(component.groupNameFor('org__myapp', 'admin')).toBe('org__myapp_admin');
-      });
-
-      it('should return original client ID if only single underscore after UUID', () => {
-        expect(component.groupNameFor('550e8400-e29b-41d4-a716-446655440000_myapp', 'admin'))
-          .toBe('550e8400-e29b-41d4-a716-446655440000_myapp_admin');
-      });
-
-      it('should handle uppercase UUID prefix', () => {
-        expect(component.groupNameFor('550E8400-E29B-41D4-A716-446655440000__MYAPP', 'ADMIN'))
-          .toBe('MYAPP_ADMIN');
-      });
-    });
-
-    it('should toggle add role form', () => {
-      expect(component.showAddRoleForm).toBeFalse();
-
-      component.toggleAddRoleForm();
-      expect(component.showAddRoleForm).toBeTrue();
-      expect(component.addRoleData.role).toBe('');
-
-      component.toggleAddRoleForm();
-      expect(component.showAddRoleForm).toBeFalse();
-    });
-
-    it('should add a role successfully', fakeAsync(() => {
-      component.viewingRolesFor = 'test_client_1';
-      component.serviceAccountRoles = [];
-      component.addRoleData.role = 'new-role';
-
-      component.addRole('test_client_1');
-      tick();
-
-      // Wait for the POST request
-      const addReq = httpMock.expectOne('/api/clients/test_client_1/roles');
-      expect(addReq.request.method).toBe('POST');
-      expect(addReq.request.body).toEqual({ role: 'new-role' });
-      addReq.flush({
-        clientId: 'test_client_1',
-        role: 'new-role',
-        groupName: 'test_client_1_new-role'
-      });
-      tick();
-
-      // Wait for the reload GET request
-      const reloadReq = httpMock.expectOne('/api/clients/test_client_1/roles');
-      expect(reloadReq.request.method).toBe('GET');
-      reloadReq.flush({ clientId: 'test_client_1', roles: ['new-role'] });
-      tick();
-
-      expect(component.showAddRoleForm).toBeFalse();
-      expect(component.addRoleData.role).toBe('');
-    }));
-
-    it('should reject empty role name', async () => {
-      component.addRoleData.role = '';
-      await component.addRole('test_client_1');
-      // Should not make HTTP request
-      httpMock.expectNone('/api/clients/test_client_1/roles');
-    });
-
-    it('should reject role name with uppercase', async () => {
-      component.addRoleData.role = 'API-Reader';
-      await component.addRole('test_client_1');
-      // Should not make HTTP request
-      httpMock.expectNone('/api/clients/test_client_1/roles');
-    });
-
-    it('should reject role name with underscores', async () => {
-      component.addRoleData.role = 'api_reader';
-      await component.addRole('test_client_1');
-      // Should not make HTTP request
-      httpMock.expectNone('/api/clients/test_client_1/roles');
-    });
-
-    it('should reject role name with spaces', async () => {
-      component.addRoleData.role = 'api reader';
-      await component.addRole('test_client_1');
-      // Should not make HTTP request
-      httpMock.expectNone('/api/clients/test_client_1/roles');
-    });
-
-    it('should handle 400 error when adding duplicate role', async () => {
-      component.viewingRolesFor = 'test_client_1';
-      component.addRoleData.role = 'existing-role';
-
-      const addPromise = component.addRole('test_client_1');
-
-      const addReq = httpMock.expectOne('/api/clients/test_client_1/roles');
-      addReq.flush({ error: 'Role already exists' }, { status: 400, statusText: 'Bad Request' });
-
-      await addPromise;
-    });
-
-    it('should handle 403 permission error when adding role', async () => {
-      component.viewingRolesFor = 'test_client_1';
-      component.addRoleData.role = 'new-role';
-
-      const addPromise = component.addRole('test_client_1');
-
-      const addReq = httpMock.expectOne('/api/clients/test_client_1/roles');
-      addReq.flush({}, { status: 403, statusText: 'Forbidden' });
-
-      await addPromise;
-    });
-
-    it('should handle 404 error when adding role to non-existent client', async () => {
-      component.viewingRolesFor = 'test_client_1';
-      component.addRoleData.role = 'new-role';
-
-      const addPromise = component.addRole('test_client_1');
-
-      const addReq = httpMock.expectOne('/api/clients/test_client_1/roles');
-      addReq.flush({ error: 'Client not found' }, { status: 404, statusText: 'Not Found' });
-
-      await addPromise;
-    });
-
-    it('should remove a role successfully', fakeAsync(() => {
-      component.viewingRolesFor = 'test_client_1';
-      component.serviceAccountRoles = ['api-reader', 'api-writer'];
-
-      component.removeRole('test_client_1', 'api-reader');
-      tick();
-
-      // Wait for the DELETE request
-      const removeReq = httpMock.expectOne('/api/clients/test_client_1/roles/api-reader');
-      expect(removeReq.request.method).toBe('DELETE');
-      removeReq.flush(null, { status: 204, statusText: 'No Content' });
-      tick();
-
-      // Wait for the reload GET request
-      const reloadReq = httpMock.expectOne('/api/clients/test_client_1/roles');
-      expect(reloadReq.request.method).toBe('GET');
-      reloadReq.flush({ clientId: 'test_client_1', roles: ['api-writer'] });
-      tick();
-    }));
-
-    it('should not remove role if user cancels confirmation', async () => {
-      confirmService.confirm.and.returnValue(Promise.resolve(false));
-      component.viewingRolesFor = 'test_client_1';
-
-      await component.removeRole('test_client_1', 'api-reader');
-
-      // Should not make HTTP request
-      httpMock.expectNone('/api/clients/test_client_1/roles/api-reader');
-    });
-
-    it('should handle 403 permission error when removing role', async () => {
-      component.viewingRolesFor = 'test_client_1';
-
-      const removePromise = component.removeRole('test_client_1', 'api-reader');
-
-      await Promise.resolve();
-
-      const removeReq = httpMock.expectOne('/api/clients/test_client_1/roles/api-reader');
-      removeReq.flush({}, { status: 403, statusText: 'Forbidden' });
-
-      await removePromise;
-    });
-
-    it('should handle 404 error when removing non-existent role', async () => {
-      component.viewingRolesFor = 'test_client_1';
-
-      const removePromise = component.removeRole('test_client_1', 'non-existent');
-
-      await Promise.resolve();
-
-      const removeReq = httpMock.expectOne('/api/clients/test_client_1/roles/non-existent');
-      removeReq.flush({ error: 'Role not found' }, { status: 404, statusText: 'Not Found' });
-
-      await removePromise;
-    });
-
-    it('should handle generic error when removing role', async () => {
-      component.viewingRolesFor = 'test_client_1';
-
-      const removePromise = component.removeRole('test_client_1', 'api-reader');
-
-      await Promise.resolve();
-
-      const removeReq = httpMock.expectOne('/api/clients/test_client_1/roles/api-reader');
-      removeReq.flush({}, { status: 500, statusText: 'Internal Server Error' });
-
-      await removePromise;
-    });
-  });
-
   describe('Allowed Roles Management', () => {
     const mockAllowedRoles: AllowedRole[] = [
-      { clientId: 'test_client_1', role: 'viewer', isDefault: true },
-      { clientId: 'test_client_1', role: 'editor', isDefault: false }
+      { clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: true },
+      { clientId: 'test_client_1', role: 'editor', isDefault: false, availableToForeignOrgs: false }
     ];
 
     it('should toggle allowed roles view', async () => {
@@ -1474,20 +1221,20 @@ describe('ClientsComponent', () => {
     it('should add an allowed role successfully', fakeAsync(() => {
       component.viewingAllowedRolesFor = 'test_client_1';
       component.allowedRoles = [];
-      component.addAllowedRoleData = { role: 'admin', isDefault: true };
+      component.addAllowedRoleData = { role: 'admin', isDefault: true, availableToForeignOrgs: true };
 
       component.addAllowedRole('test_client_1');
       tick();
 
       const addReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles');
       expect(addReq.request.method).toBe('POST');
-      expect(addReq.request.body).toEqual({ role: 'admin', isDefault: true });
-      addReq.flush({ clientId: 'test_client_1', role: 'admin', isDefault: true });
+      expect(addReq.request.body).toEqual({ role: 'admin', isDefault: true, availableToForeignOrgs: true });
+      addReq.flush({ clientId: 'test_client_1', role: 'admin', isDefault: true, availableToForeignOrgs: true });
       tick();
 
       const reloadReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
       expect(reloadReq.request.method).toBe('GET');
-      reloadReq.flush([...mockAllowedRoles, { clientId: 'test_client_1', role: 'admin', isDefault: true }]);
+      reloadReq.flush([...mockAllowedRoles, { clientId: 'test_client_1', role: 'admin', isDefault: true, availableToForeignOrgs: true }]);
       tick();
 
       expect(component.showAddAllowedRoleForm).toBeFalse();
@@ -1495,32 +1242,32 @@ describe('ClientsComponent', () => {
     }));
 
     it('should reject empty allowed role name', async () => {
-      component.addAllowedRoleData = { role: '', isDefault: false };
+      component.addAllowedRoleData = { role: '', isDefault: false, availableToForeignOrgs: false };
       await component.addAllowedRole('test_client_1');
       httpMock.expectNone('/api/clients/test_client_1/allowed-roles');
     });
 
     it('should reject allowed role with uppercase letters', async () => {
-      component.addAllowedRoleData = { role: 'Admin', isDefault: false };
+      component.addAllowedRoleData = { role: 'Admin', isDefault: false, availableToForeignOrgs: false };
       await component.addAllowedRole('test_client_1');
       httpMock.expectNone('/api/clients/test_client_1/allowed-roles');
     });
 
     it('should reject allowed role with underscores', async () => {
-      component.addAllowedRoleData = { role: 'api_reader', isDefault: false };
+      component.addAllowedRoleData = { role: 'api_reader', isDefault: false, availableToForeignOrgs: false };
       await component.addAllowedRole('test_client_1');
       httpMock.expectNone('/api/clients/test_client_1/allowed-roles');
     });
 
     it('should reject allowed role with spaces', async () => {
-      component.addAllowedRoleData = { role: 'api reader', isDefault: false };
+      component.addAllowedRoleData = { role: 'api reader', isDefault: false, availableToForeignOrgs: false };
       await component.addAllowedRole('test_client_1');
       httpMock.expectNone('/api/clients/test_client_1/allowed-roles');
     });
 
     it('should handle 409 conflict when adding duplicate allowed role', async () => {
       component.viewingAllowedRolesFor = 'test_client_1';
-      component.addAllowedRoleData = { role: 'viewer', isDefault: false };
+      component.addAllowedRoleData = { role: 'viewer', isDefault: false, availableToForeignOrgs: false };
 
       const addPromise = component.addAllowedRole('test_client_1');
 
@@ -1532,7 +1279,7 @@ describe('ClientsComponent', () => {
 
     it('should handle 403 permission error when adding allowed role', async () => {
       component.viewingAllowedRolesFor = 'test_client_1';
-      component.addAllowedRoleData = { role: 'new-role', isDefault: false };
+      component.addAllowedRoleData = { role: 'new-role', isDefault: false, availableToForeignOrgs: false };
 
       const addPromise = component.addAllowedRole('test_client_1');
 
@@ -1544,7 +1291,7 @@ describe('ClientsComponent', () => {
 
     it('should handle 404 error when adding allowed role to non-existent client', async () => {
       component.viewingAllowedRolesFor = 'test_client_1';
-      component.addAllowedRoleData = { role: 'new-role', isDefault: false };
+      component.addAllowedRoleData = { role: 'new-role', isDefault: false, availableToForeignOrgs: false };
 
       const addPromise = component.addAllowedRole('test_client_1');
 
@@ -1555,37 +1302,38 @@ describe('ClientsComponent', () => {
     });
 
     it('should start editing an allowed role', () => {
-      component.startEditAllowedRole('viewer', true);
+      component.startEditAllowedRole('viewer', true, true);
       expect(component.editingAllowedRole).toBe('viewer');
       expect(component.editAllowedRoleData.isDefault).toBeTrue();
       expect(component.showAddAllowedRoleForm).toBeFalse();
     });
 
     it('should cancel editing an allowed role', () => {
-      component.startEditAllowedRole('viewer', true);
+      component.startEditAllowedRole('viewer', true, true);
       component.cancelEditAllowedRole();
       expect(component.editingAllowedRole).toBeNull();
       expect(component.editAllowedRoleData.isDefault).toBeFalse();
+      expect(component.editAllowedRoleData.availableToForeignOrgs).toBeFalse();
     });
 
     it('should update an allowed role successfully', fakeAsync(() => {
       component.viewingAllowedRolesFor = 'test_client_1';
       component.editingAllowedRole = 'editor';
-      component.editAllowedRoleData = { isDefault: true };
+      component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
 
-      component.updateAllowedRole('test_client_1', 'editor');
+      component.updateAllowedRole('test_client_1', 'editor', false);
       tick();
 
       const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
       expect(updateReq.request.method).toBe('PUT');
-      expect(updateReq.request.body).toEqual({ isDefault: true });
-      updateReq.flush({ clientId: 'test_client_1', role: 'editor', isDefault: true });
+      expect(updateReq.request.body).toEqual({ isDefault: true, availableToForeignOrgs: false });
+      updateReq.flush({ clientId: 'test_client_1', role: 'editor', isDefault: true, availableToForeignOrgs: false });
       tick();
 
       const reloadReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
       reloadReq.flush([
-        { clientId: 'test_client_1', role: 'viewer', isDefault: true },
-        { clientId: 'test_client_1', role: 'editor', isDefault: true }
+        { clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: true },
+        { clientId: 'test_client_1', role: 'editor', isDefault: true, availableToForeignOrgs: false }
       ]);
       tick();
 
@@ -1595,9 +1343,9 @@ describe('ClientsComponent', () => {
     it('should handle 403 permission error when updating allowed role', async () => {
       component.viewingAllowedRolesFor = 'test_client_1';
       component.editingAllowedRole = 'editor';
-      component.editAllowedRoleData = { isDefault: true };
+      component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
 
-      const updatePromise = component.updateAllowedRole('test_client_1', 'editor');
+      const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false);
 
       const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
       updateReq.flush({}, { status: 403, statusText: 'Forbidden' });
@@ -1608,9 +1356,9 @@ describe('ClientsComponent', () => {
     it('should handle 404 error when updating non-existent allowed role', async () => {
       component.viewingAllowedRolesFor = 'test_client_1';
       component.editingAllowedRole = 'missing';
-      component.editAllowedRoleData = { isDefault: true };
+      component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
 
-      const updatePromise = component.updateAllowedRole('test_client_1', 'missing');
+      const updatePromise = component.updateAllowedRole('test_client_1', 'missing', false);
 
       const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/missing');
       updateReq.flush({ error: 'Role not found in allowlist' }, { status: 404, statusText: 'Not Found' });
@@ -1631,7 +1379,7 @@ describe('ClientsComponent', () => {
       tick();
 
       const reloadReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
-      reloadReq.flush([{ clientId: 'test_client_1', role: 'viewer', isDefault: true }]);
+      reloadReq.flush([{ clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: true }]);
       tick();
     }));
 
@@ -1681,6 +1429,210 @@ describe('ClientsComponent', () => {
       removeReq.flush({}, { status: 500, statusText: 'Internal Server Error' });
 
       await removePromise;
+    });
+  });
+
+  describe('Client-to-Client (M2M) Role Management', () => {
+    const mockClient = mockClients[0];
+    const mockClientRolesResponse = {
+      srcClientId: 'test_client_1',
+      roles: [
+        { targetClientId: 'target_client_1', role: 'api-reader', createdAt: '2024-01-01T00:00:00Z' },
+        { targetClientId: 'target_client_2', role: 'api-writer', createdAt: '2024-01-02T00:00:00Z' }
+      ]
+    };
+
+    beforeEach(() => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('/api/clients');
+      req.flush(mockClients);
+    });
+
+    describe('toggleClientRolesView', () => {
+      it('should toggle client roles view and load roles', async () => {
+        expect(component.viewingClientRolesFor).toBeNull();
+        expect(component.clientRoles).toEqual([]);
+
+        const togglePromise = component.toggleClientRolesView(mockClient);
+
+        const rolesReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+        rolesReq.flush(mockClientRolesResponse);
+
+        await togglePromise;
+
+        expect(component.viewingClientRolesFor).toBe('test_client_1');
+        expect(component.clientRoles.length).toBe(2);
+        expect(component.clientRoles[0].targetClientId).toBe('target_client_1');
+        expect(component.clientRoles[0].role).toBe('api-reader');
+        expect(component.clientRolesLoading).toBeFalse();
+      });
+
+      it('should hide client roles view when toggling again', async () => {
+        component.viewingClientRolesFor = 'test_client_1';
+        component.clientRoles = [{ targetClientId: 'target_1', role: 'reader', createdAt: '' }];
+
+        await component.toggleClientRolesView(mockClient);
+
+        expect(component.viewingClientRolesFor).toBeNull();
+        expect(component.clientRoles).toEqual([]);
+        expect(component.showAddClientRoleForm).toBeFalse();
+      });
+
+      it('should handle error when loading client roles', async () => {
+        const togglePromise = component.toggleClientRolesView(mockClient);
+
+        const rolesReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+        rolesReq.flush({ error: 'Failed to load' }, { status: 500, statusText: 'Internal Server Error' });
+
+        await togglePromise;
+
+        expect(component.clientRolesError).toBe('Failed to load client roles');
+        expect(component.clientRolesLoading).toBeFalse();
+      });
+    });
+
+    describe('toggleAddClientRoleForm', () => {
+      it('should toggle add client role form', () => {
+        expect(component.showAddClientRoleForm).toBeFalse();
+
+        component.toggleAddClientRoleForm();
+        expect(component.showAddClientRoleForm).toBeTrue();
+        expect(component.addClientRoleData.targetClientId).toBe('');
+        expect(component.addClientRoleData.role).toBe('');
+
+        component.toggleAddClientRoleForm();
+        expect(component.showAddClientRoleForm).toBeFalse();
+      });
+    });
+
+    describe('addClientRole', () => {
+      it('should add a client role successfully', fakeAsync(() => {
+        component.viewingClientRolesFor = 'test_client_1';
+        component.clientRoles = [];
+        component.addClientRoleData = { targetClientId: 'target_client_1', role: 'new-role' };
+
+        component.addClientRole('test_client_1');
+        tick();
+
+        const addReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+        expect(addReq.request.method).toBe('POST');
+        expect(addReq.request.body).toEqual({ targetClientId: 'target_client_1', role: 'new-role' });
+        addReq.flush({ targetClientId: 'target_client_1', role: 'new-role', createdAt: '2024-01-03T00:00:00Z' });
+        tick();
+
+        const reloadReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+        reloadReq.flush({ srcClientId: 'test_client_1', roles: [{ targetClientId: 'target_client_1', role: 'new-role', createdAt: '2024-01-03T00:00:00Z' }] });
+        tick();
+
+        expect(component.showAddClientRoleForm).toBeFalse();
+        expect(component.addClientRoleData).toEqual({ targetClientId: '', role: '' });
+      }));
+
+      it('should reject empty target client ID', async () => {
+        component.addClientRoleData = { targetClientId: '', role: 'some-role' };
+        await component.addClientRole('test_client_1');
+        httpMock.expectNone('/api/clients/test_client_1/client-roles');
+      });
+
+      it('should reject empty role', async () => {
+        component.addClientRoleData = { targetClientId: 'target_1', role: '' };
+        await component.addClientRole('test_client_1');
+        httpMock.expectNone('/api/clients/test_client_1/client-roles');
+      });
+
+      it('should handle 400 error when role not in target catalog', fakeAsync(() => {
+        component.viewingClientRolesFor = 'test_client_1';
+        component.showAddClientRoleForm = true;
+        component.addClientRoleData = { targetClientId: 'target_1', role: 'unauthorized-role' };
+
+        component.addClientRole('test_client_1');
+        tick();
+
+        const addReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+        addReq.flush({ error: "Role 'unauthorized-role' is not in the target client's allowed roles catalog" }, { status: 400, statusText: 'Bad Request' });
+        tick();
+        tick(); // Extra tick for promise resolution
+
+        expect(component.showAddClientRoleForm).toBeTrue();
+      }));
+
+      it('should handle 409 error for duplicate role', fakeAsync(() => {
+        component.viewingClientRolesFor = 'test_client_1';
+        component.addClientRoleData = { targetClientId: 'target_1', role: 'existing-role' };
+
+        component.addClientRole('test_client_1');
+        tick();
+
+        const addReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+        addReq.flush({ error: 'Role already assigned for this target client' }, { status: 409, statusText: 'Conflict' });
+        tick();
+      }));
+
+      it('should handle 404 error when client not found', fakeAsync(() => {
+        component.viewingClientRolesFor = 'test_client_1';
+        component.addClientRoleData = { targetClientId: 'target_1', role: 'some-role' };
+
+        component.addClientRole('test_client_1');
+        tick();
+
+        const addReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+        addReq.flush({ error: 'Source or target client not found' }, { status: 404, statusText: 'Not Found' });
+        tick();
+      }));
+    });
+
+    describe('removeClientRole', () => {
+      it('should remove a client role successfully when confirmed', fakeAsync(() => {
+        confirmService.confirm.and.returnValue(Promise.resolve(true));
+        component.viewingClientRolesFor = 'test_client_1';
+        component.clientRoles = [{ targetClientId: 'target_1', role: 'reader', createdAt: '' }];
+
+        component.removeClientRole('test_client_1', 'target_1', 'reader');
+        tick();
+
+        const removeReq = httpMock.expectOne('/api/clients/test_client_1/client-roles/target_1/reader');
+        expect(removeReq.request.method).toBe('DELETE');
+        removeReq.flush({});
+        tick();
+
+        const reloadReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+        reloadReq.flush({ srcClientId: 'test_client_1', roles: [] });
+        tick();
+      }));
+
+      it('should not remove when user cancels confirmation', fakeAsync(() => {
+        confirmService.confirm.and.returnValue(Promise.resolve(false));
+
+        component.removeClientRole('test_client_1', 'target_1', 'reader');
+        tick();
+        tick(); // Extra tick for promise resolution
+
+        httpMock.expectNone('/api/clients/test_client_1/client-roles/target_1/reader');
+      }));
+
+      it('should handle 403 error when removing client role', fakeAsync(() => {
+        confirmService.confirm.and.returnValue(Promise.resolve(true));
+        component.viewingClientRolesFor = 'test_client_1';
+
+        component.removeClientRole('test_client_1', 'target_1', 'reader');
+        tick();
+
+        const removeReq = httpMock.expectOne('/api/clients/test_client_1/client-roles/target_1/reader');
+        removeReq.flush({}, { status: 403, statusText: 'Forbidden' });
+        tick();
+      }));
+
+      it('should handle 404 error when role assignment not found', fakeAsync(() => {
+        confirmService.confirm.and.returnValue(Promise.resolve(true));
+        component.viewingClientRolesFor = 'test_client_1';
+
+        component.removeClientRole('test_client_1', 'target_1', 'non-existent');
+        tick();
+
+        const removeReq = httpMock.expectOne('/api/clients/test_client_1/client-roles/target_1/non-existent');
+        removeReq.flush({ error: 'Role assignment not found' }, { status: 404, statusText: 'Not Found' });
+        tick();
+      }));
     });
   });
 });

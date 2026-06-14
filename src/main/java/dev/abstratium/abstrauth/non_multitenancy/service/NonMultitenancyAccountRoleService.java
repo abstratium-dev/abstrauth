@@ -51,8 +51,8 @@ public class NonMultitenancyAccountRoleService {
         long accountCount = accountService.countAccounts();
         accountRoleService.checkNonAdminCannotAddAdminRole(role, accountCount);
 
-        // Validate role against allowlist for public clients
-        accountRoleService.checkRoleAgainstAllowlist(clientId, role);
+        // Validate role against allowlist for the assigning organisation
+        accountRoleService.checkRoleAgainstAllowlist(clientId, role, orgId);
 
         // Check if role already exists
         if (nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(accountId, clientId, orgId).contains(role)) {
@@ -149,5 +149,40 @@ public class NonMultitenancyAccountRoleService {
                 em.persist(accountRole);
             }
         }
+    }
+
+    /**
+     * Remove all AccountRole rows for a given client and role across ALL organisations.
+     * Uses NonMultitenancyAccountRole to bypass the @TenantId discriminator.
+     *
+     * @param clientId The OAuth client ID
+     * @param role The role name
+     */
+    @Transactional
+    public void removeRolesForClientAndRole(String clientId, String role) {
+        em.createQuery(
+            "DELETE FROM NonMultitenancyAccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role")
+            .setParameter("clientId", clientId)
+            .setParameter("role", role)
+            .executeUpdate();
+    }
+
+    /**
+     * Remove all AccountRole rows for a given client and role from organisations
+     * OTHER THAN the specified owning organisation.
+     * Uses NonMultitenancyAccountRole to bypass the @TenantId discriminator.
+     *
+     * @param clientId The OAuth client ID
+     * @param role The role name
+     * @param owningOrgId The organisation ID to preserve roles in
+     */
+    @Transactional
+    public void removeRolesForClientAndRoleOutsideOrg(String clientId, String role, String owningOrgId) {
+        em.createQuery(
+            "DELETE FROM NonMultitenancyAccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role AND ar.orgId != :owningOrgId")
+            .setParameter("clientId", clientId)
+            .setParameter("role", role)
+            .setParameter("owningOrgId", owningOrgId)
+            .executeUpdate();
     }
 }

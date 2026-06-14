@@ -1,12 +1,14 @@
-# Service Account Roles in Client Credentials Flow
+# Client Roles in Client Credentials Flow
+
+> **Status:** Decision made and implemented. See the **Implemented Solution** section at the bottom.
 
 ## Problem Statement
 
-When implementing OAuth 2.0 Client Credentials flow for service-to-service authentication, we need to determine how to assign **roles** to service accounts (clients) so that these roles can be included in the JWT access token.
+When implementing OAuth 2.0 Client Credentials flow for service-to-service authentication, we need to determine how to assign **roles** to service clients so that these roles can be included in the JWT access token.
 
-### Current Situation
+### Context
 
-- **User Authentication**: Users (`Account` entity) have roles assigned via `AccountRole` table, which references both `account_id` and `client_id`
+- **User Authentication**: Users (`Account` entity) have roles assigned via `AccountRole` table, scoped to both `account_id` and `client_id`
 - **Service Authentication**: Services authenticate using `client_id` + `client_secret`, but there's no mechanism to assign roles to the service itself
 - **The Gap**: When a service obtains a token via client credentials, what roles should be in that token?
 
@@ -243,51 +245,44 @@ Use **both scopes and roles**:
 }
 ```
 
-## Recommendation
+## Implemented Solution: Client Roles (`T_client_roles`)
 
-### **Use Option B: Service Account Roles** ✅ (UPDATED)
+The final implementation chose a **refined version of Option B** — instead of a flat service-account roles table, roles are stored as **client-to-client assignments** (`ClientRole` entity, `T_client_roles` table).
 
-**Critical Requirements Identified**:
+### Why `ClientRole` over flat `ServiceAccountRole`
 
-1. **@RolesAllowed Compatibility**: Quarkus `@RolesAllowed` annotation checks the `groups` claim in JWT tokens
-2. **Audit Logging**: Need `sub` (subject) claim to identify "who" performed an action
-3. **Service-to-Service Orchestration**: Payment service → Accounting service requires proper authorization
-4. **Consistent Authorization Model**: Resource servers already use `@RolesAllowed` for user tokens
+| Concern | Flat ServiceAccountRole | ClientRole (implemented) |
+|---------|------------------------|-------------------------|
+| Tenant isolation | Manual filtering required | `@TenantId` on `org_id` column — automatic |
+| Role validation | No constraint on role values | Role must exist in `T_client_allowed_roles` for the target |
+| Cross-org hack prevention | Ad-hoc checks | Enforced by tenant discriminator |
+| Audit trail | Which client has which role | Which source client calls which target client with which role |
 
-**Why Scopes-Only Doesn't Work**:
+### How It Works
 
-❌ `@RolesAllowed("api:read")` won't work because:
-- `@RolesAllowed` checks the `groups` claim, not the `scope` claim
-- You'd need to rewrite all resource server authorization logic
-- Inconsistent with existing user authentication pattern
+1. A `ClientRole` record has `src_client_id`, `target_client_id`, `role`, and `org_id`
+2. The `org_id` is the `@TenantId` — Hibernate automatically scopes all queries to the authenticated org
+3. `TokenResource` calls `ClientRoleService.findBySrcClientId(clientId)` using the **client's own `orgId`** as the tenant context
+4. For each `ClientRole`, the `groups` entry is formatted as `stripOrgPrefix(targetClientId) + "_" + role`
+5. The JWT `groups` claim is populated with these entries, enabling `@RolesAllowed` on target services
 
-**Why Service Account Roles IS Correct**:
+### Implementation Status
 
-✅ Services need `groups` claim with roles like:
-- `abstratium-abstrauth_service-reader`
-- `abstratium-abstrauth_service-writer`
-- `payment-service_accounting-writer`
+| Step | Status |
+|------|--------|
+| `T_client_roles` table (V01.032) | ✅ Done |
+| `ClientRole` entity with `@TenantId` | ✅ Done |
+| `ClientRoleService.findBySrcClientId()` | ✅ Done |
+| `TokenResource` uses `ClientRoleService` | ✅ Done |
+| Angular UI (`ClientsComponent`) for managing client roles | ✅ Done |
+| `TokenResourceTest` with cross-org security tests | ✅ Done |
+| `T_service_account_roles` table dropped (V01.034) | ✅ Done |
 
-✅ This allows:
-- `@RolesAllowed("payment-service_accounting-writer")` to work
-- Audit logs to show `sub: "accounting-service-client-id"`
-- Consistent authorization model across users and services
+## Historical Implementation Notes
 
-### Implementation Steps
+> The sections below document the original `ServiceAccountRole` implementation for historical reference. The actual implementation uses `T_client_roles` as described above.
 
-1. ✅ **Already Done**: Database schema has `allowed_scopes` column
-2. ✅ **Already Done**: `ClientSecret` table for secret rotation
-3. **TODO**: Create `T_service_account_roles` table
-4. **TODO**: Create `ServiceAccountRole` entity and repository
-5. **TODO**: Implement client credentials grant in `TokenResource`
-6. **TODO**: Generate tokens with BOTH `scope` AND `groups` claims
-7. **TODO**: Create UI/API for managing service account roles
-
-## Detailed Implementation
-
-### 1. Database Schema
-
-Create migration file: `V01.015__create_service_account_roles_table.sql`
+### 1. Database Schema (superseded)
 
 ```sql
 CREATE TABLE T_service_account_roles (
@@ -674,49 +669,31 @@ public Response getMetrics(@Context SecurityContext securityContext) {
 }
 ```
 
-## Migration Path
+## Conclusion
 
-If you later decide you need roles for services:
-
-1. Create `T_service_account_roles` table
-2. Add `ServiceAccountRoleService`
-3. Update token generation to include roles
-4. **Maintain backward compatibility**: Tokens still have scopes
-
-## Conclusion (UPDATED)
-
-**Answer to your question**: 
+**Answer to the original question**: 
 
 > "How can a service, which is signing in with just a client_id and client_secret, get roles assigned to the token?"
 
-**The answer for Quarkus/MicroProfile JWT applications is: Services MUST get roles (groups claim) to work with @RolesAllowed.**
-
-### Final Recommendation
-
-**Use Option B: Service Account Roles** with the following implementation:
-
-1. **Create `T_service_account_roles` table** to assign roles to `client_id`
-2. **Generate tokens with both `scope` AND `groups` claims**:
-   - `scope`: OAuth 2.0 standard scopes for API-level authorization
-   - `groups`: Roles for `@RolesAllowed` compatibility
-3. **Set `sub` claim to `client_id`** for audit logging
-4. **Use same role naming convention**: `{client_id}_{role}` (e.g., `payment-service_accounting-writer`)
+**Answer**: Via `ClientRole` records in `T_client_roles`. Each record assigns a specific role on a specific target client to the source (calling) client, scoped to the owning organisation.
 
 ### Why This is the Correct Approach
 
-1. ✅ **@RolesAllowed works**: `@RolesAllowed("payment-service_accounting-writer")` checks `groups` claim
-2. ✅ **Audit logging works**: `sub` claim identifies the service
-3. ✅ **Consistent with users**: Same authorization model for users and services
-4. ✅ **Industry precedent**: Keycloak, Microsoft Entra ID use this approach
-5. ✅ **Flexible**: Can assign different roles to different services
+1. ✅ **`@RolesAllowed` works**: groups entry `accounting-service_writer` matches `@RolesAllowed("accounting-service_writer")`
+2. ✅ **Audit logging works**: `sub` claim identifies the calling service
+3. ✅ **Tenant isolation built-in**: `@TenantId` on `org_id` prevents cross-org role leakage
+4. ✅ **Role governance**: Roles must be declared in `T_client_allowed_roles` before assignment
+5. ✅ **Consistent with users**: Same `groups` claim convention as user tokens
 
-### OAuth 2.0 Compliance Note
+### Token claim summary
 
-This is a **standard extension** to OAuth 2.0:
-- RFC 6749 defines the client credentials flow mechanism
-- The `groups` claim is part of MicroProfile JWT and OpenID Connect standards
-- Microsoft, Keycloak, and other major providers use roles/groups for M2M authorization
-- Scopes remain in the token for OAuth 2.0 compliance
+| Claim | Value |
+|-------|-------|
+| `sub` | Source client ID (for audit logging) |
+| `client_id` | Source client ID |
+| `orgId` | Owning org UUID of the source client |
+| `scope` | Granted OAuth scopes |
+| `groups` | `["targetClientId_role", ...]` — one entry per `ClientRole` |
 
 ## References
 

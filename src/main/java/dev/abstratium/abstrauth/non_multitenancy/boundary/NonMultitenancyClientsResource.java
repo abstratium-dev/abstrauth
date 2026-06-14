@@ -181,27 +181,11 @@ public class NonMultitenancyClientsResource {
             }
         }
 
-        List<ClientAllowedRole> roles = clientAllowedRoleService.findByClientId(clientId);
+        List<ClientAllowedRole> roles = clientAllowedRoleService.findAllowedRolesByClientIdForOrg(clientId, callerOrgId);
         List<AllowedRoleResponse> response = roles.stream()
-                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault()))
+                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault(), r.getAvailableToForeignOrgs()))
                 .collect(Collectors.toList());
         return Response.ok(response).build();
-    }
-
-    private SubscribedClientResponse toSubscribedClientResponse(NonMultitenancyOAuthClient client) {
-        return new SubscribedClientResponse(
-                client.getId(),
-                client.getOrgId(),
-                client.getClientId(),
-                client.getClientName(),
-                client.getClientType(),
-                client.getRedirectUris(),
-                client.getAllowedScopes(),
-                client.getRequirePkce(),
-                client.getAutoSubscribe(),
-                client.getPublik(),
-                client.getCreatedAt() != null ? client.getCreatedAt().toString() : null
-        );
     }
 
     @RegisterForReflection
@@ -241,11 +225,13 @@ public class NonMultitenancyClientsResource {
         public String clientId;
         public String role;
         public Boolean isDefault;
+        public Boolean availableToForeignOrgs;
 
-        public AllowedRoleResponse(String clientId, String role, Boolean isDefault) {
+        public AllowedRoleResponse(String clientId, String role, Boolean isDefault, Boolean availableToForeignOrgs) {
             this.clientId = clientId;
             this.role = role;
             this.isDefault = isDefault;
+            this.availableToForeignOrgs = availableToForeignOrgs;
         }
     }
 }

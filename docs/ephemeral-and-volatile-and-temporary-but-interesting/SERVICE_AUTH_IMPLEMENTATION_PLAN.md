@@ -1,12 +1,12 @@
 # Service-to-Service Authentication Implementation Plan
 
+> **Status: COMPLETE.** All phases implemented. The role mechanism evolved from flat `ServiceAccountRole` / `T_service_account_roles` to `ClientRole` / `T_client_roles` for tenant isolation and role governance. See [SERVICE_ROLES_SOLUTION.md](./SERVICE_ROLES_SOLUTION.md) for the decision.
+
 ## Overview
 
 This document provides step-by-step instructions for implementing OAuth 2.0 Client Credentials flow in abstrauth.
 
 **Reference:** [SERVICE_TO_SERVICE_AUTH.md](./SERVICE_TO_SERVICE_AUTH.md)
-
-**Estimated Time:** 2-3 days
 
 ---
 
@@ -30,74 +30,41 @@ Table created with MySQL/H2 compatible SQL (no ENGINE or CHARSET clauses).
 
 Column removed successfully.
 
-### Step 1.4: Create Service Account Roles Table ⚠️ TODO
+### Step 1.4: Create Client Roles Table ✅ DONE
 
-**File:** `src/main/resources/db/migration/V01.015__create_service_account_roles_table.sql` ❌ NOT CREATED
+**File:** `src/main/resources/db/migration/V01.032__create_client_roles_table.sql` ✅ EXISTS
 
-```sql
-CREATE TABLE T_service_account_roles (
-    id VARCHAR(36) PRIMARY KEY,
-    client_id VARCHAR(255) NOT NULL,
-    role VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT FK_service_account_roles_client FOREIGN KEY (client_id) REFERENCES T_oauth_clients(client_id) ON DELETE CASCADE
-);
+Table `T_client_roles` with `src_client_id`, `target_client_id`, `role`, `org_id` (Hibernate `@TenantId`).
 
--- FK indexes
-CREATE INDEX I_service_account_roles_client ON T_service_account_roles(client_id);
-
--- other indexes
-CREATE UNIQUE INDEX I_service_account_roles_unique ON T_service_account_roles(client_id, role);
-```
-
-**Test:**
-```bash
-mvn clean compile
-mvn test
-```
+**Note:** An earlier iteration used `T_service_account_roles` (flat, per-client roles). This was replaced by `T_client_roles` to provide tenant isolation via `@TenantId` and to enforce that roles must be declared in `T_client_allowed_roles` for the target client.
 
 ---
 
-## Phase 2: Backend Core - Service Account Roles ⚠️ IN PROGRESS
+## Phase 2: Backend Core - Client Roles ✅ COMPLETE
 
-### Step 2.1: Create ServiceAccountRole Entity ❌ TODO
+### Step 2.1: Create ClientRole Entity ✅ DONE
 
-**File:** `src/main/java/dev/abstratium/abstrauth/entity/ServiceAccountRole.java` ❌ NOT CREATED
+**File:** `src/main/java/dev/abstratium/abstrauth/entity/ClientRole.java` ✅ EXISTS
 
-JPA entity for `T_service_account_roles` table.
+JPA entity for `T_client_roles` with `@TenantId` on `org_id`.
 
-### Step 2.2: Create ServiceAccountRoleRepository ❌ TODO
+### Step 2.2: Create ClientRoleService ✅ DONE
 
-**File:** `src/main/java/dev/abstratium/abstrauth/repository/ServiceAccountRoleRepository.java` ❌ NOT CREATED
+**File:** `src/main/java/dev/abstratium/abstrauth/service/ClientRoleService.java` ✅ EXISTS
 
-Repository with methods:
-- `findRolesByClientId(clientId)` - Returns Set<String>
-- `persist(role)`
-- `deleteByClientIdAndRole(clientId, role)`
+Key method: `findBySrcClientId(srcClientId)` — returns `List<ClientRole>`, auto-filtered by `@TenantId`.
 
-### Step 2.3: Create ServiceAccountRoleService ❌ TODO
+### Step 2.3: Implement Client Credentials in TokenResource ✅ DONE
 
-**File:** `src/main/java/dev/abstratium/abstrauth/service/ServiceAccountRoleService.java` ❌ NOT CREATED
+**File:** `src/main/java/dev/abstratium/abstrauth/non_multitenancy/boundary/TokenResource.java` ✅ UPDATED
 
-Service layer for business logic.
+- Validates client credentials
+- Calls `ClientRoleService.findBySrcClientId()` with the client's own `orgId` as tenant context
+- Generates JWT with `scope`, `groups`, `orgId` claims
 
-### Step 2.4: Implement Client Credentials in TokenResource ❌ TODO
+### Step 2.4: Discovery Endpoint ✅ DONE
 
-**File:** `src/main/java/dev/abstratium/abstrauth/boundary/oauth/TokenResource.java` ❌ NOT UPDATED
-
-Add handler for `grant_type=client_credentials`:
-- Validate client type is SERVICE
-- Check secret against all active secrets
-- Validate requested scopes
-- **Lookup service account roles**
-- **Generate token with BOTH `scope` AND `groups` claims**
-- Return token (no refresh token)
-
-### Step 2.5: Update Discovery Endpoint ❌ TODO
-
-**File:** `src/main/java/dev/abstratium/abstrauth/boundary/oauth/WellKnownResource.java` ❌ NOT UPDATED
-
-Add `client_credentials` to `grant_types_supported`.
+`client_credentials` included in `grant_types_supported`.
 
 **Test:**
 ```bash
@@ -150,72 +117,48 @@ Tests implemented (8 tests, all passing):
 
 ---
 
-## Phase 4: Angular UI (3 hours)
+## Phase 4: Angular UI ✅ COMPLETE
 
-### Step 4.1: Update Models
+### Step 4.1: Models ✅ DONE
 
-**File:** `src/main/webui/src/app/models/client.model.ts`
+`model.service.ts` contains `ClientRole`, `ClientRolesResponse`, `AddClientRoleRequest` interfaces.
 
-Add: `ClientType.SERVICE`, `allowedScopes`, secret management interfaces
+### Step 4.2: Controller ✅ DONE
 
-### Step 4.2: Update Client Service
+`controller.ts` implements `listClientRoles()`, `addClientRole()`, `removeClientRole()`.
 
-**File:** `src/main/webui/src/app/services/client.service.ts`
+### Step 4.3: ClientsComponent ✅ DONE
 
-Add: `listSecrets()`, `createSecret()`, `revokeSecret()`
+`clients.component.ts` / `.html` manages client roles via the **Client Roles** section:
+- View all client roles for a source client
+- Add a client role (select target client → select role from allowed-roles dropdown)
+- Remove a client role with confirmation
 
-### Step 4.3: Update Create Client Form
-
-**File:** `src/main/webui/src/app/components/create-client/`
-
-- Add client type dropdown
-- Show redirect URIs for WEB_APPLICATION
-- Show scope selection for SERVICE
-- Display secret after creation
-
-### Step 4.4: Add Secret Management Component
-
-**Create:** `src/main/webui/src/app/components/client-secrets/`
-
-- List secrets with metadata
-- Generate new secret button
-- Revoke secret button
-- Show warnings for expiring secrets
-
-**Test:**
-```bash
-cd src/main/webui
-npm run build
-```
+**Note:** The earlier `ServiceAccountRole` UI ("Manage Roles" button, flat role list) was removed. Client roles replace it entirely.
 
 ---
 
-## Phase 5: Testing (2 hours)
+## Phase 5: Testing ✅ COMPLETE
 
-### Step 5.1: Unit Tests
+### Step 5.1: TokenResourceTest ✅ DONE
 
-**Create:** `src/test/java/dev/abstratium/abstrauth/resource/ClientCredentialsFlowTest.java`
+**File:** `src/test/java/dev/abstratium/abstrauth/non_multitenancy/boundary/TokenResourceTest.java`
 
-Tests:
-- ✅ Valid client credentials → 200 with token
-- ✅ Invalid secret → 401
-- ✅ Invalid scope → 400
-- ✅ Wrong client type → 401
-- ✅ Client not found → 401
+Covers:
+- Valid client credentials → 200 with token containing `groups` from `ClientRole` records
+- `groups` format: `targetClientId_role` with org prefix stripped
+- Cross-org "hack" attempt → roles from another org are NOT included
+- No client roles → empty `groups` claim
+- Invalid secret → 401
+- Invalid scope → 400
 
-### Step 5.2: Integration Tests
+### Step 5.2: ClientRoleServiceTest ✅ DONE
 
-**Create:** `src/test/java/dev/abstratium/abstrauth/resource/SecretRotationTest.java`
-
-Tests:
-- ✅ Zero-downtime rotation (both secrets work)
-- ✅ Cannot revoke last secret
-- ✅ Revoked secret stops working
+**File:** `src/test/java/dev/abstratium/abstrauth/service/ClientRoleServiceTest.java`
 
 **Run:**
 ```bash
 mvn test
-mvn verify  # Check coverage
 ```
 
 ---
@@ -316,9 +259,3 @@ If issues occur:
 - All existing clients will continue to work during and after migration
 - Migration files created: V01.011, V01.012, V01.013 
 
----
-
-# TODO at end
-
-- Update USER GUIDE to describe secret rotation
-- 

@@ -52,18 +52,25 @@ export interface CreateSecretResponse {
   expiresAt: string | null;
 }
 
-export interface ServiceAccountRole {
-  clientId: string;
-  role: string;
-  groupName: string;
-}
-
-export interface ServiceAccountRolesResponse {
-  clientId: string;
-  roles: string[];
-}
-
 export interface AddRoleRequest {
+  role: string;
+}
+
+// Client-to-Client Role Management (M2M)
+
+export interface ClientRole {
+  targetClientId: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface ClientRolesResponse {
+  srcClientId: string;
+  roles: ClientRole[];
+}
+
+export interface AddClientRoleRequest {
+  targetClientId: string;
   role: string;
 }
 
@@ -71,6 +78,7 @@ export interface AllowedRole {
   clientId: string;
   role: string;
   isDefault: boolean;
+  availableToForeignOrgs: boolean;
 }
 
 export interface Organisation {

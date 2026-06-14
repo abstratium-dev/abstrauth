@@ -80,18 +80,15 @@ Track OAuth client and secret lifecycle events.
 
 ### 4. Role Management Metrics
 
-Monitor role assignments for users and service accounts.
+Monitor role assignments for users.
 
 | Metric Name | Type | Description | Status |
 |------------|------|-------------|--------|
 | `abstrauth_role_assignment_total` | Counter | Number of role assignments to users | ⏳ Defined but not yet integrated |
 | `abstrauth_role_removal_total` | Counter | Number of role removals from users | ⏳ Defined but not yet integrated |
-| `abstrauth_service_role_assignment_total` | Counter | Number of role assignments to service accounts | ⏳ Defined but not yet integrated |
-| `abstrauth_service_role_removal_total` | Counter | Number of role removals from service accounts | ⏳ Defined but not yet integrated |
 
 **Use Cases:**
 - Track role changes over time
-- Monitor service account role assignments
 - Alert on unusual role assignment patterns
 
 ### 5. Error Metrics

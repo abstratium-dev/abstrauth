@@ -19,6 +19,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -238,7 +239,7 @@ public class ClientsResource {
     @GET
     @Path("/{clientId}/allowed-roles-for-users-in-clients-org")
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "List allowed roles for a client", description = "Returns the roles that subscribing organisations may assign to their users for this client")
+    @Operation(summary = "List allowed roles for a client", description = "Returns the roles that users may have for this client")
     @RolesAllowed(Roles.USER)
     public Response listAllowedRoles(@PathParam("clientId") String clientId) {
         if (oauthClientService.findByClientId(clientId).isEmpty()) {
@@ -247,9 +248,9 @@ public class ClientsResource {
                     .build();
         }
 
-        var roles = clientAllowedRoleService.findByClientId(clientId);
+        var roles = clientAllowedRoleService.findAllAllowedRolesByClientId(clientId);
         List<AllowedRoleResponse> response = roles.stream()
-                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault()))
+                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault(), r.getAvailableToForeignOrgs()))
                 .collect(Collectors.toList());
         return Response.ok(response).build();
     }
@@ -262,9 +263,9 @@ public class ClientsResource {
     @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response addAllowedRole(@PathParam("clientId") String clientId, @Valid AddAllowedRoleRequest request) {
         try {
-            clientAllowedRoleService.addAllowedRole(clientId, request.role, Boolean.TRUE.equals(request.isDefault));
+            clientAllowedRoleService.addAllowedRole(clientId, request.role, Boolean.TRUE.equals(request.isDefault), Boolean.TRUE.equals(request.availableToForeignOrgs));
             return Response.status(Response.Status.CREATED)
-                    .entity(new AllowedRoleResponse(clientId, request.role, Boolean.TRUE.equals(request.isDefault)))
+                    .entity(new AllowedRoleResponse(clientId, request.role, Boolean.TRUE.equals(request.isDefault), Boolean.TRUE.equals(request.availableToForeignOrgs)))
                     .build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
@@ -277,13 +278,13 @@ public class ClientsResource {
     @Path("/{clientId}/allowed-roles/{role}")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Update an allowed role", description = "Updates the default flag for a role in the client's allowlist")
+    @Operation(summary = "Update an allowed role", description = "Updates the default and foreign-availability flags for a role in the client's allowlist")
     @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response updateAllowedRole(@PathParam("clientId") String clientId, @PathParam("role") String role,
                                       @Valid UpdateAllowedRoleRequest request) {
         try {
-            clientAllowedRoleService.updateAllowedRole(clientId, role, Boolean.TRUE.equals(request.isDefault));
-            return Response.ok(new AllowedRoleResponse(clientId, role, Boolean.TRUE.equals(request.isDefault))).build();
+            clientAllowedRoleService.updateAllowedRole(clientId, role, Boolean.TRUE.equals(request.isDefault), Boolean.TRUE.equals(request.availableToForeignOrgs));
+            return Response.ok(new AllowedRoleResponse(clientId, role, Boolean.TRUE.equals(request.isDefault), Boolean.TRUE.equals(request.availableToForeignOrgs))).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(new ErrorResponse(e.getMessage()))
@@ -379,11 +380,13 @@ public class ClientsResource {
         public String clientId;
         public String role;
         public Boolean isDefault;
+        public Boolean availableToForeignOrgs;
 
-        public AllowedRoleResponse(String clientId, String role, Boolean isDefault) {
+        public AllowedRoleResponse(String clientId, String role, Boolean isDefault, Boolean availableToForeignOrgs) {
             this.clientId = clientId;
             this.role = role;
             this.isDefault = isDefault;
+            this.availableToForeignOrgs = availableToForeignOrgs;
         }
     }
 
@@ -443,13 +446,16 @@ public class ClientsResource {
     @RegisterForReflection
     public static class AddAllowedRoleRequest {
         @NotBlank(message = "Role is required")
+        @Pattern(regexp = "[a-zA-Z0-9\\-]+", message = "Role must contain only alphanumeric characters and hyphens")
         public String role;
         public Boolean isDefault;
+        public Boolean availableToForeignOrgs;
     }
 
     @RegisterForReflection
     public static class UpdateAllowedRoleRequest {
         public Boolean isDefault;
+        public Boolean availableToForeignOrgs;
     }
 
 }

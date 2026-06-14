@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -24,17 +25,18 @@ import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.entity.ClientRole;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientSecretService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
+import dev.abstratium.abstrauth.service.ClientRoleService;
 import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.OrganisationService;
-import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import dev.abstratium.abstrauth.util.ClientIdUtil;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -81,7 +83,7 @@ public class TokenResource {
     NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
 
     @Inject
-    ServiceAccountRoleService serviceAccountRoleService;
+    ClientRoleService clientRoleService;
 
     @Inject
     TokenRevocationService tokenRevocationService;
@@ -356,7 +358,7 @@ public class TokenResource {
 
         // Seed default roles if no AccountRole rows exist for this account + clientId + orgId
         if (orgId != null && !nonMultitenancyAccountRoleService.hasAnyRoleForClient(account.getId(), clientId, orgId)) {
-            var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(clientId);
+            var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientIdForOrg(clientId, orgId);
             if (!defaultRoles.isEmpty()) {
                 nonMultitenancyAccountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, defaultRoles);
             }
@@ -618,12 +620,14 @@ public class TokenResource {
                     "Requested scope exceeds allowed scopes for this client");
         }
 
-        // 5. Get service account roles for @RolesAllowed support
-        Set<String> serviceRoles = serviceAccountRoleService.findRolesByClientId(clientId);
-        String displayClientId = ClientIdUtil.stripOrgPrefix(clientId);
+        // 5. Get client roles for @RolesAllowed support
+        // ClientRole has @TenantId filtering, so it automatically filters by the client's org
+        List<ClientRole> clientRoles = clientRoleService.findBySrcClientId(clientId);
         Set<String> groups = new HashSet<>();
-        for (String role : serviceRoles) {
-            groups.add(displayClientId + "_" + role);  // Same format as user roles
+        for (ClientRole clientRole : clientRoles) {
+            // Format: targetClientId_role (e.g., "target-service_api-reader")
+            String displayTargetId = ClientIdUtil.stripOrgPrefix(clientRole.getTargetClientId());
+            groups.add(displayTargetId + "_" + clientRole.getRole());
         }
 
         // 6. Generate service token with BOTH scopes AND groups
@@ -635,6 +639,7 @@ public class TokenResource {
                 .subject(clientId)  // Service ID as subject (for audit logging)
                 .groups(groups)     // Roles for @RolesAllowed
                 .claim("client_id", clientId)
+                .claim("orgId", client.getOrgId())
                 .claim("scope", String.join(" ", requestedScopes))
                 .issuedAt(now)
                 .expiresAt(expiresAt)

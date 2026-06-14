@@ -233,11 +233,11 @@ test.describe('Client Roles Management', () => {
         // Verify the input has pattern validation
         const roleNameInput = page.locator('#role-name');
         const pattern = await roleNameInput.getAttribute('pattern');
-        expect(pattern).toBe('^[a-z0-9-]+$');
+        expect(pattern).toBe('^[a-zA-Z0-9-]+$');
         
         // Verify the hint text
         const hint = page.locator('.form-hint').filter({ 
-            hasText: /Lowercase letters, numbers, and hyphens only/i 
+            hasText: /Alphanumeric characters and hyphens only/i 
         });
         await expect(hint).toBeVisible({ timeout: 5000 });
         

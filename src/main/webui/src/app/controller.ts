@@ -1,7 +1,7 @@
-import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Account, AddRoleRequest, AllowedRole, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, ServiceAccountRole, ServiceAccountRolesResponse, UpdateOrganisationRequest } from './model.service';
+import { Account, AddClientRoleRequest, AllowedRole, ClientRole, ClientRolesResponse, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, UpdateOrganisationRequest } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -254,35 +254,37 @@ export class Controller {
     }
   }
 
-  async listServiceAccountRoles(clientId: string): Promise<ServiceAccountRolesResponse> {
+  // Client-to-Client Role Management (M2M)
+
+  async listClientRoles(srcClientId: string): Promise<ClientRolesResponse> {
     try {
       return await firstValueFrom(
-        this.http.get<ServiceAccountRolesResponse>(`/api/clients/${clientId}/roles`)
+        this.http.get<ClientRolesResponse>(`/api/clients/${srcClientId}/client-roles`)
       );
     } catch (error) {
-      console.error('Error listing service account roles:', error);
+      console.error('Error listing client roles:', error);
       throw error;
     }
   }
 
-  async addServiceAccountRole(clientId: string, request: AddRoleRequest): Promise<ServiceAccountRole> {
+  async addClientRole(srcClientId: string, request: AddClientRoleRequest): Promise<ClientRole> {
     try {
       return await firstValueFrom(
-        this.http.post<ServiceAccountRole>(`/api/clients/${clientId}/roles`, request)
+        this.http.post<ClientRole>(`/api/clients/${srcClientId}/client-roles`, request)
       );
     } catch (error) {
-      console.error('Error adding service account role:', error);
+      console.error('Error adding client role:', error);
       throw error;
     }
   }
 
-  async removeServiceAccountRole(clientId: string, role: string): Promise<void> {
+  async removeClientRole(srcClientId: string, targetClientId: string, role: string): Promise<void> {
     try {
       await firstValueFrom(
-        this.http.delete<void>(`/api/clients/${clientId}/roles/${role}`)
+        this.http.delete<void>(`/api/clients/${srcClientId}/client-roles/${targetClientId}/${role}`)
       );
     } catch (error) {
-      console.error('Error removing service account role:', error);
+      console.error('Error removing client role:', error);
       throw error;
     }
   }
@@ -378,7 +380,7 @@ export class Controller {
     }
   }
 
-  async addAllowedRole(clientId: string, request: { role: string; isDefault: boolean }): Promise<AllowedRole> {
+  async addAllowedRole(clientId: string, request: { role: string; isDefault: boolean; availableToForeignOrgs: boolean }): Promise<AllowedRole> {
     try {
       const response = await firstValueFrom(
         this.http.post<AllowedRole>(`/api/clients/${clientId}/allowed-roles`, request)
@@ -390,7 +392,7 @@ export class Controller {
     }
   }
 
-  async updateAllowedRole(clientId: string, role: string, request: { isDefault: boolean }): Promise<AllowedRole> {
+  async updateAllowedRole(clientId: string, role: string, request: { isDefault: boolean; availableToForeignOrgs: boolean }): Promise<AllowedRole> {
     try {
       const response = await firstValueFrom(
         this.http.put<AllowedRole>(`/api/clients/${clientId}/allowed-roles/${role}`, request)

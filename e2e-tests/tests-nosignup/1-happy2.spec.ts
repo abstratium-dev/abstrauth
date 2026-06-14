@@ -3,7 +3,7 @@ import { test, expect, Page } from '@playwright/test';
 import { signout, navigateToAccounts, navigateToClients, getCurrentUserName } from '../pages/header';
 import { ensureAdminIsAuthenticated, trySignInAsAdmin, signInViaInviteLink, signInAsAdmin, signInAsManager, MANAGER_EMAIL, MANAGER_NAME, MANAGER_PASSWORD, ADMIN_EMAIL } from '../pages/signin.page';
 import { addAccount, deleteAccountsExcept, tryAddRoleToSelf, addRoleToAccount, tryDeleteRoleFromAccount, tryDeleteAccount } from '../pages/accounts.page';
-import { deleteClientsExcept, addClient } from '../pages/clients.page';
+import { deleteClientsExcept, addClient, addAllowedRoleToClient } from '../pages/clients.page';
 import { changePassword } from '../pages/change-password.page';
 import { approveAuthorization, verifySignedIn } from '../pages/authorize.page';
 import { dismissToasts } from '../pages/toast';
@@ -178,7 +178,10 @@ test('admin creates manager account and manager signs in via invite link', async
     await navigateToClients(page);
     const newClient = await addClient(page, 'anapp_acomp', 'anapp_acomp', 'http://localhost:3333/callback', 'openid profile email');
     const anappClientId = newClient.clientId;
-    
+
+    // Add 'viewer' to the client's allowlist before it can be assigned to an account
+    await addAllowedRoleToClient(page, anappClientId, 'viewer');
+
     // Step 24: Sign out as manager
     console.log("Step 24: Signing out as manager...");
     await signout(page);

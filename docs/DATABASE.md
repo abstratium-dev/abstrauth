@@ -18,14 +18,15 @@ erDiagram
     T_oauth_clients ||--o{ T_authorization_requests : "initiates"
     T_oauth_clients ||--o{ T_authorization_codes : "for"
     T_oauth_clients ||--o{ T_account_roles : "scopes"
-    T_oauth_clients ||--o{ T_service_account_roles : "has"
+    T_oauth_clients ||--o{ T_client_roles : "src_client"
+    T_oauth_clients ||--o{ T_client_roles : "target_client"
     T_oauth_clients ||--o{ T_oauth_client_secrets : "has"
     T_oauth_clients ||--o{ T_client_allowed_roles : "defines"
     T_oauth_clients ||--o{ T_subscriptions : "subscribed"
     T_organisations ||--o{ T_oauth_clients : "owns"
     T_organisations ||--o{ T_account_roles : "scopes"
     T_organisations ||--o{ T_oauth_client_secrets : "scopes"
-    T_organisations ||--o{ T_service_account_roles : "scopes"
+    T_organisations ||--o{ T_client_roles : "scopes"
     T_organisations ||--o{ T_organisation_accounts : "has"
     T_organisations ||--o{ T_subscriptions : "has"
     T_authorization_requests ||--o{ T_authorization_codes : "generates"
@@ -134,9 +135,10 @@ erDiagram
         TIMESTAMP created_at
     }
 
-    T_service_account_roles {
+    T_client_roles {
         VARCHAR(36) id PK
-        VARCHAR(255) client_id FK "T_oauth_clients"
+        VARCHAR(255) src_client_id FK "T_oauth_clients"
+        VARCHAR(255) target_client_id FK "T_oauth_clients"
         VARCHAR(100) role
         VARCHAR(36) org_id FK "T_organisations"
         TIMESTAMP created_at
@@ -329,19 +331,20 @@ User roles scoped to a client and organisation.
 
 **Indexes:** `I_account_roles_account`, `I_account_roles_client`, `I_account_roles_unique` (account_id, client_id, role), `I_account_roles_org_id`
 
-### T_service_account_roles
+### T_client_roles
 
-Roles that a service account (client) can assert on behalf of users.
+Client-to-client role assignments for M2M (machine-to-machine) authentication. Defines which roles a source client may use when calling a target client. The role must exist in `T_client_allowed_roles` for the target client. Scoped to an organisation via `org_id` (Hibernate `@TenantId`).
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | VARCHAR(36) | PK | UUID |
-| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
-| role | VARCHAR(100) | NOT NULL | Role name |
-| org_id | VARCHAR(36) | FK | T_organisations |
+| src_client_id | VARCHAR(255) | NOT NULL, FK | Calling client — T_oauth_clients CASCADE |
+| target_client_id | VARCHAR(255) | NOT NULL, FK | API being called — T_oauth_clients CASCADE |
+| role | VARCHAR(100) | NOT NULL | Role name (must be in T_client_allowed_roles for target) |
+| org_id | VARCHAR(36) | NOT NULL | Owning organisation (tenant discriminator) |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
-**Indexes:** `I_service_account_roles_client`, `I_service_account_roles_unique` (client_id, role), `I_service_account_roles_org_id`
+**Indexes:** `I_client_roles_src_client`, `I_client_roles_target_client`, `I_client_roles_unique` (src_client_id, target_client_id, role), `I_client_roles_org`
 
 ### T_client_allowed_roles
 

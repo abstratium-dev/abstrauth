@@ -121,8 +121,9 @@ public class NonMultitenancyClientsResourceTest {
 
         transactionHelper.beginTransaction();
         createTestClient(clientId, ownerOrgId);
-        insertAllowedRole(clientId, "cross-viewer", false);
-        insertAllowedRole(clientId, "cross-editor", true);
+        // Roles must be available to foreign orgs to be visible to them
+        insertAllowedRole(clientId, "cross-viewer", false, true);
+        insertAllowedRole(clientId, "cross-editor", true, true);
         subscriptionService.ensureSubscribed(callerOrgId, clientId, true);
         transactionHelper.commitTransaction();
 
@@ -215,6 +216,15 @@ public class NonMultitenancyClientsResourceTest {
         ClientAllowedRole r = new ClientAllowedRole();
         r.setId(new ClientAllowedRole.Id(clientId, role));
         r.setIsDefault(isDefault);
+        r.setAvailableToForeignOrgs(false);
+        em.persist(r);
+    }
+
+    private void insertAllowedRole(String clientId, String role, boolean isDefault, boolean availableToForeignOrgs) {
+        ClientAllowedRole r = new ClientAllowedRole();
+        r.setId(new ClientAllowedRole.Id(clientId, role));
+        r.setIsDefault(isDefault);
+        r.setAvailableToForeignOrgs(availableToForeignOrgs);
         em.persist(r);
     }
 }
