@@ -165,8 +165,8 @@ test('admin creates manager account and manager signs in via invite link', async
     await navigateToAccounts(page);
 
     const adminRoleError = await tryAddRoleToSelf(page, 'abstratium-abstrauth', 'admin');
-    expect(adminRoleError).toContain('not in the allowlist');
-    console.log("✓ Correctly blocked from adding admin role (not in allowlist)");
+    expect(adminRoleError).toContain('Only admin can add the admin role');
+    console.log("✓ Correctly blocked from adding admin role (only admin can add admin role)");
     
     // Note: Manager with manage-accounts role cannot see admin account because
     // findAccountsByUserClientRoles filters out the default abstratium-abstrauth client.

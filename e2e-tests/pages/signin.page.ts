@@ -206,10 +206,13 @@ export async function signInAsAdmin(page: Page) {
     const approveButton = _getApproveButton(page);
     const signinError = page.locator('.error-box, .error-message, #message');
     
+    const orgSelectionHeading = page.locator('h1').filter({ hasText: 'Select Organisation' });
+
     try {
         await Promise.race([
             page.waitForURL(url => url.toString().includes('/authorize'), { timeout: 15000 }),
             approveButton.waitFor({ state: 'visible', timeout: 15000 }),
+            orgSelectionHeading.waitFor({ state: 'visible', timeout: 15000 }),
             signinError.waitFor({ state: 'visible', timeout: 15000 })
         ]);
         
@@ -217,6 +220,15 @@ export async function signInAsAdmin(page: Page) {
         if (await signinError.isVisible()) {
             const errorText = await signinError.textContent();
             throw new Error(`Sign-in failed: ${errorText}`);
+        }
+        
+        // If org-selection page appeared, select the first org (admin's primary org)
+        if (await orgSelectionHeading.isVisible().catch(() => false)) {
+            console.log("Org selection page shown, selecting first org...");
+            await page.locator('#select-org-button').click();
+            await expect(page.locator('#user-link')).toBeVisible({ timeout: 15000 });
+            console.log("Signed in as admin successfully (org selected)");
+            return;
         }
         
         // Success - either URL changed or approve button appeared

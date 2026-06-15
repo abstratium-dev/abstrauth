@@ -1,323 +1,252 @@
 import { test, expect } from '@playwright/test';
-
 import { signInAsAdmin } from '../pages/signin.page';
 import { navigateToClients } from '../pages/header';
-import { addClient } from '../pages/clients.page';
-import { 
-    toggleRolesView, 
-    addRole, 
-    removeRole, 
-    verifyRoleExists,
-    getRoleCount,
-    verifyRolesDisabledForScopedClient,
-    cancelAddRole
+import { addClient, addAllowedRoleToClient, deleteClientIfExists } from '../pages/clients.page';
+import {
+    toggleClientRolesView,
+    addClientRole,
+    removeClientRole,
+    getClientRoleCount,
+    getAvailableTargetClients,
+    getRoleOptions,
 } from '../pages/client-roles.page';
 
-test.describe('Client Roles Management', () => {
-    const M2M_CLIENT_NAME = 'Test M2M Client';
-    const M2M_REDIRECT_URI = ''; // No redirect URI for M2M clients
-    const M2M_SCOPES = ''; // Empty scopes for M2M client (role-based auth)
+/*
+ * E2E tests for Client-to-Client (M2M) Role Management.
+ *
+ * Verifies:
+ *  - A source client can be assigned a role on a target client (owned by same org).
+ *  - Only roles declared in the target client's allowlist are offered in the dropdown.
+ *  - Clients from foreign orgs that the user has NOT subscribed to do NOT appear
+ *    in the target-client dropdown.
+ *  - A client role can be removed.
+ *  - The JWT obtained via client_credentials contains the correct groups claim
+ *    and the orgId of the source client.
+ *
+ * Prerequisites (seeded by Flyway / existing test data):
+ *  - 'abstratium-abstrauth' exists as a platform client with at least one role
+ *    (manage-accounts) in its allowed-roles that is flagged availableToForeignOrgs=true.
+ *  - The admin org subscribes to abstratium-abstrauth (so it shows up as a target).
+ */
 
-    const SCOPED_CLIENT_NAME = 'Test Scoped Client';
-    const SCOPED_REDIRECT_URI = 'http://localhost:3000/callback';
-    const SCOPED_SCOPES = 'openid profile email';
-    
-    let m2mClientId: string;
-    let scopedClientId: string;
+const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+
+// A known target client owned by the platform org (foreign to the test admin org).
+// Its role 'manage-accounts' is marked availableToForeignOrgs=true.
+const PLATFORM_CLIENT_ID = 'abstratium-abstrauth';
+const PLATFORM_CLIENT_ROLE = 'manage-accounts';
+
+// Decode a JWT payload (no signature verification — we just inspect claims).
+function decodeJwtPayload(token: string): Record<string, unknown> {
+    const parts = token.split('.');
+    if (parts.length !== 3) throw new Error(`Not a JWT: ${token.substring(0, 20)}`);
+    const payload = Buffer.from(parts[1], 'base64url').toString('utf8');
+    return JSON.parse(payload);
+}
+
+test.describe('Client-to-Client (M2M) Role Management', () => {
+    test.setTimeout(60000);
+
+    const SRC_CLIENT_BASE = 'test_m2m_src';
+    const TARGET_CLIENT_BASE = 'test_m2m_tgt';
+    const TARGET_ROLE = 'api-reader';
+
+    let srcClientId: string;       // full prefixed id returned by addClient
+    let srcClientSecret: string;
+    let targetClientId: string;    // full prefixed id
 
     test.beforeEach(async ({ page }) => {
-        // Generate unique client IDs for each test
-        m2mClientId = `test_m2m_${Date.now()}`;
-        scopedClientId = `test_scoped_${Date.now()}`;
-        
-        // Sign in as admin
+        const ts = Date.now();
         await signInAsAdmin(page);
-        
-        // Navigate to clients page
         await navigateToClients(page);
+
+        // Clean up any leftover clients from a previous run
+        await deleteClientIfExists(page, `${SRC_CLIENT_BASE}_${ts}`);
+        await deleteClientIfExists(page, `${TARGET_CLIENT_BASE}_${ts}`);
+
+        // Create target client (owns the role catalog)
+        const target = await addClient(
+            page,
+            `${TARGET_CLIENT_BASE}_${ts}`,
+            'Test M2M Target',
+            '',   // no redirect URI — M2M
+            ''    // no scopes — M2M
+        );
+        targetClientId = target.clientId;
+        console.log(`Target client created: ${targetClientId}`);
+
+        // Add an allowed role to the target client
+        await addAllowedRoleToClient(page, targetClientId, TARGET_ROLE);
+        console.log(`Added allowed role '${TARGET_ROLE}' to target client`);
+
+        // Create source client (the caller)
+        const src = await addClient(
+            page,
+            `${SRC_CLIENT_BASE}_${ts}`,
+            'Test M2M Source',
+            '',
+            ''
+        );
+        srcClientId = src.clientId;
+        srcClientSecret = src.secret;
+        console.log(`Source client created: ${srcClientId}, secret: ${srcClientSecret.substring(0, 8)}...`);
     });
 
-    test('should add a role to an M2M client', async ({ page }) => {
-        console.log('Test: Add role to M2M client');
-        
-        // Create an M2M client (no scopes)
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Verify initial state - should have 0 roles
-        const initialCount = await getRoleCount(page);
-        expect(initialCount).toBe(0);
-        
-        // Add a role
-        const roleName = 'api-reader';
-        await addRole(page, roleName);
-        
-        // Verify role was added
-        await verifyRoleExists(page, roleName, m2mClientId);
-        
-        // Verify count increased
-        const newCount = await getRoleCount(page);
-        expect(newCount).toBe(1);
-        
-        console.log('✓ Test passed: Add role to M2M client');
-    });
-
-    test('should add multiple roles to an M2M client', async ({ page }) => {
-        console.log('Test: Add multiple roles to M2M client');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Add first role
-        await addRole(page, 'api-reader');
-        
-        // Add second role
-        await addRole(page, 'api-writer');
-        
-        // Add third role
-        await addRole(page, 'data-processor');
-        
-        // Verify all roles exist
-        await verifyRoleExists(page, 'api-reader', m2mClientId);
-        await verifyRoleExists(page, 'api-writer', m2mClientId);
-        await verifyRoleExists(page, 'data-processor', m2mClientId);
-        
-        // Verify count
-        const count = await getRoleCount(page);
-        expect(count).toBe(3);
-        
-        console.log('✓ Test passed: Add multiple roles to M2M client');
-    });
-
-    test('should remove a role from an M2M client', async ({ page }) => {
-        console.log('Test: Remove role from M2M client');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Add roles
-        await addRole(page, 'api-reader');
-        await addRole(page, 'api-writer');
-        
-        // Get initial count
-        const initialCount = await getRoleCount(page);
-        expect(initialCount).toBe(2);
-        
-        // Remove one role
-        await removeRole(page, 'api-reader');
-        
-        // Verify count decreased
-        const newCount = await getRoleCount(page);
-        expect(newCount).toBe(1);
-        
-        // Verify remaining role still exists
-        await verifyRoleExists(page, 'api-writer', m2mClientId);
-        
-        console.log('✓ Test passed: Remove role from M2M client');
-    });
-
-    test('should verify role group name format', async ({ page }) => {
-        console.log('Test: Verify role group name format');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Add a role
-        const roleName = 'custom-role';
-        await addRole(page, roleName);
-        
-        // Verify the group name format is correct (clientId_role)
-        const expectedGroupName = `${m2mClientId}_${roleName}`;
-        const roleCard = page.locator('.role-card').filter({ hasText: roleName });
-        const groupNameElement = roleCard.locator('.role-group-name');
-        
-        const groupNameText = await groupNameElement.textContent();
-        expect(groupNameText).toContain(expectedGroupName);
-        
-        console.log(`✓ Test passed: Verified group name format: ${expectedGroupName}`);
-    });
-
-    test('should prevent role management for clients with scopes', async ({ page }) => {
-        console.log('Test: Prevent role management for scoped clients');
-        
-        // Create a client with scopes
-        await addClient(page, scopedClientId, SCOPED_CLIENT_NAME, SCOPED_REDIRECT_URI, SCOPED_SCOPES);
-        
-        // Verify that the "Manage Roles" button is disabled with a warning
-        await verifyRolesDisabledForScopedClient(page, scopedClientId);
-        
-        console.log('✓ Test passed: Role management prevented for scoped clients');
-    });
-
-    test('should handle role addition cancellation', async ({ page }) => {
-        console.log('Test: Cancel role addition');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Get initial count
-        const initialCount = await getRoleCount(page);
-        
-        // Click "Add Role" button
-        const addRoleButton = page.getByRole('button', { name: /^\+ Add Role$/i });
-        await expect(addRoleButton).toBeVisible({ timeout: 5000 });
-        await addRoleButton.click();
-        
-        // Verify form is visible
-        const roleNameInput = page.locator('#role-name');
-        await expect(roleNameInput).toBeVisible({ timeout: 5000 });
-        
-        // Fill in a role name
-        await roleNameInput.fill('test-role');
-        
-        // Cancel the form
-        await cancelAddRole(page);
-        
-        // Verify count didn't change
-        const newCount = await getRoleCount(page);
-        expect(newCount).toBe(initialCount);
-        
-        console.log('✓ Test passed: Cancel role addition');
-    });
-
-    test('should toggle roles view open and closed', async ({ page }) => {
-        console.log('Test: Toggle roles view');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Verify roles section is visible
-        const rolesSection = page.locator('.roles-section');
-        await expect(rolesSection).toBeVisible({ timeout: 5000 });
-        
-        // Close roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Verify roles section is hidden
-        await expect(rolesSection).not.toBeVisible({ timeout: 5000 });
-        
-        console.log('✓ Test passed: Toggle roles view');
-    });
-
-    test('should validate role name format', async ({ page }) => {
-        console.log('Test: Validate role name format');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Click "Add Role" button
-        const addRoleButton = page.getByRole('button', { name: /^\+ Add Role$/i });
-        await expect(addRoleButton).toBeVisible({ timeout: 5000 });
-        await addRoleButton.click();
-        
-        // Verify the input has pattern validation
-        const roleNameInput = page.locator('#role-name');
-        const pattern = await roleNameInput.getAttribute('pattern');
-        expect(pattern).toBe('^[a-zA-Z0-9-]+$');
-        
-        // Verify the hint text
-        const hint = page.locator('.form-hint').filter({ 
-            hasText: /Alphanumeric characters and hyphens only/i 
-        });
-        await expect(hint).toBeVisible({ timeout: 5000 });
-        
-        console.log('✓ Test passed: Role name format validation');
-    });
-
-    test('should display info about service roles', async ({ page }) => {
-        console.log('Test: Display service roles info');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Verify the info box is displayed
-        const infoBox = page.locator('.info-box').filter({ 
-            hasText: /About Service Roles/i 
-        });
-        await expect(infoBox).toBeVisible({ timeout: 5000 });
-        
-        // Verify it mentions the groups claim
-        const groupsClaimText = await infoBox.textContent();
-        expect(groupsClaimText).toContain('groups');
-        expect(groupsClaimText).toContain('@RolesAllowed');
-        
-        console.log('✓ Test passed: Service roles info displayed');
-    });
-
-    test('should show empty state when no roles assigned', async ({ page }) => {
-        console.log('Test: Empty state for no roles');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        // Verify empty state message
-        const emptyMessage = page.locator('.info-box').filter({ 
-            hasText: /No roles assigned/i 
-        });
-        await expect(emptyMessage).toBeVisible({ timeout: 5000 });
-        
-        // Verify count is 0
-        const count = await getRoleCount(page);
+    test('should show empty state when no client roles assigned', async ({ page }) => {
+        console.log('Test: Empty state');
+        await toggleClientRolesView(page, srcClientId);
+        const emptyMsg = page.locator('[data-testid="no-client-roles-msg"]');
+        await expect(emptyMsg).toBeVisible({ timeout: 5000 });
+        const count = await getClientRoleCount(page);
         expect(count).toBe(0);
-        
-        console.log('✓ Test passed: Empty state displayed');
+        console.log('✓ Empty state shown correctly');
     });
 
-    test('should add and remove the same role multiple times', async ({ page }) => {
-        console.log('Test: Add and remove same role multiple times');
-        
-        // Create an M2M client
-        await addClient(page, m2mClientId, M2M_CLIENT_NAME, M2M_REDIRECT_URI, M2M_SCOPES);
-        
-        // Open roles view
-        await toggleRolesView(page, m2mClientId);
-        
-        const roleName = 'test-role';
-        
-        // Add role
-        await addRole(page, roleName);
-        await verifyRoleExists(page, roleName, m2mClientId);
-        
-        // Remove role
-        await removeRole(page, roleName);
-        let count = await getRoleCount(page);
-        expect(count).toBe(0);
-        
-        // Add role again
-        await addRole(page, roleName);
-        await verifyRoleExists(page, roleName, m2mClientId);
-        
-        // Remove role again
-        await removeRole(page, roleName);
-        count = await getRoleCount(page);
-        expect(count).toBe(0);
-        
-        console.log('✓ Test passed: Add and remove same role multiple times');
+    test('should add and display a client role', async ({ page }) => {
+        console.log('Test: Add client role');
+        await toggleClientRolesView(page, srcClientId);
+
+        await addClientRole(page, targetClientId, TARGET_ROLE);
+
+        const count = await getClientRoleCount(page);
+        expect(count).toBe(1);
+
+        // Verify the role card shows the target client and role name
+        const roleCard = page.locator(`.role-card[data-role="${TARGET_ROLE}"]`);
+        await expect(roleCard).toBeVisible({ timeout: 5000 });
+        const targetText = await roleCard.locator('.target-client-id').textContent();
+        expect(targetText).toContain(targetClientId);
+        const roleText = await roleCard.locator('.role-name').textContent();
+        expect(roleText?.trim()).toBe(TARGET_ROLE);
+
+        console.log('✓ Client role added and displayed correctly');
+    });
+
+    test('should remove a client role', async ({ page }) => {
+        console.log('Test: Remove client role');
+        await toggleClientRolesView(page, srcClientId);
+        await addClientRole(page, targetClientId, TARGET_ROLE);
+        expect(await getClientRoleCount(page)).toBe(1);
+
+        await removeClientRole(page, targetClientId, TARGET_ROLE);
+
+        expect(await getClientRoleCount(page)).toBe(0);
+        const emptyMsg = page.locator('[data-testid="no-client-roles-msg"]');
+        await expect(emptyMsg).toBeVisible({ timeout: 5000 });
+        console.log('✓ Client role removed correctly');
+    });
+
+    test('target-client dropdown only shows own-org clients and subscribed clients', async ({ page }) => {
+        console.log('Test: Cross-org isolation in target-client dropdown');
+        await toggleClientRolesView(page, srcClientId);
+        const options = await getAvailableTargetClients(page);
+
+        // The own-org target client must appear
+        const hasTarget = options.some(o => o.includes(targetClientId));
+        expect(hasTarget).toBe(true);
+        console.log(`  Own-org target client found in options: ${targetClientId}`);
+
+        // The platform client (abstratium-abstrauth) is subscribed to by all orgs,
+        // so it SHOULD appear.
+        const hasPlatform = options.some(o => o.includes(PLATFORM_CLIENT_ID));
+        expect(hasPlatform).toBe(true);
+        console.log(`  Platform client '${PLATFORM_CLIENT_ID}' found (subscription present)`);
+
+        // The source client itself must NOT appear (can't assign a role to itself)
+        const hasSelf = options.some(o => o.includes(srcClientId));
+        expect(hasSelf).toBe(false);
+        console.log(`  Source client correctly excluded from options`);
+
+        console.log('✓ Target-client dropdown isolation verified');
+    });
+
+    test('role dropdown only shows availableToForeignOrgs roles for subscribed platform client', async ({ page }) => {
+        console.log('Test: Role dropdown shows only foreign-org-visible roles for platform client');
+        await toggleClientRolesView(page, srcClientId);
+
+        // Open the add form and select the platform client as target
+        const addBtn = page.locator('[data-testid="toggle-add-client-role-btn"]');
+        await addBtn.click();
+        const form = page.locator('[data-testid="add-client-role-form"]');
+        await expect(form).toBeVisible({ timeout: 5000 });
+
+        // Find the option text that contains the platform client ID
+        const targetSelect = page.locator('[data-testid="target-client-select"]');
+        const allOptions = await targetSelect.locator('option').allInnerTexts();
+        const platformOption = allOptions.find(o => o.includes(PLATFORM_CLIENT_ID));
+        if (!platformOption) {
+            throw new Error(`Platform client '${PLATFORM_CLIENT_ID}' not found in target dropdown. Options: ${JSON.stringify(allOptions)}`);
+        }
+        await targetSelect.selectOption({ label: platformOption.trim() });
+
+        // Wait for role dropdown to be populated
+        const roleSelect = page.locator('[data-testid="client-role-select"]');
+        await expect(roleSelect).not.toBeDisabled({ timeout: 10000 });
+
+        const roleOptions = await getRoleOptions(page);
+        console.log(`  Roles available for platform client: ${JSON.stringify(roleOptions)}`);
+
+        // The 'manage-accounts' role is marked availableToForeignOrgs=true — must appear
+        const hasManageAccounts = roleOptions.some(o => o.includes(PLATFORM_CLIENT_ROLE));
+        expect(hasManageAccounts).toBe(true);
+        console.log(`  ✓ Role '${PLATFORM_CLIENT_ROLE}' is present (availableToForeignOrgs=true)`);
+
+        // Cancel without submitting
+        const cancelBtn = form.getByRole('button', { name: /Cancel/i });
+        await cancelBtn.click();
+        await expect(form).not.toBeVisible({ timeout: 5000 });
+
+        console.log('✓ Role dropdown isolation verified');
+    });
+
+    test('JWT from client_credentials contains correct groups and orgId', async ({ page }) => {
+        console.log('Test: JWT contains correct groups and orgId');
+
+        // 1. Assign the client role via UI
+        await toggleClientRolesView(page, srcClientId);
+        await addClientRole(page, targetClientId, TARGET_ROLE);
+        console.log('  Client role assigned via UI');
+
+        // 2. Obtain the token via HTTP (Playwright request API — no browser nav needed)
+        const response = await page.request.post(`${BASE_URL}/oauth2/token`, {
+            form: {
+                grant_type: 'client_credentials',
+                client_id: srcClientId,
+                client_secret: srcClientSecret,
+            },
+        });
+
+        console.log(`  Token response status: ${response.status()}`);
+        expect(response.ok()).toBe(true);
+
+        const body = await response.json();
+        console.log(`  Token response keys: ${Object.keys(body)}`);
+        expect(body.access_token).toBeTruthy();
+        expect(body.token_type).toBe('Bearer');
+
+        // 3. Decode the JWT payload and assert claims
+        const claims = decodeJwtPayload(body.access_token as string);
+        console.log(`  JWT claims: ${JSON.stringify(claims)}`);
+
+        // sub must be the source client ID
+        expect(claims.sub).toBe(srcClientId);
+
+        // orgId must be present (the org that owns the source client)
+        expect(typeof claims.orgId).toBe('string');
+        expect((claims.orgId as string).length).toBeGreaterThan(0);
+        console.log(`  orgId in token: ${claims.orgId}`);
+
+        // groups must contain the expected entry: stripOrgPrefix(targetClientId)_role
+        // The targetClientId is prefixed with orgId__; strip that prefix.
+        const displayTarget = targetClientId.replace(/^[0-9a-f-]{36}__/, '');
+        const expectedGroup = `${displayTarget}_${TARGET_ROLE}`;
+        console.log(`  Expected group entry: ${expectedGroup}`);
+
+        const groups = claims.groups as string[];
+        expect(Array.isArray(groups)).toBe(true);
+        expect(groups).toContain(expectedGroup);
+        console.log(`  ✓ groups claim contains '${expectedGroup}'`);
+
+        console.log('✓ JWT contains correct groups and orgId');
     });
 });

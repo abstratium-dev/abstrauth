@@ -50,7 +50,7 @@
 
 -----
 
-e2e for m2m
+X e2e for m2m
 
 finally, create a new e2e test. see @e2e-testing.md and the existing tests in @e2e-tests . create a new test which exercises the management of client roles. it should ensure that clients of other orgs than the users org, that are not subscribed to, cannot be chosen, and it should ensure that only roles that are available to users of foreign orgs are displayed, unless the user is in the org that owns the client.
 

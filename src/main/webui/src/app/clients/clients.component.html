@@ -449,30 +449,30 @@
 
             <!-- Client-to-Client Role Management Section (M2M) -->
             <div *ngIf="hasManageClientsRole() && matchesTokenOrgId(client.orgId)" class="detail-row role-management">
-              <button class="btn-secondary" (click)="toggleClientRolesView(client)">
+              <button class="btn-secondary" data-testid="manage-client-roles-btn" (click)="toggleClientRolesView(client)">
                 {{ viewingClientRolesFor === client.clientId ? '🔌 Hide Client To Client Roles' : '🔌 Manage Client To Client Roles (Used For Machine To Machine Communications)' }}
               </button>
             </div>
 
             <!-- Client-to-Client Roles List -->
-            <div *ngIf="viewingClientRolesFor === client.clientId" class="roles-section">
+            <div *ngIf="viewingClientRolesFor === client.clientId" class="roles-section" data-testid="client-roles-section">
               <div class="info-box">
                 <strong>About Client-to-Client Roles:</strong> These roles allow this client (the source) to call other clients (targets) with specific permissions. The role must exist in the target client's allowed roles catalog.
               </div>
 
               <div class="roles-header">
                 <h3>Client-to-Client Roles</h3>
-                <button class="btn-primary btn-sm" (click)="toggleAddClientRoleForm()" [disabled]="clientRolesLoading">
+                <button class="btn-primary btn-sm" data-testid="toggle-add-client-role-btn" (click)="toggleAddClientRoleForm()" [disabled]="clientRolesLoading">
                   {{ showAddClientRoleForm ? 'Cancel' : '+ Add Client Role' }}
                 </button>
               </div>
 
               <!-- Add Client Role Form -->
-              <div *ngIf="showAddClientRoleForm" class="form-container role-form">
+              <div *ngIf="showAddClientRoleForm" class="form-container role-form" data-testid="add-client-role-form">
                 <h4>Add Client Role</h4>
                 <div class="form-group">
                   <label for="target-client-select">Target Client *</label>
-                  <select id="target-client-select" [(ngModel)]="addClientRoleData.targetClientId"
+                  <select id="target-client-select" data-testid="target-client-select" [(ngModel)]="addClientRoleData.targetClientId"
                           (ngModelChange)="onTargetClientSelected($event)" required
                           [disabled]="loadingTargetClients">
                     <option value="">-- Select target client --</option>
@@ -485,22 +485,23 @@
                 </div>
                 <div class="form-group">
                   <label for="client-role-select">Role *</label>
-                  <select id="client-role-select" [(ngModel)]="addClientRoleData.role"
+                  <select id="client-role-select" data-testid="client-role-select" [(ngModel)]="addClientRoleData.role"
                           required [disabled]="!addClientRoleData.targetClientId || loadingClientRoleRoles || availableClientRoleRoles.length === 0">
                     <option value="">-- Select role --</option>
-                    <option *ngFor="let allowedRole of availableClientRoleRoles" [value]="allowedRole.role">
+                    <option *ngFor="let allowedRole of availableClientRoleRoles" [value]="allowedRole.role"
+                            [attr.data-role]="allowedRole.role">
                       {{ allowedRole.role }}
                       <span *ngIf="allowedRole.isDefault"> (default)</span>
                     </option>
                   </select>
                   <div *ngIf="loadingClientRoleRoles" class="loading">Loading available roles...</div>
-                  <div *ngIf="!loadingClientRoleRoles && addClientRoleData.targetClientId && availableClientRoleRoles.length === 0" class="info-box">
+                  <div *ngIf="!loadingClientRoleRoles && addClientRoleData.targetClientId && availableClientRoleRoles.length === 0" class="info-box" data-testid="no-roles-available">
                     No allowed roles available for this client.
                   </div>
                   <small class="form-hint">Select a role from the target client's allowed roles</small>
                 </div>
                 <div class="form-actions">
-                  <button class="btn-primary" (click)="addClientRole(client.clientId)"
+                  <button class="btn-primary" data-testid="submit-add-client-role-btn" (click)="addClientRole(client.clientId)"
                           [disabled]="!addClientRoleData.targetClientId || !addClientRoleData.role">
                     Add Role
                   </button>
@@ -513,21 +514,24 @@
               <div *ngIf="clientRolesLoading" class="loading">Loading client roles...</div>
               <div *ngIf="clientRolesError" class="error-box">{{ clientRolesError }}</div>
 
-              <div *ngIf="!clientRolesLoading && !clientRolesError && clientRoles.length === 0" class="info-box">
+              <div *ngIf="!clientRolesLoading && !clientRolesError && clientRoles.length === 0" class="info-box" data-testid="no-client-roles-msg">
                 No client-to-client roles assigned.
               </div>
 
-              <div *ngIf="!clientRolesLoading && clientRoles.length > 0" class="roles-list">
-                <div *ngFor="let clientRole of clientRoles" class="role-card">
+              <div *ngIf="!clientRolesLoading && clientRoles.length > 0" class="roles-list" data-testid="client-roles-list">
+                <div *ngFor="let clientRole of clientRoles" class="role-card"
+                     [attr.data-target-client-id]="clientRole.targetClientId"
+                     [attr.data-role]="clientRole.role">
                   <div class="role-header">
                     <div class="role-info">
-                      <strong>{{ clientRole.targetClientId }}</strong>
+                      <strong class="target-client-id">{{ clientRole.targetClientId }}</strong>
                       <span class="role-separator">→</span>
-                      <code>{{ clientRole.role }}</code>
+                      <code class="role-name">{{ clientRole.role }}</code>
                       <small class="role-meta">Added {{ clientRole.createdAt | date:'short' }}</small>
                     </div>
                     <div class="role-actions">
-                      <button class="btn-danger btn-sm" (click)="removeClientRole(client.clientId, clientRole.targetClientId, clientRole.role)"
+                      <button class="btn-danger btn-sm" data-testid="remove-client-role-btn"
+                              (click)="removeClientRole(client.clientId, clientRole.targetClientId, clientRole.role)"
                               title="Remove role">
                         🗑️
                       </button>
