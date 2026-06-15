@@ -14,6 +14,8 @@ globs: src/main/java/**/service/**/*.java
 - `em.merge()` with manually set ID from external input — if you call `em.merge()` on a detached entity with a user-supplied ID **without first verifying tenant ownership**, Hibernate may INSERT or UPDATE a row belonging to a different tenant. **Safe pattern for updates:** call `em.find(id)` first (which applies the tenant filter and returns `null` for cross-tenant IDs), verify the result is non-null, then call `em.merge()` with the incoming data. This verifies tenant ownership before any mutation and avoids stale code when new fields are added to the entity.
 - `em.remove(entity)` on a detached entity with user-supplied ID — only call `em.remove()` on entities that were loaded via `em.find()` or JPQL within the same transaction, so the tenant filter has already been applied.
 
+**Exceptions to Multi-Tenancy** These are to be documented in src/main/java/dev/abstratium/abstrauth/non_multitenancy/AGENTS.md
+
 **Native SQL:**
 - never use native SQL in production code
 

@@ -199,14 +199,6 @@ public class TokenRolesTest {
         em.persist(secret);
         userTransaction.commit();
         
-        // Add a service account role for this client
-        userTransaction.begin();
-        dev.abstratium.abstrauth.entity.ServiceAccountRole serviceRole = new dev.abstratium.abstrauth.entity.ServiceAccountRole();
-        serviceRole.setClientId(prefixedClientId);
-        serviceRole.setRole("service-role");
-        em.persist(serviceRole);
-        userTransaction.commit();
-        
         // Use client_credentials grant (no user auth or subscription checks required)
         Response tokenResponse = given()
             .formParam("grant_type", "client_credentials")

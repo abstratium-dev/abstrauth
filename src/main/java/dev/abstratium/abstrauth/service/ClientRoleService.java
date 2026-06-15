@@ -122,6 +122,23 @@ public class ClientRoleService {
      */
     @Transactional
     public void addRole(String srcClientId, String targetClientId, String role) {
+        addRole(srcClientId, targetClientId, role, null);
+    }
+
+    /**
+     * Add a role to a source client for calling a target client.
+     * Verifies that the caller owns the source client and that the role
+     * exists in the target client's allowed roles catalog and is available to the assigning org.
+     *
+     * @param srcClientId The source client ID (must be owned by caller's org)
+     * @param targetClientId The target client ID
+     * @param role The role name (must exist in target client's allowed roles)
+     * @param assigningOrgId The org ID of the caller (for validating foreign org access, null means skip foreign org validation)
+     * @throws IllegalArgumentException if the source client is not owned by caller or role is not available
+     * @throws ConflictException if the role already exists or is not in target's catalog
+     */
+    @Transactional
+    public void addRole(String srcClientId, String targetClientId, String role, String assigningOrgId) {
         // Verify the caller owns the source client
         ownershipVerifier.verifyClientOwnership(srcClientId);
 
@@ -131,9 +148,8 @@ public class ClientRoleService {
             throw new ConflictException("Role already assigned to this client for the target");
         }
 
-        // Verify the role exists in the target client's allowed roles
-        ClientAllowedRole allowedRole = em.find(ClientAllowedRole.class, new ClientAllowedRole.Id(targetClientId, role));
-        if (allowedRole == null) {
+        // Verify the role exists in the target client's allowed roles and is available to the assigning org
+        if (!clientAllowedRoleService.isRoleAllowed(targetClientId, role, assigningOrgId)) {
             throw new IllegalArgumentException("Role '" + role + "' is not in the target client's allowed roles catalog");
         }
 

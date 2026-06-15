@@ -16,7 +16,10 @@ import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.ClientRole;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthClientService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import dev.abstratium.abstrauth.service.ClientRoleService;
+import dev.abstratium.abstrauth.service.CurrentOrgContext;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -50,6 +53,15 @@ public class ClientRolesResource {
 
     @Inject
     OAuthClientService clientService;
+
+    @Inject
+    NonMultitenancyOAuthClientService nonMultitenancyOAuthClientService;
+
+    @Inject
+    NonMultitenancySubscriptionService nonMultitenancySubscriptionService;
+
+    @Inject
+    CurrentOrgContext currentOrgContext;
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -104,7 +116,8 @@ public class ClientRolesResource {
         summary = "Add client role assignment",
         description = "Assigns a role to a source client for calling a target client. " +
                       "The role must exist in the target client's allowed roles catalog. " +
-                      "The caller must own the source client."
+                      "The caller must own the source client. Target client may be in the same org " +
+                      "or a public client from another org that the caller's org subscribes to."
     )
     @APIResponses({
         @APIResponse(
@@ -154,16 +167,28 @@ public class ClientRolesResource {
                     .build();
         }
 
-        // Verify target client exists
-        Optional<OAuthClient> targetClientOpt = clientService.findByClientId(request.targetClientId);
-        if (targetClientOpt.isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse("Target client not found"))
-                    .build();
+        // Verify target client exists (same org or cross-org public client with subscription)
+        boolean targetExists = clientService.findByClientId(request.targetClientId).isPresent();
+        if (!targetExists) {
+            // Check if it's a public client from another org that caller's org subscribes to
+            var crossOrgClients = nonMultitenancyOAuthClientService.findAllByClientIds(java.util.Set.of(request.targetClientId));
+            if (crossOrgClients.isEmpty()) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(new ErrorResponse("Target client not found"))
+                        .build();
+            }
+            // Verify caller's org has a subscription to this cross-org client
+            String callerOrgId = currentOrgContext.getOrgId();
+            if (nonMultitenancySubscriptionService.findNonMultitenancySubscription(callerOrgId, request.targetClientId).isEmpty()) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(new ErrorResponse("Target client not found"))
+                        .build();
+            }
         }
 
         try {
-            clientRoleService.addRole(clientId, request.targetClientId, request.role);
+            String assigningOrgId = currentOrgContext.getOrgId();
+            clientRoleService.addRole(clientId, request.targetClientId, request.role, assigningOrgId);
 
             return Response.status(Response.Status.CREATED)
                     .entity(new ClientRoleDto(request.targetClientId, request.role, null))

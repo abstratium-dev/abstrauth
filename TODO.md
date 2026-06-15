@@ -38,6 +38,7 @@
   - extend MetricsService with orgs, etc.
   - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
 
+----
 - what happens if we remove an allowed role? existing users won't lose it. but that needs to happen since the client owner is saying that the role no longer exists. change this so that no one can assign roles unless they are in the allowed roles list - and have two types: internal, public; and for each public one, it may be default. make a note in the ui that if no longer default, the users who have it won't lose it!
 - quarkus test: create a public client in org1 with many roles but not all are available to foreign orgs, and then sign in as an account manager in the second org and try assigning a role that isn't available and ensure that is not allowed.
 - quarkus test: are roles removed from ALL users, including outside the org, when a role is deleted from a client?
@@ -46,33 +47,7 @@
 - IMPORTANT QUARKUS TEST: can i add a client-role to a client which is displayed in my UI but which i didn't create? coz if i can, then i can create a client-role for abstratium-abstrauth and get a JWT that is given ABSTRATIUMS ORG ID!!!!!! that is REALLY REALLY BAD!!!!
   - the org id that the token gets must belong to the org that created the roles. but we don't know which org that is when the client signs in, do we? ah, wait, the client abstratium-abstrauth can't sign in anyway! coz the third party doesn't have the secret. owning the secret and signing in with it proves you are in the org that owns the client. so it is correct to use the orgId of the client in the JWT.
   - userguide updated. now add a test that ensures that it is not possible for me to add a role to abstrauth. 
-
-
------
-
-X e2e for m2m
-
-finally, create a new e2e test. see @e2e-testing.md and the existing tests in @e2e-tests . create a new test which exercises the management of client roles. it should ensure that clients of other orgs than the users org, that are not subscribed to, cannot be chosen, and it should ensure that only roles that are available to users of foreign orgs are displayed, unless the user is in the org that owns the client.
-
-if it is possible, make the test also send an HTTP request in order to get the token, and assert that the token contains the correct roles and that it contains the org id of the client.
-
------
-fix this bug, including adding/amending angular tests or backend tests depending on where the failure is :
-
-POST http://localhost:8080/api/clients/8bc38237-f165-481e-96b9-b071d3efb231__asdf/client-roles
-
-{"targetClientId":"abstratium-abstrauth","role":"manage-accounts"}
-
-400 Bad Request
-{"error":"Target client not found","error_description":null,"error_uri":null}
-
-
-it is only a problem for client id abstratium-abstrauth, or maybe it's because that client isn't in the same org and when searching for target clients, the search isn't also looking for clients where the users org also has a subscription to the public client?
-
-
------
-
-
+----
 
 - see token exchange MD and the second one about how it is used and implement that.
 

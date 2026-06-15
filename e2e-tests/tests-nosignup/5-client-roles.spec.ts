@@ -224,6 +224,9 @@ test.describe('Client-to-Client (M2M) Role Management', () => {
         expect(body.access_token).toBeTruthy();
         expect(body.token_type).toBe('Bearer');
 
+        // Print the JWT
+        console.log(`  JWT: ${body.access_token}`);
+
         // 3. Decode the JWT payload and assert claims
         const claims = decodeJwtPayload(body.access_token as string);
         console.log(`  JWT claims: ${JSON.stringify(claims)}`);

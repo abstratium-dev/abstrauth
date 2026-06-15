@@ -4,13 +4,15 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Base64;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import dev.abstratium.abstrauth.entity.ClientRole;
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.service.ServiceAccountRoleService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
@@ -27,14 +29,10 @@ public class ClientCredentialsFlowTest {
     @Inject
     EntityManager em;
 
-    @Inject
-    ServiceAccountRoleService serviceAccountRoleService;
-
     @BeforeEach
     @Transactional
     public void setup() {
         // Clean up test data
-        em.createQuery("DELETE FROM ServiceAccountRole WHERE clientId LIKE 'test-service-%'").executeUpdate();
         em.createQuery("DELETE FROM ClientSecret WHERE clientId LIKE 'test-service-%'").executeUpdate();
         em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE 'test-service-%'").executeUpdate();
         em.flush();
@@ -74,10 +72,6 @@ public class ClientCredentialsFlowTest {
         String plainSecret = "test-secret-" + System.currentTimeMillis();
 
         createServiceClient(clientId, plainSecret, "api:read api:write");
-
-        // Add service roles
-        serviceAccountRoleService.addRole(clientId, "service-reader");
-        serviceAccountRoleService.addRole(clientId, "service-writer");
 
         // Request token with client credentials
         Response response = given()
@@ -279,9 +273,6 @@ public class ClientCredentialsFlowTest {
 
         createServiceClient(clientId, plainSecret, "api:read");
 
-        // Add service roles for authorization
-        serviceAccountRoleService.addRole(clientId, "service-reader");
-
         // Get token via client credentials
         Response tokenResponse = given()
                 .formParam("grant_type", "client_credentials")
@@ -328,6 +319,91 @@ public class ClientCredentialsFlowTest {
                 .get("/api/auth/check")
                 .then()
                 .statusCode(anyOf(is(302), is(303), is(401)));
+    }
+
+    /**
+     * Test that client credentials token includes client roles assigned to abstratium-abstrauth.
+     * This verifies the fix for the bug where client lookup failed due to @TenantId filtering
+     * when the orgId was not yet known (it comes from the client itself).
+     */
+    @Test
+    public void testClientCredentialsWithAbstratiumAbstrauthRole() {
+        String clientId = "test-service-abstrauth-role-" + System.currentTimeMillis();
+        String plainSecret = "test-secret-" + System.currentTimeMillis();
+
+        // Create service client with a role assigned to abstratium-abstrauth target
+        createServiceClientWithAbstrauthRole(clientId, plainSecret, "api:read", "manage-accounts");
+
+        // Get token via client credentials
+        Response tokenResponse = given()
+                .formParam("grant_type", "client_credentials")
+                .formParam("client_id", clientId)
+                .formParam("client_secret", plainSecret)
+                .formParam("scope", "api:read")
+                .when()
+                .post("/oauth2/token")
+                .then()
+                .statusCode(200)
+                .body("access_token", notNullValue())
+                .extract()
+                .response();
+
+        String accessToken = tokenResponse.jsonPath().getString("access_token");
+        assertNotNull(accessToken);
+
+        // Decode and verify the JWT contains the expected group claim
+        String payload = decodeJwtPayload(accessToken);
+        assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
+        assertTrue(payload.contains("\"abstratium-abstrauth_manage-accounts\""), 
+                "JWT should contain the abstratium-abstrauth_manage-accounts role");
+    }
+
+    /**
+     * Helper method to create a service client with a role assigned to abstratium-abstrauth
+     */
+    @Transactional
+    protected void createServiceClientWithAbstrauthRole(String clientId, String plainSecret, 
+                                                         String allowedScopes, String role) {
+        // Create service client
+        OAuthClient client = new OAuthClient();
+        client.setClientId(clientId);
+        client.setClientName("Test Service Client with Abstrauth Role");
+        client.setClientType("confidential");
+        client.setRedirectUris("");
+        client.setAllowedScopes(allowedScopes);
+        client.setRequirePkce(false);
+        em.persist(client);
+        em.flush();
+
+        // Create client secret
+        ClientSecret secret = new ClientSecret();
+        secret.setClientId(clientId);
+        secret.setSecretHash(new BCryptPasswordEncoder().encode(plainSecret));
+        secret.setDescription("Test secret");
+        secret.setActive(true);
+        em.persist(secret);
+
+        // Assign role to abstratium-abstrauth target
+        // This requires the fix to work - the client lookup in TokenResource
+        // must use NonMultitenancyOAuthClientService
+        ClientRole clientRole = new ClientRole();
+        clientRole.setSrcClientId(clientId);
+        clientRole.setTargetClientId("abstratium-abstrauth");
+        clientRole.setRole(role);
+        em.persist(clientRole);
+
+        em.flush();
+    }
+
+    /**
+     * Decode JWT payload for verification
+     */
+    private String decodeJwtPayload(String jwt) {
+        String[] parts = jwt.split("\\.");
+        assertEquals(3, parts.length, "JWT should have 3 parts");
+        // Base64Url decode the payload (middle part)
+        String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+        return payload;
     }
 
 }

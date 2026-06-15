@@ -321,4 +321,40 @@ public class ClientRoleServiceTest {
             .statusCode(200)
             .body("srcClientId", equalTo(srcClientId));
     }
+
+    /**
+     * Test that a user can assign a role to abstratium-abstrauth (a public client owned by another org)
+     * when their org has a subscription to it.
+     */
+    @Test
+    public void testAddClientRoleForAbstratiumAbstrauthTargetWithSubscription() {
+        String token = generateManageTokenForOrg(DEFAULT_ORG);
+
+        // Create source client
+        String srcClientId = createClientWithAllowedRole(token, "src_abstrauth", "caller-role", true);
+
+        // Assign role to abstratium-abstrauth (target client)
+        // The default org has a subscription to abstratium-abstrauth seeded by migration
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body("{\"targetClientId\": \"abstratium-abstrauth\", \"role\": \"manage-accounts\"}")
+            .when()
+            .post("/api/clients/" + srcClientId + "/client-roles")
+            .then()
+            .statusCode(201)
+            .body("targetClientId", equalTo("abstratium-abstrauth"))
+            .body("role", equalTo("manage-accounts"));
+
+        // Verify via GET
+        given()
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .when()
+            .get("/api/clients/" + srcClientId + "/client-roles")
+            .then()
+            .statusCode(200)
+            .body("roles.targetClientId", hasItem("abstratium-abstrauth"))
+            .body("roles.role", hasItem("manage-accounts"));
+    }
+
 }

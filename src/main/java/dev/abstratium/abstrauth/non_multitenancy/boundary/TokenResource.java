@@ -28,7 +28,9 @@ import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.ClientRole;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientSecretService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthClientService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
@@ -75,6 +77,12 @@ public class TokenResource {
 
     @Inject
     NonMultitenancyClientSecretService nonMultitenancyClientSecretService;
+
+    @Inject
+    NonMultitenancyOAuthClientService nonMultitenancyOAuthClientService;
+
+    @Inject
+    NonMultitenancyClientRoleService nonMultitenancyClientRoleService;
 
     @Inject
     AccountService accountService;
@@ -591,13 +599,15 @@ public class TokenResource {
         }
 
         // 2. Validate client exists and is a confidential client
-        Optional<OAuthClient> clientOpt = clientService.findByClientId(clientId);
+        // Use NonMultitenancyOAuthClientService because orgId is not yet known at this point
+        // The orgId comes from the client itself after lookup
+        var clientOpt = nonMultitenancyOAuthClientService.findByClientId(clientId);
         if (clientOpt.isEmpty()) {
             return buildErrorResponse(Response.Status.UNAUTHORIZED, "invalid_client",
                     "Client authentication failed");
         }
 
-        OAuthClient client = clientOpt.get();
+        var client = clientOpt.get();
 
         // 3. Authenticate client with secret
         if (!authenticateClient(client, clientSecret)) {
@@ -621,10 +631,10 @@ public class TokenResource {
         }
 
         // 5. Get client roles for @RolesAllowed support
-        // ClientRole has @TenantId filtering, so it automatically filters by the client's org
-        List<ClientRole> clientRoles = clientRoleService.findBySrcClientId(clientId);
+        // Use NonMultitenancyClientRoleService because orgId filter would exclude the client's own org
+        var clientRoles = nonMultitenancyClientRoleService.findBySrcClientId(clientId);
         Set<String> groups = new HashSet<>();
-        for (ClientRole clientRole : clientRoles) {
+        for (var clientRole : clientRoles) {
             // Format: targetClientId_role (e.g., "target-service_api-reader")
             String displayTargetId = ClientIdUtil.stripOrgPrefix(clientRole.getTargetClientId());
             groups.add(displayTargetId + "_" + clientRole.getRole());
@@ -675,6 +685,38 @@ public class TokenResource {
      * @param client The OAuth client
      * @param clientSecret The client secret provided in the request
      * @return true if authentication succeeds, false otherwise
+     */
+    private boolean authenticateClient(dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient client, String clientSecret) {
+        if (clientSecret == null || clientSecret.isBlank()) {
+            return false;
+        }
+
+        // Public clients don't have secrets
+        if ("public".equals(client.getClientType())) {
+            return false;
+        }
+
+        // Get all active secrets for this client using non-multitenancy service
+        // Client secrets are owned by the client-owning org, not the user's org
+        var activeSecrets = nonMultitenancyClientSecretService.findActiveSecrets(client.getClientId());
+        if (activeSecrets.isEmpty()) {
+            return false;
+        }
+
+        // Verify secret against all active secrets using BCrypt
+        try {
+            BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+            return activeSecrets.stream()
+                .anyMatch(secret -> passwordEncoder.matches(clientSecret, secret.getSecretHash()));
+        } catch (IllegalArgumentException e) {
+            // Invalid hash format
+            return false;
+        }
+    }
+
+    /**
+     * Overloaded authenticateClient for regular OAuthClient (used by authorization code flow).
+     * Delegates to the NonMultitenancyOAuthClient version since secrets are cross-tenant.
      */
     private boolean authenticateClient(OAuthClient client, String clientSecret) {
         if (clientSecret == null || clientSecret.isBlank()) {
