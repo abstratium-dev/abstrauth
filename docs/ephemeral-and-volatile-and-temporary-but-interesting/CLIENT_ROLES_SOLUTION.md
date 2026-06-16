@@ -162,7 +162,7 @@ roles:assign          - Assign roles to users
 ```
 admin role → clients:manage accounts:manage roles:assign
 viewer role → api:read clients:read accounts:read
-service role → api:read api:write
+client role → api:read api:write
 ```
 
 ### Option B: **Service Account Roles** (Keycloak-Style)
@@ -190,12 +190,12 @@ CREATE TABLE T_service_account_roles (
 #### Token Generation
 
 ```java
-private String generateServiceAccessToken(String clientId, Set<String> grantedScopes) {
+private String generateAccessToken(String clientId, Set<String> grantedScopes) {
     Instant now = Instant.now();
     Instant expiresAt = now.plusSeconds(3600);
 
-    // Get roles for this service client
-    Set<String> serviceRoles = serviceAccountRoleService.findRolesByClientId(clientId);
+    // Get roles for this client
+    Set<String> clientRoles = serviceAccountRoleService.findRolesByClientId(clientId);
     Set<String> groups = new HashSet<>();
     for (String role : serviceRoles) {
         groups.add(clientId + "_" + role);  // Same format as user roles

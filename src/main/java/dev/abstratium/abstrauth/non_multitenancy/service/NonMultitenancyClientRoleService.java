@@ -28,4 +28,39 @@ public class NonMultitenancyClientRoleService {
                 .setParameter("srcClientId", srcClientId)
                 .getResultList();
     }
+
+    /**
+     * Remove all ClientRole rows for a given target client and role across ALL organisations.
+     * Uses NonMultitenancyClientRole to bypass the @TenantId discriminator.
+     * This is called when a role is removed from the target client's allowed roles catalog.
+     *
+     * @param targetClientId The target client ID (the client whose allowed role is being removed)
+     * @param role The role name
+     */
+    public void removeClientRolesForTargetAndRole(String targetClientId, String role) {
+        em.createQuery(
+                "DELETE FROM NonMultitenancyClientRole cr WHERE cr.targetClientId = :targetClientId AND cr.role = :role")
+                .setParameter("targetClientId", targetClientId)
+                .setParameter("role", role)
+                .executeUpdate();
+    }
+
+    /**
+     * Remove all ClientRole rows for a given target client and role from organisations
+     * OTHER THAN the specified owning organisation.
+     * Uses NonMultitenancyClientRole to bypass the @TenantId discriminator.
+     * This is called when a role's availableToForeignOrgs is changed from true to false.
+     *
+     * @param targetClientId The target client ID
+     * @param role The role name
+     * @param owningOrgId The organisation ID to preserve roles in (the client owner)
+     */
+    public void removeClientRolesForTargetAndRoleOutsideOrg(String targetClientId, String role, String owningOrgId) {
+        em.createQuery(
+                "DELETE FROM NonMultitenancyClientRole cr WHERE cr.targetClientId = :targetClientId AND cr.role = :role AND cr.orgId != :owningOrgId")
+                .setParameter("targetClientId", targetClientId)
+                .setParameter("role", role)
+                .setParameter("owningOrgId", owningOrgId)
+                .executeUpdate();
+    }
 }

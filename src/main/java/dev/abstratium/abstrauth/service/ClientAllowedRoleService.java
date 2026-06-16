@@ -3,6 +3,7 @@ package dev.abstratium.abstrauth.service;
 import dev.abstratium.abstrauth.boundary.ConflictException;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthClientService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -25,6 +26,9 @@ public class ClientAllowedRoleService {
 
     @Inject
     NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
+
+    @Inject
+    NonMultitenancyClientRoleService nonMultitenancyClientRoleService;
 
     /** 
      * Returns ALL ClientAllowedRoles, for the given clientId. Note that 
@@ -187,7 +191,9 @@ public class ClientAllowedRoleService {
 
     /**
      * Remove a role from the allowlist for a client.
-     * Also removes the role from ALL users across ALL organisations.
+     * Also removes the role from:
+     * - ALL users across ALL organisations (AccountRole cascade)
+     * - ALL client roles (M2M) where this client is the target across ALL organisations
      *
      * @param clientId The OAuth client ID
      * @param role The role name to remove
@@ -212,12 +218,17 @@ public class ClientAllowedRoleService {
 
         // Cascade: remove this role from all users in all organisations
         nonMultitenancyAccountRoleService.removeRolesForClientAndRole(clientId, role);
+
+        // Cascade: remove this role from all client roles (M2M) where this client is the target
+        nonMultitenancyClientRoleService.removeClientRolesForTargetAndRole(clientId, role);
     }
 
     /**
      * Update a role in the allowlist.
      * If availableToForeignOrgs is changed from true to false, the role is
-     * automatically removed from all users in foreign organisations.
+     * automatically removed from:
+     * - All users in foreign organisations (AccountRole cascade)
+     * - All client roles (M2M) in foreign organisations where this client is the target
      *
      * @param clientId The OAuth client ID
      * @param role The role name to update
@@ -249,6 +260,8 @@ public class ClientAllowedRoleService {
             if (clientOpt.isPresent()) {
                 String owningOrgId = clientOpt.get().getOrgId();
                 nonMultitenancyAccountRoleService.removeRolesForClientAndRoleOutsideOrg(clientId, role, owningOrgId);
+                // Cascade: also remove client roles (M2M) for foreign orgs where this client is the target
+                nonMultitenancyClientRoleService.removeClientRolesForTargetAndRoleOutsideOrg(clientId, role, owningOrgId);
             }
         }
 

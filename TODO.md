@@ -39,11 +39,8 @@
   - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
 
 ----
-- what happens if we remove an allowed role? existing users won't lose it. but that needs to happen since the client owner is saying that the role no longer exists. change this so that no one can assign roles unless they are in the allowed roles list - and have two types: internal, public; and for each public one, it may be default. make a note in the ui that if no longer default, the users who have it won't lose it!
 - quarkus test: create a public client in org1 with many roles but not all are available to foreign orgs, and then sign in as an account manager in the second org and try assigning a role that isn't available and ensure that is not allowed.
 - quarkus test: are roles removed from ALL users, including outside the org, when a role is deleted from a client?
-- AccountRole -> the roles are strings -> is it possible to exec sql injections? ditto allowed roles.
-- if a user deletes a client, we need to remove all roles out of all orgs that refer to it, since the client is gone! and there is no FK on the client-id. dito if a user deletes an allowed role. see ClientRoleService #removeAllRolesForSourceClient and #removeAllRolesForTargetClient
 - IMPORTANT QUARKUS TEST: can i add a client-role to a client which is displayed in my UI but which i didn't create? coz if i can, then i can create a client-role for abstratium-abstrauth and get a JWT that is given ABSTRATIUMS ORG ID!!!!!! that is REALLY REALLY BAD!!!!
   - the org id that the token gets must belong to the org that created the roles. but we don't know which org that is when the client signs in, do we? ah, wait, the client abstratium-abstrauth can't sign in anyway! coz the third party doesn't have the secret. owning the secret and signing in with it proves you are in the org that owns the client. so it is correct to use the orgId of the client in the JWT.
   - userguide updated. now add a test that ensures that it is not possible for me to add a role to abstrauth. 

@@ -342,7 +342,7 @@ Full test suite:         1068 tests, 0 failures, 0 errors ✅
 1. ~~**Immediate (Critical):** Fix cross-org data access controls~~ ✅ **RESOLVED** - Added `GET /api/clients/{id}` endpoint; `@TenantId` ensures proper isolation
 2. ~~**High:** Resolve remaining database schema issues~~ ✅ **RESOLVED** - ID constraints and schema are properly handled. Flyway migrations manage the schema; no data integrity issues remain.
 3. ~~**Medium:** Harden JWT claim validation in `JwtOrgResolver` to handle null/edge cases~~ ✅ **RESOLVED** - `OrgMembershipInterceptor` now rejects authenticated requests with null `orgId` claims before any org-scoped access occurs.
-4. ~~**Medium:** Add integration tests for all cross-org access scenarios before deploying to production~~ ✅ **RESOLVED** - Added 4 new cross-org tests: secret revocation, permanent secret deletion, service role removal, and allowed-roles listing. Full suite: 1068 tests, all passing.
+4. ~~**Medium:** Add integration tests for all cross-org access scenarios before deploying to production~~ ✅ **RESOLVED** - Added 4 new cross-org tests: secret revocation, permanent secret deletion, client role removal, and allowed-roles listing. Full suite: 1068 tests, all passing.
 
 ---
 

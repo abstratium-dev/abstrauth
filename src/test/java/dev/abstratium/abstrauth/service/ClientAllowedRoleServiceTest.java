@@ -487,4 +487,269 @@ public class ClientAllowedRoleServiceTest {
             .body("role", hasItem("user"))
             .body("role.find { it == 'admin' }", equalTo(null)); // admin should NOT be visible
     }
+
+    /**
+     * REGRESSION TEST: When an allowed role is removed from a client, it should also be
+     * removed from all client roles (M2M) where that client is the target.
+     * This ensures no orphaned ClientRole rows remain referencing a deleted allowed role.
+     */
+    @Test
+    public void testRemoveAllowedRoleCascadesToClientRoles() {
+        String token = generateTokenForOrg(DEFAULT_ORG);
+
+        // Create a target client with an allowed role
+        String targetClientId = createClientWithAllowedRole(token, "target_cascade", "api-reader", true);
+
+        // Create a source client (will be assigned the role to call the target)
+        String srcClientId = createClientWithAllowedRole(token, "src_cascade", "caller-role", true);
+
+        // Assign a client role: src can call target with api-reader role
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(String.format("{\"targetClientId\": \"%s\", \"role\": \"api-reader\"}", targetClientId))
+            .when()
+            .post("/api/clients/" + srcClientId + "/client-roles")
+            .then()
+            .statusCode(201);
+
+        // Verify the client role exists
+        given()
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .when()
+            .get("/api/clients/" + srcClientId + "/client-roles")
+            .then()
+            .statusCode(200)
+            .body("roles.role", hasItem("api-reader"))
+            .body("roles.targetClientId", hasItem(targetClientId));
+
+        // Remove the allowed role from the target client
+        given()
+            .header("Authorization", "Bearer " + token)
+            .when()
+            .delete("/api/clients/" + targetClientId + "/allowed-roles/api-reader")
+            .then()
+            .statusCode(204);
+
+        // Verify the client role was also removed (cascade)
+        given()
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .when()
+            .get("/api/clients/" + srcClientId + "/client-roles")
+            .then()
+            .statusCode(200)
+            .body("roles.role.find { it == 'api-reader' }", equalTo(null))
+            .body("roles.targetClientId.find { it == '" + targetClientId + "' }", equalTo(null));
+    }
+
+    /**
+     * REGRESSION TEST: When an allowed role's availableToForeignOrgs is changed from true to false,
+     * it should also be removed from client roles (M2M) in foreign organisations.
+     * This ensures foreign orgs cannot keep M2M permissions for roles they should no longer access.
+     */
+    @Test
+    public void testUpdateAllowedRoleToNotAvailableCascadesToClientRoles() throws Exception {
+        String ownerToken = generateTokenForOrg(DEFAULT_ORG);
+
+        // Create a public target client with an allowed role available to foreign orgs
+        String uniqueClientId = "target_foreign_cascade_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Foreign Cascade Client",
+                "clientType": "confidential",
+                "publik": true,
+                "autoSubscribe": false
+            }
+            """, uniqueClientId);
+
+        String targetClientId = given()
+            .header("Authorization", "Bearer " + ownerToken)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        // Add role available to foreign orgs
+        given()
+            .header("Authorization", "Bearer " + ownerToken)
+            .contentType("application/json")
+            .body("{\"role\": \"api-writer\", \"isDefault\": false, \"availableToForeignOrgs\": true}")
+            .when()
+            .post("/api/clients/" + targetClientId + "/allowed-roles")
+            .then()
+            .statusCode(201);
+
+        // Create a foreign account and org
+        transactionHelper.beginTransaction();
+        accountService.createAccount(
+                "temp_fc_" + System.currentTimeMillis() + "@example.com",
+                "Temp User",
+                "temp_fc_" + System.currentTimeMillis(),
+                "Pass123!",
+                AccountService.NATIVE,
+                "Temp Org " + System.currentTimeMillis());
+        transactionHelper.commitTransaction();
+
+        transactionHelper.beginTransaction();
+        Account foreignAccount = accountService.createAccount(
+                "foreign_cascade_" + System.currentTimeMillis() + "@example.com",
+                "Foreign Cascade User",
+                "foreign_cascade_" + System.currentTimeMillis(),
+                "Pass123!",
+                AccountService.NATIVE,
+                "Foreign Cascade Org " + System.currentTimeMillis());
+        transactionHelper.commitTransaction();
+        String foreignOrgId = organisationService.listOrganisationsForAccount(foreignAccount.getId()).get(0).getId();
+
+        // Create token for the foreign org owner
+        String foreignOwnerToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+            .subject(foreignAccount.getId())
+            .upn(foreignAccount.getEmail())
+            .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients", "abstratium-abstrauth_manage-accounts"))
+            .claim("email", foreignAccount.getEmail())
+            .claim("name", foreignAccount.getName())
+            .claim("orgId", foreignOrgId)
+            .sign();
+
+        // Foreign org subscribes to the client
+        given()
+            .auth().oauth2(foreignOwnerToken)
+            .contentType("application/json")
+            .body("{\"clientId\": \"" + targetClientId + "\"}")
+            .when()
+            .post("/api/organisations/" + foreignOrgId + "/subscriptions")
+            .then()
+            .statusCode(201);
+
+        // Foreign org creates a source client
+        String foreignSrcClientId = given()
+            .auth().oauth2(foreignOwnerToken)
+            .contentType("application/json")
+            .body(String.format("""
+                {
+                    "clientId": "foreign_src_%s",
+                    "clientName": "Foreign Source Client",
+                    "clientType": "confidential"
+                }
+                """, System.currentTimeMillis()))
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        // Foreign org assigns a client role using the available role
+        given()
+            .auth().oauth2(foreignOwnerToken)
+            .contentType("application/json")
+            .body(String.format("{\"targetClientId\": \"%s\", \"role\": \"api-writer\"}", targetClientId))
+            .when()
+            .post("/api/clients/" + foreignSrcClientId + "/client-roles")
+            .then()
+            .statusCode(201);
+
+        // Verify the foreign client role exists
+        given()
+            .auth().oauth2(foreignOwnerToken)
+            .when()
+            .get("/api/clients/" + foreignSrcClientId + "/client-roles")
+            .then()
+            .statusCode(200)
+            .body("roles.role", hasItem("api-writer"))
+            .body("roles.targetClientId", hasItem(targetClientId));
+
+        // Owner org also creates a source client and assigns the role
+        String ownerSrcClientId = createClientWithAllowedRole(ownerToken, "owner_src_cascade", "caller-role", true);
+        given()
+            .header("Authorization", "Bearer " + ownerToken)
+            .contentType("application/json")
+            .body(String.format("{\"targetClientId\": \"%s\", \"role\": \"api-writer\"}", targetClientId))
+            .when()
+            .post("/api/clients/" + ownerSrcClientId + "/client-roles")
+            .then()
+            .statusCode(201);
+
+        // Verify owner client role exists
+        given()
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .when()
+            .get("/api/clients/" + ownerSrcClientId + "/client-roles")
+            .then()
+            .statusCode(200)
+            .body("roles.role", hasItem("api-writer"));
+
+        // Owner changes availableToForeignOrgs from true to false
+        given()
+            .header("Authorization", "Bearer " + ownerToken)
+            .contentType("application/json")
+            .body("{\"isDefault\": false, \"availableToForeignOrgs\": false}")
+            .when()
+            .put("/api/clients/" + targetClientId + "/allowed-roles/api-writer")
+            .then()
+            .statusCode(200);
+
+        // Foreign client role should be removed (cascade to foreign orgs only)
+        given()
+            .auth().oauth2(foreignOwnerToken)
+            .when()
+            .get("/api/clients/" + foreignSrcClientId + "/client-roles")
+            .then()
+            .statusCode(200)
+            .body("roles.role.find { it == 'api-writer' }", equalTo(null))
+            .body("roles.targetClientId.find { it == '" + targetClientId + "' }", equalTo(null));
+
+        // Owner's client role should still exist (owning org is preserved)
+        given()
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .when()
+            .get("/api/clients/" + ownerSrcClientId + "/client-roles")
+            .then()
+            .statusCode(200)
+            .body("roles.role", hasItem("api-writer"))
+            .body("roles.targetClientId", hasItem(targetClientId));
+    }
+
+    private String createClientWithAllowedRole(String token, String clientIdPrefix, String role, boolean availableToForeignOrgs) {
+        String uniqueClientId = clientIdPrefix + "_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "Test Client",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId);
+
+        String actualClientId = given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(createBody)
+            .when()
+            .post("/api/clients")
+            .then()
+            .statusCode(201)
+            .extract()
+            .jsonPath()
+            .getString("clientId");
+
+        // Add the role to the client's allowed roles catalog
+        given()
+            .header("Authorization", "Bearer " + token)
+            .contentType("application/json")
+            .body(String.format("{\"role\": \"%s\", \"isDefault\": false, \"availableToForeignOrgs\": %b}",
+                    role, availableToForeignOrgs))
+            .when()
+            .post("/api/clients/" + actualClientId + "/allowed-roles")
+            .then()
+            .statusCode(201);
+
+        return actualClientId;
+    }
 }

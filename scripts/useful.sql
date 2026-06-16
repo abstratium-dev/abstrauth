@@ -13,8 +13,10 @@ select * from abstrauth.T_oauth_client_secrets;
 select * from abstrauth.T_organisation_accounts;
 select * from abstrauth.T_organisations;
 select * from abstrauth.T_revoked_tokens;
-select * from abstrauth.T_service_account_roles;
 select * from abstrauth.T_subscriptions;
+select * from abstrauth.T_client_roles;
+
+SELECT * FROM abstrauth.T_oauth_clients WHERE client_id LIKE '%duo%';
 
 -- which roles does an account have? based on T_account_roles. org name, account name, client_id and roles
 select o.id as orgId, o.name, a.name, ar.client_id, ar.role from abstrauth.T_account_roles ar join abstrauth.T_organisations o on o.id = ar.org_id join abstrauth.T_accounts a on a.id = ar.account_id;

@@ -841,12 +841,12 @@ export class ClientsComponent implements OnInit {
     this.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
   }
 
-  async updateAllowedRole(clientId: string, role: string, wasAvailableToForeignOrgs: boolean): Promise<void> {
+  async updateAllowedRole(clientId: string, role: string, wasAvailableToForeignOrgs: boolean, wasIsDefault: boolean): Promise<void> {
     const isRetracting = wasAvailableToForeignOrgs && !this.editAllowedRoleData.availableToForeignOrgs;
     if (isRetracting) {
       const confirmed = await this.confirmService.confirm({
         title: 'Retract Role from Foreign Organisations',
-        message: `Marking "${role}" as unavailable to foreign organisations will remove it from ALL users outside your organisation. This action cannot be undone.`,
+        message: `Marking "${role}" as unavailable to foreign organisations will remove it from ALL users and ALL clients outside your organisation. This action cannot be undone.`,
         confirmText: 'Retract Role',
         cancelText: 'Cancel',
         confirmClass: 'btn-danger'
@@ -854,6 +854,11 @@ export class ClientsComponent implements OnInit {
       if (!confirmed) {
         return;
       }
+    }
+
+    const isRemovingDefault = wasIsDefault && !this.editAllowedRoleData.isDefault;
+    if (isRemovingDefault) {
+      this.toastService.info(`Role "${role}" is no longer default. Existing users and clients with this role will keep it. To remove the role from existing assignments, delete and recreate the role.`, 90000);
     }
 
     try {
@@ -879,7 +884,7 @@ export class ClientsComponent implements OnInit {
   async removeAllowedRole(clientId: string, role: string): Promise<void> {
     const confirmed = await this.confirmService.confirm({
       title: 'Remove Role from Catalog',
-      message: `Removing "${role}" will delete it from ALL users across ALL organisations. This action cannot be undone.`,
+      message: `Removing "${role}" will delete it from ALL users and ALL clients that use it, across ALL organisations. This action cannot be undone.`,
       confirmText: 'Remove Role',
       cancelText: 'Cancel',
       confirmClass: 'btn-danger'

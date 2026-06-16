@@ -633,11 +633,11 @@ public class MultiTenancySecurityTest {
     }
 
     // ====================================================================================
-    // TEST 4: Cross-Org Service Account Roles Prevention
+    // TEST 4: Cross-Org Client Roles Prevention
     // ====================================================================================
 
     @Test
-    public void testCannotAccessAnotherOrgsServiceRoles() throws Exception {
+    public void testCannotAccessAnotherOrgsClientRoles() throws Exception {
         long ts = System.currentTimeMillis();
 
         transactionHelper.beginTransaction();
@@ -664,7 +664,7 @@ public class MultiTenancySecurityTest {
             .setParameter("orgId", orgAId)
             .executeUpdate();
 
-        // Add service role for Org A's client (using T_client_roles table)
+        // Add client role for Org A's client (using T_client_roles table)
         em.createNativeQuery(
             "INSERT INTO T_client_roles (id, role, org_id, src_client_id, target_client_id) " +
             "VALUES (:id, :role, :orgId, :srcClientId, :targetClientId)")
@@ -677,7 +677,7 @@ public class MultiTenancySecurityTest {
 
         transactionHelper.commitTransaction();
 
-        // Org B admin attempts to list service roles of Org A's client
+        // Org B admin attempts to list client roles of Org A's client
         given()
             .auth().oauth2(manageClientsTokenForOrg(accountB.getId(), orgBId))
             .when()
@@ -687,7 +687,7 @@ public class MultiTenancySecurityTest {
     }
 
     @Test
-    public void testCannotAddServiceRoleToAnotherOrgsClient() throws Exception {
+    public void testCannotAddClientRoleToAnotherOrgsClient() throws Exception {
         long ts = System.currentTimeMillis();
 
         transactionHelper.beginTransaction();
@@ -716,7 +716,7 @@ public class MultiTenancySecurityTest {
 
         transactionHelper.commitTransaction();
 
-        // Org B admin attempts to add service role to Org A's client
+        // Org B admin attempts to add client role to Org A's client
         String requestBody = """
             {
                 "role": "api-writer"
@@ -734,7 +734,7 @@ public class MultiTenancySecurityTest {
     }
 
     @Test
-    public void testCannotRemoveServiceRoleFromAnotherOrgsClient() throws Exception {
+    public void testCannotRemoveClientRoleFromAnotherOrgsClient() throws Exception {
         long ts = System.currentTimeMillis();
 
         transactionHelper.beginTransaction();
@@ -761,7 +761,7 @@ public class MultiTenancySecurityTest {
             .setParameter("orgId", orgAId)
             .executeUpdate();
 
-        // Add service role for Org A's client (using T_client_roles table)
+        // Add client role for Org A's client (using T_client_roles table)
         em.createNativeQuery(
             "INSERT INTO T_client_roles (id, role, org_id, src_client_id, target_client_id) " +
             "VALUES (:id, :role, :orgId, :srcClientId, :targetClientId)")
@@ -774,7 +774,7 @@ public class MultiTenancySecurityTest {
 
         transactionHelper.commitTransaction();
 
-        // Org B admin attempts to remove service role from Org A's client
+        // Org B admin attempts to remove client role from Org A's client
         given()
             .auth().oauth2(manageClientsTokenForOrg(accountB.getId(), orgBId))
             .when()

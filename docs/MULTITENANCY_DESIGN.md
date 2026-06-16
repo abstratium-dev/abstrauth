@@ -285,7 +285,13 @@ Every client owner populates `T_client_allowed_roles` with the complete set of r
 
 The UI always presents a select element populated from the catalog, never free text. This prevents an org owner from granting arbitrary roles to their users. The backend enforces these rules during validation prior to saving the data.
 
-When a role is removed from the catalog, it is automatically removed from **all users across all organisations**. When a role is changed from `available_to_foreign_orgs = true` to `false`, it is automatically removed from all users in foreign organisations.
+When a role is removed from the catalog, it is automatically removed from:
+- **All users across all organisations** (via `AccountRole` cascade)
+- **All client roles (M2M)** where that client is the target, across all organisations (via `ClientRole` cascade)
+
+When a role is changed from `available_to_foreign_orgs = true` to `false`, it is automatically removed from:
+- All users in foreign organisations (via `AccountRole` cascade)
+- All client roles (M2M) in foreign organisations where that client is the target (via `ClientRole` cascade)
 
 ### Global `ADMIN` access
 

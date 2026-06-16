@@ -335,6 +335,10 @@ User roles scoped to a client and organisation.
 
 Client-to-client role assignments for M2M (machine-to-machine) authentication. Defines which roles a source client may use when calling a target client. The role must exist in `T_client_allowed_roles` for the target client. Scoped to an organisation via `org_id` (Hibernate `@TenantId`).
 
+**Cascade Behavior:**
+- When a role is removed from `T_client_allowed_roles` for a target client, all corresponding rows in `T_client_roles` where that client is the target are automatically deleted
+- When a role's `available_to_foreign_orgs` is changed from `true` to `false`, all `T_client_roles` rows for that target client and role in foreign organisations (orgs other than the client owner) are automatically deleted
+
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | VARCHAR(36) | PK | UUID |

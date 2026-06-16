@@ -645,7 +645,7 @@
                     </div>
                     <small class="form-hint">To change the role name, remove this role and add a new one with the desired name.</small>
                     <div class="form-actions">
-                      <button class="btn-primary btn-sm" (click)="updateAllowedRole(client.clientId, allowedRole.role, allowedRole.availableToForeignOrgs)">
+                      <button class="btn-primary btn-sm" (click)="updateAllowedRole(client.clientId, allowedRole.role, allowedRole.availableToForeignOrgs, allowedRole.isDefault)">
                         Save
                       </button>
                       <button class="btn-secondary btn-sm" (click)="cancelEditAllowedRole()">

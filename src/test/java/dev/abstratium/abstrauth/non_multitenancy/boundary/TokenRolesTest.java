@@ -178,7 +178,7 @@ public class TokenRolesTest {
     @Test
     public void testTokenWithPrefixedClientIdStripsUuidPrefix() throws Exception {
         String prefixedClientId = "550e8400-e29b-41d4-a716-446655440000__myapp";
-        String expectedGroup = "myapp_service-role";
+        String expectedGroup = "myapp_client-role";
         String testSecret = "test-secret-12345";
         
         // Create the prefixed client with a valid secret
@@ -198,9 +198,9 @@ public class TokenRolesTest {
         secret.setActive(true);
         em.persist(secret);
         
-        // Add service role to the prefixed client (client credentials uses client roles, not account roles)
+        // Add client role to the prefixed client (client credentials uses client roles, not account roles)
         dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientRole clientRole = new dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientRole();
-        clientRole.setRole("service-role");
+        clientRole.setRole("client-role");
         clientRole.setOrgId(testOrgId);
         clientRole.setSrcClientId(prefixedClientId);
         clientRole.setTargetClientId(prefixedClientId);
@@ -228,7 +228,7 @@ public class TokenRolesTest {
         // Verify the UUID prefix is stripped in the groups claim
         assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
         assertTrue(payload.contains("\"" + expectedGroup + "\""), "JWT should contain stripped group name '" + expectedGroup + "'");
-        assertFalse(payload.contains("\"" + prefixedClientId + "_service-role\""), "JWT should not contain the unprefixed group name");
+        assertFalse(payload.contains("\"" + prefixedClientId + "_client-role\""), "JWT should not contain the unprefixed group name");
     }
 
     @Test
