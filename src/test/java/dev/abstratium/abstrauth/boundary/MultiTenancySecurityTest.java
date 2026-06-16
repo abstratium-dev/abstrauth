@@ -664,13 +664,15 @@ public class MultiTenancySecurityTest {
             .setParameter("orgId", orgAId)
             .executeUpdate();
 
-        // Add service role for Org A's client
+        // Add service role for Org A's client (using T_client_roles table)
         em.createNativeQuery(
-            "INSERT INTO T_service_account_roles (id, client_id, role, org_id) " +
-            "VALUES (:id, :clientId, 'api-reader', :orgId)")
+            "INSERT INTO T_client_roles (id, role, org_id, src_client_id, target_client_id) " +
+            "VALUES (:id, :role, :orgId, :srcClientId, :targetClientId)")
             .setParameter("id", UUID.randomUUID().toString())
-            .setParameter("clientId", clientIdA)
+            .setParameter("role", "api-reader")
             .setParameter("orgId", orgAId)
+            .setParameter("srcClientId", clientIdA)
+            .setParameter("targetClientId", clientIdA)
             .executeUpdate();
 
         transactionHelper.commitTransaction();
@@ -759,13 +761,15 @@ public class MultiTenancySecurityTest {
             .setParameter("orgId", orgAId)
             .executeUpdate();
 
-        // Add service role for Org A's client
+        // Add service role for Org A's client (using T_client_roles table)
         em.createNativeQuery(
-            "INSERT INTO T_service_account_roles (id, client_id, role, org_id) " +
-            "VALUES (:id, :clientId, 'api-reader', :orgId)")
+            "INSERT INTO T_client_roles (id, role, org_id, src_client_id, target_client_id) " +
+            "VALUES (:id, :role, :orgId, :srcClientId, :targetClientId)")
             .setParameter("id", UUID.randomUUID().toString())
-            .setParameter("clientId", clientIdA)
+            .setParameter("role", "api-reader")
             .setParameter("orgId", orgAId)
+            .setParameter("srcClientId", clientIdA)
+            .setParameter("targetClientId", clientIdA)
             .executeUpdate();
 
         transactionHelper.commitTransaction();

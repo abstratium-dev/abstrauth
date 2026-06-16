@@ -197,6 +197,15 @@ public class TokenRolesTest {
         secret.setDescription("Test secret");
         secret.setActive(true);
         em.persist(secret);
+        
+        // Add service role to the prefixed client (client credentials uses client roles, not account roles)
+        dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientRole clientRole = new dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientRole();
+        clientRole.setRole("service-role");
+        clientRole.setOrgId(testOrgId);
+        clientRole.setSrcClientId(prefixedClientId);
+        clientRole.setTargetClientId(prefixedClientId);
+        em.persist(clientRole);
+        
         userTransaction.commit();
         
         // Use client_credentials grant (no user auth or subscription checks required)

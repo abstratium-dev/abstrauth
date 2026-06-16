@@ -2,12 +2,14 @@ package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
 import dev.abstratium.abstrauth.util.ClientIdUtil;
 import io.quarkus.test.junit.QuarkusTest;
+import io.smallrye.jwt.build.Jwt;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;
 import java.util.Base64;
+import java.util.Set;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
@@ -23,8 +25,8 @@ public class TokenResourceTest {
     private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
 
     // Test org IDs (must match JWT signing key setup)
-    private static final String DEFAULT_ORG = "abstratium";
-    private static final String OTHER_ORG = "other-org";
+    private static final String DEFAULT_ORG = "00000000-0000-0000-0000-000000000000";
+    private static final String OTHER_ORG = "11111111-1111-1111-1111-111111111111";
 
     @Test
     public void testTokenEndpointWithMissingGrantType() {
@@ -377,7 +379,7 @@ public class TokenResourceTest {
         JsonObject claims = decodeToken(accessToken);
         org.junit.jupiter.api.Assertions.assertTrue(claims.containsKey("groups"), "Token should have groups claim");
         org.junit.jupiter.api.Assertions.assertTrue(
-            claims.getJsonArray("groups").contains("target-service_api-reader"),
+            claims.getJsonArray("groups").contains(Json.createValue("target-service_api-reader")),
             "Token should contain the client role in groups claim"
         );
     }
@@ -443,11 +445,11 @@ public class TokenResourceTest {
         JsonObject claims = decodeToken(accessToken);
         org.junit.jupiter.api.Assertions.assertTrue(claims.containsKey("groups"));
         org.junit.jupiter.api.Assertions.assertTrue(
-            claims.getJsonArray("groups").contains("target-a_api-reader"),
+            claims.getJsonArray("groups").contains(Json.createValue("target-a_api-reader")),
             "Token should contain Org A's client role"
         );
         org.junit.jupiter.api.Assertions.assertFalse(
-            claims.getJsonArray("groups").contains("target-b_api-writer"),
+            claims.getJsonArray("groups").contains(Json.createValue("target-b_api-writer")),
             "Token should NOT contain Org B's client role (tenant isolation)"
         );
     }
@@ -527,12 +529,19 @@ public class TokenResourceTest {
     // Helper methods for new tests
 
     private String createClient(String manageToken, String clientName, String allowedScopes, String redirectUris) {
+        String uniqueClientId = clientName + "_" + System.currentTimeMillis();
+        String createBody = String.format("""
+            {
+                "clientId": "%s",
+                "clientName": "%s",
+                "clientType": "confidential"
+            }
+            """, uniqueClientId, clientName);
+
         return given()
             .header("Authorization", "Bearer " + manageToken)
             .contentType("application/json")
-            .body(String.format(
-                "{\"clientId\": \"%s\", \"clientName\": \"%s\", \"clientType\": \"m2m\", \"allowedScopes\": %s, \"redirectUris\": %s}",
-                clientName, clientName, allowedScopes, redirectUris))
+            .body(createBody)
             .when()
             .post("/api/clients")
             .then()
@@ -572,16 +581,13 @@ public class TokenResourceTest {
      * This simulates a user logged into a specific organization.
      */
     private String generateManageTokenForOrg(String orgId) {
-        return given()
-            .header("Authorization", "Bearer dev-root-token") // Use root token for token generation
-            .contentType("application/json")
-            .body(String.format("{\"orgId\": \"%s\"}", orgId))
-            .when()
-            .post("/api/auth/token/org")
-            .then()
-            .statusCode(200)
-            .extract()
-            .path("token");
+        return Jwt.issuer("https://abstrauth.abstratium.dev")
+            .upn("test@example.com")
+            .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
+            .claim("email", "test@example.com")
+            .claim("name", "Test User")
+            .claim("orgId", orgId)
+            .sign();
     }
 
     /**
