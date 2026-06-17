@@ -149,4 +149,13 @@ public class OrganisationService {
                 .setParameter("role", ROLE_OWNER)
                 .getSingleResult();
     }
+
+    public List<String> getOwnerIds(String orgId) {
+        return em.createQuery(
+                "SELECT oa.id.accountId FROM OrganisationAccount oa WHERE oa.id.orgId = :orgId AND oa.id.role = :role",
+                String.class)
+                .setParameter("orgId", orgId)
+                .setParameter("role", ROLE_OWNER)
+                .getResultList();
+    }
 }

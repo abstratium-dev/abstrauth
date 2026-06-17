@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 import { dismissToasts } from './toast';
 
 // Element accessors
@@ -45,14 +45,20 @@ export async function signout(page: Page) {
 export async function navigateToAccounts(page: Page) {
     // Dismiss any toast notifications that might block navigation links
     await dismissToasts(page);
-    
+
+    // Wait for accounts link to be visible (may need time after password change redirect)
+    await expect(_getAccountsLink(page)).toBeVisible({ timeout: 10000 });
+
     await _getAccountsLink(page).click();
 }
 
 export async function navigateToClients(page: Page) {
     // Dismiss any toast notifications that might block navigation links
     await dismissToasts(page);
-    
+
+    // Wait for clients link to be visible
+    await expect(_getClientsLink(page)).toBeVisible({ timeout: 10000 });
+
     await _getClientsLink(page).click();
 }
 

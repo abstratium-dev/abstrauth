@@ -273,6 +273,191 @@ public class OrganisationsResourceTest {
     }
 
     // ─────────────────────────────────────────────────────────
+    // POST /api/organisations/{orgId}/members/{accountId}/owner
+    // ─────────────────────────────────────────────────────────
+
+    @Test
+    public void testMakeOwner_success() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_ownermake");
+        Account member = createAccount(ts + "_membermake");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), member.getId());
+        transactionHelper.commitTransaction();
+
+        String token = userToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .post("/api/organisations/" + ownerOrg.getId() + "/members/" + member.getId() + "/owner")
+                .then()
+                .statusCode(204);
+
+        assertTrue(organisationService.isOwner(ownerOrg.getId(), member.getId()));
+    }
+
+    @Test
+    public void testMakeOwner_notMember_returns400() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_ownermakenm");
+        Account nonMember = createAccount(ts + "_nonmember");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        String token = userToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .post("/api/organisations/" + ownerOrg.getId() + "/members/" + nonMember.getId() + "/owner")
+                .then()
+                .statusCode(400)
+                .body("error", containsString("not a member"));
+    }
+
+    @Test
+    public void testMakeOwner_alreadyOwner_returns400() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_ownermakeao");
+        Account coOwner = createAccount(ts + "_coowner");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), coOwner.getId());
+        organisationService.addOwner(ownerOrg.getId(), coOwner.getId());
+        transactionHelper.commitTransaction();
+
+        String token = userToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .post("/api/organisations/" + ownerOrg.getId() + "/members/" + coOwner.getId() + "/owner")
+                .then()
+                .statusCode(400)
+                .body("error", containsString("already an owner"));
+    }
+
+    @Test
+    public void testMakeOwner_nonOwner_returns403() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_ownerfmake");
+        Account nonOwner = createAccount(ts + "_nonownfmake");
+        Account victim = createAccount(ts + "_victimfmake");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), nonOwner.getId());
+        organisationService.addMember(ownerOrg.getId(), victim.getId());
+        transactionHelper.commitTransaction();
+
+        String token = userToken(nonOwner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .post("/api/organisations/" + ownerOrg.getId() + "/members/" + victim.getId() + "/owner")
+                .then()
+                .statusCode(403);
+    }
+
+    @Test
+    public void testMakeOwner_orgNotFound_returns403() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_ownermake404");
+        Account member = createAccount(ts + "_membermake404");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), member.getId());
+        transactionHelper.commitTransaction();
+
+        String token = userToken(owner.getId(), ownerOrg.getId());
+
+        // isOwnerOfOrg returns false for non-existent org, so 403 is returned before the 404 check
+        given()
+                .auth().oauth2(token)
+                .when()
+                .post("/api/organisations/00000000-0000-0000-0000-000000009999/members/" + member.getId() + "/owner")
+                .then()
+                .statusCode(403);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // GET /api/organisations/{orgId}/owners
+    // ─────────────────────────────────────────────────────────
+
+    @Test
+    public void testGetOwners_success() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_ownerget");
+        Account coOwner = createAccount(ts + "_coownerget");
+        Account member = createAccount(ts + "_memberget");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), coOwner.getId());
+        organisationService.addOwner(ownerOrg.getId(), coOwner.getId());
+        organisationService.addMember(ownerOrg.getId(), member.getId());
+        transactionHelper.commitTransaction();
+
+        String token = userToken(member.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .get("/api/organisations/" + ownerOrg.getId() + "/owners")
+                .then()
+                .statusCode(200)
+                .body("$", hasSize(2))
+                .body("$", hasItems(owner.getId(), coOwner.getId()));
+    }
+
+    @Test
+    public void testGetOwners_nonMember_returns404() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_ownergnm");
+        Account nonMember = createAccount(ts + "_nonmembergnm");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        String token = userToken(nonMember.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .get("/api/organisations/" + ownerOrg.getId() + "/owners")
+                .then()
+                .statusCode(404)
+                .body("error", containsString("Organisation not found"));
+    }
+
+    @Test
+    public void testGetOwners_orgNotFound_returns404() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_ownerg404");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+        String token = userToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .get("/api/organisations/00000000-0000-0000-0000-000000009999/owners")
+                .then()
+                .statusCode(404)
+                .body("error", containsString("Organisation not found"));
+    }
+
+    // ─────────────────────────────────────────────────────────
     // DELETE /api/organisations/{orgId}/members/{accountId}
     // ─────────────────────────────────────────────────────────
 

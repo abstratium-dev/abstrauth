@@ -414,4 +414,26 @@ export class Controller {
       throw error;
     }
   }
+
+  async makeOwner(orgId: string, accountId: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.post<void>(`/api/organisations/${orgId}/members/${accountId}/owner`, {})
+      );
+    } catch (error) {
+      console.error('Error making owner:', error);
+      throw error;
+    }
+  }
+
+  async getOrganisationOwners(orgId: string): Promise<string[]> {
+    try {
+      return await firstValueFrom(
+        this.http.get<string[]>(`/api/organisations/${orgId}/owners`)
+      );
+    } catch (error) {
+      console.error('Error getting organisation owners:', error);
+      throw error;
+    }
+  }
 }

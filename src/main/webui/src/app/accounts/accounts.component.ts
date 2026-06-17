@@ -31,6 +31,7 @@ export class AccountsComponent implements OnInit {
   error: string | null = null;
   private currentFilter: string = '';
   private isFirstLoad = true;
+  ownerIds: string[] = [];
 
   // Add Account Form state
   showAddAccountForm = false;
@@ -87,6 +88,7 @@ export class AccountsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadAccounts();
+    this.loadOwners();
     this.controller.loadClients();
 
     // Check if user has previously hidden the roles info note
@@ -95,6 +97,17 @@ export class AccountsComponent implements OnInit {
     // Apply initial filter after first render
     this.isFirstLoad = false;
     this.applyFilter();
+  }
+
+  async loadOwners(): Promise<void> {
+    const orgId = this.authService.getOrgId();
+    if (!orgId) return;
+    try {
+      this.ownerIds = await this.controller.getOrganisationOwners(orgId);
+    } catch (err) {
+      console.error('Failed to load owners:', err);
+      this.ownerIds = [];
+    }
   }
 
   hideRolesInfo(): void {
@@ -195,6 +208,52 @@ export class AccountsComponent implements OnInit {
 
   hasManageAccountsRole(): boolean {
     return this.authService.hasRole(ROLE_MANAGE_ACCOUNTS);
+  }
+
+  isOwner(): boolean {
+    const currentOrg = this.modelService.currentOrganisation$();
+    return currentOrg?.roles?.includes('owner') ?? false;
+  }
+
+  isAccountOwner(account: Account): boolean {
+    return this.ownerIds.includes(account.id);
+  }
+
+  async makeOwner(account: Account): Promise<void> {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Make Owner',
+      message: `Are you sure you want to make "${account.name}" (${account.email}) an owner of this organisation? Owners can manage members, subscriptions, and organisation settings.`,
+      confirmText: 'Make Owner',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-primary'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    const orgId = this.authService.getOrgId();
+    if (!orgId) {
+      this.toastService.error('No organisation selected');
+      return;
+    }
+
+    try {
+      await this.controller.makeOwner(orgId, account.id);
+      this.toastService.success(`${account.name} is now an owner of this organisation`);
+      // Reload owners list to reflect the change
+      await this.loadOwners();
+    } catch (err: any) {
+      if (err.status === 403) {
+        this.toastService.error('You do not have permission to make owners.');
+      } else if (err.status === 400 && err.error?.error) {
+        this.toastService.error(err.error.error);
+      } else if (err.status === 404) {
+        this.toastService.error('Account or organisation not found.');
+      } else {
+        this.toastService.error('Failed to make owner. Please try again.');
+      }
+    }
   }
 
   toggleAddAccountForm(): void {

@@ -160,6 +160,14 @@
                 {{ account.emailVerified ? '✓ Verified' : '✗ Not Verified' }}
               </span>
             </div>
+            <!-- Crown badge/button for owner status -->
+            <span *ngIf="isAccountOwner(account)" class="badge badge-owner" title="Owner of this organisation">👑</span>
+            <button *ngIf="isOwner() && !isCurrentUser(account.id) && !isAccountOwner(account)" 
+                    class="btn-icon btn-icon-owner" 
+                    (click)="makeOwner(account)" 
+                    title="Make owner">
+              👑
+            </button>
             <button *ngIf="hasManageAccountsRole()" 
                     class="btn-icon btn-icon-danger" 
                     (click)="deleteAccount(account)" 

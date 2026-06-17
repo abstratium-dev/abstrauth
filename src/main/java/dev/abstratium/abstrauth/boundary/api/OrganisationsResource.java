@@ -102,6 +102,22 @@ public class OrganisationsResource {
                         .build());
     }
 
+    @GET
+    @Path("/{orgId}/owners")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "List organisation owners", description = "Returns a list of account IDs that are owners of this organisation. Caller must be a member.")
+    @RolesAllowed(Roles.USER)
+    public Response getOrganisationOwners(@PathParam("orgId") String orgId) {
+        String accountId = token.getSubject();
+        if (!organisationService.isMember(orgId, accountId)) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Organisation not found"))
+                    .build();
+        }
+        List<String> ownerIds = organisationService.getOwnerIds(orgId);
+        return Response.ok(ownerIds).build();
+    }
+
     @PUT
     @Path("/{orgId}")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -125,6 +141,43 @@ public class OrganisationsResource {
                 .orElse(Response.status(Response.Status.NOT_FOUND)
                         .entity(new ErrorResponse("Organisation not found"))
                         .build());
+    }
+
+    @POST
+    @Path("/{orgId}/members/{accountId}/owner")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Make member an owner", description = "Promotes an existing member to owner. Caller must be owner of that organisation.")
+    @RolesAllowed(Roles.USER)
+    public Response makeOwner(@PathParam("orgId") String orgId, @PathParam("accountId") String accountId) {
+        String callerId = token.getSubject();
+
+        if (!isOwnerOfOrg(callerId, orgId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("You must be an owner of this organisation"))
+                    .build();
+        }
+
+        if (organisationService.findById(orgId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Organisation not found"))
+                    .build();
+        }
+
+        // Verify the account is already a member
+        if (!organisationService.isMember(orgId, accountId)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Account is not a member of this organisation"))
+                    .build();
+        }
+
+        try {
+            organisationService.addOwner(orgId, accountId);
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+        return Response.noContent().build();
     }
 
     @DELETE

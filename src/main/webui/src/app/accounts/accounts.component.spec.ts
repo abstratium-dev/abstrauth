@@ -1258,4 +1258,144 @@ describe('AccountsComponent', () => {
       httpMock.expectNone(`/api/accounts/${accountToDelete.id}`);
     }));
   });
+
+  describe('Owner Functionality', () => {
+    const mockClients = [
+      { 
+        id: '1',
+        orgId: 'test-org',
+        clientId: 'client-1', 
+        clientName: 'Client 1', 
+        clientType: 'confidential',
+        redirectUris: 'http://localhost', 
+        allowedScopes: 'openid profile',
+        requirePkce: false,
+        autoSubscribe: true,
+        publik: false,
+        createdAt: '2024-01-01T00:00:00Z'
+      }
+    ];
+
+    it('should load owners on init', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const ownersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+      ownersReq.flush(['1']); // Account with id '1' is owner
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      expect(component.ownerIds).toEqual(['1']);
+    }));
+
+    it('should identify account as owner when in ownerIds list', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const ownersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+      ownersReq.flush(['1', '2']); // Both account 1 and 2 are owners
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      expect(component.isAccountOwner(mockAccounts[0])).toBe(true); // id: '1'
+      expect(component.isAccountOwner(mockAccounts[1])).toBe(true); // id: '2'
+      expect(component.isAccountOwner(mockAccounts[2])).toBe(false); // id: '3'
+    }));
+
+    it('should reload owners after making someone owner', fakeAsync(async () => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const ownersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+      ownersReq.flush(['1']); // Only account 1 is owner initially
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      // Make account 2 an owner
+      const promise = component.makeOwner(mockAccounts[1]);
+
+      tick();
+
+      const makeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+      expect(makeOwnerReq.request.method).toBe('POST');
+      makeOwnerReq.flush(null, { status: 204, statusText: 'No Content' });
+      tick();
+
+      // Should reload owners after success
+      const reloadOwnersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+      reloadOwnersReq.flush(['1', '2']); // Now both are owners
+      tick();
+
+      await promise;
+
+      expect(component.isAccountOwner(mockAccounts[1])).toBe(true);
+    }));
+
+    it('should handle error when making owner', fakeAsync(async () => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const ownersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+      ownersReq.flush(['1']);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      const promise = component.makeOwner(mockAccounts[1]);
+
+      tick();
+
+      const makeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+      makeOwnerReq.flush({ error: 'Already an owner' }, { status: 400, statusText: 'Bad Request' });
+      tick();
+
+      await promise;
+
+      // Owners list should not be reloaded on error
+      httpMock.expectNone('/api/organisations/test-org/owners');
+    }));
+
+    it('should not show make owner button for current user', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      const ownersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+      ownersReq.flush(['1']);
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+
+      // Current user is mocked with sub: '1'
+      expect(component.isCurrentUser('1')).toBe(true);
+      expect(component.isCurrentUser('2')).toBe(false);
+    }));
+  });
 });

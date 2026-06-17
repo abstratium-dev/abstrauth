@@ -446,6 +446,96 @@ export async function tryDeleteRoleFromAccount(page: Page, accountEmail: string,
 }
 
 /**
+ * Clicks the "Make Owner" button (👑) for an account by email.
+ * Assumes we're already on the accounts page and user is an owner.
+ * Returns the error message if one appears, or null if successful.
+ */
+export async function tryMakeOwner(page: Page, accountEmail: string): Promise<string | null> {
+    console.log(`Attempting to make "${accountEmail}" an owner...`);
+
+    // Find the tile for the account with the given email
+    const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
+    await expect(accountTile).toBeVisible({ timeout: 10000 });
+
+    // Find and click the make owner button (crown icon) for this account
+    const makeOwnerButton = accountTile.locator('button[title="Make owner"]').first();
+    await expect(makeOwnerButton).toBeVisible({ timeout: 5000 });
+    await makeOwnerButton.click();
+
+    // Wait for confirmation dialog to appear
+    const confirmButton = page.locator('button.btn-primary').filter({ hasText: 'Make Owner' });
+    await expect(confirmButton).toBeVisible({ timeout: 2000 });
+
+    // Click the confirm button in the dialog
+    await confirmButton.click();
+
+    // Count existing ERROR toasts before the operation
+    const initialErrorToastCount = await page.locator('.toast-error').count();
+    const initialSuccessToastCount = await page.locator('.toast-success').count();
+
+    console.log(`Checking for result after making owner...`);
+
+    // Use Playwright's expect().toPass() to poll for either condition
+    let result: string | null = null;
+    let iterationCount = 0;
+
+    try {
+        await expect(async () => {
+            iterationCount++;
+
+            // Debug: Check all toasts on page
+            const allToasts = await page.locator('.toast').count();
+            const allToastErrors = await page.locator('.toast-error').count();
+            const allToastSuccesses = await page.locator('.toast-success').count();
+
+            if (iterationCount === 1 || iterationCount % 4 === 0) {
+                console.log(`[Make Owner - Iteration ${iterationCount}] All toasts: ${allToasts}, Error toasts: ${allToastErrors}, Success toasts: ${allToastSuccesses}`);
+            }
+
+            // Check if a NEW error toast appeared (count increased)
+            if (allToastErrors > initialErrorToastCount) {
+                // Get all error toast messages and find the newest one
+                const allErrorMessages = await page.locator('.toast-error .toast-message').allTextContents();
+                result = allErrorMessages[allErrorMessages.length - 1]?.trim() || 'Unknown error';
+                console.log(`✓ Error toast appeared: ${result}`);
+                expect(true).toBe(true); // Pass the assertion
+                return;
+            }
+
+            // Check if a NEW success toast appeared (count increased)
+            if (allToastSuccesses > initialSuccessToastCount) {
+                // Get all success toast messages and find the newest one
+                const allSuccessMessages = await page.locator('.toast-success .toast-message').allTextContents();
+                const successMessage = allSuccessMessages[allSuccessMessages.length - 1]?.trim() || 'Success';
+                console.log(`✓ Success toast appeared: ${successMessage}`);
+                result = null;
+                expect(true).toBe(true); // Pass the assertion
+                return;
+            }
+
+            // Neither condition met yet, fail to continue polling
+            throw new Error('Still waiting for toast');
+        }).toPass({ timeout: 5000, intervals: [250] });
+    } catch (e) {
+        // Timeout - no toast appeared
+        console.log(`Timeout after ${iterationCount} iterations: No toast appeared`);
+        result = null;
+    }
+
+    return result;
+}
+
+/**
+ * Checks if the "Make Owner" button is visible for an account.
+ * Assumes we're already on the accounts page.
+ */
+export async function isMakeOwnerButtonVisible(page: Page, accountEmail: string): Promise<boolean> {
+    const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
+    const makeOwnerButton = accountTile.locator('button[title="Make owner"]');
+    return await makeOwnerButton.isVisible().catch(() => false);
+}
+
+/**
  * Attempts to delete an account by email.
  * Assumes we're already on the accounts page and user has manage-accounts role.
  * Returns the error message if one appears, or null if successful.

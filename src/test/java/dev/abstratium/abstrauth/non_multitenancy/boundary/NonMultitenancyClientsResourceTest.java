@@ -166,6 +166,91 @@ public class NonMultitenancyClientsResourceTest {
     }
 
     // ─────────────────────────────────────────────────────────
+    // POST /api/accounts/role - Role assignment restrictions
+    // ─────────────────────────────────────────────────────────
+
+    @Test
+    public void testAssignRole_notAvailableToForeignOrgs_returns400() throws Exception {
+        long ts = System.currentTimeMillis();
+        
+        // Create owner org and public client with roles
+        Account ownerAccount = createAccount(ts + "_roleowner");
+        String ownerOrgId = getAccountOrgId(ownerAccount.getId());
+        String clientId = "restricted-roles-client-" + ts;
+        
+        // Create foreign org with an account manager
+        Account managerAccount = createAccount(ts + "_rolemanager");
+        String managerOrgId = getAccountOrgId(managerAccount.getId());
+        
+        // Create another account and add it to the manager's org
+        Account targetAccount = createAccount(ts + "_roletarget");
+        
+        // Add the target account to the manager's org so the manager can assign roles to it
+        transactionHelper.beginTransaction();
+        organisationService.addMember(managerOrgId, targetAccount.getId());
+        transactionHelper.commitTransaction();
+        
+        // Setup: create public client in owner org with multiple roles
+        transactionHelper.beginTransaction();
+        
+        // Create a public client in owner org
+        createTestClient(clientId, ownerOrgId);
+        
+        // Add multiple roles: some available to foreign orgs, some not
+        // Role 1: available to foreign orgs (default = true, so it gets auto-assigned on subscription)
+        insertAllowedRole(clientId, "foreign-viewer", true, true);
+        // Role 2: NOT available to foreign orgs
+        insertAllowedRole(clientId, "internal-admin", false, false);
+        // Role 3: available to foreign orgs but not default
+        insertAllowedRole(clientId, "foreign-editor", false, true);
+        
+        // Subscribe the foreign org to this client
+        subscriptionService.ensureSubscribed(managerOrgId, clientId, true);
+        
+        transactionHelper.commitTransaction();
+
+        // Manager token with MANAGE_ACCOUNTS role
+        String managerToken = managerToken(managerAccount.getId(), managerOrgId);
+
+        // Verify the foreign-viewer role CAN be assigned (it's available to foreign orgs)
+        given()
+                .auth().oauth2(managerToken)
+                .contentType(ContentType.JSON)
+                .body(String.format(
+                    "{\"accountId\":\"%s\",\"clientId\":\"%s\",\"role\":\"foreign-viewer\"}",
+                    targetAccount.getId(), clientId))
+                .when()
+                .post("/api/accounts/role")
+                .then()
+                .statusCode(201);
+
+        // Verify the internal-admin role CANNOT be assigned (not available to foreign orgs)
+        given()
+                .auth().oauth2(managerToken)
+                .contentType(ContentType.JSON)
+                .body(String.format(
+                    "{\"accountId\":\"%s\",\"clientId\":\"%s\",\"role\":\"internal-admin\"}",
+                    targetAccount.getId(), clientId))
+                .when()
+                .post("/api/accounts/role")
+                .then()
+                .statusCode(400)
+                .body("error", containsString("not in the allowlist"));
+
+        // Verify the foreign-editor role CAN be assigned (it's available to foreign orgs)
+        given()
+                .auth().oauth2(managerToken)
+                .contentType(ContentType.JSON)
+                .body(String.format(
+                    "{\"accountId\":\"%s\",\"clientId\":\"%s\",\"role\":\"foreign-editor\"}",
+                    targetAccount.getId(), clientId))
+                .when()
+                .post("/api/accounts/role")
+                .then()
+                .statusCode(201);
+    }
+
+    // ─────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────
 
@@ -174,6 +259,15 @@ public class NonMultitenancyClientsResourceTest {
                 .subject(accountId)
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))
+                .claim("orgId", orgId)
+                .sign();
+    }
+
+    private String managerToken(String accountId, String orgId) {
+        return Jwt.issuer("https://abstrauth.abstratium.dev")
+                .subject(accountId)
+                .upn("test@example.com")
+                .groups(Set.of(Roles.USER, Roles.MANAGE_ACCOUNTS))
                 .claim("orgId", orgId)
                 .sign();
     }

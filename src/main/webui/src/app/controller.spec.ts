@@ -957,4 +957,145 @@ describe('Controller', () => {
     });
   });
 
+  describe('getOrganisationOwners', () => {
+    const mockOrgId = 'org-123';
+    const mockOwnerIds = ['owner-1', 'owner-2'];
+
+    it('should get organisation owners successfully', async () => {
+      const promise = controller.getOrganisationOwners(mockOrgId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/owners`);
+      expect(req.request.method).toBe('GET');
+      req.flush(mockOwnerIds);
+
+      const result = await promise;
+      expect(result).toEqual(mockOwnerIds);
+    });
+
+    it('should return empty array when no owners', async () => {
+      const promise = controller.getOrganisationOwners(mockOrgId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/owners`);
+      req.flush([]);
+
+      const result = await promise;
+      expect(result).toEqual([]);
+    });
+
+    it('should handle 404 organisation not found error', async () => {
+      const promise = controller.getOrganisationOwners(mockOrgId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/owners`);
+      req.flush({ error: 'Organisation not found' }, { status: 404, statusText: 'Not Found' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(404);
+      }
+    });
+
+    it('should handle 403 permission error', async () => {
+      const promise = controller.getOrganisationOwners(mockOrgId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/owners`);
+      req.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(403);
+      }
+    });
+
+    it('should handle network error', async () => {
+      const promise = controller.getOrganisationOwners(mockOrgId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/owners`);
+      req.error(new ProgressEvent('error'));
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
+    });
+  });
+
+  describe('makeOwner', () => {
+    const mockOrgId = 'org-123';
+    const mockAccountId = 'account-456';
+
+    it('should make account owner successfully', async () => {
+      const promise = controller.makeOwner(mockOrgId, mockAccountId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/members/${mockAccountId}/owner`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({});
+      req.flush(null, { status: 204, statusText: 'No Content' });
+
+      await promise;
+    });
+
+    it('should handle 400 already owner error', async () => {
+      const promise = controller.makeOwner(mockOrgId, mockAccountId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/members/${mockAccountId}/owner`);
+      req.flush({ error: 'Account is already an owner' }, { status: 400, statusText: 'Bad Request' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(400);
+        expect(err.error.error).toBe('Account is already an owner');
+      }
+    });
+
+    it('should handle 403 permission error', async () => {
+      const promise = controller.makeOwner(mockOrgId, mockAccountId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/members/${mockAccountId}/owner`);
+      req.flush({ error: 'You must be an owner' }, { status: 403, statusText: 'Forbidden' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(403);
+      }
+    });
+
+    it('should handle 404 not found error', async () => {
+      const promise = controller.makeOwner(mockOrgId, mockAccountId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/members/${mockAccountId}/owner`);
+      req.flush({ error: 'Not found' }, { status: 404, statusText: 'Not Found' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(404);
+      }
+    });
+
+    it('should handle network error', async () => {
+      const promise = controller.makeOwner(mockOrgId, mockAccountId);
+
+      const req = httpMock.expectOne(`/api/organisations/${mockOrgId}/members/${mockAccountId}/owner`);
+      req.error(new ProgressEvent('error'));
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
+    });
+  });
+
 });

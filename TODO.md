@@ -14,12 +14,15 @@
 - What is NOT done - multitenancy
   - Subscription management UI — no calls to POST /api/organisations/{orgId}/subscriptions or DELETE .../subscriptions/{clientId}.
   - can we do all the stuff on the svg diagram and in the design document?
-  - add "add owner" API endpoint to promote member to owner (currently only `addMember` exists; `addOwner` method exists in service but isn't exposed). When implemented, ensure management roles are assigned (or require manual assignment as per design decision).
+
+T in ui, e2e exists - add "add owner" API endpoint to promote member to owner (currently only `addMember` exists; `addOwner` method exists in service but isn't exposed). When implemented, ensure management roles are assigned (or require manual assignment as per design decision).
 
 - REALLY IMPORTANT: T_client_allowed_roles check that users
       cannot update the list if they are not a client manager in the org that owns the client. in fact, they can only do that if their current orgId matches that of the client! otherwise a malicious user could change the list and then add themselves as an admin to abstrauth in a second step
 
 -service accounts - could someone create a client and add roles to say abstrauth so that they can abuse? no since a) they can only add where there's a subscription and only available roles and b) the role they create is stored in their clients org and c) the token gets that orgId so that the client roles can only do stuff to data in their org.
+
+- make deleting accounts and roles (x2) harder -> enter the name to confirm
 
 - add envers and viewing history
   - based on the impl in abstoggle! but that really needs to go into abstracore.
@@ -38,15 +41,7 @@
   - extend MetricsService with orgs, etc.
   - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
 
-----
-- quarkus test: create a public client in org1 with many roles but not all are available to foreign orgs, and then sign in as an account manager in the second org and try assigning a role that isn't available and ensure that is not allowed.
-- quarkus test: are roles removed from ALL users, including outside the org, when a role is deleted from a client?
-- IMPORTANT QUARKUS TEST: can i add a client-role to a client which is displayed in my UI but which i didn't create? coz if i can, then i can create a client-role for abstratium-abstrauth and get a JWT that is given ABSTRATIUMS ORG ID!!!!!! that is REALLY REALLY BAD!!!!
-  - the org id that the token gets must belong to the org that created the roles. but we don't know which org that is when the client signs in, do we? ah, wait, the client abstratium-abstrauth can't sign in anyway! coz the third party doesn't have the secret. owning the secret and signing in with it proves you are in the org that owns the client. so it is correct to use the orgId of the client in the JWT.
-  - userguide updated. now add a test that ensures that it is not possible for me to add a role to abstrauth. 
-----
-
-- see token exchange MD and the second one about how it is used and implement that.
+- see token exchange markdown and the second one about how it is used and implement that.
 
 - take flows, security design? and multitenancy design and get rid of stuff related to what has already been implemented (primarily in multitenancy design doc) and create a single spec and design document from that.
 

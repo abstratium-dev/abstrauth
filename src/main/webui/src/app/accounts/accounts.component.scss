@@ -120,3 +120,24 @@
     }
   }
 }
+
+/* Owner badge - crown emoji only, no background */
+.badge-owner {
+  font-size: 1rem;
+  padding: 0.25rem;
+  cursor: default;
+}
+
+/* Owner button - grey crown that becomes gold on hover */
+.btn-icon-owner {
+  opacity: 0.4;
+  filter: grayscale(100%);
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    opacity: 1;
+    filter: grayscale(0%);
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border-color: #d97706;
+  }
+}
