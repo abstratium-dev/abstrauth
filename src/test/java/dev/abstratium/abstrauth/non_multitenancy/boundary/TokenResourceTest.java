@@ -343,10 +343,10 @@ public class TokenResourceTest {
         String manageToken = generateManageTokenForOrg(orgId);
 
         // Create source client (the one that will sign in)
-        String srcClientId = createClient(manageToken, "src-own-org", "[" + orgId + "-target-service" + "]", "[]");
+        String srcClientId = createClient(manageToken, "src_own_org", "[" + orgId + "-target-service" + "]", "[]");
 
         // Create target client in the same org
-        String targetClientId = createClientWithAllowedRole(manageToken, "target-own-org", "api-reader", true);
+        String targetClientId = createClientWithAllowedRole(manageToken, "target_own_org", "api-reader", true);
 
         // Create a client role assignment: src -> target with role 'api-reader'
         given()
@@ -397,8 +397,8 @@ public class TokenResourceTest {
         String manageTokenB = generateManageTokenForOrg(orgB);
 
         // In Org A: Create source client and assign it a role for a target
-        String srcClientIdA = createClient(manageTokenA, "src-cross-org", "[" + orgA + "-target-a" + "]", "[]");
-        String targetClientIdA = createClientWithAllowedRole(manageTokenA, "target-a", "api-reader", true);
+        String srcClientIdA = createClient(manageTokenA, "src_cross_org", "[" + orgA + "-target_a" + "]", "[]");
+        String targetClientIdA = createClientWithAllowedRole(manageTokenA, "target_a", "api-reader", true);
 
         given()
             .header("Authorization", "Bearer " + manageTokenA)
@@ -414,7 +414,7 @@ public class TokenResourceTest {
         String srcClientIdB = srcClientIdA; // Same ID, but different org context via JWT
 
         // Create client role for the same client ID in Org B (target-b)
-        String targetClientIdB = createClientWithAllowedRole(manageTokenB, "target-b", "api-writer", true);
+        String targetClientIdB = createClientWithAllowedRole(manageTokenB, "target_b", "api-writer", true);
         given()
             .header("Authorization", "Bearer " + manageTokenB)
             .contentType("application/json")
@@ -462,7 +462,7 @@ public class TokenResourceTest {
         String manageToken = generateManageTokenForOrg(DEFAULT_ORG);
 
         // Create a client but don't assign any client roles
-        String clientId = createClient(manageToken, "no-roles-client", "[]", "[]");
+        String clientId = createClient(manageToken, "no_roles_client", "[]", "[]");
         String clientSecret = createClientSecret(manageToken, clientId);
 
         String accessToken = given()
@@ -494,8 +494,8 @@ public class TokenResourceTest {
         String manageToken = generateManageTokenForOrg(DEFAULT_ORG);
 
         // Create source client and target with role assignment
-        String srcClientId = createClient(manageToken, "isolated-client", "[" + DEFAULT_ORG + "-isolated-target" + "]", "[]");
-        String targetClientId = createClientWithAllowedRole(manageToken, "isolated-target", "secure-role", true);
+        String srcClientId = createClient(manageToken, "isolated_client", "[" + DEFAULT_ORG + "-isolated_target" + "]", "[]");
+        String targetClientId = createClientWithAllowedRole(manageToken, "isolated_target", "secure-role", true);
 
         given()
             .header("Authorization", "Bearer " + manageToken)

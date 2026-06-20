@@ -14,6 +14,7 @@ import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccountRole;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.quarkus.test.junit.QuarkusTest;
@@ -34,6 +35,9 @@ public class NonMultitenancyAccountRoleServiceTest {
     @Inject
     TestTransactionHelper transactionHelper;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
 
@@ -45,6 +49,9 @@ public class NonMultitenancyAccountRoleServiceTest {
     @BeforeEach
     public void setup() throws Exception {
         transactionHelper.beginTransaction();
+
+        // Reset tenant context to the default org before querying OAuth clients
+        dbResetHelper.resetDatabase();
 
         // Ensure test clients exist
         for (String clientId : new String[]{TEST_CLIENT_ID, TEST_CLIENT_ID_2}) {

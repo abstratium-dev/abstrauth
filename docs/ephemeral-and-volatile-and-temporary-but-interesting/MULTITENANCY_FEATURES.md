@@ -20,7 +20,7 @@ Create migration files for the four new tables. No entity or service changes yet
 
 ## Feature 2 — Database: Add `org_id` to Scoped Tables + Data Migration ✅ COMPLETED
 
-Add `org_id` column (nullable initially) to `T_oauth_clients`, `T_account_roles`, `T_oauth_client_secrets`, `T_service_account_roles` with a non-unique index on each. Then migrate existing data into a default organisation.
+Add `org_id` column (nullable initially) to `T_oauth_clients`, `T_account_roles`, `T_oauth_client_secrets`, `T_client_roles` with a non-unique index on each. Then migrate existing data into a default organisation.
 
 **Files:**
 - `V01.020__add_org_id_to_scoped_tables.sql`

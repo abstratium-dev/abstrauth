@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -35,10 +36,16 @@ public class AuthorizationServiceTest {
     
     @Inject
     TestTransactionHelper transactionHelper;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
     
     @BeforeEach
     public void setup() throws Exception {
         transactionHelper.beginTransaction();
+
+        // Reset tenant context and clean up any leftover test data
+        dbResetHelper.resetDatabase();
         
         // Ensure test_client exists
         var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = 'test_client'", dev.abstratium.abstrauth.entity.OAuthClient.class);

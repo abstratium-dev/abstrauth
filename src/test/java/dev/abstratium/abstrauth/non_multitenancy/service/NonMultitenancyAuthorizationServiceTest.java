@@ -11,10 +11,12 @@ import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancySubscription;
 import dev.abstratium.abstrauth.service.NoSubscriptionException;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
 
 @QuarkusTest
 public class NonMultitenancyAuthorizationServiceTest {
@@ -33,6 +35,16 @@ public class NonMultitenancyAuthorizationServiceTest {
 
     @Inject
     TestTransactionHelper transactionHelper;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @BeforeEach
+    public void resetContext() throws Exception {
+        transactionHelper.beginTransaction();
+        dbResetHelper.resetDatabase();
+        transactionHelper.commitTransaction();
+    }
 
     private dev.abstratium.abstrauth.entity.OAuthClient createClientWithFlags(String clientId, boolean publik, boolean autoSubscribe) throws Exception {
         transactionHelper.beginTransaction();

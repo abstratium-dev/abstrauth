@@ -15,6 +15,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.RevokedToken;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -37,13 +38,26 @@ class TokenRevocationServiceTest {
     @Inject
     TestTransactionHelper transactionHelper;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @Inject
+    CurrentOrgContext currentOrgContext;
+
+    private static boolean dbResetDone = false;
+
     private String testAuthCodeId;
     private String testJti;
 
     @BeforeEach
     public void setup() throws Exception {
         transactionHelper.beginTransaction();
-        
+        if (!dbResetDone) {
+            dbResetHelper.resetDatabase();
+            dbResetDone = true;
+        }
+        currentOrgContext.setOrgId(TestDatabaseResetHelper.DEFAULT_ORG_ID);
+
         // Ensure test-client exists
         var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = 'test-client'", dev.abstratium.abstrauth.entity.OAuthClient.class);
         if (clientQuery.getResultList().isEmpty()) {

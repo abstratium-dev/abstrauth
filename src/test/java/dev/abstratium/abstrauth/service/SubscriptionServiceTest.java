@@ -14,9 +14,12 @@ import org.junit.jupiter.api.Test;
 import dev.abstratium.abstrauth.entity.Subscription;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancySubscription;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.transaction.UserTransaction;
+
+import org.junit.jupiter.api.BeforeEach;
 
 @QuarkusTest
 public class SubscriptionServiceTest {
@@ -38,7 +41,17 @@ public class SubscriptionServiceTest {
     jakarta.persistence.EntityManager em;
 
     @Inject
-    UserTransaction userTransaction;
+    TestTransactionHelper transactionHelper;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @BeforeEach
+    public void resetDatabaseBeforeTest() throws Exception {
+        transactionHelper.beginTransaction();
+        dbResetHelper.resetDatabase();
+        transactionHelper.commitTransaction();
+    }
 
     /**
      * Creates a fresh client in the default org and returns its clientId.
@@ -46,7 +59,7 @@ public class SubscriptionServiceTest {
      */
     private String newClient() throws Exception {
         String clientId = "sub-test-" + System.nanoTime();
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
         client.setClientId(clientId);
         client.setClientName("Sub Test " + clientId);
@@ -55,15 +68,15 @@ public class SubscriptionServiceTest {
         client.setAllowedScopes("[]");
         client.setRequirePkce(false);
         em.persist(client);
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         return clientId;
     }
 
     /** Creates a new organisation and returns its id (used for isolation assertions only). */
     private String newOrg() throws Exception {
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         String orgId = organisationService.createOrganisation("Sub Test Org", null).getId();
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         return orgId;
     }
 

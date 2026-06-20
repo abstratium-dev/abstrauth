@@ -96,7 +96,7 @@ Organisation-scoped (receive `org_id` VARCHAR(36) column) and JPA entities use @
 - `T_oauth_clients` — also has `auto_subscribe BOOLEAN` (whether subscriptions are created automatically on first sign-in) and `publik BOOLEAN` (whether third-party organisations may subscribe at all)
 - `T_account_roles`
 - `T_oauth_client_secrets`
-- `T_service_account_roles`
+- `T_client_roles`
 
 Global (no `org_id`):
 - `T_accounts`, `T_credentials`, `T_federated_identities`

@@ -66,7 +66,7 @@ public class OAuthFlowWithClientSecretTest {
         em.createQuery("DELETE FROM AuthorizationRequest WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM ClientRole WHERE srcClientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM ClientRole WHERE targetClientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM ClientAllowedRole WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientAllowedRole WHERE id.clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM Subscription WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM Credential WHERE username = 'oauthflowtest'").executeUpdate();

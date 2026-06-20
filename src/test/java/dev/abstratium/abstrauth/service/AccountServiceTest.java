@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.service;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.Credential;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -28,9 +29,17 @@ public class AccountServiceTest {
 
     @Inject
     TestTransactionHelper transactionHelper;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
     
     @BeforeEach
     public void setup() throws Exception {
+        // Reset tenant context and clean up any leftover test data
+        transactionHelper.beginTransaction();
+        dbResetHelper.resetDatabase();
+        transactionHelper.commitTransaction();
+
         // Ensure common test clients exist
         transactionHelper.beginTransaction();
         ensureClientExists("client-a");

@@ -380,6 +380,15 @@ public class AccountService {
     }
 
     /**
+     * Test-only hook: resets the cached account-existence flag so that a
+     * freshly cleaned database is correctly detected as having no accounts.
+     * Called by TestDatabaseResetHelper.
+     */
+    public void resetAccountExistenceCache() {
+        ONE_OR_MORE_ACCOUNTS_FOUND.set(false);
+    }
+
+    /**
      * Create a credential for an existing account
      * @param accountId The account ID
      * @param username The username (typically email)

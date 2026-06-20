@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientRole;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -28,6 +29,9 @@ public class NonMultitenancyClientRoleServiceTest {
     @Inject
     TestTransactionHelper transactionHelper;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
 
@@ -39,6 +43,9 @@ public class NonMultitenancyClientRoleServiceTest {
     public void setup() throws Exception {
         transactionHelper.beginTransaction();
 
+        // Reset tenant context to the default org before querying OAuth clients
+        dbResetHelper.resetDatabase();
+
         // Clean up any existing test data
         em.createQuery("DELETE FROM NonMultitenancyClientRole cr WHERE cr.srcClientId LIKE 'test_src_client_%'")
             .executeUpdate();
@@ -47,7 +54,7 @@ public class NonMultitenancyClientRoleServiceTest {
         for (String clientId : new String[]{TEST_SRC_CLIENT_ID, TEST_SRC_CLIENT_ID_2, TEST_TARGET_CLIENT_ID}) {
             var clientOpt = nonMultitenancyOAuthClientService.findByClientId(clientId);
             if (clientOpt.isPresent()) {
-                nonMultitenancyOAuthClientService.deleteClientWithCascade(clientOpt.get().getId());
+                nonMultitenancyOAuthClientService.deleteClientWithCascade(clientId);
             }
         }
 

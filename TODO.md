@@ -11,9 +11,13 @@
 
 ## Today
 
-- when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
+- make all tests only reset the db once instead of for all tests.
 
-- multitenancy - can we do all the stuff on the svg diagram and in the design document?
+- DO WE NEED THIS? add a public endpoint where the orgId for a client can be read, so that abstrapact can read it and use it to read products, etc. since the user might be in their own org and are not added to abstratium when they use our services.
+
+- Can a test jwt be used against prod? Prolly not since the jwks key pair is different?
+
+- when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 
 - add envers and viewing history
   - based on the impl in abstoggle! but that really needs to go into abstracore.
@@ -38,15 +42,6 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 
 - what is this log? [io.qua.oid.run.OidcRecorder] (vert.x-eventloop-thread-2) [skey:] Session age extension will not be effective because 'quarkus.oidc.token.refresh-expired=true' is not set
 
-
-
-
-
-
-- multi-tenancy - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs, although they could if they used a cross tenant api. CHECK PEOPLE FROM OTHER ORGS CANNOT ADD THEMSELVES AS ADMIN and abuse being able to be and admin. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`. note that the admin role isn't actually able to do any thing yet
-
-- multi-tenancy: extend MetricsService with orgs, etc.
-
 - multi-tenancy: if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
 
 - need to allow other addresses to call management address 9002 in order to get metrics. need to expose it in docker file? 
@@ -65,6 +60,12 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 
 
 ## Tomorrow
+
+- multi-tenancy - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs, although they could if they used a cross tenant api. CHECK PEOPLE FROM OTHER ORGS CANNOT ADD THEMSELVES AS ADMIN and abuse being able to be and admin. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`. note that the admin role isn't actually able to do any thing yet
+
+- multi-tenancy: extend MetricsService with orgs, etc.
+
+- multitenancy - can we do all the stuff on the svg diagram and in the design document?
 
 - GDPR - allow user to view all of their data
 

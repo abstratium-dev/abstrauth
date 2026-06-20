@@ -25,6 +25,11 @@ public class OrganisationService {
         org.setName(name);
         org.setCreatedByAccountId(createdByAccountId);
         em.persist(org);
+        // Flush the new organisation row so that subsequent inserts into dependent
+        // tables (T_organisation_accounts, etc.) find the FK target. Without this,
+        // Hibernate may insert the dependent rows first and trigger an FK violation
+        // on H2.
+        em.flush();
         return org;
     }
 

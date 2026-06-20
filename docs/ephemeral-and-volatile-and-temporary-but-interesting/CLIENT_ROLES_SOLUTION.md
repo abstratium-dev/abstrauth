@@ -41,9 +41,9 @@ After researching RFC 6749, Microsoft Entra ID (Azure AD), Auth0, Keycloak, and 
 
 **Key Point**: In standard OAuth 2.0, **scopes are the authorization mechanism for client credentials**, not roles.
 
-### 2. **Service Account Roles** - The Keycloak Approach
+### 2. **Client Roles** - The Keycloak Approach
 
-Keycloak extends the standard by supporting **service account roles**:
+Keycloak extends the standard by supporting **client roles**:
 
 - Each confidential client can have "Service Accounts Enabled"
 - The client gets a **virtual service account user**
@@ -174,7 +174,7 @@ If you **really need** roles (not scopes) for services, implement a service acco
 Create a new table for service account roles:
 
 ```sql
-CREATE TABLE T_service_account_roles (
+CREATE TABLE T_client_roles (
     id VARCHAR(36) PRIMARY KEY,
     client_id VARCHAR(255) NOT NULL,
     role VARCHAR(100) NOT NULL,
@@ -195,7 +195,7 @@ private String generateAccessToken(String clientId, Set<String> grantedScopes) {
     Instant expiresAt = now.plusSeconds(3600);
 
     // Get roles for this client
-    Set<String> clientRoles = serviceAccountRoleService.findRolesByClientId(clientId);
+    Set<String> clientRoles = clientRoleService.findRolesByClientId(clientId);
     Set<String> groups = new HashSet<>();
     for (String role : serviceRoles) {
         groups.add(clientId + "_" + role);  // Same format as user roles
@@ -247,11 +247,11 @@ Use **both scopes and roles**:
 
 ## Implemented Solution: Client Roles (`T_client_roles`)
 
-The final implementation chose a **refined version of Option B** — instead of a flat service-account roles table, roles are stored as **client-to-client assignments** (`ClientRole` entity, `T_client_roles` table).
+The final implementation chose a **refined version of Option B** — instead of a flat client roles table, roles are stored as **client-to-client assignments** (`ClientRole` entity, `T_client_roles` table).
 
-### Why `ClientRole` over flat `ServiceAccountRole`
+### Why `ClientRole` over flat `clientRole`
 
-| Concern | Flat ServiceAccountRole | ClientRole (implemented) |
+| Concern | Flat ClientRole | ClientRole (implemented) |
 |---------|------------------------|-------------------------|
 | Tenant isolation | Manual filtering required | `@TenantId` on `org_id` column — automatic |
 | Role validation | No constraint on role values | Role must exist in `T_client_allowed_roles` for the target |
@@ -276,16 +276,16 @@ The final implementation chose a **refined version of Option B** — instead of 
 | `TokenResource` uses `ClientRoleService` | ✅ Done |
 | Angular UI (`ClientsComponent`) for managing client roles | ✅ Done |
 | `TokenResourceTest` with cross-org security tests | ✅ Done |
-| `T_service_account_roles` table dropped (V01.034) | ✅ Done |
+| `T_client_roles` table dropped (V01.034) | ✅ Done |
 
 ## Historical Implementation Notes
 
-> The sections below document the original `ServiceAccountRole` implementation for historical reference. The actual implementation uses `T_client_roles` as described above.
+> The sections below document the original `clientRole` implementation for historical reference. The actual implementation uses `T_client_roles` as described above.
 
 ### 1. Database Schema (superseded)
 
 ```sql
-CREATE TABLE T_service_account_roles (
+CREATE TABLE T_client_roles (
     id VARCHAR(36) PRIMARY KEY,
     client_id VARCHAR(255) NOT NULL,
     role VARCHAR(100) NOT NULL,
@@ -303,8 +303,8 @@ CREATE TABLE T_service_account_roles (
 
 ```java
 @Entity
-@Table(name = "T_service_account_roles")
-public class ServiceAccountRole {
+@Table(name = "T_client_roles")
+public class ClientRole {
     @Id
     @Column(length = 36)
     private String id;
@@ -336,25 +336,25 @@ public class ServiceAccountRole {
 
 ```java
 @ApplicationScoped
-public class ServiceAccountRoleRepository {
+public class ClientRoleRepository {
     @Inject
     EntityManager em;
 
     public Set<String> findRolesByClientId(String clientId) {
         return new HashSet<>(em.createQuery(
-            "SELECT r.role FROM ServiceAccountRole r WHERE r.clientId = :clientId",
+            "SELECT r.role FROM ClientRole r WHERE r.clientId = :clientId",
             String.class)
             .setParameter("clientId", clientId)
             .getResultList());
     }
 
-    public void persist(ServiceAccountRole role) {
+    public void persist(ClientRole role) {
         em.persist(role);
     }
 
     public void deleteByClientIdAndRole(String clientId, String role) {
         em.createQuery(
-            "DELETE FROM ServiceAccountRole r WHERE r.clientId = :clientId AND r.role = :role")
+            "DELETE FROM ClientRole r WHERE r.clientId = :clientId AND r.role = :role")
             .setParameter("clientId", clientId)
             .setParameter("role", role)
             .executeUpdate();
@@ -440,7 +440,7 @@ private Response handleClientCredentialsGrant(String clientId, String clientSecr
     }
 
     // 5. Get service account roles
-    Set<String> serviceRoles = serviceAccountRoleRepository.findRolesByClientId(clientId);
+    Set<String> serviceRoles = clientRoleRepository.findRolesByClientId(clientId);
     Set<String> groups = new HashSet<>();
     for (String role : serviceRoles) {
         // Use same format as user roles: {client_id}_{role}
@@ -540,15 +540,15 @@ public class AccountingResource {
 }
 ```
 
-### 7. Service Account Role Management API
+### 7. Client Role Management API
 
 ```java
 @Path("/api/clients/{clientId}/roles")
 @Produces(MediaType.APPLICATION_JSON)
-public class ServiceAccountRolesResource {
+public class ClientRolesResource {
     
     @Inject
-    ServiceAccountRoleRepository roleRepository;
+    ClientRoleRepository roleRepository;
     
     @GET
     @RolesAllowed(Roles.MANAGE_CLIENTS)
@@ -561,7 +561,7 @@ public class ServiceAccountRolesResource {
     @RolesAllowed(Roles.MANAGE_CLIENTS)
     @Transactional
     public Response addRole(@PathParam("clientId") String clientId, AddRoleRequest request) {
-        ServiceAccountRole role = new ServiceAccountRole();
+        ClientRole role = new ClientRole();
         role.setClientId(clientId);
         role.setRole(request.role);
         roleRepository.persist(role);

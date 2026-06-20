@@ -33,7 +33,7 @@ flowchart TB
         F --> G[(T_oauth_clients)]
         F --> H[(T_account_roles)]
         F --> I[(T_oauth_client_secrets)]
-        F --> J[(T_service_account_roles)]
+        F --> J[(T_client_roles)]
     end
 ```
 
@@ -52,7 +52,7 @@ flowchart TB
 - `T_oauth_clients`
 - `T_account_roles`
 - `T_oauth_client_secrets`
-- `T_service_account_roles`
+- `T_client_roles`
 
 **Global (no `org_id`):**
 - `T_accounts`

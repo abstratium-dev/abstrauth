@@ -13,6 +13,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccountRole;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
@@ -37,6 +38,9 @@ public class AccountRoleServiceTest {
     @Inject
     TestTransactionHelper transactionHelper;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     private String testAccountId;
     private String testOrgId;
     private static final String TEST_CLIENT_ID = "test_client_123";
@@ -45,6 +49,9 @@ public class AccountRoleServiceTest {
     @BeforeEach
     public void setup() throws Exception {
         transactionHelper.beginTransaction();
+
+        // Reset tenant context and clean up any leftover test data
+        dbResetHelper.resetDatabase();
         
         // Ensure test clients exist
         for (String clientId : new String[]{TEST_CLIENT_ID, TEST_CLIENT_ID_2}) {

@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.Optional;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.ClientSecret;
@@ -28,6 +30,18 @@ public class OAuthClientServiceTest {
     
     @Inject
     ClientSecretService clientSecretService;
+
+    @Inject
+    CurrentOrgContext currentOrgContext;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
+
+    @BeforeEach
+    public void setup() {
+        // Reset tenant context to the default org so seeded clients are visible
+        currentOrgContext.setOrgId(defaultOrgId);
+    }
 
     @Test
     public void testFindAll() {

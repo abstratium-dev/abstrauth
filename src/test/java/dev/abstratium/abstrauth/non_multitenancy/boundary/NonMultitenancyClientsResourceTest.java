@@ -269,7 +269,7 @@ public class NonMultitenancyClientsResourceTest {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
                 .subject(accountId)
                 .upn("test@example.com")
-                .groups(Set.of(Roles.USER, Roles.MANAGE_ACCOUNTS))
+                .groups(Set.of(Roles.USER, Roles.MANAGE_CLIENTS))
                 .claim("orgId", orgId)
                 .sign();
     }
@@ -406,9 +406,10 @@ public class NonMultitenancyClientsResourceTest {
     public void testCannotDeleteAbstrauthClient() throws Exception {
         long ts = System.currentTimeMillis();
         Account account = createAccount(ts + "_delclient_abstrauth");
-        String orgId = getAccountOrgId(account.getId());
 
-        String token = managerToken(account.getId(), orgId);
+        // Act as a caller whose org owns the default client, so the request reaches the
+        // service-level deletion guard rather than the ownership check.
+        String token = managerToken(account.getId(), DEFAULT_ORG_ID);
 
         // Try to delete abstratium-abstrauth client - should fail with 400
         given()

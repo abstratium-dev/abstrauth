@@ -621,11 +621,9 @@ public class AccountsResourceTest {
         String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         
-        // Create admin account in the default org
+        // Create admin account in the default org (first account gets admin role automatically)
         String adminEmail = "admin_" + System.currentTimeMillis() + "@example.com";
         Account admin = accountService.createAccountForOrg(adminEmail, "Admin User", "admin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
-        // Give admin the admin role
-        accountRoleService.addRole(admin.getId(), "abstratium-abstrauth", "admin");
         
         // Create target account in the same (default) org
         String targetEmail = "target3_" + System.currentTimeMillis() + "@example.com";
@@ -816,10 +814,10 @@ public class AccountsResourceTest {
         }
         
         // Create an account with admin role for abstratium-abstrauth in default org
+        // (first account created after deleting admin roles gets admin role automatically)
         String email = "lastadmin_" + System.currentTimeMillis() + "@example.com";
         Account adminAccount = accountService.createAccountForOrg(email, "Last Admin", "lastadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String adminAccountId = adminAccount.getId();
-        accountRoleService.addRole(adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
         
         // Create manager account in default org
         String managerEmail = "manager_lastadmin_" + System.currentTimeMillis() + "@example.com";
@@ -854,7 +852,7 @@ public class AccountsResourceTest {
         String email1 = "admin1_api_" + System.currentTimeMillis() + "@example.com";
         Account admin1 = accountService.createAccountForOrg(email1, "Admin 1", "admin1_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String admin1Id = admin1.getId();
-        accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        // First account gets admin role automatically; second account needs it explicitly added
         
         String email2 = "admin2_api_" + System.currentTimeMillis() + "@example.com";
         Account admin2 = accountService.createAccountForOrg(email2, "Admin 2", "admin2_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);

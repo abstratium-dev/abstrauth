@@ -12,6 +12,7 @@ import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -38,9 +39,15 @@ public class NonMultitenancyAccountServiceTest {
     @Inject
     TestTransactionHelper transactionHelper;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     @BeforeEach
     public void setup() throws Exception {
         transactionHelper.beginTransaction();
+
+        // Reset tenant context to the default org before querying OAuth clients
+        dbResetHelper.resetDatabase();
 
         // Clean up all existing admin roles for abstratium-abstrauth to ensure test isolation
         em.createQuery("DELETE FROM NonMultitenancyAccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role")

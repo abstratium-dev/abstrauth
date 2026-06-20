@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -25,6 +28,19 @@ public class NonMultitenancyOAuthClientServiceTest {
 
     @Inject
     OAuthClientService oauthClientService;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @Inject
+    TestTransactionHelper transactionHelper;
+
+    @BeforeEach
+    public void resetDatabaseBeforeTest() throws Exception {
+        transactionHelper.beginTransaction();
+        dbResetHelper.resetDatabase();
+        transactionHelper.commitTransaction();
+    }
 
     @Test
     @Transactional

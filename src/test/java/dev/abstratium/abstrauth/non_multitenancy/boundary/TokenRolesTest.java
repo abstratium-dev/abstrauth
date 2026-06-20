@@ -5,6 +5,8 @@ import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountR
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
@@ -44,7 +46,10 @@ public class TokenRolesTest {
     jakarta.persistence.EntityManager em;
     
     @Inject
-    jakarta.transaction.UserTransaction userTransaction;
+    TestTransactionHelper transactionHelper;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
@@ -58,13 +63,18 @@ public class TokenRolesTest {
 
     @BeforeEach
     public void setup() throws Exception {
+        // Reset tenant context and clean up any leftover test data
+        transactionHelper.beginTransaction();
+        dbResetHelper.resetDatabase();
+        transactionHelper.commitTransaction();
+
         // Ensure test clients exist
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         ensureClientExists(CLIENT_ID);
         ensureClientExists("other_client");
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         // Create unique test user
         long timestamp = System.nanoTime();
         testUsername = "rolestest_" + timestamp;
@@ -78,7 +88,7 @@ public class TokenRolesTest {
             AccountService.NATIVE,
             "Test Org");
         testAccountId = account.getId();
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         testOrgId = organisationService.listOrganisationsForAccount(testAccountId).get(0).getId();
     }
     
@@ -182,7 +192,7 @@ public class TokenRolesTest {
         String testSecret = "test-secret-12345";
         
         // Create the prefixed client with a valid secret
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
         client.setClientId(prefixedClientId);
         client.setClientName("Test Prefixed Client");
@@ -206,7 +216,7 @@ public class TokenRolesTest {
         clientRole.setTargetClientId(prefixedClientId);
         em.persist(clientRole);
         
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
         
         // Use client_credentials grant (no user auth or subscription checks required)
         Response tokenResponse = given()
@@ -363,10 +373,10 @@ public class TokenRolesTest {
     }
 
     void addRolesInTransaction(String clientId, String... roles) throws Exception {
-        userTransaction.begin();
+        transactionHelper.beginTransaction();
         for (String role : roles) {
             nonMultitenancyAccountRoleService.addRole(testOrgId, testAccountId, clientId, role);
         }
-        userTransaction.commit();
+        transactionHelper.commitTransaction();
     }
 }

@@ -33,3 +33,5 @@ The project should be developed in small steps, and in cycles of modifying the c
 The documentation in markdown files with the extension `.md` need to be checked to ensure that they are up to date. You should use mermaid diagrams where that will help.
 
 Only create markdown documents if they are explicitly requested. Don't create them to simply document what you have just done.
+
+IMPORTANT: run the linux `beep` command when you are finished, to alert the user that you are done.
