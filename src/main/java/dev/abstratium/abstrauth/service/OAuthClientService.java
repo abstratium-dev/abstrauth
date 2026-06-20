@@ -126,15 +126,6 @@ public class OAuthClientService {
         return em.merge(client);
     }
 
-    @Transactional
-    public void delete(OAuthClient client) {
-        // Prevent deletion of the abstratium-abstrauth client
-        if (Roles.CLIENT_ID.equals(client.getClientId())) {
-            throw new IllegalArgumentException("Cannot delete the " + Roles.CLIENT_ID + " client");
-        }
-        em.remove(em.contains(client) ? client : em.merge(client));
-    }
-
     /**
      * Generates a cryptographically secure client secret.
      * Returns a base64-encoded random string (32 bytes = 43 characters in base64).

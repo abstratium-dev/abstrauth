@@ -6,11 +6,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -18,12 +15,13 @@ import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
-import dev.abstratium.abstrauth.entity.FederatedIdentity;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.service.SubscriptionService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
@@ -48,41 +46,21 @@ public class AccountsResourceTest {
     jakarta.persistence.EntityManager em;
     
     @Inject
-    dev.abstratium.abstrauth.util.TestTransactionHelper transactionHelper;
+    TestTransactionHelper transactionHelper;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
 
     @BeforeEach
-    public void ensureTestClientsExist() throws Exception {
-        // Create test clients if they don't exist
+    public void resetDatabaseBeforeTest() throws Exception {
         transactionHelper.beginTransaction();
-        
-        // Helper to create client if it doesn't exist
-        String[] clientIds = {"client-a", "client-b", "test-client", "client-unique", "client-different", 
-                              "client-x", "client-y", "client-z"};
-        
-        for (String clientId : clientIds) {
-            var query = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", 
-                                      dev.abstratium.abstrauth.entity.OAuthClient.class);
-            query.setParameter("clientId", clientId);
-            if (query.getResultList().isEmpty()) {
-                dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
-                client.setClientId(clientId);
-                client.setClientName("Test " + clientId);
-                client.setClientType("confidential");
-                client.setRedirectUris("[\"http://localhost:8080/callback\"]");
-                client.setAllowedScopes("[\"openid\",\"profile\",\"email\"]");
-                client.setRequirePkce(false);
-                em.persist(client);
-                
-                // Create client secret in new table
-                dev.abstratium.abstrauth.entity.ClientSecret secret = new dev.abstratium.abstrauth.entity.ClientSecret();
-                secret.setClientId(clientId);
-                secret.setSecretHash("$2a$10$dummyhash");
-                secret.setDescription("Test secret");
-                secret.setActive(true);
-                em.persist(secret);
-            }
-        }
-        
+
+        // Reset database to clean state - deletes all test data in correct order
+        dbResetHelper.resetDatabase();
+
+        // Note: Default organization and test clients are created by Flyway migration
+        // (src/test/resources/db/migration/R__01__test_default_org_and_clients.sql)
+
         transactionHelper.commitTransaction();
     }
 
@@ -125,17 +103,17 @@ public class AccountsResourceTest {
 
     @Test
     public void testListAccountsAsAdmin() throws Exception {
-        // Create a test admin account
+        // Create a test admin account in default org
+        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email = "testadmin_" + System.currentTimeMillis() + "@example.com";
-        Account admin = accountService.createAccount(email, "Test Admin", "testadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account admin = accountService.createAccountForOrg(email, "Test Admin", "testadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String adminId = admin.getId();
-        String adminOrgId = organisationService.listOrganisationsForAccount(adminId).get(0).getId();
         transactionHelper.commitTransaction();
         
         // Admin should be able to access the endpoint and get a JSON array response
         given()
-            .auth().oauth2(generateAdminToken(adminId, adminOrgId))
+            .auth().oauth2(generateAdminToken(adminId, defaultOrgId))
             .when()
             .get("/api/accounts")
             .then()
@@ -369,10 +347,11 @@ public class AccountsResourceTest {
 
     @Test
     public void testAddAccountRoleWithoutRole() throws Exception {
-        // Create manager account
+        // Create manager account in default org
+        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "rolemanager2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Role Manager 2", "rolemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Role Manager 2", "rolemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
         transactionHelper.commitTransaction();
         
@@ -766,9 +745,11 @@ public class AccountsResourceTest {
 
     @Test
     public void testRemoveAccountRoleWithoutPermission() throws Exception {
+        // Create manager account in default org
+        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "deletemanager2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccount(managerEmail, "Delete Manager 2", "deletemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, "Test Org");
+        Account manager = accountService.createAccountForOrg(managerEmail, "Delete Manager 2", "deletemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String managerId = manager.getId();
         transactionHelper.commitTransaction();
         
@@ -899,70 +880,6 @@ public class AccountsResourceTest {
             .body(requestBody)
             .when()
             .delete("/api/accounts/role")
-            .then()
-            .statusCode(204);
-    }
-
-    @Test
-    public void testCannotDeleteAccountWithOnlyAdminRole() throws Exception {
-        // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
-        transactionHelper.beginTransaction();
-        var existingAdmins = em.createQuery(
-            "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
-            AccountRole.class
-        );
-        existingAdmins.setParameter("clientId", Roles.CLIENT_ID);
-        existingAdmins.setParameter("role", Roles._ADMIN_PLAIN);
-        for (var admin : existingAdmins.getResultList()) {
-            em.remove(admin);
-        }
-        
-        // Create an account with admin role for abstratium-abstrauth in default org
-        String email = "onlyadmin_api_" + System.currentTimeMillis() + "@example.com";
-        Account adminAccount = accountService.createAccountForOrg(email, "Only Admin", "onlyadmin_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
-        String adminAccountId = adminAccount.getId();
-        accountRoleService.addRole(adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        
-        // Create manager account in default org
-        String managerEmail = "manager_delacct_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
-        String managerId = manager.getId();
-        transactionHelper.commitTransaction();
-        
-        given()
-            .auth().oauth2(generateManageAccountsToken(managerId))
-            .when()
-            .delete("/api/accounts/" + adminAccountId)
-            .then()
-            .statusCode(400)
-            .body("error", containsString("Cannot delete the account with the only admin role"));
-    }
-
-    @Test
-    public void testCanDeleteAccountWhenMultipleAdminsExist() throws Exception {
-        // Create two accounts with admin role for abstratium-abstrauth in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
-        transactionHelper.beginTransaction();
-        String email1 = "admin1_delacct_" + System.currentTimeMillis() + "@example.com";
-        Account admin1 = accountService.createAccountForOrg(email1, "Admin 1", "admin1_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
-        String admin1Id = admin1.getId();
-        accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        
-        String email2 = "admin2_delacct_" + System.currentTimeMillis() + "@example.com";
-        Account admin2 = accountService.createAccountForOrg(email2, "Admin 2", "admin2_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
-        accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-        
-        // Create manager account in default org
-        String managerEmail = "manager_delacct2_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_delacct2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
-        String managerId = manager.getId();
-        transactionHelper.commitTransaction();
-        
-        given()
-            .auth().oauth2(generateManageAccountsToken(managerId))
-            .when()
-            .delete("/api/accounts/" + admin1Id)
             .then()
             .statusCode(204);
     }
@@ -1322,86 +1239,6 @@ public class AccountsResourceTest {
             .post("/api/accounts/role")
             .then()
             .statusCode(201);
-    }
-
-    @Test
-    public void testDeleteAccountCascadesAllChildRecords() throws Exception {
-        // Create a manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
-        transactionHelper.beginTransaction();
-        Account manager = new Account();
-        manager.setEmail("manager-cascade@example.com");
-        manager.setName("Manager Cascade");
-        manager.setAuthProvider(AccountService.NATIVE);
-        manager.setEmailVerified(true);
-        em.persist(manager);
-        em.flush();
-        // Add manager to default org
-        organisationService.addMember(defaultOrgId, manager.getId());
-
-        // Create an account with all types of child records in default org
-        Account account = accountService.createAccountForOrg(
-            "cascade-test@example.com",
-            "Cascade Test",
-            "cascadeuser",
-            "password123",
-            AccountService.NATIVE,
-            defaultOrgId);
-        String accountId = account.getId();
-
-        // Add a role (user role is already added automatically)
-        accountRoleService.addRole(accountId, "test-client", "viewer");
-
-        // Add a federated identity
-        FederatedIdentity fedIdentity = new FederatedIdentity();
-        fedIdentity.setAccountId(accountId);
-        fedIdentity.setProvider(AccountService.GOOGLE);
-        fedIdentity.setProviderUserId("google-user-123");
-        fedIdentity.setEmail("cascade-test@example.com");
-        em.persist(fedIdentity);
-
-        em.flush();
-        transactionHelper.commitTransaction();
-
-        // Verify child records exist before deletion
-        transactionHelper.beginTransaction();
-        List<AccountRole> rolesBefore = accountRoleService.findRolesByAccountId(accountId);
-        assertEquals(2, rolesBefore.size()); // user role (automatic) + viewer role (manual)
-
-        var credQuery = em.createQuery("SELECT c FROM Credential c WHERE c.accountId = :accountId", dev.abstratium.abstrauth.entity.Credential.class);
-        credQuery.setParameter("accountId", accountId);
-        assertEquals(1, credQuery.getResultList().size());
-
-        var fedQuery = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
-        fedQuery.setParameter("accountId", accountId);
-        assertEquals(1, fedQuery.getResultList().size());
-        transactionHelper.commitTransaction();
-
-        // Delete the account
-        given()
-            .auth().oauth2(generateManageAccountsToken(manager.getId()))
-            .when()
-            .delete("/api/accounts/" + accountId)
-            .then()
-            .statusCode(204);
-
-        // Verify account is deleted
-        Account deletedAccount = em.find(Account.class, accountId);
-        assertNull(deletedAccount);
-
-        // Verify all child records are deleted via CASCADE DELETE
-        transactionHelper.beginTransaction();
-        List<AccountRole> rolesAfter = accountRoleService.findRolesByAccountId(accountId);
-        assertTrue(rolesAfter.isEmpty(), "Roles should be deleted via CASCADE DELETE");
-
-        var credQueryAfter = em.createQuery("SELECT c FROM Credential c WHERE c.accountId = :accountId", dev.abstratium.abstrauth.entity.Credential.class);
-        credQueryAfter.setParameter("accountId", accountId);
-        assertTrue(credQueryAfter.getResultList().isEmpty(), "Credentials should be deleted via CASCADE DELETE");
-
-        var fedQueryAfter = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
-        fedQueryAfter.setParameter("accountId", accountId);
-        assertTrue(fedQueryAfter.getResultList().isEmpty(), "Federated identities should be deleted via CASCADE DELETE");
-        transactionHelper.commitTransaction();
     }
 
 }

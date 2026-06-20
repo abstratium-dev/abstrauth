@@ -34,6 +34,8 @@ public class ClientCredentialsFlowTest {
     public void setup() {
         // Clean up test data
         em.createQuery("DELETE FROM ClientSecret WHERE clientId LIKE 'test-service-%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientRole WHERE srcClientId LIKE 'test-service-%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientRole WHERE targetClientId LIKE 'test-service-%'").executeUpdate();
         em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE 'test-service-%'").executeUpdate();
         em.flush();
     }

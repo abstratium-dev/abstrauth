@@ -6,6 +6,7 @@ import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientRol
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 
 @ApplicationScoped
 public class NonMultitenancyClientRoleService {
@@ -37,12 +38,15 @@ public class NonMultitenancyClientRoleService {
      * @param targetClientId The target client ID (the client whose allowed role is being removed)
      * @param role The role name
      */
+    @Transactional
     public void removeClientRolesForTargetAndRole(String targetClientId, String role) {
         em.createQuery(
-                "DELETE FROM NonMultitenancyClientRole cr WHERE cr.targetClientId = :targetClientId AND cr.role = :role")
+                "SELECT cr FROM NonMultitenancyClientRole cr WHERE cr.targetClientId = :targetClientId AND cr.role = :role",
+                NonMultitenancyClientRole.class)
                 .setParameter("targetClientId", targetClientId)
                 .setParameter("role", role)
-                .executeUpdate();
+                .getResultList()
+                .forEach(em::remove);
     }
 
     /**
@@ -55,12 +59,15 @@ public class NonMultitenancyClientRoleService {
      * @param role The role name
      * @param owningOrgId The organisation ID to preserve roles in (the client owner)
      */
+    @Transactional
     public void removeClientRolesForTargetAndRoleOutsideOrg(String targetClientId, String role, String owningOrgId) {
         em.createQuery(
-                "DELETE FROM NonMultitenancyClientRole cr WHERE cr.targetClientId = :targetClientId AND cr.role = :role AND cr.orgId != :owningOrgId")
+                "SELECT cr FROM NonMultitenancyClientRole cr WHERE cr.targetClientId = :targetClientId AND cr.role = :role AND cr.orgId != :owningOrgId",
+                NonMultitenancyClientRole.class)
                 .setParameter("targetClientId", targetClientId)
                 .setParameter("role", role)
                 .setParameter("owningOrgId", owningOrgId)
-                .executeUpdate();
+                .getResultList()
+                .forEach(em::remove);
     }
 }

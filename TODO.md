@@ -11,18 +11,9 @@
 
 ## Today
 
-- What is NOT done - multitenancy
-  - Subscription management UI — no calls to POST /api/organisations/{orgId}/subscriptions or DELETE .../subscriptions/{clientId}.
-  - can we do all the stuff on the svg diagram and in the design document?
+- when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 
-T in ui, e2e exists - add "add owner" API endpoint to promote member to owner (currently only `addMember` exists; `addOwner` method exists in service but isn't exposed). When implemented, ensure management roles are assigned (or require manual assignment as per design decision).
-
-- REALLY IMPORTANT: T_client_allowed_roles check that users
-      cannot update the list if they are not a client manager in the org that owns the client. in fact, they can only do that if their current orgId matches that of the client! otherwise a malicious user could change the list and then add themselves as an admin to abstrauth in a second step
-
--service accounts - could someone create a client and add roles to say abstrauth so that they can abuse? no since a) they can only add where there's a subscription and only available roles and b) the role they create is stored in their clients org and c) the token gets that orgId so that the client roles can only do stuff to data in their org.
-
-- make deleting accounts and roles (x2) harder -> enter the name to confirm
+- multitenancy - can we do all the stuff on the svg diagram and in the design document?
 
 - add envers and viewing history
   - based on the impl in abstoggle! but that really needs to go into abstracore.
@@ -34,12 +25,6 @@ T in ui, e2e exists - add "add owner" API endpoint to promote member to owner (c
     brand.name=${ABSTRA_BRAND_NAME:ABSTRATIUM}
 
 - add a test for src/main/java/dev/abstratium/abstrauth/service/SecurityProblemLogger.java and copy that to abstracore. or is the test already there? then copy it here
-
-
-- multi-tenancy
-  - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs, although they could if they used a cross tenant api. CHECK PEOPLE FROM OTHER ORGS CANNOT ADD THEMSELVES AS ADMIN and abuse being able to be and admin. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`. note that the admin role isn't actually able to do any thing yet
-  - extend MetricsService with orgs, etc.
-  - if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
 
 - see token exchange markdown and the second one about how it is used and implement that.
 
@@ -53,9 +38,18 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 
 - what is this log? [io.qua.oid.run.OidcRecorder] (vert.x-eventloop-thread-2) [skey:] Session age extension will not be effective because 'quarkus.oidc.token.refresh-expired=true' is not set
 
-- need to allow other addresses to call management address 9002 in order to get metrics. need to expose it in docker file? 
 
-- when i have no roles for abstracore, i get an error, but it shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
+
+
+
+
+- multi-tenancy - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs, although they could if they used a cross tenant api. CHECK PEOPLE FROM OTHER ORGS CANNOT ADD THEMSELVES AS ADMIN and abuse being able to be and admin. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`. note that the admin role isn't actually able to do any thing yet
+
+- multi-tenancy: extend MetricsService with orgs, etc.
+
+- multi-tenancy: if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
+
+- need to allow other addresses to call management address 9002 in order to get metrics. need to expose it in docker file? 
 
 - make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
   - actually make it only possible once they have changed their password, if native.
@@ -64,8 +58,6 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 - complete other open points from first security audit
 
 - security audit for CRUD operations on clients and accounts "using any trick in the book" for accessing the server via its web API (no direct access of the database, no access to the file system) - try to CRUD accounts, clients and roles!
-
-- review tests
 
 - add more oauth providers:
   - Apple
@@ -77,6 +69,10 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 - GDPR - allow user to view all of their data
 
 - GDPR - allow user to delete all of their data
+
+- make deleting accounts and roles (x2) harder -> enter the name to confirm
+
+- Subscription management UI — add ability to subscribe when not auto-subscribe. so use calls to POST /api/organisations/{orgId}/subscriptions or DELETE .../subscriptions/{clientId}.
 
 - inviting user to join your org, the invite should expire and if they don't accept, delete the account that was created.
   - also make it so that the new user has to accept before they are shown in the org - or at least show them as invited but not yet accepted or something.

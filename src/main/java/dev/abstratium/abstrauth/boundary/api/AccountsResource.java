@@ -35,7 +35,6 @@ import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -246,33 +245,6 @@ public class AccountsResource {
 
         // Remove the role
         accountRoleService.removeRole(accountId, request.clientId, request.role);
-        
-        return Response.noContent().build();
-    }
-
-    @DELETE
-    @Path("/{accountId}")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Delete account", description = "Deletes an account and all associated data")
-    @RolesAllowed(Roles.MANAGE_ACCOUNTS)
-    public Response deleteAccount(@PathParam("accountId") String accountId) {
-        // Verify account exists
-        if (accountService.findById(accountId).isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(new ErrorResponse("Account not found"))
-                    .build();
-        }
-
-        // Verify account belongs to caller's organization
-        String orgId = token.getClaim("orgId");
-        if (!organisationService.isMember(orgId, accountId)) {
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity(new ErrorResponse("Account not found in your organization"))
-                    .build();
-        }
-
-        // Delete the account
-        accountService.deleteAccount(accountId);
         
         return Response.noContent().build();
     }

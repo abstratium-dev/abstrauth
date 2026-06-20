@@ -64,9 +64,14 @@ public class OAuthFlowWithClientSecretTest {
         em.createQuery("DELETE FROM ClientSecret WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM AuthorizationCode WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM AuthorizationRequest WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientRole WHERE srcClientId LIKE '%__test_oauth_flow%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientRole WHERE targetClientId LIKE '%__test_oauth_flow%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientAllowedRole WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
+        em.createQuery("DELETE FROM Subscription WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
         em.createQuery("DELETE FROM Credential WHERE username = 'oauthflowtest'").executeUpdate();
         em.createQuery("DELETE FROM AccountRole WHERE accountId IN (SELECT id FROM Account WHERE email = 'oauthflowtest@example.com')").executeUpdate();
+        em.createQuery("DELETE FROM OrganisationAccount oa WHERE oa.id.accountId IN (SELECT a.id FROM Account a WHERE a.email = 'oauthflowtest@example.com')").executeUpdate();
         em.createQuery("DELETE FROM Account WHERE email = 'oauthflowtest@example.com'").executeUpdate();
 
         // Create test account with MANAGE_CLIENTS role

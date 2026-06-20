@@ -1,11 +1,17 @@
 package dev.abstratium.abstrauth.non_multitenancy.entity;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
@@ -46,6 +52,30 @@ public class NonMultitenancyOAuthClient {
 
     @Column(name = "org_id", length = 36)
     private String orgId;
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    private List<NonMultitenancyAccountRole> accountRoles = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    private List<NonMultitenancyClientSecret> clientSecrets = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    private List<NonMultitenancyClientAllowedRole> clientAllowedRoles = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "src_client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    private List<NonMultitenancyClientRole> srcClientRoles = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "target_client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    private List<NonMultitenancyClientRole> targetClientRoles = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    private List<NonMultitenancySubscription> subscriptions = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
@@ -144,5 +174,53 @@ public class NonMultitenancyOAuthClient {
 
     public void setOrgId(String orgId) {
         this.orgId = orgId;
+    }
+
+    public List<NonMultitenancyAccountRole> getAccountRoles() {
+        return accountRoles;
+    }
+
+    public void setAccountRoles(List<NonMultitenancyAccountRole> accountRoles) {
+        this.accountRoles = accountRoles;
+    }
+
+    public List<NonMultitenancyClientSecret> getClientSecrets() {
+        return clientSecrets;
+    }
+
+    public void setClientSecrets(List<NonMultitenancyClientSecret> clientSecrets) {
+        this.clientSecrets = clientSecrets;
+    }
+
+    public List<NonMultitenancyClientAllowedRole> getClientAllowedRoles() {
+        return clientAllowedRoles;
+    }
+
+    public void setClientAllowedRoles(List<NonMultitenancyClientAllowedRole> clientAllowedRoles) {
+        this.clientAllowedRoles = clientAllowedRoles;
+    }
+
+    public List<NonMultitenancyClientRole> getSrcClientRoles() {
+        return srcClientRoles;
+    }
+
+    public void setSrcClientRoles(List<NonMultitenancyClientRole> srcClientRoles) {
+        this.srcClientRoles = srcClientRoles;
+    }
+
+    public List<NonMultitenancyClientRole> getTargetClientRoles() {
+        return targetClientRoles;
+    }
+
+    public void setTargetClientRoles(List<NonMultitenancyClientRole> targetClientRoles) {
+        this.targetClientRoles = targetClientRoles;
+    }
+
+    public List<NonMultitenancySubscription> getSubscriptions() {
+        return subscriptions;
+    }
+
+    public void setSubscriptions(List<NonMultitenancySubscription> subscriptions) {
+        this.subscriptions = subscriptions;
     }
 }

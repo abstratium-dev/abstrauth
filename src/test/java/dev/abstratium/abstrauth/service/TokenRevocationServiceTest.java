@@ -71,6 +71,7 @@ class TokenRevocationServiceTest {
         em.createQuery("DELETE FROM AuthorizationRequest").executeUpdate();
         // Delete AccountRoles first to avoid foreign key constraint violations
         em.createQuery("DELETE FROM AccountRole ar WHERE ar.accountId IN (SELECT a.id FROM Account a WHERE a.email = 'test-revocation@example.com')").executeUpdate();
+        em.createQuery("DELETE FROM OrganisationAccount oa WHERE oa.id.accountId IN (SELECT a.id FROM Account a WHERE a.email = 'test-revocation@example.com')").executeUpdate();
         em.createQuery("DELETE FROM Account WHERE email = 'test-revocation@example.com'").executeUpdate();
         
         // Create a test authorization code

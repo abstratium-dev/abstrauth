@@ -1,5 +1,10 @@
 package dev.abstratium.abstrauth.boundary;
 
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
@@ -8,20 +13,9 @@ import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import io.quarkus.test.junit.QuarkusTest;
-import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Base64;
-import java.util.UUID;
-
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
 
 /**
  * Integration test to verify that revoked tokens cannot be used.
@@ -45,8 +39,6 @@ class TokenRevocationIntegrationTest {
     @Inject
     EntityManager em;
 
-    private Account testAccount;
-    private String testPassword = "TestPassword123!";
     private String clientId = "abstratium-abstrauth";
 
     @BeforeEach
@@ -57,16 +49,9 @@ class TokenRevocationIntegrationTest {
         em.createQuery("DELETE FROM AuthorizationCode").executeUpdate();
         em.createQuery("DELETE FROM AuthorizationRequest").executeUpdate();
         em.createQuery("DELETE FROM Credential WHERE username = 'revocationtest'").executeUpdate();
+        em.createQuery("DELETE FROM AccountRole ar WHERE ar.accountId IN (SELECT a.id FROM Account a WHERE a.email = 'revocationtest@example.com')").executeUpdate();
+        em.createQuery("DELETE FROM OrganisationAccount oa WHERE oa.id.accountId IN (SELECT a.id FROM Account a WHERE a.email = 'revocationtest@example.com')").executeUpdate();
         em.createQuery("DELETE FROM Account WHERE email = 'revocationtest@example.com'").executeUpdate();
-
-        // Create test account
-        testAccount = accountService.createAccount(
-            "revocationtest@example.com",
-            "Revocation Test User",
-            "revocationtest",
-            testPassword,
-            AccountService.NATIVE,
-            "Test Org");
     }
 
     // This test requires the full OAuth flow which is better tested in E2E tests
@@ -246,21 +231,4 @@ class TokenRevocationIntegrationTest {
         assert isCompromised : "Authorization code should still be marked as compromised";
     }
 
-    /**
-     * Generate a random code verifier for PKCE.
-     */
-    private String generateCodeVerifier() {
-        byte[] bytes = new byte[32];
-        new java.security.SecureRandom().nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    /**
-     * Generate code challenge from verifier using S256 method.
-     */
-    private String generateCodeChallenge(String verifier) throws Exception {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(verifier.getBytes(StandardCharsets.UTF_8));
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-    }
 }

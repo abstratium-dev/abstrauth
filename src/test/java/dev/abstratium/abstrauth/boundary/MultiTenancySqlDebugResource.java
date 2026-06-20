@@ -173,17 +173,19 @@ public class MultiTenancySqlDebugResource {
         em.flush();
 
         LOG.info("============================================================");
-        LOG.info("=== ABOUT TO JPQL DELETE WHERE id = :id ===");
+        LOG.info("=== ABOUT TO DELETE WHERE id = :id ===");
         LOG.info("============================================================");
-        int deletedCount = em.createQuery(
-                "DELETE FROM OAuthClient c WHERE c.id = :id")
-                .setParameter("id", id2)
-                .executeUpdate();
+        OAuthClient toDelete2 = em.find(OAuthClient.class, id2);
+        int deletedCount = 0;
+        if (toDelete2 != null) {
+            em.remove(toDelete2);
+            deletedCount = 1;
+        }
         LOG.info("============================================================");
-        LOG.info("=== JPQL DELETE COMPLETE - deletedCount=" + deletedCount + " ===");
+        LOG.info("=== DELETE COMPLETE - deletedCount=" + deletedCount + " ===");
         LOG.info("============================================================");
 
-        report.append("JPQL DELETE done, deletedCount=").append(deletedCount).append("\n");
+        report.append("DELETE done, deletedCount=").append(deletedCount).append("\n");
 
         LOG.info("============================================================");
         LOG.info("=== ALL OPERATIONS COMPLETE ===");

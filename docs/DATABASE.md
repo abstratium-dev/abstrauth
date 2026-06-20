@@ -69,7 +69,8 @@ erDiagram
         VARCHAR(5000) redirect_uris "JSON array"
         VARCHAR(5000) allowed_scopes "JSON array"
         BOOLEAN require_pkce "default true"
-        BOOLEAN auto_subscribe "default true"
+        BOOLEAN auto_subscribe "default false"
+        BOOLEAN publik "default false"
         VARCHAR(36) org_id FK "T_organisations"
         TIMESTAMP created_at
     }
@@ -148,6 +149,7 @@ erDiagram
         VARCHAR(255) client_id FK "T_oauth_clients"
         VARCHAR(100) role
         BOOLEAN is_default "default false"
+        BOOLEAN available_to_foreign_orgs "NOT NULL"
     }
 
     T_organisations {
@@ -188,7 +190,7 @@ User accounts (resource owners).
 | auth_provider | VARCHAR(50) | DEFAULT 'native' | Initial creation method |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
-**Indexes:** `I_accounts_email` (unique)
+**Indexes:** `I_accounts_email` (unique), `I_accounts_created_desc` (created_at DESC, id)
 
 ### T_credentials
 
@@ -197,7 +199,7 @@ Local authentication credentials. One account typically has one credential recor
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | VARCHAR(36) | PK | UUID |
-| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts |
 | username | VARCHAR(100) | NOT NULL, UK | Unique username |
 | password_hash | VARCHAR(255) | NOT NULL | bcrypt hash |
 | failed_login_attempts | INT | DEFAULT 0 | Lockout counter |
@@ -206,6 +208,8 @@ Local authentication credentials. One account typically has one credential recor
 
 **Indexes:** `I_credentials_account_id` (unique), `I_credentials_username` (unique)
 
+> **Note:** Cascade deletes for non-transient tables are handled at the JPA level (not DB-level) to support Hibernate Envers audit events.
+
 ### T_federated_identities
 
 Links accounts to external identity providers (Google, etc.). One account can have multiple identities.
@@ -213,7 +217,7 @@ Links accounts to external identity providers (Google, etc.). One account can ha
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | VARCHAR(36) | PK | UUID |
-| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts |
 | provider | VARCHAR(50) | NOT NULL | Provider name |
 | provider_user_id | VARCHAR(255) | NOT NULL | Provider's user ID |
 | email | VARCHAR(255) | | Provider email |
@@ -234,11 +238,12 @@ Registered OAuth 2.0 clients. Only **confidential** clients (BFF pattern) are su
 | redirect_uris | VARCHAR(5000) | NOT NULL | JSON array of allowed URIs |
 | allowed_scopes | VARCHAR(5000) | | JSON array of scopes |
 | require_pkce | BOOLEAN | DEFAULT TRUE | Always true |
-| auto_subscribe | BOOLEAN | NOT NULL DEFAULT TRUE | Auto-subscribe org on first use |
+| auto_subscribe | BOOLEAN | NOT NULL DEFAULT FALSE | Auto-subscribe org on first use |
+| publik | BOOLEAN | NOT NULL DEFAULT FALSE | Visible to all organisations |
 | org_id | VARCHAR(36) | FK | T_organisations |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
-**Indexes:** `I_oauth_clients_client_id` (unique)
+**Indexes:** `I_oauth_clients_client_id` (unique on `client_id`), `I_oauth_clients_org_id`
 
 ### T_oauth_client_secrets
 
@@ -247,7 +252,7 @@ Multiple secrets per client, enabling rotation without downtime.
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | BIGINT | PK AUTO_INCREMENT | Surrogate key |
-| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients |
 | secret_hash | VARCHAR(255) | NOT NULL | bcrypt hash |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | |
 | expires_at | TIMESTAMP | NULL | Secret expiry |
@@ -256,7 +261,7 @@ Multiple secrets per client, enabling rotation without downtime.
 | account_id | VARCHAR(36) | FK | Creator, T_accounts SET NULL |
 | org_id | VARCHAR(36) | FK | T_organisations |
 
-**Indexes:** `I_client_active` (client_id, is_active), `I_expires_at`, `I_client_secrets_account`, `I_client_secrets_org_id`
+**Indexes:** `I_client_active` (client_id, is_active), `I_expires_at`, `I_client_secrets_account`, `I_client_secrets_org_id`, `I_client_secrets_lookup` (client_id, is_active, expires_at)
 
 ### T_authorization_requests
 
@@ -323,13 +328,13 @@ User roles scoped to a client and organisation.
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | VARCHAR(36) | PK | UUID |
-| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
-| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients |
 | role | VARCHAR(100) | NOT NULL | Role name |
 | org_id | VARCHAR(36) | FK | T_organisations |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
-**Indexes:** `I_account_roles_account`, `I_account_roles_client`, `I_account_roles_unique` (account_id, client_id, role), `I_account_roles_org_id`
+**Indexes:** `I_account_roles_account`, `I_account_roles_client`, `I_account_roles_unique` (account_id, client_id, role, org_id), `I_account_roles_org_id`, `I_account_roles_account_client` (account_id, client_id, role)
 
 ### T_client_roles
 
@@ -342,8 +347,8 @@ Client-to-client role assignments for M2M (machine-to-machine) authentication. D
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | VARCHAR(36) | PK | UUID |
-| src_client_id | VARCHAR(255) | NOT NULL, FK | Calling client — T_oauth_clients CASCADE |
-| target_client_id | VARCHAR(255) | NOT NULL, FK | API being called — T_oauth_clients CASCADE |
+| src_client_id | VARCHAR(255) | NOT NULL, FK | Calling client — T_oauth_clients |
+| target_client_id | VARCHAR(255) | NOT NULL, FK | API being called — T_oauth_clients |
 | role | VARCHAR(100) | NOT NULL | Role name (must be in T_client_allowed_roles for target) |
 | org_id | VARCHAR(36) | NOT NULL | Owning organisation (tenant discriminator) |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
@@ -356,9 +361,10 @@ Roles a client is permitted to assign or request.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients |
 | role | VARCHAR(100) | NOT NULL | Role name |
 | is_default | BOOLEAN | DEFAULT FALSE | Auto-assign on subscription |
+| available_to_foreign_orgs | BOOLEAN | NOT NULL | Whether foreign orgs may assign this role |
 
 **PK:** (client_id, role)
 **Indexes:** `I_client_allowed_roles_client`
@@ -388,7 +394,7 @@ Membership of accounts in organisations.
 | added_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
 **PK:** (org_id, account_id, role)
-**Indexes:** `I_org_accounts_org`, `I_org_accounts_account`
+**Indexes:** `I_org_accounts_org`, `I_org_accounts_account`, `I_org_accounts_account_role` (account_id, role, org_id), `I_org_accounts_org_role` (org_id, role, account_id)
 
 ### T_subscriptions
 
@@ -397,8 +403,8 @@ Organisation subscriptions to clients.
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | VARCHAR(36) | PK | UUID |
-| org_id | VARCHAR(36) | NOT NULL, FK | T_organisations CASCADE |
-| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients CASCADE |
+| org_id | VARCHAR(36) | NOT NULL, FK | T_organisations |
+| client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
 **Indexes:** `I_subscriptions_org`, `I_subscriptions_client`, `I_subscriptions_unique` (org_id, client_id)

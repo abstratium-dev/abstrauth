@@ -20,6 +20,9 @@ public class NonMultitenancyClientRoleServiceTest {
     NonMultitenancyClientRoleService nonMultitenancyClientRoleService;
 
     @Inject
+    NonMultitenancyOAuthClientService nonMultitenancyOAuthClientService;
+
+    @Inject
     jakarta.persistence.EntityManager em;
 
     @Inject
@@ -40,13 +43,11 @@ public class NonMultitenancyClientRoleServiceTest {
         em.createQuery("DELETE FROM NonMultitenancyClientRole cr WHERE cr.srcClientId LIKE 'test_src_client_%'")
             .executeUpdate();
         
-        // Clean up test clients
+        // Clean up test clients using cascade delete (to properly delete child records)
         for (String clientId : new String[]{TEST_SRC_CLIENT_ID, TEST_SRC_CLIENT_ID_2, TEST_TARGET_CLIENT_ID}) {
-            var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = :clientId", dev.abstratium.abstrauth.entity.OAuthClient.class);
-            clientQuery.setParameter("clientId", clientId);
-            var existingClients = clientQuery.getResultList();
-            for (var client : existingClients) {
-                em.remove(client);
+            var clientOpt = nonMultitenancyOAuthClientService.findByClientId(clientId);
+            if (clientOpt.isPresent()) {
+                nonMultitenancyOAuthClientService.deleteClientWithCascade(clientOpt.get().getId());
             }
         }
 

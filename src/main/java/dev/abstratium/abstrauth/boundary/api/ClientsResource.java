@@ -1,5 +1,8 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -30,9 +33,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Path("/api/clients")
 @Tag(name = "Clients", description = "OAuth client management endpoints")
@@ -211,29 +211,6 @@ public class ClientsResource {
 
         OAuthClient updated = oauthClientService.update(existing);
         return Response.ok(toClientResponse(updated)).build();
-    }
-
-    @DELETE
-    @Path("/{id}")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Delete an OAuth client", description = "Deletes an existing OAuth client")
-    @RolesAllowed(Roles.MANAGE_CLIENTS)
-    public Response deleteClient(@PathParam("id") String id) {
-        // Find existing client
-        OAuthClient existing = oauthClientService.findAll().stream()
-                .filter(c -> c.getId().equals(id))
-                .findFirst()
-                .orElse(null);
-
-        if (existing == null) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(new ErrorResponse("Client not found"))
-                    .build();
-        }
-
-        oauthClientService.delete(existing);
-        metricsService.recordClientDeletion();
-        return Response.noContent().build();
     }
 
     @GET

@@ -21,6 +21,7 @@ import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthCli
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.CurrentOrgContext;
+import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.service.SubscriptionService;
@@ -28,6 +29,7 @@ import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -73,6 +75,9 @@ public class NonMultitenancyClientsResource {
 
     @Inject
     SubscriptionService subscriptionService;
+
+    @Inject
+    MetricsService metricsService;
 
     /**
      * Lists all OAuth clients visible to the caller's organisation.
@@ -186,6 +191,52 @@ public class NonMultitenancyClientsResource {
                 .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault(), r.getAvailableToForeignOrgs()))
                 .collect(Collectors.toList());
         return Response.ok(response).build();
+    }
+
+    /**
+     * Deletes an OAuth client and all associated data across ALL organisations.
+     * This uses non-multitenancy entities to perform cross-tenant cascade deletion.
+     * Only users with MANAGE_CLIENTS role can delete clients.
+     *
+     * @param clientId The client ID to delete
+     * @return Response indicating success or failure
+     */
+    @DELETE
+    @Path("/{clientId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Delete an OAuth client", description = "Deletes an OAuth client and all associated data (roles, secrets, subscriptions) across ALL organisations. Requires ownership of the client.")
+    @RolesAllowed(Roles.MANAGE_CLIENTS)
+    public Response deleteClient(@PathParam("clientId") String clientId) {
+        String callerOrgId = currentOrgContext.getOrgId();
+
+        // Find the client using non-multitenancy service
+        var clientOpt = nonMultitenancyOAuthClientService.findByClientId(clientId);
+        if (clientOpt.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new dev.abstratium.abstrauth.boundary.ErrorResponse("Client not found"))
+                    .build();
+        }
+
+        var client = clientOpt.get();
+
+        // Verify the caller's org owns this client
+        if (!client.getOrgId().equals(callerOrgId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new dev.abstratium.abstrauth.boundary.ErrorResponse("You can only delete clients owned by your organisation"))
+                    .build();
+        }
+
+        // Delete using non-multitenancy service for cross-tenant cascade deletion
+        try {
+            nonMultitenancyOAuthClientService.deleteClientWithCascade(clientId);
+            metricsService.recordClientDeletion();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new dev.abstratium.abstrauth.boundary.ErrorResponse(e.getMessage()))
+                    .build();
+        }
+
+        return Response.noContent().build();
     }
 
     @RegisterForReflection

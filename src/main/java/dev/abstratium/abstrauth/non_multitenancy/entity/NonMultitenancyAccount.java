@@ -1,22 +1,18 @@
-package dev.abstratium.abstrauth.entity;
+package dev.abstratium.abstrauth.non_multitenancy.entity;
 
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-
+/**
+ * Non-multitenancy version of Account entity.
+ * Used for cross-tenant operations and cascade deletions.
+ */
 @Entity
 @Table(name = "T_accounts")
-public class Account {
+public class NonMultitenancyAccount {
 
     @Id
     @Column(length = 36)
@@ -38,9 +34,17 @@ public class Account {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @OneToMany(fetch = FetchType.LAZY)
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
-    private List<AccountRole> roles = new ArrayList<>();
+    private List<NonMultitenancyAccountRole> roles = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private List<NonMultitenancyCredential> credentials = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private List<NonMultitenancyFederatedIdentity> federatedIdentities = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
@@ -109,11 +113,27 @@ public class Account {
         this.authProvider = authProvider;
     }
 
-    public List<AccountRole> getRoles() {
+    public List<NonMultitenancyAccountRole> getRoles() {
         return roles;
     }
 
-    public void setRoles(List<AccountRole> roles) {
+    public void setRoles(List<NonMultitenancyAccountRole> roles) {
         this.roles = roles;
+    }
+
+    public List<NonMultitenancyCredential> getCredentials() {
+        return credentials;
+    }
+
+    public void setCredentials(List<NonMultitenancyCredential> credentials) {
+        this.credentials = credentials;
+    }
+
+    public List<NonMultitenancyFederatedIdentity> getFederatedIdentities() {
+        return federatedIdentities;
+    }
+
+    public void setFederatedIdentities(List<NonMultitenancyFederatedIdentity> federatedIdentities) {
+        this.federatedIdentities = federatedIdentities;
     }
 }

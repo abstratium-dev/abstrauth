@@ -636,89 +636,6 @@ public class ClientsResourceTest {
     }
 
     @Test
-    @Transactional
-    public void testDeleteClientSuccessfully() {
-        String token = generateValidToken();
-        
-        // Create a specific client to delete
-        String uniqueClientId = "test_delete_client_" + System.currentTimeMillis();
-        String actualClientId = "00000000-0000-0000-0000-000000000000__" + uniqueClientId;
-        String createBody = String.format("""
-            {
-                "clientId": "%s",
-                "clientName": "Client to Delete",
-                "clientType": "confidential",
-                "redirectUris": "[\\"http://localhost:3000/callback\\"]",
-                "allowedScopes": "[\\"openid\\"]"
-            }
-            """, uniqueClientId);
-        
-        String clientId = given()
-            .header("Authorization", "Bearer " + token)
-            .contentType("application/json")
-            .body(createBody)
-            .when()
-            .post("/api/clients")
-            .then()
-            .statusCode(201)
-            .extract()
-            .jsonPath()
-            .getString("id");
-
-        // Delete the client
-        given()
-            .header("Authorization", "Bearer " + token)
-            .when()
-            .delete("/api/clients/" + clientId)
-            .then()
-            .statusCode(204);
-
-        // Verify client is deleted by trying to get all clients and checking it's not in the list
-        String deletedClientId = actualClientId;
-        given()
-            .header("Authorization", "Bearer " + token)
-            .when()
-            .get("/api/clients")
-            .then()
-            .statusCode(200)
-            .body("findAll { it.clientId == '" + deletedClientId + "' }.size()", equalTo(0));
-    }
-
-    @Test
-    public void testDeleteClientWithoutTokenReturns401() {
-        given()
-            .when()
-            .delete("/api/clients/some-id")
-            .then()
-            .statusCode(401);
-    }
-
-    @Test
-    public void testDeleteClientWithoutRoleReturns403() {
-        String token = generateTokenWithoutRole();
-        
-        given()
-            .header("Authorization", "Bearer " + token)
-            .when()
-            .delete("/api/clients/some-id")
-            .then()
-            .statusCode(403);
-    }
-
-    @Test
-    public void testDeleteClientWithNonExistentIdReturns404() {
-        String token = generateValidToken();
-        
-        given()
-            .header("Authorization", "Bearer " + token)
-            .when()
-            .delete("/api/clients/non-existent-id")
-            .then()
-            .statusCode(404)
-            .body("error", equalTo("Client not found"));
-    }
-
-    @Test
     public void testCreateClientDefaultsRequirePkceToTrue() {
         String token = generateValidToken();
         String uniqueClientId = "test_client_pkce_" + System.currentTimeMillis();
@@ -940,41 +857,6 @@ public class ClientsResourceTest {
             .then()
             .statusCode(400)
             .body("error", equalTo("PKCE is required for all clients"));
-    }
-
-    @Test
-    public void testCannotDeleteAbstrauthClient() {
-        String token = generateValidToken();
-        
-        // Get the abstratium-abstrauth client ID
-        String clientId = given()
-            .header("Authorization", "Bearer " + token)
-            .when()
-            .get("/api/clients")
-            .then()
-            .statusCode(200)
-            .body("find { it.clientId == 'abstratium-abstrauth' }.id", notNullValue())
-            .extract()
-            .jsonPath()
-            .getString("find { it.clientId == 'abstratium-abstrauth' }.id");
-        
-        // Try to delete it - should fail with 400
-        given()
-            .header("Authorization", "Bearer " + token)
-            .when()
-            .delete("/api/clients/" + clientId)
-            .then()
-            .statusCode(400)
-            .body("error", containsString("Cannot delete the abstratium-abstrauth client"));
-        
-        // Verify it still exists
-        given()
-            .header("Authorization", "Bearer " + token)
-            .when()
-            .get("/api/clients")
-            .then()
-            .statusCode(200)
-            .body("clientId", hasItem("abstratium-abstrauth"));
     }
 
     @Test

@@ -380,74 +380,6 @@ public class AccountService {
     }
 
     /**
-     * Delete an account and all associated data
-     * 
-     * Note: Most child records are deleted automatically via CASCADE DELETE constraints:
-     * - T_account_roles (FK_account_roles_account)
-     * - T_credentials (FK_credentials_account_id)
-     * - T_federated_identities (FK_federated_account)
-     * - T_authorization_codes (FK_authorization_codes_account_id)
-     * 
-     * However, T_authorization_requests has no foreign key constraint, so we delete it manually.
-     * 
-     * @param accountId The ID of the account to delete
-     * @throws IllegalArgumentException if attempting to delete the account with the only admin role for abstratium-abstrauth
-     */
-    @Transactional
-    public void deleteAccount(String accountId) {
-        Account account = em.find(Account.class, accountId);
-        if (account == null) {
-            throw new IllegalArgumentException("Account not found");
-        }
-
-        // Prevent deletion if this account has the only admin role for abstratium-abstrauth
-        if (hasTheOnlyAdminRoleForAbstrauthClient(accountId)) {
-            throw new IllegalArgumentException("Cannot delete the account with the only admin role for " + Roles.CLIENT_ID);
-        }
-
-        // Delete authorization requests (no CASCADE DELETE constraint in database)
-        var authReqQuery = em.createQuery("DELETE FROM AuthorizationRequest ar WHERE ar.accountId = :accountId");
-        authReqQuery.setParameter("accountId", accountId);
-        authReqQuery.executeUpdate();
-
-        // Delete the account (CASCADE DELETE will handle roles, credentials, federated identities, and auth codes)
-        em.remove(account);
-    }
-    
-    /**
-     * Check if this account has the only admin role for abstratium-abstrauth
-     * 
-     * @param accountId The account ID to check
-     * @return true if this account has the only admin role for abstratium-abstrauth
-     */
-    private boolean hasTheOnlyAdminRoleForAbstrauthClient(String accountId) {
-        // Check if this account has the admin role for abstratium-abstrauth
-        var accountRoleQuery = em.createQuery(
-            "SELECT COUNT(ar) FROM AccountRole ar WHERE ar.accountId = :accountId AND ar.clientId = :clientId AND ar.role = :role",
-            Long.class
-        );
-        accountRoleQuery.setParameter("accountId", accountId);
-        accountRoleQuery.setParameter("clientId", Roles.CLIENT_ID);
-        accountRoleQuery.setParameter("role", Roles._ADMIN_PLAIN);
-        long accountHasAdminRole = accountRoleQuery.getSingleResult();
-        
-        if (accountHasAdminRole == 0) {
-            return false; // This account doesn't have the admin role
-        }
-        
-        // Count total admin roles for abstratium-abstrauth
-        var totalAdminQuery = em.createQuery(
-            "SELECT COUNT(ar) FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
-            Long.class
-        );
-        totalAdminQuery.setParameter("clientId", Roles.CLIENT_ID);
-        totalAdminQuery.setParameter("role", Roles._ADMIN_PLAIN);
-        long totalAdminRoles = totalAdminQuery.getSingleResult();
-        
-        return totalAdminRoles <= 1; // This is the only admin
-    }
-
-    /**
      * Create a credential for an existing account
      * @param accountId The account ID
      * @param username The username (typically email)
@@ -491,10 +423,5 @@ public class AccountService {
         credential.setPasswordHash(hashPassword(newPassword));
         em.merge(credential);
         return true;
-    }
-
-    @Transactional
-    public void deleteAll() {
-        em.createQuery("DELETE FROM Account").executeUpdate();
     }
 }

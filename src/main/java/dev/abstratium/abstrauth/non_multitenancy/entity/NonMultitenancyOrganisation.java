@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.entity;
+package dev.abstratium.abstrauth.non_multitenancy.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -6,9 +6,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Non-multitenancy version of Organisation entity.
+ * Used for cross-tenant operations and cascade deletions.
+ */
 @Entity
 @Table(name = "T_organisations")
-public class Organisation {
+public class NonMultitenancyOrganisation {
 
     @Id
     @Column(length = 36)
@@ -22,6 +26,10 @@ public class Organisation {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "org_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private List<NonMultitenancySubscription> subscriptions = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
@@ -64,5 +72,13 @@ public class Organisation {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public List<NonMultitenancySubscription> getSubscriptions() {
+        return subscriptions;
+    }
+
+    public void setSubscriptions(List<NonMultitenancySubscription> subscriptions) {
+        this.subscriptions = subscriptions;
     }
 }

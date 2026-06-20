@@ -173,11 +173,20 @@ test.describe('Make Owner Feature', () => {
         expect(error1).toBeNull();
         await dismissToasts(page);
 
-        // Step 4: Try to make the same member an owner again (should fail)
-        const error2 = await tryMakeOwner(page, ownerEmail);
-        expect(error2).toContain('already an owner');
+        // Step 4: Reload to refresh owner status - button should now be replaced by crown badge
+        await page.reload();
+        await page.waitForLoadState('networkidle');
+        await navigateToAccounts(page);
 
-        console.log('✓ Test passed: cannot make someone an owner twice');
+        // Step 5: Verify Make Owner button is no longer visible (replaced by crown badge)
+        const isButtonVisible = await isMakeOwnerButtonVisible(page, ownerEmail);
+        expect(isButtonVisible).toBe(false);
+
+        // Step 6: Verify crown badge is visible for the now-owner
+        const accountTile = page.locator('.tile').filter({ hasText: ownerEmail });
+        await expect(accountTile.locator('span[title="Owner of this organisation"]')).toBeVisible();
+
+        console.log('✓ Test passed: cannot make someone an owner twice - button hidden after promotion');
     });
 
     test('newly promoted owner can see make owner button', async ({ page }) => {

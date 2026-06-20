@@ -11,13 +11,13 @@ import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for CSRF protection using quarkus-rest-csrf extension.
- * 
+ * Tests for CSRF protection using custom CSRF implementation.
+ *
  * Tests verify that:
  * 1. CSRF protection is properly configured
  * 2. Public endpoints are not affected by CSRF protection
  * 3. CSRF configuration properties are correctly set
- * 
+ *
  * Note: Full end-to-end CSRF testing with OIDC sessions is performed in E2E tests.
  * Unit tests here verify configuration and that public endpoints remain accessible.
  * The main test profile has CSRF disabled to avoid conflicts with JWT-based testing.
@@ -31,15 +31,14 @@ public class CsrfProtectionTest {
 
     /**
      * Custom test profile that enables CSRF protection for these tests
-     * Note: We disable HMAC signing in tests because it requires an OIDC session cookie,
-     * which isn't available when using JWT tokens directly via .auth().oauth2()
+     * Note: We set a test signature key - in production this should be a strong secret
      */
     public static class CsrfTestProfile implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
             return Map.of(
-                "quarkus.rest-csrf.enabled", "true",
-                "quarkus.rest-csrf.token-signature-key", "" // Disable HMAC signing for tests
+                "csrf.protection.enabled", "true",
+                "csrf.token.signature.key", "test-csrf-key-for-unit-tests-only-must-be-at-least-32-chars"
             );
         }
     }

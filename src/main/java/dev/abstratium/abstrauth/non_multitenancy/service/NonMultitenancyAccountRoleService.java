@@ -161,10 +161,12 @@ public class NonMultitenancyAccountRoleService {
     @Transactional
     public void removeRolesForClientAndRole(String clientId, String role) {
         em.createQuery(
-            "DELETE FROM NonMultitenancyAccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role")
+            "SELECT ar FROM NonMultitenancyAccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
+            NonMultitenancyAccountRole.class)
             .setParameter("clientId", clientId)
             .setParameter("role", role)
-            .executeUpdate();
+            .getResultList()
+            .forEach(em::remove);
     }
 
     /**
@@ -179,10 +181,12 @@ public class NonMultitenancyAccountRoleService {
     @Transactional
     public void removeRolesForClientAndRoleOutsideOrg(String clientId, String role, String owningOrgId) {
         em.createQuery(
-            "DELETE FROM NonMultitenancyAccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role AND ar.orgId != :owningOrgId")
+            "SELECT ar FROM NonMultitenancyAccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role AND ar.orgId != :owningOrgId",
+            NonMultitenancyAccountRole.class)
             .setParameter("clientId", clientId)
             .setParameter("role", role)
             .setParameter("owningOrgId", owningOrgId)
-            .executeUpdate();
+            .getResultList()
+            .forEach(em::remove);
     }
 }

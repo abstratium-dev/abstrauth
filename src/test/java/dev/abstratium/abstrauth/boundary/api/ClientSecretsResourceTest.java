@@ -44,8 +44,11 @@ public class ClientSecretsResourceTest {
     public void setup() {
         // Clean up test data
         em.createQuery("DELETE FROM ClientSecret WHERE clientId LIKE 'test-secrets-%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientRole WHERE srcClientId LIKE 'test-secrets-%'").executeUpdate();
+        em.createQuery("DELETE FROM ClientRole WHERE targetClientId LIKE 'test-secrets-%'").executeUpdate();
         em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE 'test-secrets-%'").executeUpdate();
         em.createQuery("DELETE FROM AccountRole WHERE accountId IN (SELECT id FROM Account WHERE email = 'secrets-admin@test.com')").executeUpdate();
+        em.createQuery("DELETE FROM OrganisationAccount oa WHERE oa.id.accountId IN (SELECT a.id FROM Account a WHERE a.email = 'secrets-admin@test.com')").executeUpdate();
         em.createQuery("DELETE FROM Account WHERE email = 'secrets-admin@test.com'").executeUpdate();
 
         // Create admin account

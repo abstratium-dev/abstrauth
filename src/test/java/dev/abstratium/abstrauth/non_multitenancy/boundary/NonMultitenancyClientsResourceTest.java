@@ -2,7 +2,9 @@ package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 
 import java.util.Set;
@@ -320,5 +322,101 @@ public class NonMultitenancyClientsResourceTest {
         r.setIsDefault(isDefault);
         r.setAvailableToForeignOrgs(availableToForeignOrgs);
         em.persist(r);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // DELETE /api/clients/{clientId}
+    // ─────────────────────────────────────────────────────────
+
+    @Test
+    public void testDeleteClientSuccessfully() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account account = createAccount(ts + "_delclient");
+        String orgId = getAccountOrgId(account.getId());
+
+        // Create a client to delete
+        String clientId = "delete-test-client-" + ts;
+        transactionHelper.beginTransaction();
+        createTestClient(clientId, orgId);
+        transactionHelper.commitTransaction();
+
+        String token = managerToken(account.getId(), orgId);
+
+        // Delete the client
+        given()
+            .auth().oauth2(token)
+            .when()
+            .delete("/api/clients/" + clientId)
+            .then()
+            .statusCode(204);
+
+        // Verify client is deleted
+        given()
+            .auth().oauth2(token)
+            .when()
+            .get("/api/clients")
+            .then()
+            .statusCode(200)
+            .body("findAll { it.clientId == '" + clientId + "' }.size()", equalTo(0));
+    }
+
+    @Test
+    public void testDeleteClientWithoutTokenReturns401() {
+        given()
+            .when()
+            .delete("/api/clients/some-id")
+            .then()
+            .statusCode(401);
+    }
+
+    @Test
+    public void testDeleteClientWithoutRoleReturns403() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account account = createAccount(ts + "_delclient_norole");
+        String orgId = getAccountOrgId(account.getId());
+
+        String userToken = userToken(account.getId(), orgId);
+
+        given()
+            .auth().oauth2(userToken)
+            .when()
+            .delete("/api/clients/some-id")
+            .then()
+            .statusCode(403);
+    }
+
+    @Test
+    public void testDeleteClientWithNonExistentIdReturns404() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account account = createAccount(ts + "_delclient_404");
+        String orgId = getAccountOrgId(account.getId());
+
+        String token = managerToken(account.getId(), orgId);
+
+        given()
+            .auth().oauth2(token)
+            .when()
+            .delete("/api/clients/non-existent-id")
+            .then()
+            .statusCode(404)
+            .body("error", equalTo("Client not found"));
+    }
+
+    @Test
+    public void testCannotDeleteAbstrauthClient() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account account = createAccount(ts + "_delclient_abstrauth");
+        String orgId = getAccountOrgId(account.getId());
+
+        String token = managerToken(account.getId(), orgId);
+
+        // Try to delete abstratium-abstrauth client - should fail with 400
+        given()
+            .auth().oauth2(token)
+            .when()
+            .delete("/api/clients/abstratium-abstrauth")
+            .then()
+            .statusCode(400)
+            .body("error", containsString("Cannot delete the abstratium-abstrauth client"));
     }
 }
