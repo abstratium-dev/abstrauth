@@ -1,19 +1,28 @@
 package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.util.ClientIdUtil;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
+import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;
 import java.util.Base64;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests for TokenResource error paths and edge cases
@@ -21,14 +30,28 @@ import static org.hamcrest.CoreMatchers.*;
 @QuarkusTest
 public class TokenResourceTest {
 
+    private static final Logger LOG = Logger.getLogger(TokenResourceTest.class.getName());
+
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
     private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
 
-    private static final String OTHER_ORG = "11111111-1111-1111-1111-111111111111";
-
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
+
+    @Inject
+    AccountService accountService;
+
+    @Inject
+    OrganisationService organisationService;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @BeforeEach
+    public void setup() {
+        dbResetHelper.resetDatabase();
+    }
 
     @Test
     public void testTokenEndpointWithMissingGrantType() {
@@ -340,12 +363,12 @@ public class TokenResourceTest {
      * This is the "happy path" - a client gets roles assigned within its own org.
      */
     @Test
-    public void testClientCredentialsWithClientRolesFromOwnOrg() {
+    public void testClientCredentialsWithClientRolesFromOwnOrg() throws Exception {
         String orgId = defaultOrgId;
-        String manageToken = generateManageTokenForOrg(orgId);
+        String manageToken = createRealManageTokenForOrg(orgId);
 
         // Create source client (the one that will sign in)
-        String srcClientId = createClient(manageToken, "src_own_org", "[" + orgId + "-target-service" + "]", "[]");
+        String srcClientId = createClient(manageToken, "src_own_org", "[]", "[]");
 
         // Create target client in the same org
         String targetClientId = createClientWithAllowedRole(manageToken, "target_own_org", "api-reader", true);
@@ -367,7 +390,7 @@ public class TokenResourceTest {
         String accessToken = given()
             .contentType("application/x-www-form-urlencoded")
             .formParam("grant_type", "client_credentials")
-            .formParam("client_id", ClientIdUtil.stripOrgPrefix(srcClientId))
+            .formParam("client_id", srcClientId) // token endpoint needs FULL clientId
             .formParam("client_secret", clientSecret)
             .when()
             .post("/oauth2/token")
@@ -380,9 +403,10 @@ public class TokenResourceTest {
         // Decode and verify the token contains the role
         JsonObject claims = decodeToken(accessToken);
         org.junit.jupiter.api.Assertions.assertTrue(claims.containsKey("groups"), "Token should have groups claim");
+        String expectedGroup = ClientIdUtil.stripOrgPrefix(targetClientId) + "_api-reader";
         org.junit.jupiter.api.Assertions.assertTrue(
-            claims.getJsonArray("groups").contains(Json.createValue("target-service_api-reader")),
-            "Token should contain the client role in groups claim"
+            claims.getJsonArray("groups").contains(Json.createValue(expectedGroup)),
+            "Token should contain the client role in groups claim: " + expectedGroup
         );
     }
 
@@ -392,14 +416,32 @@ public class TokenResourceTest {
      * with the same ID but in org B's database (due to @TenantId filtering in ClientRole).
      */
     @Test
-    public void testClientCredentialsCannotAccessClientRolesFromOtherOrg() {
+    public void testClientCredentialsCannotAccessClientRolesFromOtherOrg() throws Exception {
         String orgA = defaultOrgId;
-        String orgB = OTHER_ORG;
-        String manageTokenA = generateManageTokenForOrg(orgA);
-        String manageTokenB = generateManageTokenForOrg(orgB);
+
+        // Create two real accounts: one in default org (first after reset), one in new org
+        String manageTokenA = createRealManageTokenForOrg(orgA);
+
+        Account orgBAccount = accountService.createAccount(
+            "tokentest_orgb_" + System.currentTimeMillis() + "@example.com",
+            "Org B User",
+            "tokentest_orgb_" + System.currentTimeMillis(),
+            "Pass123!",
+            AccountService.NATIVE,
+            "TokenTest Org B");
+        String orgB = organisationService.listOrganisationsForAccount(orgBAccount.getId()).get(0).getId();
+        // Use orgBAccount directly for the token — it's already a member of orgB
+        String manageTokenB = Jwt.issuer("https://abstrauth.abstratium.dev")
+            .subject(orgBAccount.getId())
+            .upn(orgBAccount.getEmail())
+            .groups(Set.of(Roles.USER, Roles.MANAGE_CLIENTS))
+            .claim("email", orgBAccount.getEmail())
+            .claim("name", orgBAccount.getName())
+            .claim("orgId", orgB)
+            .sign();
 
         // In Org A: Create source client and assign it a role for a target
-        String srcClientIdA = createClient(manageTokenA, "src_cross_org", "[" + orgA + "-target_a" + "]", "[]");
+        String srcClientIdA = createClient(manageTokenA, "src_cross_org", "[]", "[]");
         String targetClientIdA = createClientWithAllowedRole(manageTokenA, "target_a", "api-reader", true);
 
         given()
@@ -411,11 +453,8 @@ public class TokenResourceTest {
             .then()
             .statusCode(201);
 
-        // In Org B: Create a client with the SAME clientId as in Org A
-        // This simulates a different organization having a client with identical ID
-        String srcClientIdB = srcClientIdA; // Same ID, but different org context via JWT
-
-        // Create client role for the same client ID in Org B (target-b)
+        // In Org B: Create a source and target client with different IDs
+        String srcClientIdB = createClient(manageTokenB, "src_cross_org_b", "[]", "[]");
         String targetClientIdB = createClientWithAllowedRole(manageTokenB, "target_b", "api-writer", true);
         given()
             .header("Authorization", "Bearer " + manageTokenB)
@@ -429,12 +468,11 @@ public class TokenResourceTest {
         // Create a secret for Org A's client
         String clientSecretA = createClientSecret(manageTokenA, srcClientIdA);
 
-        // Request token using Org A's client credentials
-        // Due to @TenantId filtering in ClientRole, it should ONLY see roles from Org A
+        // Request token using Org A's client credentials (full clientId required)
         String accessToken = given()
             .contentType("application/x-www-form-urlencoded")
             .formParam("grant_type", "client_credentials")
-            .formParam("client_id", ClientIdUtil.stripOrgPrefix(srcClientIdA))
+            .formParam("client_id", srcClientIdA)
             .formParam("client_secret", clientSecretA)
             .when()
             .post("/oauth2/token")
@@ -443,16 +481,18 @@ public class TokenResourceTest {
             .extract()
             .path("access_token");
 
-        // Verify: Token should have Org A's role (target-a_api-reader), NOT Org B's role
+        // Verify: Token should have Org A's role, NOT Org B's role
         JsonObject claims = decodeToken(accessToken);
         org.junit.jupiter.api.Assertions.assertTrue(claims.containsKey("groups"));
+        String expectedGroupA = ClientIdUtil.stripOrgPrefix(targetClientIdA) + "_api-reader";
         org.junit.jupiter.api.Assertions.assertTrue(
-            claims.getJsonArray("groups").contains(Json.createValue("target-a_api-reader")),
-            "Token should contain Org A's client role"
+            claims.getJsonArray("groups").contains(Json.createValue(expectedGroupA)),
+            "Token should contain Org A's client role: " + expectedGroupA
         );
+        String expectedGroupB = ClientIdUtil.stripOrgPrefix(targetClientIdB) + "_api-writer";
         org.junit.jupiter.api.Assertions.assertFalse(
-            claims.getJsonArray("groups").contains(Json.createValue("target-b_api-writer")),
-            "Token should NOT contain Org B's client role (tenant isolation)"
+            claims.getJsonArray("groups").contains(Json.createValue(expectedGroupB)),
+            "Token should NOT contain Org B's client role (tenant isolation): " + expectedGroupB
         );
     }
 
@@ -460,8 +500,8 @@ public class TokenResourceTest {
      * Tests that a client with no ClientRoles gets an empty groups claim.
      */
     @Test
-    public void testClientCredentialsWithNoClientRoles() {
-        String manageToken = generateManageTokenForOrg(defaultOrgId);
+    public void testClientCredentialsWithNoClientRoles() throws Exception {
+        String manageToken = createRealManageTokenForOrg(defaultOrgId);
 
         // Create a client but don't assign any client roles
         String clientId = createClient(manageToken, "no_roles_client", "[]", "[]");
@@ -470,7 +510,7 @@ public class TokenResourceTest {
         String accessToken = given()
             .contentType("application/x-www-form-urlencoded")
             .formParam("grant_type", "client_credentials")
-            .formParam("client_id", ClientIdUtil.stripOrgPrefix(clientId))
+            .formParam("client_id", clientId) // token endpoint needs FULL clientId
             .formParam("client_secret", clientSecret)
             .when()
             .post("/oauth2/token")
@@ -492,11 +532,11 @@ public class TokenResourceTest {
      * the @TenantId filter should prevent it from being returned.
      */
     @Test
-    public void testClientRoleTenantIsolationInToken() {
-        String manageToken = generateManageTokenForOrg(defaultOrgId);
+    public void testClientRoleTenantIsolationInToken() throws Exception {
+        String manageToken = createRealManageTokenForOrg(defaultOrgId);
 
         // Create source client and target with role assignment
-        String srcClientId = createClient(manageToken, "isolated_client", "[" + defaultOrgId + "-isolated_target" + "]", "[]");
+        String srcClientId = createClient(manageToken, "isolated_client", "[]", "[]");
         String targetClientId = createClientWithAllowedRole(manageToken, "isolated_target", "secure-role", true);
 
         given()
@@ -510,11 +550,11 @@ public class TokenResourceTest {
 
         String clientSecret = createClientSecret(manageToken, srcClientId);
 
-        // Get token
+        // Get token using full clientId
         String accessToken = given()
             .contentType("application/x-www-form-urlencoded")
             .formParam("grant_type", "client_credentials")
-            .formParam("client_id", ClientIdUtil.stripOrgPrefix(srcClientId))
+            .formParam("client_id", srcClientId) // token endpoint needs FULL clientId
             .formParam("client_secret", clientSecret)
             .when()
             .post("/oauth2/token")
@@ -540,16 +580,25 @@ public class TokenResourceTest {
             }
             """, uniqueClientId, clientName);
 
-        return given()
+        LOG.info("[createClient] requesting with clientName=" + clientName + ", body=" + createBody);
+
+        io.restassured.response.Response resp = given()
             .header("Authorization", "Bearer " + manageToken)
             .contentType("application/json")
             .body(createBody)
             .when()
             .post("/api/clients")
             .then()
-            .statusCode(201)
-            .extract()
-            .path("clientId");
+            .extract().response();
+
+        LOG.info("[createClient] response status=" + resp.statusCode() + ", body=" + resp.body().asString());
+        if (resp.statusCode() != 201) {
+            LOG.severe("[createClient] FAILED to create client. HTTP " + resp.statusCode()
+                    + ". Full response: " + resp.body().asString());
+        }
+        assertEquals(201, resp.statusCode(), "createClient should return 201 but got " + resp.statusCode()
+                + ". Response: " + resp.body().asString());
+        return resp.path("clientId");
     }
 
     private String createClientWithAllowedRole(String manageToken, String clientName, String role, boolean availableToForeignOrgs) {
@@ -579,17 +628,35 @@ public class TokenResourceTest {
     }
 
     /**
-     * Generates a manage token for testing with a specific org claim.
-     * This simulates a user logged into a specific organization.
+     * Creates a real account in the given org and returns a manage token with that
+     * account's subject so OrgMembershipInterceptor validation passes.
+     * After resetDatabase(), the first account created goes to the default org.
+     * For a new org, pass a unique org name — a new org will be created automatically.
      */
-    private String generateManageTokenForOrg(String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
-            .upn("test@example.com")
-            .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
-            .claim("email", "test@example.com")
-            .claim("name", "Test User")
+    private String createRealManageTokenForOrg(String orgId) throws Exception {
+        // After reset, the first account goes to default org.
+        // For non-default orgs, we need to create an account with a specific org name.
+        String email = "tokentest_" + System.currentTimeMillis() + "@example.com";
+        String username = "tokentest_" + System.currentTimeMillis();
+        Account account;
+        if (orgId.equals(defaultOrgId)) {
+            // First account after reset lands in default org
+            account = accountService.createAccount(email, "Token Test", username, "Pass123!",
+                    AccountService.NATIVE, null);
+        } else {
+            account = accountService.createAccount(email, "Token Test", username, "Pass123!",
+                    AccountService.NATIVE, "TokenTest Org " + System.currentTimeMillis());
+        }
+        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+            .subject(account.getId())
+            .upn(account.getEmail())
+            .groups(Set.of(Roles.USER, Roles.MANAGE_CLIENTS))
+            .claim("email", account.getEmail())
+            .claim("name", account.getName())
             .claim("orgId", orgId)
             .sign();
+        LOG.info("[createRealManageTokenForOrg] orgId=" + orgId + ", accountId=" + account.getId());
+        return token;
     }
 
     /**

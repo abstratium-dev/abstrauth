@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.logging.Logger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,8 @@ import jakarta.transaction.UserTransaction;
  */
 @QuarkusTest
 public class SubscriptionGateTest {
+
+    private static final Logger LOG = Logger.getLogger(SubscriptionGateTest.class.getName());
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
@@ -60,6 +63,20 @@ public class SubscriptionGateTest {
     // ─────────────────────────────────────────────────────────
 
     private Account createAccount(String suffix) throws Exception {
+        // After resetDatabase() all accounts are deleted, so the FIRST account created
+        // goes to the default org (which already has a subscription). We need a new org,
+        // so create a throwaway account first to make isFirstAccount=false.
+        userTransaction.begin();
+        accountService.createAccount(
+                "subgate_dummy_" + suffix + "@example.com",
+                "SubGate Dummy " + suffix,
+                "subgate_dummy_" + suffix,
+                "Pass123!",
+                AccountService.NATIVE,
+                "SubGate Dummy Org " + suffix);
+        userTransaction.commit();
+
+        // Now create the real test account — it will get a fresh new org
         userTransaction.begin();
         Account account = accountService.createAccount(
                 "subgate_" + suffix + "@example.com",
@@ -67,7 +84,7 @@ public class SubscriptionGateTest {
                 "subgate_" + suffix,
                 "Pass123!",
                 AccountService.NATIVE,
-                null); // null → first account after reset goes to default org
+                "SubGate Org " + suffix);
         userTransaction.commit();
         return account;
     }
@@ -131,7 +148,8 @@ public class SubscriptionGateTest {
     @Test
     public void testSignInBlockedWhenNoSubscriptionAndAutoSubscribeFalse() throws Exception {
         long ts = System.currentTimeMillis();
-        createAccount(ts + "_nosub");
+        Account account = createAccount(ts + "_nosub");
+        String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
 
         // Set auto_subscribe = false on the client
         userTransaction.begin();
@@ -141,17 +159,26 @@ public class SubscriptionGateTest {
         userTransaction.commit();
         // Fresh org from createAccount has no subscription yet — no removal needed
 
+        boolean hasSub = subscriptionService.findNonMultitenancySubscription(orgId, CLIENT_ID).isPresent();
+        LOG.info("[testSignInBlockedWhenNoSubscriptionAndAutoSubscribeFalse] orgId=" + orgId
+                + ", autoSubscribe=" + client.getAutoSubscribe()
+                + ", hasSubscription=" + hasSub);
+
         try {
             String verifier = generateCodeVerifier();
             String challenge = generateCodeChallenge(verifier);
             String requestId = initiateAuthRequest(challenge);
 
-            given()
+            Response resp = given()
                     .formParam("username", "subgate_" + ts + "_nosub")
                     .formParam("password", "Pass123!")
                     .formParam("request_id", requestId)
                     .post("/oauth2/authorize/authenticate")
-                    .then().statusCode(403);
+                    .then()
+                    .extract().response();
+            LOG.info("[testSignInBlockedWhenNoSubscriptionAndAutoSubscribeFalse] authenticate response status="
+                    + resp.statusCode() + ", body=" + resp.body().asString());
+            assertEquals(403, resp.statusCode(), "Sign-in should be blocked when no subscription and autoSubscribe=false");
         } finally {
             // Restore auto_subscribe = true so other tests are not affected
             userTransaction.begin();
@@ -169,9 +196,12 @@ public class SubscriptionGateTest {
 
         String orgId = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
 
+        boolean hasSub = subscriptionService.findNonMultitenancySubscription(orgId, CLIENT_ID).isPresent();
+        LOG.info("[testAutoSubscribeCreatesSubscriptionOnFirstSignIn] orgId=" + orgId
+                + ", hasSubscriptionBeforeSignIn=" + hasSub);
+
         // Ensure no subscription exists yet for this fresh org
-        assertFalse(subscriptionService.findNonMultitenancySubscription(orgId, CLIENT_ID).isPresent(),
-                "Fresh org should have no subscription");
+        assertFalse(hasSub, "Fresh org should have no subscription");
 
         String verifier = generateCodeVerifier();
         String challenge = generateCodeChallenge(verifier);
