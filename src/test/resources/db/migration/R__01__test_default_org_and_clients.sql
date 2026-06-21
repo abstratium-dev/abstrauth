@@ -16,8 +16,8 @@ INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_u
 SELECT 'client-b-id', 'client-b', 'Test Client B', 'confidential', '["http://localhost:8080/callback"]', '["openid","profile","email"]', false, CURRENT_TIMESTAMP, '${default_org_uuid}'
 WHERE NOT EXISTS (SELECT 1 FROM T_oauth_clients WHERE client_id = 'client-b');
 
-INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, created_at, org_id)
-SELECT 'abstratium-abstrauth-id', 'abstratium-abstrauth', 'Abstratium Abstrauth', 'confidential', '["http://localhost:8080/callback"]', '["openid","profile","email"]', false, CURRENT_TIMESTAMP, '${default_org_uuid}'
+INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, publik, created_at, org_id)
+SELECT 'abstratium-abstrauth-id', 'abstratium-abstrauth', 'abstratium abstrauth', 'confidential', '["http://localhost:8080/api/auth/callback", "https://auth.abstratium.dev/api/auth/callback"]', '["openid","profile","email"]', true, true, true, CURRENT_TIMESTAMP, '${default_org_uuid}'
 WHERE NOT EXISTS (SELECT 1 FROM T_oauth_clients WHERE client_id = 'abstratium-abstrauth');
 
 INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, created_at, org_id)

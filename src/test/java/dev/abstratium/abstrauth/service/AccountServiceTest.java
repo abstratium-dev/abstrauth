@@ -314,6 +314,22 @@ public class AccountServiceTest {
     }
 
     @Test
+    public void testFirstAccountInNewOrgDoesNotGetAdminRole() {
+        // Create the very first account (gets admin globally)
+        String email1 = "global_first_" + System.currentTimeMillis() + "@example.com";
+        String username1 = "globalfirst_" + System.currentTimeMillis();
+        accountService.createAccount(email1, "Global First", username1, "Password123", AccountService.NATIVE, "First Org");
+
+        // Create the first account in a brand new org — should NOT get admin
+        String email2 = "neworg_first_" + System.currentTimeMillis() + "@example.com";
+        String username2 = "neworgfirst_" + System.currentTimeMillis();
+        Account account2 = accountService.createAccount(email2, "New Org First", username2, "Password123", AccountService.NATIVE, "New Org");
+
+        var roles = accountRoleService.findRolesByAccountIdAndClientId(account2.getId(), "abstratium-abstrauth");
+        assertFalse(roles.contains("admin"), "First account in a new org should not get admin role");
+    }
+
+    @Test
     public void testFirstFederatedAccountGetsAdminRole() {
         String email = "firstfed_" + System.currentTimeMillis() + "@example.com";
         

@@ -139,20 +139,20 @@ public class TestDatabaseResetHelper {
     }
 
     private void restoreAbstrauthClient(String org, String clientIdLiteral) {
-        // Must match V01.006__insertDefaultClient.sql redirect_uris
+        // Must match actual post-migration state (V01.006 + V01.010 + V01.024)
         final String redirectUris = "[\"http://localhost:8080/api/auth/callback\",\"https://auth.abstratium.dev/api/auth/callback\"]";
         final String scopes = "[\"openid\",\"profile\",\"email\"]";
 
         // Some tests mutate the abstratium-abstrauth client; restore it to correct values.
         int updated = em.createNativeQuery(
                 "UPDATE T_oauth_clients SET " +
-                "client_name = 'Abstratium Abstrauth', " +
+                "client_name = 'abstratium abstrauth', " +
                 "client_type = 'confidential', " +
                 "redirect_uris = '" + redirectUris + "', " +
                 "allowed_scopes = '" + scopes + "', " +
-                "require_pkce = false, " +
-                "auto_subscribe = false, " +
-                "publik = false, " +
+                "require_pkce = true, " +
+                "auto_subscribe = true, " +
+                "publik = true, " +
                 "org_id = " + org + " " +
                 "WHERE client_id = " + clientIdLiteral)
             .executeUpdate();
@@ -160,8 +160,8 @@ public class TestDatabaseResetHelper {
 
         // Fallback: insert if the row was somehow deleted.
         reseedClient(org, "abstratium-abstrauth-id", clientIdLiteral,
-            "Abstratium Abstrauth", "confidential", redirectUris,
-            scopes, false, false, false);
+            "abstratium abstrauth", "confidential", redirectUris,
+            scopes, true, true, true);
     }
 
     private String queryRedirectUris(String clientId) {

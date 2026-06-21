@@ -20,11 +20,13 @@ import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
 import jakarta.transaction.UserTransaction;
+import org.junit.jupiter.api.BeforeEach;
 
 @QuarkusTest
 public class OrgSelectionResourceTest {
@@ -44,6 +46,14 @@ public class OrgSelectionResourceTest {
     @Inject
     UserTransaction userTransaction;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @BeforeEach
+    public void setup() {
+        dbResetHelper.resetDatabase();
+    }
+
     // ─────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────
@@ -56,7 +66,7 @@ public class OrgSelectionResourceTest {
                 "orgsel_" + suffix,
                 "Pass123!",
                 AccountService.NATIVE,
-                "OrgSel Org " + suffix);
+                null); // null → first account after reset goes to default org
         userTransaction.commit();
         return account;
     }

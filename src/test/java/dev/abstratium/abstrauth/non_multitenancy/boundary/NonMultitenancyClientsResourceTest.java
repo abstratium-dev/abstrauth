@@ -19,6 +19,7 @@ import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscrip
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
@@ -26,6 +27,7 @@ import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.junit.jupiter.api.BeforeEach;
 
 /**
  * Tests for NonMultitenancyClientsResource
@@ -51,6 +53,14 @@ public class NonMultitenancyClientsResourceTest {
 
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @BeforeEach
+    public void setup() {
+        dbResetHelper.resetDatabase();
+    }
 
     // ─────────────────────────────────────────────────────────
     // GET /api/clients/{clientId}/allowed-roles
@@ -271,7 +281,7 @@ public class NonMultitenancyClientsResourceTest {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
                 .subject(accountId)
                 .upn("test@example.com")
-                .groups(Set.of(Roles.USER, Roles.MANAGE_CLIENTS))
+                .groups(Set.of(Roles.USER, Roles.MANAGE_ACCOUNTS, Roles.MANAGE_CLIENTS))
                 .claim("orgId", orgId)
                 .sign();
     }
@@ -407,7 +417,16 @@ public class NonMultitenancyClientsResourceTest {
     @Test
     public void testCannotDeleteAbstrauthClient() throws Exception {
         long ts = System.currentTimeMillis();
-        Account account = createAccount(ts + "_delclient_abstrauth");
+        // Create account in default org (no org name) so the token's orgId claim matches
+        transactionHelper.beginTransaction();
+        Account account = accountService.createAccount(
+                "crt_" + ts + "_delclient_abstrauth@example.com",
+                "CRTest " + ts + " Abstrauth",
+                "crt_" + ts + "_delclient_abstrauth",
+                "Pass123!",
+                AccountService.NATIVE,
+                null);
+        transactionHelper.commitTransaction();
 
         // Act as a caller whose org owns the default client, so the request reaches the
         // service-level deletion guard rather than the ownership check.

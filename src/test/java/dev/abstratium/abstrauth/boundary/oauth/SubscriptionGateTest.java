@@ -8,6 +8,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
@@ -16,6 +17,7 @@ import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscrip
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
@@ -45,6 +47,14 @@ public class SubscriptionGateTest {
     @Inject
     UserTransaction userTransaction;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @BeforeEach
+    public void setup() {
+        dbResetHelper.resetDatabase();
+    }
+
     // ─────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────
@@ -57,7 +67,7 @@ public class SubscriptionGateTest {
                 "subgate_" + suffix,
                 "Pass123!",
                 AccountService.NATIVE,
-                "SubGate Org " + suffix);
+                null); // null → first account after reset goes to default org
         userTransaction.commit();
         return account;
     }

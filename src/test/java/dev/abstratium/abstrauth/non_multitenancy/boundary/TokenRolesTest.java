@@ -124,7 +124,7 @@ public class TokenRolesTest {
         // Verify it contains default "user" role with client prefix
         assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
         assertTrue(payload.contains("\"abstratium-abstrauth_user\""), "JWT should contain default 'abstratium-abstrauth_user' role");
-        assertFalse(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should not contain 'admin' role");
+        assertTrue(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should contain 'admin' role since first account gets it automatically");
     }
 
     @Test

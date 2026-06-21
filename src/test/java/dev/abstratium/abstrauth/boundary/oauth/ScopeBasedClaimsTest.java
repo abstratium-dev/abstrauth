@@ -1,7 +1,9 @@
 package dev.abstratium.abstrauth.boundary.oauth;
 
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,15 +39,19 @@ public class ScopeBasedClaimsTest {
     private static final String TEST_PASSWORD = "SecurePassword123";
     private static final String TEST_NAME = "Scope Test User";
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     @BeforeEach
     public void setup() {
-        // Sign up a test user
+        dbResetHelper.resetDatabase();
+
+        // Sign up a test user into the default org
         given()
             .formParam("email", TEST_EMAIL)
             .formParam("name", TEST_NAME)
             .formParam("username", TEST_USERNAME)
             .formParam("password", TEST_PASSWORD)
-            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()

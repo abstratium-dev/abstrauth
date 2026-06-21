@@ -149,7 +149,7 @@ public class AccountRoleServiceTest {
     @Test
     public void testFindRolesByAccountId() {
         // Add roles for multiple clients (note: account already has automatic roles:
-        // "user", "manage-accounts", "manage-clients" because account is an owner)
+        // "admin", "user", "manage-accounts", "manage-clients" because first account gets admin automatically)
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "editor");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID_2, "viewer");
@@ -161,17 +161,17 @@ public class AccountRoleServiceTest {
             .setParameter("accountId", testAccountId)
             .getResultList();
 
-        // Expect 6 roles: 3 automatic (user, manage-accounts, manage-clients) + 3 manually added
-        assertEquals(6, allRoles.size());
+        // Expect 7 roles: 4 automatic (admin, user, manage-accounts, manage-clients) + 3 manually added
+        assertEquals(7, allRoles.size());
 
-        // Automatic roles: user, manage-accounts, manage-clients — scoped to abstratium-abstrauth and testOrgId
+        // Automatic roles: admin, user, manage-accounts, manage-clients — scoped to abstratium-abstrauth and testOrgId
         List<NonMultitenancyAccountRole> autoRoles = allRoles.stream()
             .filter(r -> Roles.CLIENT_ID.equals(r.getClientId()))
             .toList();
-        assertEquals(3, autoRoles.size());
+        assertEquals(4, autoRoles.size());
         assertTrue(autoRoles.stream().map(r -> r.getRole()).toList()
-            .containsAll(List.of(Roles._MANAGE_ACCOUNTS_PLAIN, Roles._MANAGE_CLIENTS_PLAIN, Roles._USER_PLAIN)),
-            "Automatic roles should be user, manage-accounts, manage-clients");
+            .containsAll(List.of(Roles._ADMIN_PLAIN, Roles._MANAGE_ACCOUNTS_PLAIN, Roles._MANAGE_CLIENTS_PLAIN, Roles._USER_PLAIN)),
+            "Automatic roles should be admin, user, manage-accounts, manage-clients");
         assertTrue(autoRoles.stream().allMatch(r -> testOrgId.equals(r.getOrgId())),
             "Automatic roles should have the account's orgId");
 
@@ -420,6 +420,17 @@ public class AccountRoleServiceTest {
         allowedRole.setIsDefault(false);
         em.persist(allowedRole);
         
+        transactionHelper.commitTransaction();
+
+        // Create a second account so accountCount > 1, preventing bootstrap skip of allowlist check
+        transactionHelper.beginTransaction();
+        accountService.createAccount(
+            "allowlist_dummy_" + System.nanoTime() + "@example.com",
+            "Allowlist Dummy",
+            "allowlist_dummy_" + System.nanoTime(),
+            "TestPassword123",
+            AccountService.NATIVE,
+            null);
         transactionHelper.commitTransaction();
         
         // Call via HTTP so securityIdentity is populated and checkRoleAgainstAllowlist is enforced

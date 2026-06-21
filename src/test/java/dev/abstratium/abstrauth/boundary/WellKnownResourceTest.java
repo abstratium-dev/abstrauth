@@ -1,7 +1,10 @@
 package dev.abstratium.abstrauth.boundary;
 
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
@@ -26,6 +29,14 @@ public class WellKnownResourceTest {
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
     private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
+
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @BeforeEach
+    public void setup() {
+        dbResetHelper.resetDatabase();
+    }
 
     @Test
     public void testServerMetadataEndpoint() {
