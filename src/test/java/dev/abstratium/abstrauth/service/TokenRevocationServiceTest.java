@@ -20,6 +20,7 @@ import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for TokenRevocationService.
@@ -44,6 +45,9 @@ class TokenRevocationServiceTest {
     @Inject
     CurrentOrgContext currentOrgContext;
 
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
+
     private static boolean dbResetDone = false;
 
     private String testAuthCodeId;
@@ -56,11 +60,11 @@ class TokenRevocationServiceTest {
             dbResetHelper.resetDatabase();
             dbResetDone = true;
         }
-        currentOrgContext.setOrgId(TestDatabaseResetHelper.DEFAULT_ORG_ID);
+        currentOrgContext.setOrgId(defaultOrgId);
 
-        // Ensure test-client exists
-        var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = 'test-client'", dev.abstratium.abstrauth.entity.OAuthClient.class);
-        if (clientQuery.getResultList().isEmpty()) {
+        // Ensure test-client exists (use native query to bypass @TenantId filter)
+        var clientExists = em.createNativeQuery("SELECT 1 FROM T_oauth_clients WHERE client_id = 'test-client'").getResultList();
+        if (clientExists.isEmpty()) {
             dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
             client.setClientId("test-client");
             client.setClientName("Test Client");

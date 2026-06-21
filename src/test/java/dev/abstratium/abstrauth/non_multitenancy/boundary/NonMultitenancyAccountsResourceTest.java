@@ -24,6 +24,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for NonMultitenancyAccountsResource
@@ -47,7 +48,8 @@ public class NonMultitenancyAccountsResourceTest {
     @Inject
     TestTransactionHelper transactionHelper;
 
-    private static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     // ─────────────────────────────────────────────────────────
     // DELETE /api/accounts/{accountId}
@@ -56,7 +58,7 @@ public class NonMultitenancyAccountsResourceTest {
     @Test
     public void testCannotDeleteAccountWithOnlyAdminRole() throws Exception {
         // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
-        String defaultOrgId = DEFAULT_ORG_ID;
+        String testOrgId = defaultOrgId;
         transactionHelper.beginTransaction();
         var existingAdmins = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
@@ -92,15 +94,15 @@ public class NonMultitenancyAccountsResourceTest {
     @Test
     public void testCanDeleteAccountWhenMultipleAdminsExist() throws Exception {
         // Create two accounts with admin role for abstratium-abstrauth in default org
-        String defaultOrgId = DEFAULT_ORG_ID;
+        String testOrgId = defaultOrgId;
         transactionHelper.beginTransaction();
         String email1 = "admin1_delacct_" + System.currentTimeMillis() + "@example.com";
-        Account admin1 = accountService.createAccountForOrg(email1, "Admin 1", "admin1_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        Account admin1 = accountService.createAccountForOrg(email1, "Admin 1", "admin1_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, testOrgId);
         String admin1Id = admin1.getId();
         accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
 
         String email2 = "admin2_delacct_" + System.currentTimeMillis() + "@example.com";
-        Account admin2 = accountService.createAccountForOrg(email2, "Admin 2", "admin2_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        Account admin2 = accountService.createAccountForOrg(email2, "Admin 2", "admin2_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, testOrgId);
         accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
 
         // Create manager account in default org
@@ -120,7 +122,6 @@ public class NonMultitenancyAccountsResourceTest {
     @Test
     public void testDeleteAccountCascadesAllChildRecords() throws Exception {
         // Create a manager account in default org
-        String defaultOrgId = DEFAULT_ORG_ID;
         transactionHelper.beginTransaction();
         Account manager = new Account();
         manager.setEmail("manager-cascade@example.com");
@@ -130,7 +131,7 @@ public class NonMultitenancyAccountsResourceTest {
         em.persist(manager);
         em.flush();
         // Add manager to default org
-        organisationService.addMember(defaultOrgId, manager.getId());
+        organisationService.addMember(this.defaultOrgId, manager.getId());
 
         // Create an account with all types of child records in default org
         Account account = accountService.createAccountForOrg(
@@ -139,7 +140,7 @@ public class NonMultitenancyAccountsResourceTest {
             "cascadeuser",
             "password123",
             AccountService.NATIVE,
-            defaultOrgId);
+            this.defaultOrgId);
         String accountId = account.getId();
 
         // Add a role (user role is already added automatically)
@@ -209,10 +210,10 @@ public class NonMultitenancyAccountsResourceTest {
     @Test
     public void testDeleteAccountWithoutRoleReturns403() throws Exception {
         // Create a manager account in default org without MANAGE_ACCOUNTS role
-        String defaultOrgId = DEFAULT_ORG_ID;
+        String testOrgId = defaultOrgId;
         transactionHelper.beginTransaction();
         String managerEmail = "manager_norole_" + System.currentTimeMillis() + "@example.com";
-        Account manager = accountService.createAccountForOrg(managerEmail, "Manager No Role", "manager_norole_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
+        Account manager = accountService.createAccountForOrg(managerEmail, "Manager No Role", "manager_norole_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, testOrgId);
         String managerId = manager.getId();
         transactionHelper.commitTransaction();
 
@@ -227,7 +228,6 @@ public class NonMultitenancyAccountsResourceTest {
     @Test
     public void testDeleteAccountWithNonExistentIdReturns404() throws Exception {
         // Create a manager account in default org
-        String defaultOrgId = DEFAULT_ORG_ID;
         transactionHelper.beginTransaction();
         String managerEmail = "manager_404_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Manager 404", "manager_404_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -254,7 +254,7 @@ public class NonMultitenancyAccountsResourceTest {
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_admin", "abstratium-abstrauth_manage-accounts"))
             .claim("email", "test@example.com")
             .claim("name", "Test User")
-            .claim("orgId", DEFAULT_ORG_ID)
+            .claim("orgId", defaultOrgId)
             .sign();
     }
 
@@ -265,7 +265,7 @@ public class NonMultitenancyAccountsResourceTest {
             .groups(Set.of("abstratium-abstrauth_user"))
             .claim("email", "test@example.com")
             .claim("name", "Test User")
-            .claim("orgId", DEFAULT_ORG_ID)
+            .claim("orgId", defaultOrgId)
             .sign();
     }
 }

@@ -25,6 +25,7 @@ import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for ClientSecretsResource.
@@ -35,6 +36,9 @@ public class ClientSecretsResourceTest {
 
     @Inject
     EntityManager em;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     private String adminToken;
     private String testClientId;
@@ -67,7 +71,7 @@ public class ClientSecretsResourceTest {
 
         // Link admin to default org so interceptor passes
         OrganisationAccount oa = new OrganisationAccount();
-        oa.setId(new OrganisationAccount.Id("00000000-0000-0000-0000-000000000000", admin.getId(), "member"));
+        oa.setId(new OrganisationAccount.Id(defaultOrgId, admin.getId(), "member"));
         em.persist(oa);
 
         // Create test client
@@ -98,7 +102,7 @@ public class ClientSecretsResourceTest {
             .groups(java.util.Set.of(Roles.MANAGE_CLIENTS, Roles.USER))
             .claim("email", admin.getEmail())
             .claim("name", admin.getName())
-            .claim("orgId", "00000000-0000-0000-0000-000000000000")
+            .claim("orgId", defaultOrgId)
             .sign();
     }
 

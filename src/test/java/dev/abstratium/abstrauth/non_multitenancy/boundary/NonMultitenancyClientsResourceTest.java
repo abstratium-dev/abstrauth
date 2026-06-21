@@ -25,6 +25,7 @@ import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for NonMultitenancyClientsResource
@@ -32,8 +33,6 @@ import jakarta.persistence.EntityManager;
  */
 @QuarkusTest
 public class NonMultitenancyClientsResourceTest {
-
-    private static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
 
     @Inject
     AccountService accountService;
@@ -49,6 +48,9 @@ public class NonMultitenancyClientsResourceTest {
 
     @Inject
     TestTransactionHelper transactionHelper;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     // ─────────────────────────────────────────────────────────
     // GET /api/clients/{clientId}/allowed-roles
@@ -290,7 +292,7 @@ public class NonMultitenancyClientsResourceTest {
     private String getAccountOrgId(String accountId) throws Exception {
         transactionHelper.beginTransaction();
         java.util.List<Organisation> orgs = organisationService.listOrganisationsForAccount(accountId);
-        String orgId = orgs.isEmpty() ? DEFAULT_ORG_ID : orgs.get(0).getId();
+        String orgId = orgs.isEmpty() ? defaultOrgId : orgs.get(0).getId();
         transactionHelper.commitTransaction();
         return orgId;
     }
@@ -409,7 +411,7 @@ public class NonMultitenancyClientsResourceTest {
 
         // Act as a caller whose org owns the default client, so the request reaches the
         // service-level deletion guard rather than the ownership check.
-        String token = managerToken(account.getId(), DEFAULT_ORG_ID);
+        String token = managerToken(account.getId(), defaultOrgId);
 
         // Try to delete abstratium-abstrauth client - should fail with 400
         given()

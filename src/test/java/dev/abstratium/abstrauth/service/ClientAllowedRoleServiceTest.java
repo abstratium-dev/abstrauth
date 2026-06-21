@@ -15,6 +15,7 @@ import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for ClientAllowedRoleService focusing on cross-tenant isolation
@@ -26,8 +27,10 @@ import jakarta.inject.Inject;
 @QuarkusTest
 public class ClientAllowedRoleServiceTest {
 
-    private static final String DEFAULT_ORG = "00000000-0000-0000-0000-000000000000";
     private static final String OTHER_ORG = "11111111-1111-1111-1111-111111111111";
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     @Inject
     AccountService accountService;
@@ -74,7 +77,7 @@ public class ClientAllowedRoleServiceTest {
 
     @Test
     public void testAddAllowedRoleWithCorrectOrg() {
-        String token = generateTokenForOrg(DEFAULT_ORG);
+        String token = generateTokenForOrg(defaultOrgId);
         String uniqueClientId = "test_svc_add_role_" + System.currentTimeMillis();
         String createBody = String.format("""
             {
@@ -111,7 +114,7 @@ public class ClientAllowedRoleServiceTest {
 
         // Verify via GET
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + actualClientId + "/allowed-roles")
             .then()
@@ -123,7 +126,7 @@ public class ClientAllowedRoleServiceTest {
 
     @Test
     public void testAddAllowedRoleWithWrongOrgReturns404() {
-        String defaultToken = generateTokenForOrg(DEFAULT_ORG);
+        String defaultToken = generateTokenForOrg(defaultOrgId);
         String wrongToken = generateTokenForOrg(OTHER_ORG);
         String uniqueClientId = "test_svc_wrong_add_" + System.currentTimeMillis();
         String createBody = String.format("""
@@ -160,7 +163,7 @@ public class ClientAllowedRoleServiceTest {
 
     @Test
     public void testAddAllowedRoleDuplicateReturns409() {
-        String token = generateTokenForOrg(DEFAULT_ORG);
+        String token = generateTokenForOrg(defaultOrgId);
         String uniqueClientId = "test_svc_dup_" + System.currentTimeMillis();
         String createBody = String.format("""
             {
@@ -204,7 +207,7 @@ public class ClientAllowedRoleServiceTest {
 
     @Test
     public void testUpdateAllowedRoleWithWrongOrgReturns404() {
-        String defaultToken = generateTokenForOrg(DEFAULT_ORG);
+        String defaultToken = generateTokenForOrg(defaultOrgId);
         String wrongToken = generateTokenForOrg(OTHER_ORG);
         String uniqueClientId = "test_svc_wrong_upd_" + System.currentTimeMillis();
         String createBody = String.format("""
@@ -250,7 +253,7 @@ public class ClientAllowedRoleServiceTest {
 
     @Test
     public void testUpdateNonExistentRoleReturns404() {
-        String token = generateTokenForOrg(DEFAULT_ORG);
+        String token = generateTokenForOrg(defaultOrgId);
         String uniqueClientId = "test_svc_upd_missing_" + System.currentTimeMillis();
         String createBody = String.format("""
             {
@@ -285,7 +288,7 @@ public class ClientAllowedRoleServiceTest {
 
     @Test
     public void testRemoveAllowedRoleWithWrongOrgReturns404() {
-        String defaultToken = generateTokenForOrg(DEFAULT_ORG);
+        String defaultToken = generateTokenForOrg(defaultOrgId);
         String wrongToken = generateTokenForOrg(OTHER_ORG);
         String uniqueClientId = "test_svc_wrong_rem_" + System.currentTimeMillis();
         String createBody = String.format("""
@@ -329,7 +332,7 @@ public class ClientAllowedRoleServiceTest {
 
     @Test
     public void testRemoveNonExistentRoleReturns404() {
-        String token = generateTokenForOrg(DEFAULT_ORG);
+        String token = generateTokenForOrg(defaultOrgId);
         String uniqueClientId = "test_svc_rem_missing_" + System.currentTimeMillis();
         String createBody = String.format("""
             {
@@ -367,10 +370,10 @@ public class ClientAllowedRoleServiceTest {
      */
     @Test
     public void testForeignOrgCanOnlySeeAvailableRoles() throws Exception {
-        String ownerToken = generateTokenForOrg(DEFAULT_ORG);
+        String ownerToken = generateTokenForOrg(defaultOrgId);
         String uniqueClientId = "test_svc_foreign_roles_" + System.currentTimeMillis();
 
-        // Create a public client in DEFAULT_ORG
+        // Create a public client in defaultOrgId
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -414,7 +417,7 @@ public class ClientAllowedRoleServiceTest {
 
         // Owner org should see both roles (admin and user)
         given()
-            .auth().oauth2(generateUserTokenForOrg(DEFAULT_ORG))
+            .auth().oauth2(generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + actualClientId + "/allowed-roles")
             .then()
@@ -495,7 +498,7 @@ public class ClientAllowedRoleServiceTest {
      */
     @Test
     public void testRemoveAllowedRoleCascadesToClientRoles() {
-        String token = generateTokenForOrg(DEFAULT_ORG);
+        String token = generateTokenForOrg(defaultOrgId);
 
         // Create a target client with an allowed role
         String targetClientId = createClientWithAllowedRole(token, "target_cascade", "api-reader", true);
@@ -515,7 +518,7 @@ public class ClientAllowedRoleServiceTest {
 
         // Verify the client role exists
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + srcClientId + "/client-roles")
             .then()
@@ -533,7 +536,7 @@ public class ClientAllowedRoleServiceTest {
 
         // Verify the client role was also removed (cascade)
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + srcClientId + "/client-roles")
             .then()
@@ -549,7 +552,7 @@ public class ClientAllowedRoleServiceTest {
      */
     @Test
     public void testUpdateAllowedRoleToNotAvailableCascadesToClientRoles() throws Exception {
-        String ownerToken = generateTokenForOrg(DEFAULT_ORG);
+        String ownerToken = generateTokenForOrg(defaultOrgId);
 
         // Create a public target client with an allowed role available to foreign orgs
         String uniqueClientId = "target_foreign_cascade_" + System.currentTimeMillis();
@@ -679,7 +682,7 @@ public class ClientAllowedRoleServiceTest {
 
         // Verify owner client role exists
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + ownerSrcClientId + "/client-roles")
             .then()
@@ -708,7 +711,7 @@ public class ClientAllowedRoleServiceTest {
 
         // Owner's client role should still exist (owning org is preserved)
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + ownerSrcClientId + "/client-roles")
             .then()

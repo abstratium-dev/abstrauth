@@ -1,19 +1,19 @@
 package dev.abstratium.abstrauth.boundary.oauth;
 
 import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
-import dev.abstratium.abstrauth.entity.OrganisationAccount;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -53,6 +53,12 @@ public class OAuthFlowWithClientSecretTest {
     @Inject
     AuthorizationService authorizationService;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
+
     private Account testAccount;
     private String testPassword = "TestPassword123!";
     private String adminToken;
@@ -60,19 +66,7 @@ public class OAuthFlowWithClientSecretTest {
     @BeforeEach
     @Transactional
     public void setup() {
-        // Clean up test data
-        em.createQuery("DELETE FROM ClientSecret WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM AuthorizationCode WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM AuthorizationRequest WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM ClientRole WHERE srcClientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM ClientRole WHERE targetClientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM ClientAllowedRole WHERE id.clientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM Subscription WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM OAuthClient WHERE clientId LIKE '%__test_oauth_flow%'").executeUpdate();
-        em.createQuery("DELETE FROM Credential WHERE username = 'oauthflowtest'").executeUpdate();
-        em.createQuery("DELETE FROM AccountRole WHERE accountId IN (SELECT id FROM Account WHERE email = 'oauthflowtest@example.com')").executeUpdate();
-        em.createQuery("DELETE FROM OrganisationAccount oa WHERE oa.id.accountId IN (SELECT a.id FROM Account a WHERE a.email = 'oauthflowtest@example.com')").executeUpdate();
-        em.createQuery("DELETE FROM Account WHERE email = 'oauthflowtest@example.com'").executeUpdate();
+        dbResetHelper.resetDatabase();
 
         // Create test account with MANAGE_CLIENTS role
         testAccount = accountService.createAccount(
@@ -83,18 +77,6 @@ public class OAuthFlowWithClientSecretTest {
             AccountService.NATIVE,
             "Test Org");
 
-        // Assign MANAGE_CLIENTS role
-        AccountRole role = new AccountRole();
-        role.setAccountId(testAccount.getId());
-        role.setClientId(Roles.CLIENT_ID);
-        role.setRole(Roles.MANAGE_CLIENTS);
-        em.persist(role);
-
-        // Link account to default org so interceptor passes
-        OrganisationAccount oa = new OrganisationAccount();
-        oa.setId(new OrganisationAccount.Id("00000000-0000-0000-0000-000000000000", testAccount.getId(), "member"));
-        em.persist(oa);
-
         em.flush();
 
         // Generate admin token
@@ -104,7 +86,7 @@ public class OAuthFlowWithClientSecretTest {
             .groups(java.util.Set.of(Roles.MANAGE_CLIENTS, Roles.USER))
             .claim("email", testAccount.getEmail())
             .claim("name", testAccount.getName())
-            .claim("orgId", "00000000-0000-0000-0000-000000000000")
+            .claim("orgId", defaultOrgId)
             .sign();
     }
 
@@ -114,7 +96,7 @@ public class OAuthFlowWithClientSecretTest {
     @Test
     public void testCompleteOAuthFlowWithNewClientAndSecret() throws Exception {
         String clientId = "test_oauth_flow_" + System.currentTimeMillis();
-        String actualClientId = "00000000-0000-0000-0000-000000000000__" + clientId;
+        String actualClientId = defaultOrgId + "__" + clientId;
 
         // Step 1: Create a new OAuth client via REST API
         given()
@@ -205,7 +187,7 @@ public class OAuthFlowWithClientSecretTest {
     @Test
     public void testRevokedSecretRejected() throws Exception {
         String clientId = "test_oauth_flow_revoked_" + System.currentTimeMillis();
-        String actualClientId = "00000000-0000-0000-0000-000000000000__" + clientId;
+        String actualClientId = defaultOrgId + "__" + clientId;
 
         // Create client via REST API
         given()
@@ -276,7 +258,7 @@ public class OAuthFlowWithClientSecretTest {
     @Test
     public void testWrongSecretRejected() throws Exception {
         String clientId = "test_oauth_flow_wrong_" + System.currentTimeMillis();
-        String actualClientId = "00000000-0000-0000-0000-000000000000__" + clientId;
+        String actualClientId = defaultOrgId + "__" + clientId;
 
         // Create client via REST API
         given()
@@ -334,7 +316,7 @@ public class OAuthFlowWithClientSecretTest {
     @Test
     public void testMultipleActiveSecretsWork() throws Exception {
         String clientId = "test_oauth_flow_multi_" + System.currentTimeMillis();
-        String actualClientId = "00000000-0000-0000-0000-000000000000__" + clientId;
+        String actualClientId = defaultOrgId + "__" + clientId;
 
         // Create client via REST API
         given()

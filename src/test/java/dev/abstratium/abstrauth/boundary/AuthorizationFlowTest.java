@@ -1,7 +1,9 @@
 package dev.abstratium.abstrauth.boundary;
 
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import java.nio.charset.StandardCharsets;
@@ -28,15 +30,19 @@ public class AuthorizationFlowTest {
     private static final String TEST_PASSWORD = "SecurePassword123";
     private static final String TEST_NAME = "Test User";
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     @BeforeEach
     public void setup() {
-        // sign a test user up
+        dbResetHelper.resetDatabase();
+
+        // Sign up a test user into the default org (no organisationName → first account goes to default org)
         given()
             .formParam("email", TEST_EMAIL)
             .formParam("name", TEST_NAME)
             .formParam("username", TEST_USERNAME)
             .formParam("password", TEST_PASSWORD)
-            .formParam("organisationName", "Test Organisation")
             .when()
             .post("/api/signup")
             .then()

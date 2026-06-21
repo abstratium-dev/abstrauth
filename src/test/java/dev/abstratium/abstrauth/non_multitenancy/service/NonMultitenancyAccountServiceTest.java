@@ -180,11 +180,11 @@ public class NonMultitenancyAccountServiceTest {
     @Test
     public void testCanDeleteAccountWhenMultipleAdminsExist() throws Exception {
         // Create two accounts with admin role for abstratium-abstrauth
+        // admin1 is first after reset, so it already has admin automatically
         transactionHelper.beginTransaction();
         String email1 = "admin1_nm_" + System.currentTimeMillis() + "@example.com";
         String username1 = "admin1_nm_" + System.currentTimeMillis();
         Account admin1 = accountService.createAccount(email1, "Admin 1 NM", username1, "Password123", AccountService.NATIVE, "Test Org");
-        accountRoleService.addRole(admin1.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
 
         String email2 = "admin2_nm_" + System.currentTimeMillis() + "@example.com";
         String username2 = "admin2_nm_" + System.currentTimeMillis();
@@ -212,11 +212,10 @@ public class NonMultitenancyAccountServiceTest {
         transactionHelper.beginTransaction();
 
         // Create an admin account first to ensure there's at least one admin
+        // First account after reset already has admin automatically
         String email1 = "admin_seed_" + System.currentTimeMillis() + "@example.com";
         String username1 = "admin_seed_" + System.currentTimeMillis();
-        Account adminAccount = accountService.createAccount(email1, "Admin Seed", username1, "Password123", AccountService.NATIVE, "Test Org");
-        // Ensure it has admin role
-        accountRoleService.addRole(adminAccount.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        accountService.createAccount(email1, "Admin Seed", username1, "Password123", AccountService.NATIVE, "Test Org");
 
         // Create a second account (non-admin for abstrauth)
         String email2 = "nonadmin_nm_" + System.currentTimeMillis() + "@example.com";

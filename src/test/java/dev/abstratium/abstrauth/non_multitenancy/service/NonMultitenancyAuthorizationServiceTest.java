@@ -41,9 +41,7 @@ public class NonMultitenancyAuthorizationServiceTest {
 
     @BeforeEach
     public void resetContext() throws Exception {
-        transactionHelper.beginTransaction();
         dbResetHelper.resetDatabase();
-        transactionHelper.commitTransaction();
     }
 
     private dev.abstratium.abstrauth.entity.OAuthClient createClientWithFlags(String clientId, boolean publik, boolean autoSubscribe) throws Exception {

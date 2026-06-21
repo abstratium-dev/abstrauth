@@ -21,11 +21,10 @@ import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @QuarkusTest
 public class OrganisationsResourceTest {
-
-    private static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
 
     @Inject
     AccountService accountService;
@@ -42,6 +41,9 @@ public class OrganisationsResourceTest {
     @Inject
     TestTransactionHelper transactionHelper;
 
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
+
     private String userToken(String accountId, String orgId) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
                 .subject(accountId)
@@ -52,7 +54,7 @@ public class OrganisationsResourceTest {
     }
 
     private String userToken(String accountId) {
-        return userToken(accountId, DEFAULT_ORG_ID);
+        return userToken(accountId, defaultOrgId);
     }
 
     private Account createAccount(String suffix) throws Exception {

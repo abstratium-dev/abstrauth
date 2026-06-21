@@ -1,9 +1,14 @@
 package dev.abstratium.abstrauth.boundary;
 
-import io.quarkus.test.junit.QuarkusTest;
-import io.restassured.response.Response;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -16,15 +21,22 @@ import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.jupiter.api.Assertions.*;
+import org.jboss.logging.Logger;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
+import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.response.Response;
+import jakarta.inject.Inject;
 
 /**
  * CompleteOAuthFlowTest: Tests the token exchange phase and cryptographic verification
  */
 @QuarkusTest
 public class CompleteOAuthFlowTest {
+
+    private static final Logger log = Logger.getLogger(CompleteOAuthFlowTest.class);
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
@@ -34,8 +46,13 @@ public class CompleteOAuthFlowTest {
     private static final String TEST_PASSWORD = "SecurePassword123";
     private static final String TEST_NAME = "Flow Test User";
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     @BeforeEach
     public void setup() {
+        dbResetHelper.resetDatabase();
+
         // Sign up a test user
         given()
             .formParam("email", TEST_EMAIL)
@@ -51,9 +68,12 @@ public class CompleteOAuthFlowTest {
 
     @Test
     public void testCompleteOAuthFlowWithTokenExchange() throws Exception {
+        log.info("Starting complete OAuth flow test");
         // Step 1: Generate PKCE parameters
         String codeVerifier = generateCodeVerifier();
+        log.info("Code verifier: " + codeVerifier);
         String codeChallenge = generateCodeChallenge(codeVerifier);
+        log.info("Code challenge: " + codeChallenge);
 
         // Step 2: Initiate authorization request - should redirect to signin
         Response authResponse = given()
@@ -72,8 +92,10 @@ public class CompleteOAuthFlowTest {
             .extract()
             .response();
 
+        log.info("Auth response: " + authResponse);
         String requestId = extractRequestId(authResponse.getHeader("Location"));
         assertNotNull(requestId);
+        log.info("Request ID: " + requestId);
 
         // Step 3: Submit login credentials - should return JSON
         Response loginResponse = given()
@@ -88,6 +110,7 @@ public class CompleteOAuthFlowTest {
             .extract()
             .response();
 
+        log.info("Login response: " + loginResponse);
         assertTrue(loginResponse.asString().contains(TEST_NAME));
 
         // Step 4: Approve consent
@@ -102,9 +125,11 @@ public class CompleteOAuthFlowTest {
             .extract()
             .response();
 
+        log.info("Consent response: " + consentResponse);
         String redirectLocation = consentResponse.getHeader("Location");
         String authCode = extractParameter(redirectLocation, "code");
         assertNotNull(authCode);
+        log.info("Auth code: " + authCode);
 
         // Step 5: Exchange authorization code for access token
         Response tokenResponse = given()
@@ -125,6 +150,7 @@ public class CompleteOAuthFlowTest {
             .extract()
             .response();
 
+        log.info("Token response: " + tokenResponse);
         String accessToken = tokenResponse.jsonPath().getString("access_token");
         assertNotNull(accessToken);
         assertTrue(accessToken.length() > 100, "JWT token should be substantial");
@@ -133,8 +159,8 @@ public class CompleteOAuthFlowTest {
         String[] tokenParts = accessToken.split("\\.");
         assertEquals(3, tokenParts.length, "JWT should have 3 parts");
 
-        System.out.println("✓ Complete OAuth flow successful!");
-        System.out.println("Access Token: " + accessToken.substring(0, 50) + "...");
+        log.info("✓ Complete OAuth flow successful!");
+        log.info("Access Token: " + accessToken.substring(0, 50) + "...");
     }
 
     @Test
@@ -325,21 +351,9 @@ public class CompleteOAuthFlowTest {
 
     @Test
     public void testTokenSignatureCanBeVerifiedWithPublicKey() throws Exception {
-        // Create unique user for this test
-        String testUser = "sigtest_" + System.nanoTime();
-        String testEmail = "sigtest_" + System.nanoTime() + "@example.com";
-        String testPassword = "SecurePassword123";
-        
-        given()
-            .formParam("email", testEmail)
-            .formParam("name", "Signature Test User")
-            .formParam("username", testUser)
-            .formParam("password", testPassword)
-            .formParam("organisationName", "Test Organisation")
-            .when()
-            .post("/api/signup")
-            .then()
-            .statusCode(201);
+        // Use TEST_USERNAME from setup() — it is in the default org which has a
+        // subscription to abstratium-abstrauth. Creating a new user in a new org
+        // would fail the subscription check.
 
         // Step 1: Complete OAuth flow to get a token
         String codeVerifier = generateCodeVerifier();
@@ -365,8 +379,8 @@ public class CompleteOAuthFlowTest {
 
         // Submit login credentials
         given()
-            .formParam("username", testUser)
-            .formParam("password", testPassword)
+            .formParam("username", TEST_USERNAME)
+            .formParam("password", TEST_PASSWORD)
             .formParam("request_id", requestId)
             .when()
             .post("/oauth2/authorize/authenticate")
@@ -464,3 +478,4 @@ public class CompleteOAuthFlowTest {
         }
     }
 }
+

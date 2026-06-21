@@ -19,6 +19,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @QuarkusTest
 public class AccountRoleServiceTest {
@@ -40,6 +41,9 @@ public class AccountRoleServiceTest {
 
     @Inject
     TestDatabaseResetHelper dbResetHelper;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     private String testAccountId;
     private String testOrgId;
@@ -470,10 +474,9 @@ public class AccountRoleServiceTest {
 
     @Test
     public void testFindClientsByAccountId() {
-        // Add roles for multiple clients
+        // Add roles for multiple clients (abstratium-abstrauth/user is auto-seeded by createAccount)
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID, "admin");
         accountRoleService.addRole(testAccountId, TEST_CLIENT_ID_2, "viewer");
-        accountRoleService.addRole(testAccountId, "abstratium-abstrauth", "user");
 
         // Get all clients for the account
         List<String> clients = accountRoleService.findClientsByAccountId(testAccountId);
@@ -487,7 +490,6 @@ public class AccountRoleServiceTest {
     @Test
     public void testFindClientsByAccountIdWithNoRoles() throws Exception {
         // Create a fresh account in default org so tenant context matches
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String uniqueEmail = "noclients_" + System.nanoTime() + "@example.com";
         String uniqueUsername = "noclients_" + System.nanoTime();

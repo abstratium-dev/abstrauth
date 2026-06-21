@@ -18,15 +18,12 @@ import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import org.junit.jupiter.api.BeforeEach;
 
 @QuarkusTest
 public class SubscriptionServiceTest {
-
-    // In test context JwtOrgResolver falls back to the default org — SubscriptionService
-    // calls must use this orgId so that @TenantId matches the resolved tenant.
-    private static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
 
     @Inject
     SubscriptionService subscriptionService;
@@ -46,11 +43,16 @@ public class SubscriptionServiceTest {
     @Inject
     TestDatabaseResetHelper dbResetHelper;
 
+    @Inject
+    CurrentOrgContext currentOrgContext;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
+
     @BeforeEach
     public void resetDatabaseBeforeTest() throws Exception {
-        transactionHelper.beginTransaction();
         dbResetHelper.resetDatabase();
-        transactionHelper.commitTransaction();
+        currentOrgContext.setOrgId(defaultOrgId);
     }
 
     /**
@@ -84,43 +86,43 @@ public class SubscriptionServiceTest {
     public void testSubscribe_createsSubscription() throws Exception {
         String clientId = newClient();
 
-        Subscription sub = subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
+        Subscription sub = subscriptionService.subscribe(defaultOrgId, clientId);
 
         assertNotNull(sub.getId());
-        assertEquals(DEFAULT_ORG_ID, sub.getOrgId());
+        assertEquals(defaultOrgId, sub.getOrgId());
         assertEquals(clientId, sub.getClientId());
         assertNotNull(sub.getCreatedAt());
 
         // Confirm via non-multitenancy read that orgId is stored correctly in the DB
         Optional<NonMultitenancySubscription> persisted =
-                nonMultitenancySubscriptionService.findNonMultitenancySubscription(DEFAULT_ORG_ID, clientId);
+                nonMultitenancySubscriptionService.findNonMultitenancySubscription(defaultOrgId, clientId);
         assertTrue(persisted.isPresent());
-        assertEquals(DEFAULT_ORG_ID, persisted.get().getOrgId());
+        assertEquals(defaultOrgId, persisted.get().getOrgId());
         assertEquals(clientId, persisted.get().getClientId());
     }
 
     @Test
     public void testSubscribe_throwsOnDuplicate() throws Exception {
         String clientId = newClient();
-        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
+        subscriptionService.subscribe(defaultOrgId, clientId);
 
         assertThrows(IllegalArgumentException.class,
-                () -> subscriptionService.subscribe(DEFAULT_ORG_ID, clientId),
+                () -> subscriptionService.subscribe(defaultOrgId, clientId),
                 "Second subscribe to the same org+client must throw");
     }
 
     @Test
     public void testUnsubscribe_removesSubscription() throws Exception {
         String clientId = newClient();
-        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
-        assertTrue(subscriptionService.subscriptionExists(DEFAULT_ORG_ID, clientId));
+        subscriptionService.subscribe(defaultOrgId, clientId);
+        assertTrue(subscriptionService.subscriptionExists(defaultOrgId, clientId));
 
-        subscriptionService.unsubscribe(DEFAULT_ORG_ID, clientId);
+        subscriptionService.unsubscribe(defaultOrgId, clientId);
 
-        assertFalse(subscriptionService.subscriptionExists(DEFAULT_ORG_ID, clientId));
+        assertFalse(subscriptionService.subscriptionExists(defaultOrgId, clientId));
         // Confirm removal is visible via non-multitenancy read
         assertFalse(nonMultitenancySubscriptionService
-                .findNonMultitenancySubscription(DEFAULT_ORG_ID, clientId).isPresent());
+                .findNonMultitenancySubscription(defaultOrgId, clientId).isPresent());
     }
 
     @Test
@@ -128,7 +130,7 @@ public class SubscriptionServiceTest {
         String clientId = newClient();
 
         assertThrows(IllegalArgumentException.class,
-                () -> subscriptionService.unsubscribe(DEFAULT_ORG_ID, clientId),
+                () -> subscriptionService.unsubscribe(defaultOrgId, clientId),
                 "Unsubscribing when not subscribed must throw");
     }
 
@@ -136,18 +138,18 @@ public class SubscriptionServiceTest {
     public void testSubscriptionExists_falseBeforeSubscribe() throws Exception {
         String clientId = newClient();
 
-        assertFalse(subscriptionService.subscriptionExists(DEFAULT_ORG_ID, clientId));
+        assertFalse(subscriptionService.subscriptionExists(defaultOrgId, clientId));
     }
 
     @Test
     public void testFindSubscription_returnsCorrectData() throws Exception {
         String clientId = newClient();
-        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
+        subscriptionService.subscribe(defaultOrgId, clientId);
 
-        Optional<Subscription> found = subscriptionService.findSubscription(DEFAULT_ORG_ID, clientId);
+        Optional<Subscription> found = subscriptionService.findSubscription(defaultOrgId, clientId);
 
         assertTrue(found.isPresent());
-        assertEquals(DEFAULT_ORG_ID, found.get().getOrgId());
+        assertEquals(defaultOrgId, found.get().getOrgId());
         assertEquals(clientId, found.get().getClientId());
     }
 
@@ -155,10 +157,10 @@ public class SubscriptionServiceTest {
     public void testFindClientIdsByOrgId_includesSubscribedClients() throws Exception {
         String clientId1 = newClient();
         String clientId2 = newClient();
-        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId1);
-        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId2);
+        subscriptionService.subscribe(defaultOrgId, clientId1);
+        subscriptionService.subscribe(defaultOrgId, clientId2);
 
-        List<String> clientIds = subscriptionService.findClientIdsByOrgId(DEFAULT_ORG_ID);
+        List<String> clientIds = subscriptionService.findClientIdsByOrgId(defaultOrgId);
 
         assertTrue(clientIds.contains(clientId1));
         assertTrue(clientIds.contains(clientId2));
@@ -167,7 +169,7 @@ public class SubscriptionServiceTest {
     @Test
     public void testSubscriptionIsolatedByOrg() throws Exception {
         String clientId = newClient();
-        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId);
+        subscriptionService.subscribe(defaultOrgId, clientId);
 
         // A different org must not see the default org's subscription
         String otherOrgId = newOrg();
@@ -180,9 +182,9 @@ public class SubscriptionServiceTest {
     public void testSubscriptionIsolatedByClient() throws Exception {
         String clientId1 = newClient();
         String clientId2 = newClient();
-        subscriptionService.subscribe(DEFAULT_ORG_ID, clientId1);
+        subscriptionService.subscribe(defaultOrgId, clientId1);
 
-        assertFalse(subscriptionService.subscriptionExists(DEFAULT_ORG_ID, clientId2),
+        assertFalse(subscriptionService.subscriptionExists(defaultOrgId, clientId2),
                 "Subscribing to one client must not create a subscription for another");
     }
 }

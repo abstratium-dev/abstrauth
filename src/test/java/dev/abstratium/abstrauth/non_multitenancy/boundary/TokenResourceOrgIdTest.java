@@ -22,10 +22,12 @@ import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
 
 /**
  * Tests for Feature 9: Emit orgId in JWT + Verify Membership + Seed Roles
@@ -52,6 +54,14 @@ public class TokenResourceOrgIdTest {
     @Inject
     ObjectMapper objectMapper;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
+    @BeforeEach
+    public void setup() {
+        dbResetHelper.resetDatabase();
+    }
+
     // ─────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────
@@ -64,7 +74,7 @@ public class TokenResourceOrgIdTest {
                 "orgid_" + suffix,
                 "Pass123!",
                 AccountService.NATIVE,
-                "OrgId Org " + suffix);
+                null); // null → first account after reset goes to default org (has subscription)
         transactionHelper.commitTransaction();
         return account;
     }
@@ -269,7 +279,7 @@ public class TokenResourceOrgIdTest {
                 "orgid_" + ts + "_other",
                 "Pass123!",
                 AccountService.NATIVE,
-                "Other Org " + ts);
+                null);
         organisationService.addOwner(org.getId(), otherAccount.getId());
         organisationService.removeMember(org.getId(), account.getId()); // removes owner row
         organisationService.removeMember(org.getId(), account.getId()); // removes member row

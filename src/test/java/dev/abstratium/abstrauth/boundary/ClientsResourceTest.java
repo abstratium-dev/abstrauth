@@ -12,6 +12,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for ClientsResource
@@ -23,6 +24,9 @@ public class ClientsResourceTest {
     @Inject
     SubscriptionService subscriptionService;
 
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
+
 
     /**
      * Generate a JWT token with only the user role (no manage-clients)
@@ -33,7 +37,7 @@ public class ClientsResourceTest {
             .groups(java.util.Set.of("abstratium-abstrauth_user"))
             .claim("email", "user@example.com")
             .claim("name", "User Only")
-            .claim("orgId", "00000000-0000-0000-0000-000000000000")
+            .claim("orgId", defaultOrgId)
             .sign();
     }
 
@@ -46,7 +50,7 @@ public class ClientsResourceTest {
             .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
             .claim("email", "test@example.com")
             .claim("name", "Test User")
-            .claim("orgId", "00000000-0000-0000-0000-000000000000")
+            .claim("orgId", defaultOrgId)
             .sign();
     }
 
@@ -280,7 +284,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(201)
-            .body("clientId", equalTo("00000000-0000-0000-0000-000000000000__" + uniqueClientId))
+            .body("clientId", equalTo(defaultOrgId + "__" + uniqueClientId))
             .body("clientName", equalTo("Test Client"))
             .body("clientType", equalTo("confidential"))
             .body("requirePkce", equalTo(true))
@@ -431,7 +435,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(201)
-            .body("clientId", equalTo("00000000-0000-0000-0000-000000000000__" + uniqueClientId))
+            .body("clientId", equalTo(defaultOrgId + "__" + uniqueClientId))
             .body("clientName", equalTo("Test M2M Client"))
             .body("clientType", equalTo("confidential"))
             .body("id", notNullValue())
@@ -761,7 +765,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(201)
-            .body("clientId", equalTo("00000000-0000-0000-0000-000000000000__" + uniqueClientId))
+            .body("clientId", equalTo(defaultOrgId + "__" + uniqueClientId))
             .body("clientName", equalTo("Test Client With Underscores"));
     }
 
@@ -915,9 +919,9 @@ public class ClientsResourceTest {
             .then()
             .statusCode(201);
 
-        String fullClientId = "00000000-0000-0000-0000-000000000000__" + uniqueClientId;
+        String fullClientId = defaultOrgId + "__" + uniqueClientId;
         assertTrue(
-            subscriptionService.subscriptionExists("00000000-0000-0000-0000-000000000000", fullClientId),
+            subscriptionService.subscriptionExists(defaultOrgId, fullClientId),
             "Owning org should be subscribed to the newly created client"
         );
     }
@@ -943,7 +947,7 @@ public class ClientsResourceTest {
             .then()
             .statusCode(201);
 
-        String fullClientId = "00000000-0000-0000-0000-000000000000__" + uniqueClientId;
+        String fullClientId = defaultOrgId + "__" + uniqueClientId;
 
         String userToken = generateUserOnlyToken();
         given()

@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.boundary;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -25,6 +26,9 @@ import static org.hamcrest.Matchers.containsString;
 @QuarkusTest
 public class MultiTenancySqlDebugTest {
 
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
+
     private String generateToken(String orgId) {
         return Jwt.issuer("https://abstrauth.abstratium.dev")
                 .subject("test-user")
@@ -35,7 +39,7 @@ public class MultiTenancySqlDebugTest {
 
     @Test
     public void testMultiTenancySqlGeneration_defaultOrg() {
-        String orgId = "00000000-0000-0000-0000-000000000000";
+        String orgId = defaultOrgId;
         String token = generateToken(orgId);
 
         given()
@@ -77,7 +81,7 @@ public class MultiTenancySqlDebugTest {
 
     @Test
     public void testTenantIdNullOnPersist() {
-        String orgId = "00000000-0000-0000-0000-000000000000";
+        String orgId = defaultOrgId;
         String token = generateToken(orgId);
 
         given()
@@ -92,7 +96,7 @@ public class MultiTenancySqlDebugTest {
 
     @Test
     public void testTenantIdWrongOnPersist() {
-        String orgId = "00000000-0000-0000-0000-000000000000";
+        String orgId = defaultOrgId;
         String token = generateToken(orgId);
 
         given()

@@ -26,6 +26,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @QuarkusTest
 public class AccountsResourceTest {
@@ -50,6 +51,9 @@ public class AccountsResourceTest {
 
     @Inject
     TestDatabaseResetHelper dbResetHelper;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     @BeforeEach
     public void resetDatabaseBeforeTest() throws Exception {
@@ -76,7 +80,7 @@ public class AccountsResourceTest {
     }
 
     private String generateManageAccountsToken(String accountId) {
-        return generateManageAccountsToken(accountId, "00000000-0000-0000-0000-000000000000");
+        return generateManageAccountsToken(accountId, defaultOrgId);
     }
 
     private String generateManageAccountsToken(String accountId, String orgId) {
@@ -97,14 +101,13 @@ public class AccountsResourceTest {
             .groups("abstratium-abstrauth_user")
             .claim("email", "user@example.com")
             .claim("name", "Regular User")
-            .claim("orgId", "00000000-0000-0000-0000-000000000000")
+            .claim("orgId", defaultOrgId)
             .sign();
     }
 
     @Test
     public void testListAccountsAsAdmin() throws Exception {
         // Create a test admin account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email = "testadmin_" + System.currentTimeMillis() + "@example.com";
         Account admin = accountService.createAccountForOrg(email, "Test Admin", "testadmin_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -126,7 +129,6 @@ public class AccountsResourceTest {
     public void testListAccountsAsManagerWithSharedClients() throws Exception {
         // All accounts are placed in the default org so that AccountRole rows (also stored in
         // the default org in test context) match the orgId used in the token.
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Manager", "manager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -159,7 +161,6 @@ public class AccountsResourceTest {
     @Test
     public void testListAccountsAsManagerWithNoSharedClients() throws Exception {
         // Create manager account with unique client in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "uniquemanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Unique Manager", "uniquemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -187,7 +188,6 @@ public class AccountsResourceTest {
     @Test
     public void testListAccountsAsManagerWithNoRoles() throws Exception {
         // Create manager account with no additional roles in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "norolemanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "No Role Manager", "norolemanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -209,7 +209,6 @@ public class AccountsResourceTest {
     @Test
     public void testListAccountsAsNonManagerNonAdmin() throws Exception {
         // Create regular user account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String userEmail = "regularuser_" + System.currentTimeMillis() + "@example.com";
         Account user = accountService.createAccountForOrg(userEmail, "Regular User", "regularuser_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -242,7 +241,6 @@ public class AccountsResourceTest {
     public void testListAccountsAsManagerWithMultipleSharedClients() throws Exception {
         // All accounts are placed in the default org so that AccountRole rows (also stored in
         // the default org in test context) match the orgId used in the token.
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "multimanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Multi Manager", "multimanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -282,7 +280,6 @@ public class AccountsResourceTest {
     public void testAddAccountRoleSuccessfully() throws Exception {
         // Use the default org so that the "test-client" created in @BeforeEach
         // (which lives in the default org) matches the caller's orgId claim.
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         
         // Create admin account in the default org
@@ -348,7 +345,6 @@ public class AccountsResourceTest {
     @Test
     public void testAddAccountRoleWithoutRole() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "rolemanager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Role Manager 2", "rolemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -376,7 +372,6 @@ public class AccountsResourceTest {
     @Test
     public void testAddAccountRoleToNonExistentAccount() throws Exception {
         // Create manager account in default org to match token
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "rolemanager3_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Role Manager 3", "rolemanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -405,7 +400,6 @@ public class AccountsResourceTest {
     @Test
     public void testAddAccountRoleWithMissingClientId() throws Exception {
         // Create account and manager in default org to match token
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email = "roletest2_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccountForOrg(email, "Role Test 2", "roletest2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -436,7 +430,6 @@ public class AccountsResourceTest {
     @Test
     public void testAddAccountRoleWithMissingRole() throws Exception {
         // Create account and manager in default org to match token
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email = "roletest3_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccountForOrg(email, "Role Test 3", "roletest3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -467,7 +460,6 @@ public class AccountsResourceTest {
     @Test
     public void testAddAccountRoleWithInvalidRoleFormat() throws Exception {
         // Create account and manager in default org to match token
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email = "roletest4_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccountForOrg(email, "Role Test 4", "roletest4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -499,7 +491,6 @@ public class AccountsResourceTest {
     @Test
     public void testAddAdminRoleAsNonAdmin() throws Exception {
         // Create account and non-admin manager in default org to match token
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email = "roletest_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccountForOrg(email, "Role Test", "roletest_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -531,7 +522,6 @@ public class AccountsResourceTest {
     public void testAddRoleToNewClientAsNonAdmin() throws Exception {
         // Non-admin with manage-accounts CAN add allowlisted (or private client) roles
         // to accounts in their own org for any client.
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         String newClientId = "new-client-" + System.currentTimeMillis();
         transactionHelper.beginTransaction();
         String targetEmail = "target_" + System.currentTimeMillis() + "@example.com";
@@ -581,7 +571,6 @@ public class AccountsResourceTest {
     @Test
     public void testAddRoleToExistingClientAsNonAdmin() throws Exception {
         // Create account with existing role in abstratium-abstrauth in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String targetEmail = "target2_" + System.currentTimeMillis() + "@example.com";
         Account targetAccount = accountService.createAccountForOrg(targetEmail, "Target User 2", "target2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -618,7 +607,6 @@ public class AccountsResourceTest {
     public void testAddRoleToNewClientAsAdmin() throws Exception {
         // Use the default org so that "abstratium-abstrauth" (which lives in the default org)
         // matches the caller's orgId claim.
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         
         // Create admin account in the default org (first account gets admin role automatically)
@@ -658,7 +646,6 @@ public class AccountsResourceTest {
     @Test
     public void testAddDuplicateRole() throws Exception {
         // Create account with a role in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email = "duplicate_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccountForOrg(email, "Duplicate Test", "duplicate_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -692,7 +679,6 @@ public class AccountsResourceTest {
     @Test
     public void testRemoveAccountRoleSuccessfully() throws Exception {
         // Create account with a role in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email = "roledelete_" + System.currentTimeMillis() + "@example.com";
         Account account = accountService.createAccountForOrg(email, "Role Delete Test", "roledelete_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -744,7 +730,6 @@ public class AccountsResourceTest {
     @Test
     public void testRemoveAccountRoleWithoutPermission() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "deletemanager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Delete Manager 2", "deletemanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -772,7 +757,6 @@ public class AccountsResourceTest {
     @Test
     public void testRemoveAccountRoleFromNonExistentAccount() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "deletemanager3_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Delete Manager 3", "deletemanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -801,7 +785,6 @@ public class AccountsResourceTest {
     @Test
     public void testCannotRemoveLastAdminRoleForAbstrauthClient() throws Exception {
         // First, remove all existing admin roles for abstratium-abstrauth to ensure clean state
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         var existingAdmins = em.createQuery(
             "SELECT ar FROM AccountRole ar WHERE ar.clientId = :clientId AND ar.role = :role",
@@ -847,7 +830,6 @@ public class AccountsResourceTest {
     @Test
     public void testCanRemoveAdminRoleWhenMultipleAdminsExist() throws Exception {
         // Create two accounts with admin role for abstratium-abstrauth in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String email1 = "admin1_api_" + System.currentTimeMillis() + "@example.com";
         Account admin1 = accountService.createAccountForOrg(email1, "Admin 1", "admin1_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -885,7 +867,6 @@ public class AccountsResourceTest {
     @Test
     public void testCreateAccountWithNativeProvider() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "createmanager_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager", "createmanager_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -918,7 +899,6 @@ public class AccountsResourceTest {
     @Test
     public void testCreateAccountWithGoogleProvider() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "createmanager2_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 2", "createmanager2_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -951,7 +931,6 @@ public class AccountsResourceTest {
     @Test
     public void testCreateAccountWithInvalidProvider() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "createmanager3_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 3", "createmanager3_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -979,7 +958,6 @@ public class AccountsResourceTest {
     @Test
     public void testCreateAccountWithDuplicateEmailInSameOrg() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "createmanager4_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 4", "createmanager4_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -1012,7 +990,6 @@ public class AccountsResourceTest {
     @Test
     public void testCreateAccountWithDuplicateEmailInDifferentOrg() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "createmanager_diff_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager Diff", "createmanager_diff_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -1076,7 +1053,6 @@ public class AccountsResourceTest {
     @Test
     public void testCreateAccountCreatesCredentialForNative() throws Exception {
         // Create manager account in default org
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
         transactionHelper.beginTransaction();
         String managerEmail = "createmanager5_" + System.currentTimeMillis() + "@example.com";
         Account manager = accountService.createAccountForOrg(managerEmail, "Create Manager 5", "createmanager5_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
@@ -1173,8 +1149,6 @@ public class AccountsResourceTest {
      */
     @Test
     public void testAddRoleToClientInDifferentOrgIsAllowed() throws Exception {
-        String defaultOrgId = "00000000-0000-0000-0000-000000000000";
-
         // Create attacker's org and account
         transactionHelper.beginTransaction();
         String attackerEmail = "attacker_" + System.currentTimeMillis() + "@example.com";

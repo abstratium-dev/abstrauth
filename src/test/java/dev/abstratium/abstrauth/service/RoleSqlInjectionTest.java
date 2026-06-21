@@ -14,6 +14,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Security regression tests for SQL injection via role fields.
@@ -68,7 +69,8 @@ public class RoleSqlInjectionTest {
         "${sys:java.version}",
     };
 
-    private static final String TEST_ORG_ID = "00000000-0000-0000-0000-000000000000";
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     /**
      * Test that role strings with SQL metacharacters passed to cascade deletion
@@ -91,7 +93,7 @@ public class RoleSqlInjectionTest {
 
             assertDoesNotThrow(() -> {
                 nonMultitenancyAccountRoleService.removeRolesForClientAndRoleOutsideOrg(
-                    "nonexistent-client", maliciousRole, TEST_ORG_ID);
+                    "nonexistent-client", maliciousRole, defaultOrgId);
             }, "removeRolesForClientAndRoleOutsideOrg should handle malicious role safely: " + maliciousRole);
 
             assertDoesNotThrow(() -> {
@@ -101,7 +103,7 @@ public class RoleSqlInjectionTest {
 
             assertDoesNotThrow(() -> {
                 nonMultitenancyClientRoleService.removeClientRolesForTargetAndRoleOutsideOrg(
-                    "nonexistent-client", maliciousRole, TEST_ORG_ID);
+                    "nonexistent-client", maliciousRole, defaultOrgId);
             }, "removeClientRolesForTargetAndRoleOutsideOrg should handle malicious role safely: " + maliciousRole);
         }
     }
@@ -134,7 +136,7 @@ public class RoleSqlInjectionTest {
             assertDoesNotThrow(() -> {
                 // isRoleAllowed uses em.find() which is parameterized
                 boolean result = clientAllowedRoleService.isRoleAllowed(
-                    "nonexistent-client", maliciousRole, TEST_ORG_ID);
+                    "nonexistent-client", maliciousRole, defaultOrgId);
                 // Should simply return false since role doesn't exist
                 assertFalse(result);
             }, "isRoleAllowed should handle malicious role safely: " + maliciousRole);
@@ -193,7 +195,7 @@ public class RoleSqlInjectionTest {
         client.setClientId(clientId);
         client.setClientName("Test Client");
         client.setClientType("confidential");
-        client.setOrgId(TEST_ORG_ID);
+        client.setOrgId(defaultOrgId);
         client.setRedirectUris("[]");
         client.setAllowedScopes("[]");
         em.persist(client);
@@ -252,7 +254,7 @@ public class RoleSqlInjectionTest {
 
         assertDoesNotThrow(() -> {
             boolean result = clientAllowedRoleService.isRoleAllowed(
-                "nonexistent-client", trickyRole, TEST_ORG_ID);
+                "nonexistent-client", trickyRole, defaultOrgId);
             assertFalse(result);
         });
     }

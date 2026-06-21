@@ -182,6 +182,8 @@ public class AuthorizationResource {
         }
 
         if (!clientService.isRedirectUriAllowed(client, redirectUri)) {
+            log.warnv("Invalid redirect_uri for client {0}: requested={1}, allowed={2}",
+                    clientId, redirectUri, client.getRedirectUris());
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>Invalid redirect_uri</p></body></html>")
                     .build();
@@ -393,8 +395,11 @@ public class AuthorizationResource {
             @FormParam("password") String password,
             @FormParam("request_id") String requestId) {
 
+        log.debugv("authenticate: username={0}, requestId={1}", username, requestId);
+
         Optional<AuthorizationRequest> requestOpt = authorizationService.findAuthorizationRequest(requestId);
         if (requestOpt.isEmpty() || !"pending".equals(requestOpt.get().getStatus())) {
+            log.warnv("authenticate: invalid request_id={0}", requestId);
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Invalid request")
                     .build();
@@ -403,7 +408,7 @@ public class AuthorizationResource {
         // Authenticate user
         Optional<Account> accountOpt = accountService.authenticate(username, password);
         if (accountOpt.isEmpty()) {
-            // Authentication failed - return error
+            log.warnv("authenticate: failed for username={0}", username);
             return Response.status(Response.Status.UNAUTHORIZED)
                     .entity("Invalid username or password")
                     .build();
@@ -411,6 +416,9 @@ public class AuthorizationResource {
 
         Account account = accountOpt.get();
         AuthorizationRequest authRequest = requestOpt.get();
+        log.debugv("authenticate: accountId={0}, clientId={1}, roles={2}",
+                account.getId(), authRequest.getClientId(),
+                account.getRoles() == null ? "null" : account.getRoles().stream().map(r -> r.getClientId() + ":" + r.getRole()).toList());
 
         // Check if user has at least one role for this client, or will be seeded on first access
         // Force initialization of roles collection to avoid LazyInitializationException
@@ -420,8 +428,8 @@ public class AuthorizationResource {
         if (!hasRoleForClient) {
             boolean hasDefaultRoles = !clientAllowedRoleService.findDefaultRolesByClientId(authRequest.getClientId()).isEmpty();
             if (!hasDefaultRoles) {
-                log.warn("User " + account.getEmail() + " attempted to authenticate for client " + authRequest.getClientId() +
-                        " but has no roles for this client and the client has no default roles to seed");
+                log.warnv("authenticate FORBIDDEN (no roles): user={0}, client={1}, hasDefaultRoles={2}",
+                        account.getEmail(), authRequest.getClientId(), hasDefaultRoles);
                 return Response.status(Response.Status.FORBIDDEN)
                         .entity("You do not have any roles for this application. Please contact your administrator.")
                         .build();
@@ -438,7 +446,8 @@ public class AuthorizationResource {
             try {
                 nonMultitenancyAuthorizationService.approveWithSubscriptionCheck(requestId, account.getId(), AccountService.NATIVE, selectedOrgId);
             } catch (RuntimeException e) {
-                log.warn("Organisation " + selectedOrgId + " has no subscription to client " + authRequest.getClientId());
+                log.warnv("authenticate FORBIDDEN (subscription): org={0}, client={1}, error={2}",
+                        selectedOrgId, authRequest.getClientId(), e.getMessage());
                 return Response.status(Response.Status.FORBIDDEN)
                         .entity("Your organisation is not subscribed to this application. Please contact your administrator.")
                         .build();

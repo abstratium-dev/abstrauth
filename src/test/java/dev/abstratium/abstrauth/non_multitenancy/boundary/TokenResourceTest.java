@@ -5,6 +5,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;
@@ -24,9 +25,10 @@ public class TokenResourceTest {
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
     private static final String REDIRECT_URI = "http://localhost:8080/api/auth/callback";
 
-    // Test org IDs (must match JWT signing key setup)
-    private static final String DEFAULT_ORG = "00000000-0000-0000-0000-000000000000";
     private static final String OTHER_ORG = "11111111-1111-1111-1111-111111111111";
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     @Test
     public void testTokenEndpointWithMissingGrantType() {
@@ -339,7 +341,7 @@ public class TokenResourceTest {
      */
     @Test
     public void testClientCredentialsWithClientRolesFromOwnOrg() {
-        String orgId = DEFAULT_ORG;
+        String orgId = defaultOrgId;
         String manageToken = generateManageTokenForOrg(orgId);
 
         // Create source client (the one that will sign in)
@@ -391,7 +393,7 @@ public class TokenResourceTest {
      */
     @Test
     public void testClientCredentialsCannotAccessClientRolesFromOtherOrg() {
-        String orgA = DEFAULT_ORG;
+        String orgA = defaultOrgId;
         String orgB = OTHER_ORG;
         String manageTokenA = generateManageTokenForOrg(orgA);
         String manageTokenB = generateManageTokenForOrg(orgB);
@@ -459,7 +461,7 @@ public class TokenResourceTest {
      */
     @Test
     public void testClientCredentialsWithNoClientRoles() {
-        String manageToken = generateManageTokenForOrg(DEFAULT_ORG);
+        String manageToken = generateManageTokenForOrg(defaultOrgId);
 
         // Create a client but don't assign any client roles
         String clientId = createClient(manageToken, "no_roles_client", "[]", "[]");
@@ -491,10 +493,10 @@ public class TokenResourceTest {
      */
     @Test
     public void testClientRoleTenantIsolationInToken() {
-        String manageToken = generateManageTokenForOrg(DEFAULT_ORG);
+        String manageToken = generateManageTokenForOrg(defaultOrgId);
 
         // Create source client and target with role assignment
-        String srcClientId = createClient(manageToken, "isolated_client", "[" + DEFAULT_ORG + "-isolated_target" + "]", "[]");
+        String srcClientId = createClient(manageToken, "isolated_client", "[" + defaultOrgId + "-isolated_target" + "]", "[]");
         String targetClientId = createClientWithAllowedRole(manageToken, "isolated_target", "secure-role", true);
 
         given()
@@ -523,7 +525,7 @@ public class TokenResourceTest {
 
         // Verify orgId claim is present
         JsonObject claims = decodeToken(accessToken);
-        org.junit.jupiter.api.Assertions.assertEquals(DEFAULT_ORG, claims.getString("orgId"));
+        org.junit.jupiter.api.Assertions.assertEquals(defaultOrgId, claims.getString("orgId"));
     }
 
     // Helper methods for new tests

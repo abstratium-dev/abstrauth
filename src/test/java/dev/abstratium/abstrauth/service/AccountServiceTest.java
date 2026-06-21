@@ -36,9 +36,7 @@ public class AccountServiceTest {
     @BeforeEach
     public void setup() throws Exception {
         // Reset tenant context and clean up any leftover test data
-        transactionHelper.beginTransaction();
         dbResetHelper.resetDatabase();
-        transactionHelper.commitTransaction();
 
         // Ensure common test clients exist
         transactionHelper.beginTransaction();

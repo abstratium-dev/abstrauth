@@ -8,6 +8,7 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.LocalDateTime;
@@ -29,6 +30,9 @@ public class MultiTenancySqlDebugResource {
 
     @Inject
     UserTransaction userTransaction;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     @POST
     @Path("/run-all")
@@ -292,7 +296,8 @@ public class MultiTenancySqlDebugResource {
         } catch (Exception e) {
             errorMessage = e.getClass().getSimpleName() + ": " + e.getMessage();
             LOG.info("=== GOT EXCEPTION AS EXPECTED for wrong orgId: " + errorMessage + " ===");
-            if(!errorMessage.equals("PropertyValueException: assigned tenant id differs from current tenant id [99999999-9999-9999-9999-999999999999 != 00000000-0000-0000-0000-000000000000] for entity dev.abstratium.abstrauth.entity.OAuthClient.orgId")) {
+            String expectedMsg = "PropertyValueException: assigned tenant id differs from current tenant id [99999999-9999-9999-9999-999999999999 != " + defaultOrgId + "] for entity dev.abstratium.abstrauth.entity.OAuthClient.orgId";
+            if(!errorMessage.equals(expectedMsg)) {
                 throw new IllegalStateException("did not get expected exception. see logs for details.");
             }
             try {

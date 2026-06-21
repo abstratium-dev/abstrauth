@@ -3,8 +3,10 @@ package dev.abstratium.abstrauth.util;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.CurrentOrgContext;
@@ -18,8 +20,8 @@ import dev.abstratium.abstrauth.service.CurrentOrgContext;
 @ApplicationScoped
 public class TestDatabaseResetHelper {
 
-    /** Default org used by R__01__test_default_org_and_clients.sql for test clients. */
-    public static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
+    private static final Logger log = Logger.getLogger(TestDatabaseResetHelper.class);
+
     private static final String PROTECTED_CLIENT_ID = "abstratium-abstrauth";
 
     /** Client IDs that are seeded by the repeatable migration R__01__test_default_org_and_clients.sql. */
@@ -54,15 +56,21 @@ public class TestDatabaseResetHelper {
      * Uses native SQL to bypass tenant filtering.
      * Resets the current tenant context to the default organisation.
      */
+    @Transactional
     public void resetDatabase() {
         currentOrgContext.setOrgId(configuredDefaultOrgId);
         accountService.resetAccountExistenceCache();
 
-        final String configuredDefaultOrg = "'" + configuredDefaultOrgId + "'";
-        final String testOrg = "'" + DEFAULT_ORG_ID + "'";
-        final String protectedOrgs = "(" + configuredDefaultOrg + ", " + testOrg + ")";
+        final String defaultOrg = "'" + configuredDefaultOrgId + "'";
         final String seededClients = buildInClause(SEEDED_CLIENT_IDS);
         final String protectedClient = "'" + PROTECTED_CLIENT_ID + "'";
+
+        log.debugv("[resetDatabase] Before cleanup — abstrauth redirect_uris: {0}",
+            queryRedirectUris(PROTECTED_CLIENT_ID));
+
+        // H2-specific: disable FK checks so we can clean up without worrying about
+        // leftover cross-org references from earlier tests.
+        em.createNativeQuery("SET REFERENTIAL_INTEGRITY FALSE").executeUpdate();
 
         // Delete in reverse order of dependencies to avoid FK violations.
         // Most ON DELETE CASCADE constraints were removed in V01.035, so order matters.
@@ -78,11 +86,11 @@ public class TestDatabaseResetHelper {
         em.createNativeQuery("DELETE FROM T_account_roles").executeUpdate();
         em.createNativeQuery("DELETE FROM T_organisation_accounts").executeUpdate();
 
-        // 3. Client children — keep only rows belonging to seeded clients in protected orgs.
-        em.createNativeQuery("DELETE FROM T_oauth_client_secrets WHERE client_id NOT IN " + seededClients + " OR org_id NOT IN " + protectedOrgs)
+        // 3. Client children — keep only rows belonging to seeded clients.
+        em.createNativeQuery("DELETE FROM T_oauth_client_secrets WHERE client_id NOT IN " + seededClients)
             .executeUpdate();
         em.createNativeQuery("DELETE FROM T_client_roles").executeUpdate();
-        em.createNativeQuery("DELETE FROM T_subscriptions WHERE client_id NOT IN " + seededClients + " OR org_id NOT IN " + protectedOrgs)
+        em.createNativeQuery("DELETE FROM T_subscriptions WHERE client_id NOT IN " + seededClients)
             .executeUpdate();
         em.createNativeQuery("DELETE FROM T_client_allowed_roles WHERE client_id != " + protectedClient)
             .executeUpdate();
@@ -94,15 +102,20 @@ public class TestDatabaseResetHelper {
         em.createNativeQuery("DELETE FROM T_oauth_clients WHERE client_id NOT IN " + seededClients)
             .executeUpdate();
 
-        // 6. Organisations — keep only the two orgs that contain seeded data.
-        em.createNativeQuery("DELETE FROM T_organisations WHERE id NOT IN " + protectedOrgs)
+        // 6. Organisations — keep only the default org.
+        em.createNativeQuery("DELETE FROM T_organisations WHERE id != " + defaultOrg)
             .executeUpdate();
 
+        // Re-enable FK checks before re-seeding so inserts are validated.
+        em.createNativeQuery("SET REFERENTIAL_INTEGRITY TRUE").executeUpdate();
+
         // 7. Safety-net: re-seed critical default data if a previous test removed it.
-        reseedDefaultOrg(configuredDefaultOrg);
-        reseedDefaultOrg(testOrg);
-        reseedAbstrauthClient(configuredDefaultOrg, protectedClient);
-        reseedTestClients(testOrg);
+        reseedDefaultOrg(defaultOrg);
+        restoreAbstrauthClient(defaultOrg, protectedClient);
+        reseedTestClients(defaultOrg);
+
+        log.debugv("[resetDatabase] After cleanup — abstrauth redirect_uris: {0}",
+            queryRedirectUris(PROTECTED_CLIENT_ID));
     }
 
     private static String buildInClause(String[] values) {
@@ -125,10 +138,41 @@ public class TestDatabaseResetHelper {
             .executeUpdate();
     }
 
-    private void reseedAbstrauthClient(String org, String clientIdLiteral) {
+    private void restoreAbstrauthClient(String org, String clientIdLiteral) {
+        // Must match V01.006__insertDefaultClient.sql redirect_uris
+        final String redirectUris = "[\"http://localhost:8080/api/auth/callback\",\"https://auth.abstratium.dev/api/auth/callback\"]";
+        final String scopes = "[\"openid\",\"profile\",\"email\"]";
+
+        // Some tests mutate the abstratium-abstrauth client; restore it to correct values.
+        int updated = em.createNativeQuery(
+                "UPDATE T_oauth_clients SET " +
+                "client_name = 'Abstratium Abstrauth', " +
+                "client_type = 'confidential', " +
+                "redirect_uris = '" + redirectUris + "', " +
+                "allowed_scopes = '" + scopes + "', " +
+                "require_pkce = false, " +
+                "auto_subscribe = false, " +
+                "publik = false, " +
+                "org_id = " + org + " " +
+                "WHERE client_id = " + clientIdLiteral)
+            .executeUpdate();
+        log.debugv("[restoreAbstrauthClient] Updated {0} row(s) for {1}", updated, PROTECTED_CLIENT_ID);
+
+        // Fallback: insert if the row was somehow deleted.
         reseedClient(org, "abstratium-abstrauth-id", clientIdLiteral,
-            "Abstratium Abstrauth", "confidential", "[\"http://localhost:8080/callback\"]",
-            "[\"openid\",\"profile\",\"email\"]", false, false, false);
+            "Abstratium Abstrauth", "confidential", redirectUris,
+            scopes, false, false, false);
+    }
+
+    private String queryRedirectUris(String clientId) {
+        try {
+            var results = em.createNativeQuery(
+                    "SELECT redirect_uris FROM T_oauth_clients WHERE client_id = '" + clientId + "'")
+                .getResultList();
+            return results.isEmpty() ? "<not found>" : String.valueOf(results.get(0));
+        } catch (Exception e) {
+            return "<error: " + e.getMessage() + ">";
+        }
     }
 
     private void reseedTestClients(String org) {

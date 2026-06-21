@@ -47,9 +47,9 @@ public class AuthorizationServiceTest {
         // Reset tenant context and clean up any leftover test data
         dbResetHelper.resetDatabase();
         
-        // Ensure test_client exists
-        var clientQuery = em.createQuery("SELECT c FROM OAuthClient c WHERE c.clientId = 'test_client'", dev.abstratium.abstrauth.entity.OAuthClient.class);
-        if (clientQuery.getResultList().isEmpty()) {
+        // Ensure test_client exists (use native query to bypass @TenantId filter)
+        var clientExists = em.createNativeQuery("SELECT 1 FROM T_oauth_clients WHERE client_id = 'test_client'").getResultList();
+        if (clientExists.isEmpty()) {
             dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
             client.setClientId("test_client");
             client.setClientName("Test Client");

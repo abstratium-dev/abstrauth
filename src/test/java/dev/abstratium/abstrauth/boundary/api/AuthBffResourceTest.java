@@ -10,9 +10,13 @@ import org.junit.jupiter.api.Test;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @QuarkusTest
 public class AuthBffResourceTest {
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     @Test
     public void testLogin_authenticated_redirectsToRoot() {
@@ -20,7 +24,7 @@ public class AuthBffResourceTest {
                 .subject("test-account-id")
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))
-                .claim("orgId", "00000000-0000-0000-0000-000000000000")
+                .claim("orgId", defaultOrgId)
                 .sign();
 
         given()
@@ -39,7 +43,7 @@ public class AuthBffResourceTest {
                 .subject("test-account-id")
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))
-                .claim("orgId", "00000000-0000-0000-0000-000000000000")
+                .claim("orgId", defaultOrgId)
                 .sign();
 
         given()

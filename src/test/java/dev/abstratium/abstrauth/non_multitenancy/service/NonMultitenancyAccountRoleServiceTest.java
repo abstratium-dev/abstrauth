@@ -356,7 +356,7 @@ public class NonMultitenancyAccountRoleServiceTest {
             "Test Org");
         transactionHelper.commitTransaction();
 
-        // First account (testAccountId) is now account #2 in the system
+        // First account (testAccountId) already has admin from bootstrap (first account after reset)
         // Account2 was created to ensure we're not in bootstrap mode (accountCount > 1)
         assertNotNull(account2);
         assertNotNull(account2.getId());
@@ -365,7 +365,7 @@ public class NonMultitenancyAccountRoleServiceTest {
         // because checkNonAdminCannotAddAdminRole uses securityIdentity which is anonymous in unit tests
 
         NonMultitenancyAccountRole role = nonMultitenancyAccountRoleService.addRole(
-            testOrgId, testAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+            testOrgId, account2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
 
         assertNotNull(role);
         assertEquals(Roles._ADMIN_PLAIN, role.getRole());

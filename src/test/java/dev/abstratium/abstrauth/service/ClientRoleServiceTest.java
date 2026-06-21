@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for ClientRoleService focusing on cross-tenant isolation
@@ -19,8 +20,10 @@ import io.smallrye.jwt.build.Jwt;
 @QuarkusTest
 public class ClientRoleServiceTest {
 
-    private static final String DEFAULT_ORG = "00000000-0000-0000-0000-000000000000";
     private static final String OTHER_ORG = "11111111-1111-1111-1111-111111111111";
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     /**
      * Generate a token for a specific orgId with manage-clients role.
@@ -86,7 +89,7 @@ public class ClientRoleServiceTest {
 
     @Test
     public void testAddClientRoleWithCorrectOrg() {
-        String token = generateManageTokenForOrg(DEFAULT_ORG);
+        String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source client
         String srcClientId = createClientWithAllowedRole(token, "src_client", "caller-role", true);
@@ -108,7 +111,7 @@ public class ClientRoleServiceTest {
 
         // Verify via GET
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + srcClientId + "/client-roles")
             .then()
@@ -120,7 +123,7 @@ public class ClientRoleServiceTest {
 
     @Test
     public void testAddClientRoleWithWrongOrgReturns404() {
-        String defaultToken = generateManageTokenForOrg(DEFAULT_ORG);
+        String defaultToken = generateManageTokenForOrg(defaultOrgId);
         String wrongToken = generateManageTokenForOrg(OTHER_ORG);
 
         // Create source client in default org
@@ -143,7 +146,7 @@ public class ClientRoleServiceTest {
 
     @Test
     public void testAddClientRoleNotInTargetCatalogReturns400() {
-        String token = generateManageTokenForOrg(DEFAULT_ORG);
+        String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source client
         String srcClientId = createClientWithAllowedRole(token, "src_not_in_catalog", "caller-role", true);
@@ -184,7 +187,7 @@ public class ClientRoleServiceTest {
 
     @Test
     public void testAddDuplicateClientRoleReturns409() {
-        String token = generateManageTokenForOrg(DEFAULT_ORG);
+        String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source and target clients
         String srcClientId = createClientWithAllowedRole(token, "src_dup", "caller-role", true);
@@ -214,7 +217,7 @@ public class ClientRoleServiceTest {
 
     @Test
     public void testRemoveClientRoleWithCorrectOrg() {
-        String token = generateManageTokenForOrg(DEFAULT_ORG);
+        String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source and target clients
         String srcClientId = createClientWithAllowedRole(token, "src_remove", "caller-role", true);
@@ -232,7 +235,7 @@ public class ClientRoleServiceTest {
 
         // Verify it exists
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + srcClientId + "/client-roles")
             .then()
@@ -249,7 +252,7 @@ public class ClientRoleServiceTest {
 
         // Verify it's gone
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + srcClientId + "/client-roles")
             .then()
@@ -259,7 +262,7 @@ public class ClientRoleServiceTest {
 
     @Test
     public void testRemoveClientRoleWithWrongOrgReturns404() {
-        String defaultToken = generateManageTokenForOrg(DEFAULT_ORG);
+        String defaultToken = generateManageTokenForOrg(defaultOrgId);
         String wrongToken = generateManageTokenForOrg(OTHER_ORG);
 
         // Create source and target clients
@@ -288,7 +291,7 @@ public class ClientRoleServiceTest {
 
     @Test
     public void testRemoveNonExistentClientRoleReturns404() {
-        String token = generateManageTokenForOrg(DEFAULT_ORG);
+        String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source and target clients
         String srcClientId = createClientWithAllowedRole(token, "src_rem_missing", "caller-role", true);
@@ -306,8 +309,8 @@ public class ClientRoleServiceTest {
 
     @Test
     public void testListClientRolesRequiresUserRoleOrHigher() {
-        String manageToken = generateManageTokenForOrg(DEFAULT_ORG);
-        String userToken = generateUserTokenForOrg(DEFAULT_ORG);
+        String manageToken = generateManageTokenForOrg(defaultOrgId);
+        String userToken = generateUserTokenForOrg(defaultOrgId);
 
         // Create clients
         String srcClientId = createClientWithAllowedRole(manageToken, "src_list", "caller-role", true);
@@ -328,7 +331,7 @@ public class ClientRoleServiceTest {
      */
     @Test
     public void testAddClientRoleForAbstratiumAbstrauthTargetWithSubscription() {
-        String token = generateManageTokenForOrg(DEFAULT_ORG);
+        String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source client
         String srcClientId = createClientWithAllowedRole(token, "src_abstrauth", "caller-role", true);
@@ -348,7 +351,7 @@ public class ClientRoleServiceTest {
 
         // Verify via GET
         given()
-            .header("Authorization", "Bearer " + generateUserTokenForOrg(DEFAULT_ORG))
+            .header("Authorization", "Bearer " + generateUserTokenForOrg(defaultOrgId))
             .when()
             .get("/api/clients/" + srcClientId + "/client-roles")
             .then()

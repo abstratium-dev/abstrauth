@@ -12,7 +12,6 @@ import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClie
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
-import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -32,14 +31,9 @@ public class NonMultitenancyOAuthClientServiceTest {
     @Inject
     TestDatabaseResetHelper dbResetHelper;
 
-    @Inject
-    TestTransactionHelper transactionHelper;
-
     @BeforeEach
     public void resetDatabaseBeforeTest() throws Exception {
-        transactionHelper.beginTransaction();
         dbResetHelper.resetDatabase();
-        transactionHelper.commitTransaction();
     }
 
     @Test

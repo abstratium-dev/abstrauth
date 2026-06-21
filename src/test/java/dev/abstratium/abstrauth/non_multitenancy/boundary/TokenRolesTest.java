@@ -64,9 +64,7 @@ public class TokenRolesTest {
     @BeforeEach
     public void setup() throws Exception {
         // Reset tenant context and clean up any leftover test data
-        transactionHelper.beginTransaction();
         dbResetHelper.resetDatabase();
-        transactionHelper.commitTransaction();
 
         // Ensure test clients exist
         transactionHelper.beginTransaction();
@@ -131,52 +129,54 @@ public class TokenRolesTest {
 
     @Test
     public void testTokenContainsAssignedRoles() throws Exception {
-        // Assign admin role to the account in a committed transaction
-        // Note: "user" role is automatically assigned, so we only add "admin"
-        addRolesInTransaction(CLIENT_ID, "admin");
-        
+        // Assign editor role to the account in a committed transaction
+        // Note: "user" and "admin" roles are automatically assigned for first account
+        addRolesInTransaction(CLIENT_ID, "editor");
+
         // Complete OAuth flow
         String accessToken = completeOAuthFlow();
-        
+
         // Decode JWT payload
         String payload = decodeJwtPayload(accessToken);
-        
-        // Verify it contains both roles with client prefix
+
+        // Verify it contains auto-assigned and manually assigned roles with client prefix
         assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
         assertTrue(payload.contains("\"abstratium-abstrauth_user\""), "JWT should contain 'abstratium-abstrauth_user' role");
         assertTrue(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should contain 'abstratium-abstrauth_admin' role");
+        assertTrue(payload.contains("\"abstratium-abstrauth_editor\""), "JWT should contain 'abstratium-abstrauth_editor' role");
     }
 
     @Test
     public void testTokenContainsOnlyRolesForSpecificClient() throws Exception {
-        // Assign roles for this client
-        addRolesInTransaction(CLIENT_ID, "admin");
-        
+        // Assign roles for this client (admin already auto-assigned for first account)
+        addRolesInTransaction(CLIENT_ID, "editor");
+
         // Assign roles for a different client
         addRolesInTransaction("other_client", "superadmin");
-        
+
         // Complete OAuth flow
         String accessToken = completeOAuthFlow();
-        
+
         // Decode JWT payload
         String payload = decodeJwtPayload(accessToken);
-        
+
         // Verify it contains only roles for the current client with full prefix
-        assertTrue(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should contain 'abstratium-abstrauth_admin' role for this client");
+        assertTrue(payload.contains("\"abstratium-abstrauth_admin\""), "JWT should contain auto-assigned 'abstratium-abstrauth_admin' role for this client");
+        assertTrue(payload.contains("\"abstratium-abstrauth_editor\""), "JWT should contain 'abstratium-abstrauth_editor' role for this client");
         assertFalse(payload.contains("\"other_client_superadmin\""), "JWT should not contain roles from other clients");
     }
 
     @Test
     public void testTokenContainsMultipleRoles() throws Exception {
-        // Assign multiple roles (user role is automatically assigned)
-        addRolesInTransaction(CLIENT_ID, "admin", "editor", "viewer");
-        
+        // Assign multiple roles (user and admin are automatically assigned for first account)
+        addRolesInTransaction(CLIENT_ID, "editor", "viewer");
+
         // Complete OAuth flow
         String accessToken = completeOAuthFlow();
-        
+
         // Decode JWT payload
         String payload = decodeJwtPayload(accessToken);
-        
+
         // Verify it contains all roles with client prefix
         assertTrue(payload.contains("\"groups\""), "JWT should contain groups claim");
         assertTrue(payload.contains("\"abstratium-abstrauth_user\""), "JWT should contain 'abstratium-abstrauth_user' role");
