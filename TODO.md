@@ -13,12 +13,6 @@
 
 - make all tests only reset the db once instead of for all tests.
 
-- DO WE NEED THIS? add a public endpoint where the orgId for a client can be read, so that abstrapact can read it and use it to read products, etc. since the user might be in their own org and are not added to abstratium when they use our services.
-
-- Can a test jwt be used against prod? Prolly not since the jwks key pair is different?
-
-- when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
-
 - add envers and viewing history
   - based on the impl in abstoggle! but that really needs to go into abstracore.
 
@@ -27,6 +21,12 @@
     brand.logo.url=${ABSTRA_BRAND_LOGO_URL:https://abstratium.dev/abstratium-logo-small.png}
     brand.logo.alt=${ABSTRA_BRAND_LOGO_ALT:Abstratium Logo}
     brand.name=${ABSTRA_BRAND_NAME:ABSTRATIUM}
+
+- DO WE NEED THIS? add a public endpoint where the orgId for a client can be read, so that abstrapact can read it and use it to read products, etc. since the user might be in their own org and are not added to abstratium when they use our services.
+
+- Can a test jwt be used against prod? Prolly not since the jwks key pair is different?
+
+- when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 
 - add a test for src/main/java/dev/abstratium/abstrauth/service/SecurityProblemLogger.java and copy that to abstracore. or is the test already there? then copy it here
 
@@ -42,14 +42,6 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 
 - what is this log? [io.qua.oid.run.OidcRecorder] (vert.x-eventloop-thread-2) [skey:] Session age extension will not be effective because 'quarkus.oidc.token.refresh-expired=true' is not set
 
-- multi-tenancy: if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
-
-- need to allow other addresses to call management address 9002 in order to get metrics. need to expose it in docker file? 
-
-- make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
-  - actually make it only possible once they have changed their password, if native.
-  - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
-
 - complete other open points from first security audit
 
 - security audit for CRUD operations on clients and accounts "using any trick in the book" for accessing the server via its web API (no direct access of the database, no access to the file system) - try to CRUD accounts, clients and roles!
@@ -60,6 +52,14 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 
 
 ## Tomorrow
+
+- need to allow other addresses to call management address 9002 in order to get metrics. need to expose it in docker file? 
+
+- make it so that you cannot add roles to users who have never signed in, as it is a security issue as mentioned in [USER_GUIDE.md](USER_GUIDE.md). once this has been supressed, describe it in the manual.
+  - actually make it only possible once they have changed their password, if native.
+  - split the link into two - one is a link the second is a password. only if the password matches, will it work. password also required for non-native users. the point being that you can transfer the two using different mediums. the pasword should be simple.
+
+- multi-tenancy: if an org cancels a subscription, then don't delete it, but mark it as logically deleted - that way they can resubscribe and also we won't auto-subscribe the org back if it was public and auto-subscribable, as would be the case if the subscription were simply deleted.
 
 - multi-tenancy - `ADMIN` role is org-scoped only — admins cannot see accounts/clients across orgs, although they could if they used a cross tenant api. CHECK PEOPLE FROM OTHER ORGS CANNOT ADD THEMSELVES AS ADMIN and abuse being able to be and admin. See `docs/ephemeral-and-volatile-and-temporary-but-interesting/ADMIN_ROLE_LIMITATIONS.md`. note that the admin role isn't actually able to do any thing yet
 
