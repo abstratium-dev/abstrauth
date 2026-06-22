@@ -966,7 +966,7 @@ describe('ClientsComponent', () => {
       // Wait for confirmation Promise to resolve
       await Promise.resolve();
 
-      const deleteReq = httpMock.expectOne('/api/clients/1');
+      const deleteReq = httpMock.expectOne('/api/clients/test_client_1');
       expect(deleteReq.request.method).toBe('DELETE');
       deleteReq.flush(null, { status: 204, statusText: 'No Content' });
 
@@ -984,7 +984,7 @@ describe('ClientsComponent', () => {
 
       await component.deleteClient(mockClients[0]);
 
-      httpMock.expectNone('/api/clients/1');
+      httpMock.expectNone('/api/clients/test_client_1');
       expect(confirmService.confirm).toHaveBeenCalled();
     });
 
@@ -997,7 +997,7 @@ describe('ClientsComponent', () => {
       // Wait for confirmation Promise to resolve
       await Promise.resolve();
 
-      const deleteReq = httpMock.expectOne('/api/clients/1');
+      const deleteReq = httpMock.expectOne('/api/clients/test_client_1');
       deleteReq.flush(null, { status: 204, statusText: 'No Content' });
       
       await Promise.resolve();
@@ -1015,7 +1015,7 @@ describe('ClientsComponent', () => {
       // Wait for confirmation Promise to resolve
       await Promise.resolve();
 
-      const deleteReq = httpMock.expectOne('/api/clients/1');
+      const deleteReq = httpMock.expectOne('/api/clients/test_client_1');
       deleteReq.flush({ error: 'Client not found' }, { status: 404, statusText: 'Not Found' });
 
       await deletePromise;
@@ -1027,7 +1027,7 @@ describe('ClientsComponent', () => {
       // Wait for confirmation Promise to resolve
       await Promise.resolve();
 
-      const deleteReq = httpMock.expectOne('/api/clients/1');
+      const deleteReq = httpMock.expectOne('/api/clients/test_client_1');
       deleteReq.flush({}, { status: 403, statusText: 'Forbidden' });
 
       await deletePromise;
@@ -1039,7 +1039,7 @@ describe('ClientsComponent', () => {
       // Wait for confirmation Promise to resolve
       await Promise.resolve();
 
-      const deleteReq = httpMock.expectOne('/api/clients/1');
+      const deleteReq = httpMock.expectOne('/api/clients/test_client_1');
       deleteReq.flush({}, { status: 500, statusText: 'Internal Server Error' });
 
       await deletePromise;
@@ -1321,7 +1321,7 @@ describe('ClientsComponent', () => {
       component.editingAllowedRole = 'editor';
       component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
 
-      component.updateAllowedRole('test_client_1', 'editor', false);
+      component.updateAllowedRole('test_client_1', 'editor', false, false);
       tick();
 
       const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
@@ -1345,7 +1345,7 @@ describe('ClientsComponent', () => {
       component.editingAllowedRole = 'editor';
       component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
 
-      const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false);
+      const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, false);
 
       const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
       updateReq.flush({}, { status: 403, statusText: 'Forbidden' });
@@ -1358,7 +1358,7 @@ describe('ClientsComponent', () => {
       component.editingAllowedRole = 'missing';
       component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
 
-      const updatePromise = component.updateAllowedRole('test_client_1', 'missing', false);
+      const updatePromise = component.updateAllowedRole('test_client_1', 'missing', false, false);
 
       const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/missing');
       updateReq.flush({ error: 'Role not found in allowlist' }, { status: 404, statusText: 'Not Found' });

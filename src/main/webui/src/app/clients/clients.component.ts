@@ -239,7 +239,7 @@ export class ClientsComponent implements OnInit {
     }
 
     try {
-      await this.controller.deleteClient(client.id);
+      await this.controller.deleteClient(client.clientId);
       // If we were editing this client, cancel edit mode
       if (this.editingClientId === client.id) {
         this.cancelEdit();

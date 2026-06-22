@@ -101,34 +101,41 @@ export async function deleteClientsExcept(page: Page, keepClientId: string) {
     await cards.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {
         console.log("No clients found on page");
     });
+
+    // Collect all client IDs upfront to avoid index-shifting issues as cards are removed
+    const allClientIds: string[] = [];
     const count = await cards.count();
-    console.log(`Found ${count} client cards`);
+    for (let i = 0; i < count; i++) {
+        const id = await cards.nth(i).getAttribute('data-client-id');
+        if (id) allClientIds.push(id);
+    }
+    console.log(`Found ${allClientIds.length} client cards`);
     
-    // Process cards in reverse order to avoid index shifting issues
-    for (let i = count - 1; i >= 0; i--) {
-        const card = cards.nth(i);
-        
-        // Get the client ID from the data attribute
-        const clientId = await card.getAttribute('data-client-id');
-        
+    for (const clientId of allClientIds) {
         console.log(`Checking client: ${clientId}`);
         
-        if (clientId && !_clientIdMatches(clientId, keepClientId)) {
+        if (!_clientIdMatches(clientId, keepClientId)) {
             console.log(`Deleting client: ${clientId}`);
             
-            // Find and click the delete button (trash icon) for this client
+            // Use a stable locator keyed by data-client-id so index shifts don't matter
+            const card = page.locator(`.card[data-client-id="${clientId}"]`);
+            
+            // The button may not be visible if the current user doesn't own the client
             const deleteButton = card.locator('.btn-icon-danger').first();
+            const isDeleteVisible = await deleteButton.isVisible().catch(() => false);
+            if (!isDeleteVisible) {
+                console.log(`Skipping client '${clientId}' - delete button not visible (not owned by current user)`);
+                continue;
+            }
             await deleteButton.click();
             
             // Wait for confirmation dialog and confirm
-            await page.waitForTimeout(500);
+            const confirmBtn = _getDeleteClientButton(page);
+            await expect(confirmBtn).toBeVisible({ timeout: 5000 });
+            await confirmBtn.click();
             
-            // Click the confirm button in the dialog
-            // The dialog should have a button with text like "Delete Client"
-            await _getDeleteClientButton(page).click();
-            
-            // Wait for the client to be deleted and DOM to update
-            await page.waitForTimeout(1000);
+            // Wait for this specific card to be removed using the stable locator
+            await expect(card).not.toBeAttached({ timeout: 10000 });
         } else {
             console.log(`Keeping client: ${clientId}`);
         }
@@ -155,26 +162,31 @@ export async function deleteClientIfExists(page: Page, clientId: string): Promis
     const count = await cards.count();
     console.log(`Found ${count} client cards`);
     
-    // Iterate through all cards to find the matching client
+    // Collect all client IDs upfront to avoid index-shifting issues
+    const allClientIds: string[] = [];
     for (let i = 0; i < count; i++) {
-        const card = cards.nth(i);
-        const cardClientId = await card.getAttribute('data-client-id');
-        
-        if (cardClientId && _clientIdMatches(cardClientId, clientId)) {
+        const id = await cards.nth(i).getAttribute('data-client-id');
+        if (id) allClientIds.push(id);
+    }
+
+    for (const cardClientId of allClientIds) {
+        if (_clientIdMatches(cardClientId, clientId)) {
             console.log(`Found client '${clientId}', deleting...`);
-            
+
+            // Use a stable locator keyed by data-client-id so index shifts don't matter
+            const card = page.locator(`.card[data-client-id="${cardClientId}"]`);
+
             // Find and click the delete button (trash icon) for this client
             const deleteButton = card.locator('.btn-icon-danger').first();
             await deleteButton.click();
             
             // Wait for confirmation dialog and confirm
-            await page.waitForTimeout(500);
+            const confirmButton = _getDeleteClientButton(page);
+            await expect(confirmButton).toBeVisible({ timeout: 5000 });
+            await confirmButton.click();
             
-            // Click the confirm button in the dialog
-            await _getDeleteClientButton(page).click();
-            
-            // Wait for the client to be deleted and DOM to update
-            await page.waitForTimeout(1000);
+            // Wait for the card to be removed from the DOM
+            await expect(card).not.toBeAttached({ timeout: 10000 });
             
             console.log(`✓ Deleted client '${clientId}'`);
             return true;

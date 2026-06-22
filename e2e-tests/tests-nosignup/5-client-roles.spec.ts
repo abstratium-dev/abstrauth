@@ -55,6 +55,13 @@ test.describe('Client-to-Client (M2M) Role Management', () => {
     let srcClientSecret: string;
     let targetClientId: string;    // full prefixed id
 
+    test.afterEach(async ({ page }) => {
+        await signInAsAdmin(page);
+        await navigateToClients(page);
+        if (srcClientId) await deleteClientIfExists(page, srcClientId);
+        if (targetClientId) await deleteClientIfExists(page, targetClientId);
+    });
+
     test.beforeEach(async ({ page }) => {
         const ts = Date.now();
         await signInAsAdmin(page);

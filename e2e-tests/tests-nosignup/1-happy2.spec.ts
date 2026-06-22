@@ -3,7 +3,7 @@ import { test, expect, Page } from '@playwright/test';
 import { signout, navigateToAccounts, navigateToClients, getCurrentUserName } from '../pages/header';
 import { ensureAdminIsAuthenticated, trySignInAsAdmin, signInViaInviteLink, signInAsAdmin, signInAsManager, MANAGER_EMAIL, MANAGER_NAME, MANAGER_PASSWORD, ADMIN_EMAIL } from '../pages/signin.page';
 import { addAccount, deleteAccountsExcept, tryAddRoleToSelf, addRoleToAccount, tryDeleteRoleFromAccount, tryDeleteAccount } from '../pages/accounts.page';
-import { deleteClientsExcept, addClient, addAllowedRoleToClient } from '../pages/clients.page';
+import { deleteClientsExcept, addClient, addAllowedRoleToClient, deleteClientIfExists } from '../pages/clients.page';
 import { changePassword } from '../pages/change-password.page';
 import { approveAuthorization, verifySignedIn } from '../pages/authorize.page';
 import { dismissToasts } from '../pages/toast';
@@ -174,8 +174,11 @@ test('admin creates manager account and manager signs in via invite link', async
     // Therefore, we skip testing deletion protections as manager.
     
     // Step 23: Navigate to clients page and add a new client
+    // Note: the admin cleanup can only delete clients in their own org, so the manager's
+    // clients from a previous run may still exist - delete them first if they do.
     console.log("Step 23: Adding new client 'anapp_acomp'...");
     await navigateToClients(page);
+    await deleteClientIfExists(page, 'anapp_acomp');
     const newClient = await addClient(page, 'anapp_acomp', 'anapp_acomp', 'http://localhost:3333/callback', 'openid profile email');
     const anappClientId = newClient.clientId;
 

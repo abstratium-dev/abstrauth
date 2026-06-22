@@ -60,9 +60,12 @@ describe('AccountsComponent', () => {
     routerSpy.serializeUrl.and.returnValue('');
     routerSpy.events = EMPTY;
     
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['hasRole', 'token$']);
+    const authServiceSpy = jasmine.createSpyObj('AuthService', ['hasRole', 'token$', 'getOrgId', 'getEmail', 'signout']);
     authServiceSpy.hasRole.and.returnValue(true); // Mock user as admin
     authServiceSpy.token$.and.returnValue({ sub: '1' }); // Mock current user ID
+    authServiceSpy.getOrgId.and.returnValue('test-org');
+    authServiceSpy.getEmail.and.returnValue('admin@example.com');
+    authServiceSpy.signout.and.stub();
     
     const confirmServiceSpy = jasmine.createSpyObj('ConfirmDialogService', ['confirm']);
     confirmServiceSpy.confirm.and.returnValue(Promise.resolve(true)); // Default to confirming
@@ -96,8 +99,14 @@ describe('AccountsComponent', () => {
     httpMock.verify();
   });
 
-  // Helper function to flush the clients request that happens on init
+  // Helper functions to flush the requests that happen on init
+  function flushOwnersRequest() {
+    const ownersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+    ownersReq.flush([]);
+  }
+
   function flushClientsRequest() {
+    flushOwnersRequest();
     const clientsReq = httpMock.expectOne('/api/clients');
     clientsReq.flush([]);
   }
@@ -125,6 +134,7 @@ describe('AccountsComponent', () => {
 
     it('should call loadAccounts on init', () => {
       spyOn(component, 'loadAccounts');
+      spyOn(component, 'loadOwners');
       const controller = TestBed.inject(Controller);
       spyOn(controller, 'loadClients');
       component.ngOnInit();
@@ -357,6 +367,7 @@ describe('AccountsComponent', () => {
       fixture.detectChanges();
       const req = httpMock.expectOne('/api/accounts');
       req.flush(mockAccounts);
+      tick();
       flushClientsRequest();
       tick();
       fixture.detectChanges();
@@ -648,6 +659,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       // Load clients
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
@@ -683,6 +697,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -705,6 +722,9 @@ describe('AccountsComponent', () => {
       
       const accountsReq = httpMock.expectOne('/api/accounts');
       accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
       tick();
 
       const clientsReq = httpMock.expectOne('/api/clients');
@@ -731,6 +751,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -755,6 +778,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -777,6 +803,9 @@ describe('AccountsComponent', () => {
       
       const accountsReq = httpMock.expectOne('/api/accounts');
       accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
       tick();
 
       const clientsReq = httpMock.expectOne('/api/clients');
@@ -813,6 +842,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -847,6 +879,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -863,6 +898,9 @@ describe('AccountsComponent', () => {
       
       const accountsReq = httpMock.expectOne('/api/accounts');
       accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
       tick();
 
       const clientsReq = httpMock.expectOne('/api/clients');
@@ -887,6 +925,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -907,6 +948,9 @@ describe('AccountsComponent', () => {
       
       const accountsReq = httpMock.expectOne('/api/accounts');
       accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
       tick();
 
       const clientsReq = httpMock.expectOne('/api/clients');
@@ -971,6 +1015,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -1023,6 +1070,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -1068,6 +1118,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -1099,6 +1152,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -1121,6 +1177,9 @@ describe('AccountsComponent', () => {
       
       const accountsReq = httpMock.expectOne('/api/accounts');
       accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
       tick();
 
       const clientsReq = httpMock.expectOne('/api/clients');
@@ -1147,6 +1206,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -1169,6 +1231,9 @@ describe('AccountsComponent', () => {
       
       const accountsReq = httpMock.expectOne('/api/accounts');
       accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
       tick();
 
       const clientsReq = httpMock.expectOne('/api/clients');
@@ -1213,6 +1278,9 @@ describe('AccountsComponent', () => {
       accountsReq.flush(mockAccounts);
       tick();
 
+      flushOwnersRequest();
+      tick();
+
       const clientsReq = httpMock.expectOne('/api/clients');
       clientsReq.flush(mockClients);
       tick();
@@ -1243,6 +1311,9 @@ describe('AccountsComponent', () => {
       
       const accountsReq = httpMock.expectOne('/api/accounts');
       accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
       tick();
 
       const clientsReq = httpMock.expectOne('/api/clients');
