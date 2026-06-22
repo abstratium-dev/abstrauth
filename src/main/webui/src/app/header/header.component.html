@@ -1,7 +1,7 @@
 <div class="header">
     <div class="header-left">
-        <img src="https://abstratium.dev/abstratium-logo-small.png" alt="Abstratium Logo" class="logo">
-        <span class="brand-name">ABSTRATIUM</span>
+        <img [src]="brandLogoUrl$()" [alt]="brandLogoAlt$()" class="logo">
+        <span class="brand-name">{{ brandName$() }}</span>
     </div>
 
     <div class="header-right">

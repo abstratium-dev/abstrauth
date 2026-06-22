@@ -2,10 +2,12 @@ package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.TenantId;
+import org.hibernate.envers.Audited;
 import java.time.Instant;
 
 @Entity
 @Table(name = "T_oauth_client_secrets")
+@Audited
 public class ClientSecret {
     
     @Id

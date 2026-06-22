@@ -1,13 +1,14 @@
 package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.TenantId;
+import org.hibernate.envers.Audited;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.hibernate.annotations.TenantId;
-
 @Entity
 @Table(name = "T_subscriptions")
+@Audited
 public class Subscription {
 
     @Id

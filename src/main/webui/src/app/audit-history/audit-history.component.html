@@ -1,0 +1,114 @@
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h1>Audit History</h1>
+      <p class="description">
+        <span class="badge badge-primary">{{ formatEntityType(entityType) }}</span>
+        <span class="audit-pk">{{ primaryKey }}</span>
+      </p>
+    </div>
+    <button class="btn-secondary" (click)="goBack()">Back</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <p>Loading audit history...</p>
+  </div>
+
+  <div *ngIf="error" class="error-box">
+    <p>{{ error }}</p>
+    <button (click)="loadHistory()">Retry</button>
+  </div>
+
+  <div *ngIf="!loading && !error && entries.length === 0" class="info-message">
+    <p>No audit history found for this entity.</p>
+  </div>
+
+  <div *ngIf="!loading && !error && entries.length > 0" class="audit-timeline">
+    <div class="audit-entry" *ngFor="let entry of entries; let i = index">
+      <div class="audit-entry-header">
+        <div class="audit-entry-meta">
+          <span class="badge" [ngClass]="getRevTypeBadgeClass(entry.revType)">
+            {{ getRevTypeName(entry.revType) }}
+          </span>
+          <span class="audit-rev">Rev #{{ entry.rev }}</span>
+          <span class="audit-timestamp">{{ formatTimestamp(entry.revTimestamp) }}</span>
+        </div>
+        <div class="audit-entry-user" *ngIf="entry.username">
+          by {{ entry.username }}
+        </div>
+      </div>
+
+      <div *ngIf="entry.changeNote" class="audit-change-note">
+        {{ entry.changeNote }}
+      </div>
+
+      <table class="standard-table audit-data-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let col of getEntityColumns(entry)">
+            <td class="audit-field-name">{{ col }}</td>
+            <td class="audit-field-value">{{ entry[col] ?? '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Related Entity History -->
+  <div *ngIf="relatedEntityType">
+    <h2 class="audit-related-heading">{{ formatEntityType(relatedEntityType) }} History</h2>
+
+    <div *ngIf="relatedLoading" class="loading">
+      <p>Loading {{ formatEntityType(relatedEntityType) }} history...</p>
+    </div>
+
+    <div *ngIf="relatedError" class="error-box">
+      <p>{{ relatedError }}</p>
+    </div>
+
+    <div *ngIf="!relatedLoading && !relatedError && relatedEntries.length === 0" class="info-message">
+      <p>No {{ formatEntityType(relatedEntityType) }} history found.</p>
+    </div>
+
+    <div *ngIf="!relatedLoading && !relatedError && relatedEntries.length > 0" class="audit-timeline">
+      <div class="audit-entry" *ngFor="let entry of relatedEntries">
+        <div class="audit-entry-header">
+          <div class="audit-entry-meta">
+            <span class="badge" [ngClass]="getRevTypeBadgeClass(entry.revType)">
+              {{ getRevTypeName(entry.revType) }}
+            </span>
+            <span class="audit-rev">Rev #{{ entry.rev }}</span>
+            <span class="audit-timestamp">{{ formatTimestamp(entry.revTimestamp) }}</span>
+          </div>
+          <div class="audit-entry-user" *ngIf="entry.username">
+            by {{ entry.username }}
+          </div>
+        </div>
+
+        <div *ngIf="entry.changeNote" class="audit-change-note">
+          {{ entry.changeNote }}
+        </div>
+
+        <table class="standard-table audit-data-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let col of getEntityColumns(entry)">
+              <td class="audit-field-name">{{ col }}</td>
+              <td class="audit-field-value">{{ entry[col] ?? '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

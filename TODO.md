@@ -13,18 +13,18 @@
 
 - make all tests only reset the db once instead of for all tests.
 
-- add envers and viewing history
-  - based on the impl in abstoggle! but that really needs to go into abstracore.
+- be able to remove owner
 
-- allow installer to set logo and name like in abstracore
+- can't find "stage" like in abstracore - we need that tho, don't we? at least for email -> generate a prompt from abstracore to add it here
 
-    brand.logo.url=${ABSTRA_BRAND_LOGO_URL:https://abstratium.dev/abstratium-logo-small.png}
-    brand.logo.alt=${ABSTRA_BRAND_LOGO_ALT:Abstratium Logo}
-    brand.name=${ABSTRA_BRAND_NAME:ABSTRATIUM}
+- Can a test jwt be used against prod? Prolly not since the jwks key pair is different?
+  - use the stage for this:
+  - Make mp.jwt.verify.issuer profile-specific — give each environment a distinct issuer URL (e.g. https://test.abstrauth.abstratium.dev vs https://abstrauth.abstratium.dev). This is a cheap, robust second layer.
+  - see abstracore notes -> add stage to name and it'll match
+
 
 - DO WE NEED THIS? add a public endpoint where the orgId for a client can be read, so that abstrapact can read it and use it to read products, etc. since the user might be in their own org and are not added to abstratium when they use our services.
 
-- Can a test jwt be used against prod? Prolly not since the jwks key pair is different?
 
 - when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 

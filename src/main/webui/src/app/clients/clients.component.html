@@ -198,6 +198,11 @@
               </span>
             </div>
             <div *ngIf="hasManageClientsRole() && matchesTokenOrgId(client.orgId) && editingClientId !== client.id" class="card-actions">
+              <a class="tile-action-link"
+                 [routerLink]="['/audit', 'oauth_client', client.id]"
+                 title="View audit history">
+                🕒
+              </a>
               <button class="btn-icon" (click)="startEdit(client)" title="Edit client"
                 [disabled]="editingClientId !== null">
                 ✏️

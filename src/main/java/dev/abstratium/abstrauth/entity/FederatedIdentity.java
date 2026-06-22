@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -9,6 +10,7 @@ import java.util.UUID;
  * Allows users to link multiple providers to the same account
  */
 @Entity
+@Audited
 @Table(name = "T_federated_identities", 
        uniqueConstraints = @UniqueConstraint(name = "I_federated_provider_user", 
                                             columnNames = {"provider", "provider_user_id"}))

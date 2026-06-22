@@ -1903,6 +1903,97 @@ button {
   }
 }
 
+/* ===== AUDIT HISTORY ===== */
+.audit-pk {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-left: 0.5rem;
+}
+
+.audit-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.audit-entry {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px var(--shadow-sm);
+}
+
+.audit-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.audit-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.audit-rev {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.audit-timestamp {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.audit-entry-user {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.audit-change-note {
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.audit-data-table {
+  font-size: 0.9rem;
+}
+
+.audit-field-name {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  width: 180px;
+}
+
+.audit-field-value {
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.audit-related-heading {
+  margin-top: 2.5rem;
+  margin-bottom: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--color-border-primary);
+}
+
+.badge-danger {
+  background-color: var(--color-error);
+  color: white;
+}
+
 .footer {
   font-size: small;
   font-style: italic;

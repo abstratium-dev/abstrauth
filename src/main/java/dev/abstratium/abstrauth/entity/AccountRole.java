@@ -2,11 +2,13 @@ package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.TenantId;
+import org.hibernate.envers.Audited;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "T_account_roles")
+@Audited
 public class AccountRole {
 
     @Id

@@ -60,6 +60,11 @@
             <span *ngFor="let role of org.roles" class="badge" [ngClass]="getRoleBadgeClass(role)">{{ role }}</span>
             <span *ngIf="isCurrentOrg(org.id)" class="badge badge-verified">&#10003; Current</span>
           </div>
+          <a class="tile-action-link"
+             [routerLink]="['/audit', 'organisation', org.id]"
+             title="View audit history">
+            🕒
+          </a>
         </div>
       </div>
       <div class="tile-details">

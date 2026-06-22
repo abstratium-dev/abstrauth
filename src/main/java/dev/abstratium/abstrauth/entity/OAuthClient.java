@@ -11,8 +11,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import org.hibernate.envers.Audited;
+
 @Entity
 @Table(name = "T_oauth_clients")
+@Audited
 public class OAuthClient {
 
     @Id

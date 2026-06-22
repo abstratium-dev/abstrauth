@@ -75,6 +75,20 @@ public class TestDatabaseResetHelper {
         // Delete in reverse order of dependencies to avoid FK violations.
         // Most ON DELETE CASCADE constraints were removed in V01.035, so order matters.
 
+        // 0. Audit tables — delete all audit data before main table cleanup.
+        em.createNativeQuery("DELETE FROM T_accounts_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_credentials_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_oauth_clients_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_account_roles_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_federated_identities_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_oauth_client_secrets_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_organisations_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_organisation_accounts_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_subscriptions_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_client_allowed_roles_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM T_client_roles_AUD").executeUpdate();
+        em.createNativeQuery("DELETE FROM REVINFO").executeUpdate();
+
         // 1. Transient tables with no seed data — delete everything.
         em.createNativeQuery("DELETE FROM T_revoked_tokens").executeUpdate();
         em.createNativeQuery("DELETE FROM T_authorization_codes").executeUpdate();

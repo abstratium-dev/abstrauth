@@ -656,7 +656,10 @@ _Replace all `TODO_...` values with the values generated above.
      -e ALLOW_SIGNUP="TODO_TRUE_OR_FALSE" \
      -e SERVER_BASE_URL="https://auth.yourdomain.com" \
      -e PASSWORD_PEPPER="TODO_YOUR_PASSWORD_PEPPER" \
-     -e QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME="TODO_TRUE_IF_BEHIND_REVERSE_PROXY_WHICH_ENDS_TLS_TUNNEL"
+     -e QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME="TODO_TRUE_IF_BEHIND_REVERSE_PROXY_WHICH_ENDS_TLS_TUNNEL" \
+     -e ABSTRA_BRAND_LOGO_URL="https://your-company.com/logo.svg" \
+     -e ABSTRA_BRAND_LOGO_ALT="Your Company Logo" \
+     -e ABSTRA_BRAND_NAME="YOUR COMPANY"
      ghcr.io/abstratium-dev/abstrauth:latest
    ```
 
@@ -691,6 +694,9 @@ _Replace all `TODO_...` values with the values generated above.
    - `SMTP_PASSWORD`: SMTP authentication password
    - `EMAIL_FROM`: Sender email address (default: `noreply@abstratium.dev`)
    - `ABSTRAUTH_WARNING_MESSAGE`: Custom warning message displayed in a yellow banner at the top of the UI. Useful for indicating non-production environments (e.g., "You are in a development environment"). Leave empty for production (default: empty in prod, environment-specific in dev/test).
+   - `ABSTRA_BRAND_LOGO_URL`: URL of the logo image shown in the header. Defaults to `https://abstratium.dev/abstratium-logo-small.png`.
+   - `ABSTRA_BRAND_LOGO_ALT`: Alt text for the header logo image. Defaults to `Abstratium Logo`.
+   - `ABSTRA_BRAND_NAME`: Brand name text shown next to the logo in the header. Defaults to `ABSTRATIUM`.
    - `ABSTRA_LEGAL_CONTENT_FILE`: **Required for non-abstratium deployments.** Absolute path inside the container to an HTML file containing your organisation's legal page content. When set, this file's contents are served to the frontend and displayed instead of the built-in abstratium legal text — with no misconfiguration warnings. If this variable is not set and the deployment is not on `abstratium.dev`, the legal page will display a prominent error warning to users, and the home page will display a disclaimer stating that abstratium is not responsible for this deployment. Example: `-e ABSTRA_LEGAL_CONTENT_FILE=/config/legal.html -v /host/legal.html:/config/legal.html`.
 
 ----

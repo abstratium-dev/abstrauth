@@ -168,6 +168,12 @@
                     title="Make owner">
               👑
             </button>
+            <a *ngIf="hasManageAccountsRole()"
+                    class="tile-action-link"
+                    [routerLink]="['/audit', 'account', account.id]"
+                    title="View audit history">
+              🕒
+            </a>
             <button *ngIf="hasManageAccountsRole()" 
                     class="btn-icon btn-icon-danger" 
                     (click)="deleteAccount(account)" 

@@ -102,6 +102,16 @@ export interface CreateAccountResponse {
   inviteToken?: string;
 }
 
+export interface AuditEntry {
+  rev: number;
+  revType: number;
+  revTimestamp: number;
+  username: string | null;
+  correlationId: string | null;
+  changeNote: string | null;
+  [key: string]: any;
+}
+
 export interface ConfigResponse {
   signupAllowed: boolean;
   allowNativeSignin: boolean;
@@ -111,6 +121,9 @@ export interface ConfigResponse {
   insecureClientSecret: boolean;
   warningMessage: string;
   legalContent: string | null;
+  brandLogoUrl: string;
+  brandLogoAlt: string;
+  brandName: string;
 }
 
 @Injectable({
@@ -137,8 +150,17 @@ export class ModelService {
   private organisationsError = signal<string | null>(null);
   private currentOrganisation = signal<Organisation | null>(null);
   private legalContent = signal<string | null>(null);
+  private readonly defaultBrandLogoUrl = 'https://abstratium.dev/abstratium-logo-small.png';
+  private readonly defaultBrandLogoAlt = 'Abstratium Logo';
+  private readonly defaultBrandName = 'ABSTRATIUM';
+  private brandLogoUrl = signal<string>(this.defaultBrandLogoUrl);
+  private brandLogoAlt = signal<string>(this.defaultBrandLogoAlt);
+  private brandName = signal<string>(this.defaultBrandName);
 
   legalContent$: Signal<string | null> = this.legalContent.asReadonly();
+  brandLogoUrl$: Signal<string> = this.brandLogoUrl.asReadonly();
+  brandLogoAlt$: Signal<string> = this.brandLogoAlt.asReadonly();
+  brandName$: Signal<string> = this.brandName.asReadonly();
   signUpUsername$: Signal<string> = this.signUpUsername.asReadonly();
   signUpPassword$: Signal<string> = this.signUpPassword.asReadonly();
   signInRequestId$: Signal<string> = this.signInRequestId.asReadonly();
@@ -236,5 +258,17 @@ export class ModelService {
     } else {
       this.warningMessage.set(message);
     }
+  }
+
+  setBrandLogoUrl(url: string) {
+    this.brandLogoUrl.set(url || this.defaultBrandLogoUrl);
+  }
+
+  setBrandLogoAlt(alt: string) {
+    this.brandLogoAlt.set(alt || this.defaultBrandLogoAlt);
+  }
+
+  setBrandName(name: string) {
+    this.brandName.set(name || this.defaultBrandName);
   }
 }

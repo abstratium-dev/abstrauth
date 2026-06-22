@@ -1,13 +1,13 @@
 package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
 @Table(name = "T_organisations")
+@Audited
 public class Organisation {
 
     @Id

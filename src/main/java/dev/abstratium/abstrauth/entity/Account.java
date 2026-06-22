@@ -14,8 +14,12 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
+
 @Entity
 @Table(name = "T_accounts")
+@Audited
 public class Account {
 
     @Id
@@ -40,6 +44,7 @@ public class Account {
 
     @OneToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
     private List<AccountRole> roles = new ArrayList<>();
 
     @PrePersist

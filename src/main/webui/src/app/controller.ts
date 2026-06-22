@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Account, AddClientRoleRequest, AllowedRole, ClientRole, ClientRolesResponse, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, UpdateOrganisationRequest } from './model.service';
+import { Account, AddClientRoleRequest, AllowedRole, AuditEntry, ClientRole, ClientRolesResponse, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, UpdateOrganisationRequest } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -65,6 +65,9 @@ export class Controller {
       this.modelService.setInsecureClientSecret(response.insecureClientSecret);
       this.modelService.setWarningMessage(response.warningMessage || '');
       this.modelService.setLegalContent(response.legalContent || null);
+      this.modelService.setBrandLogoUrl(response.brandLogoUrl || '');
+      this.modelService.setBrandLogoAlt(response.brandLogoAlt || '');
+      this.modelService.setBrandName(response.brandName || '');
     }).catch(err => {
       console.error('Error loading config:', err);
       this.modelService.setSignupAllowed(false);
@@ -433,6 +436,39 @@ export class Controller {
       );
     } catch (error) {
       console.error('Error getting organisation owners:', error);
+      throw error;
+    }
+  }
+
+  async getAuditHistory(entityType: string, primaryKey: string): Promise<AuditEntry[]> {
+    try {
+      return await firstValueFrom(
+        this.http.get<AuditEntry[]>(`/api/audit/${entityType}/${primaryKey}`)
+      );
+    } catch (error) {
+      console.error('Error loading audit history:', error);
+      throw error;
+    }
+  }
+
+  async getRelatedAuditHistory(relatedEntityType: string, parentEntityType: string, parentKey: string): Promise<AuditEntry[]> {
+    try {
+      return await firstValueFrom(
+        this.http.get<AuditEntry[]>(`/api/audit/related/${relatedEntityType}/by-${parentEntityType}/${parentKey}`)
+      );
+    } catch (error) {
+      console.error('Error loading related audit history:', error);
+      throw error;
+    }
+  }
+
+  async getAuditTypes(): Promise<string[]> {
+    try {
+      return await firstValueFrom(
+        this.http.get<string[]>('/api/audit/types')
+      );
+    } catch (error) {
+      console.error('Error loading audit types:', error);
       throw error;
     }
   }

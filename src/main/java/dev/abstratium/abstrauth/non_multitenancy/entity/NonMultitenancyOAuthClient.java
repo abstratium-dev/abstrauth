@@ -15,6 +15,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import org.hibernate.envers.NotAudited;
+
 @Entity
 @Table(name = "T_oauth_clients")
 public class NonMultitenancyOAuthClient {
@@ -55,26 +57,32 @@ public class NonMultitenancyOAuthClient {
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancyAccountRole> accountRoles = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancyClientSecret> clientSecrets = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancyClientAllowedRole> clientAllowedRoles = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "src_client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancyClientRole> srcClientRoles = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "target_client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancyClientRole> targetClientRoles = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "client_id", referencedColumnName = "client_id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancySubscription> subscriptions = new ArrayList<>();
 
     @PrePersist

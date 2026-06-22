@@ -1,12 +1,14 @@
 package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
 @Table(name = "T_organisation_accounts")
+@Audited
 public class OrganisationAccount {
 
     @Embeddable

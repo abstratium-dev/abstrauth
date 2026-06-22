@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.non_multitenancy.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.NotAudited;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,14 +37,17 @@ public class NonMultitenancyAccount {
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancyAccountRole> roles = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancyCredential> credentials = new ArrayList<>();
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancyFederatedIdentity> federatedIdentities = new ArrayList<>();
 
     @PrePersist

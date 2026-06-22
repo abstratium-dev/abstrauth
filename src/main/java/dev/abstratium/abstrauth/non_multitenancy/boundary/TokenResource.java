@@ -5,7 +5,6 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -25,7 +24,6 @@ import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
-import dev.abstratium.abstrauth.entity.ClientRole;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientRoleService;
@@ -473,8 +471,13 @@ public class TokenResource {
         var jwtBuilder = Jwt.issuer(issuer)
                 .claim("jti", jti)  // JWT ID for token revocation
                 .subject(account.getId())  // ALWAYS include sub - it's the primary subject identifier
+                .audience(clientId)  // REQUIRED: ID token audience is the client_id
                 .groups(groups)  // ALWAYS include groups for @RolesAllowed authorization
                 .claim("scope", scope)
+
+
+                make same but see below
+
                 .claim("client_id", clientId)
                 .claim("auth_method", authMethod)
                 .issuedAt(now)
@@ -554,7 +557,9 @@ public class TokenResource {
                 .groups(groups)  // Add groups/roles for @RolesAllowed authorization
                 .issuedAt(now)  // REQUIRED: Issued at time
                 .expiresAt(expiresAt);  // REQUIRED: Expiration time
-        
+
+                make same but see below;
+
         // Emit orgId claim if available (tenant context for downstream applications)
         if (orgId != null) {
             jwtBuilder.claim("orgId", orgId);
@@ -647,6 +652,7 @@ public class TokenResource {
         String accessToken = Jwt.issuer(issuer)
                 .claim("jti", UUID.randomUUID().toString())
                 .subject(clientId)  // Service ID as subject (for audit logging)
+                .audience(clientId)
                 .groups(groups)     // Roles for @RolesAllowed
                 .claim("client_id", clientId)
                 .claim("orgId", client.getOrgId())
@@ -656,6 +662,8 @@ public class TokenResource {
                 .jws()
                     .keyId("abstrauth-key-1")
                 .sign();
+
+make same but see below
 
         // 7. Return token response (no refresh token for client credentials)
         TokenResponse response = new TokenResponse();

@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.non_multitenancy.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.NotAudited;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,7 @@ public class NonMultitenancyOrganisation {
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "org_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
     private List<NonMultitenancySubscription> subscriptions = new ArrayList<>();
 
     @PrePersist

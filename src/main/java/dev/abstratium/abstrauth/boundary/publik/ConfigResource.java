@@ -43,6 +43,15 @@ public class ConfigResource {
     @ConfigProperty(name = "abstrauth.warning.message", defaultValue = "")
     String warningMessage;
 
+    @ConfigProperty(name = "brand.logo.url", defaultValue = "https://abstratium.dev/abstratium-logo-small.png")
+    String brandLogoUrl;
+
+    @ConfigProperty(name = "brand.logo.alt", defaultValue = "Abstratium Logo")
+    String brandLogoAlt;
+
+    @ConfigProperty(name = "brand.name", defaultValue = "ABSTRATIUM")
+    String brandName;
+
     @ConfigProperty(name = "legal.content.file")
     Optional<String> legalContentFile;
 
@@ -71,7 +80,7 @@ public class ConfigResource {
         boolean allowGoogleSignin = authorizationService.isGoogleSigninAllowed();
         boolean allowMicrosoftSignin = authorizationService.isMicrosoftSigninAllowed();
         boolean insecureClientSecret = isClientSecretInsecure();
-        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage, legalContent)).build();
+        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage, legalContent, brandLogoUrl, brandLogoAlt, brandName)).build();
     }
 
     /**
@@ -98,8 +107,11 @@ public class ConfigResource {
         public boolean insecureClientSecret;
         public String warningMessage;
         public String legalContent;
+        public String brandLogoUrl;
+        public String brandLogoAlt;
+        public String brandName;
 
-        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage, String legalContent) {
+        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage, String legalContent, String brandLogoUrl, String brandLogoAlt, String brandName) {
             this.signupAllowed = signupAllowed;
             this.allowNativeSignin = allowNativeSignin;
             this.allowGoogleSignin = allowGoogleSignin;
@@ -108,6 +120,9 @@ public class ConfigResource {
             this.insecureClientSecret = insecureClientSecret;
             this.warningMessage = warningMessage;
             this.legalContent = legalContent;
+            this.brandLogoUrl = brandLogoUrl;
+            this.brandLogoAlt = brandLogoAlt;
+            this.brandName = brandName;
         }
     }
 }

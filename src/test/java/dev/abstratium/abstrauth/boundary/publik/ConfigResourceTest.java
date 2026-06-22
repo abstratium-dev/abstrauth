@@ -126,4 +126,20 @@ public class ConfigResourceTest {
             .contentType(ContentType.JSON)
             .body("legalContent", org.hamcrest.Matchers.nullValue());
     }
+
+    @Test
+    void testConfigEndpointReturnsBrandFields() {
+        given()
+            .when()
+            .get("/public/config")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+            .body("brandLogoUrl", notNullValue())
+            .body("brandLogoUrl", equalTo("https://abstratium.dev/abstratium-logo-small.png"))
+            .body("brandLogoAlt", notNullValue())
+            .body("brandLogoAlt", equalTo("Abstratium Logo"))
+            .body("brandName", notNullValue())
+            .body("brandName", equalTo("ABSTRATIUM"));
+    }
 }

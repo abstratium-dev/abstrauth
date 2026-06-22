@@ -25,5 +25,6 @@ export const routes: Routes = [
   { path: 'organisations/:orgId', loadComponent: () => import('./organisation-detail/organisation-detail.component').then(m => m.OrganisationDetailComponent), canActivate: [authGuard] },
   { path: 'user', loadComponent: () => import('./user/user.component').then(m => m.UserComponent), canActivate: [authGuard] },
   { path: 'legal', loadComponent: () => import('./legal/legal.component').then(m => m.LegalComponent) },
+  { path: 'audit/:entityType/:primaryKey', loadComponent: () => import('./audit-history/audit-history.component').then(m => m.AuditHistoryComponent), canActivate: [authGuard] },
   { path: '**',       component: NotFoundComponent }
 ];

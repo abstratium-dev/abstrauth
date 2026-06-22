@@ -23,6 +23,9 @@ export class HeaderComponent implements OnInit {
     token!: Token;
     isSignedIn = false;
     currentOrg: Signal<Organisation | null> = this.modelService.currentOrganisation$;
+    protected brandLogoUrl$ = this.modelService.brandLogoUrl$;
+    protected brandLogoAlt$ = this.modelService.brandLogoAlt$;
+    protected brandName$ = this.modelService.brandName$;
 
     constructor() {
         effect(() => {

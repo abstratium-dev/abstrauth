@@ -259,4 +259,36 @@ describe('ModelService', () => {
       expect(sameService.signUpUsername$()).toBe('testuser');
     });
   });
+
+  describe('Brand Identity Signals', () => {
+    it('should have default brand values initially', () => {
+      expect(service.brandLogoUrl$()).toBe('https://abstratium.dev/abstratium-logo-small.png');
+      expect(service.brandLogoAlt$()).toBe('Abstratium Logo');
+      expect(service.brandName$()).toBe('ABSTRATIUM');
+    });
+
+    it('should set brand values from config', () => {
+      service.setBrandLogoUrl('https://example.com/logo.svg');
+      service.setBrandLogoAlt('Example Logo');
+      service.setBrandName('EXAMPLE');
+
+      expect(service.brandLogoUrl$()).toBe('https://example.com/logo.svg');
+      expect(service.brandLogoAlt$()).toBe('Example Logo');
+      expect(service.brandName$()).toBe('EXAMPLE');
+    });
+
+    it('should fall back to defaults when brand fields are empty strings', () => {
+      service.setBrandLogoUrl('https://example.com/logo.svg');
+      service.setBrandLogoAlt('Example Logo');
+      service.setBrandName('EXAMPLE');
+
+      service.setBrandLogoUrl('');
+      service.setBrandLogoAlt('');
+      service.setBrandName('');
+
+      expect(service.brandLogoUrl$()).toBe('https://abstratium.dev/abstratium-logo-small.png');
+      expect(service.brandLogoAlt$()).toBe('Abstratium Logo');
+      expect(service.brandName$()).toBe('ABSTRATIUM');
+    });
+  });
 });

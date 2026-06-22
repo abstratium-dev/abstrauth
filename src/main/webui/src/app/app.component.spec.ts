@@ -12,7 +12,11 @@ describe('AppComponent', () => {
     mockModelService = jasmine.createSpyObj('ModelService', ['setCurrentOrganisation'], {
       insecureClientSecret$: signal(false).asReadonly(),
       warningMessage$: signal('').asReadonly(),
-      currentOrganisation$: signal(null).asReadonly()
+      currentOrganisation$: signal(null).asReadonly(),
+      legalContent$: signal(null).asReadonly(),
+      brandLogoUrl$: signal('https://abstratium.dev/abstratium-logo-small.png').asReadonly(),
+      brandLogoAlt$: signal('Abstratium Logo').asReadonly(),
+      brandName$: signal('ABSTRATIUM').asReadonly()
     });
 
     await TestBed.configureTestingModule({

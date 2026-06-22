@@ -1,11 +1,13 @@
 package dev.abstratium.abstrauth.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import java.io.Serializable;
 import java.util.Objects;
 
 @Entity
 @Table(name = "T_client_allowed_roles")
+@Audited
 public class ClientAllowedRole {
 
     @Embeddable
