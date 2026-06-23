@@ -52,6 +52,9 @@ public class ConfigResource {
     @ConfigProperty(name = "brand.name", defaultValue = "ABSTRATIUM")
     String brandName;
 
+    @ConfigProperty(name = "abstratium.stage", defaultValue = "dev")
+    String stage;
+
     @ConfigProperty(name = "legal.content.file")
     Optional<String> legalContentFile;
 
@@ -80,7 +83,7 @@ public class ConfigResource {
         boolean allowGoogleSignin = authorizationService.isGoogleSigninAllowed();
         boolean allowMicrosoftSignin = authorizationService.isMicrosoftSigninAllowed();
         boolean insecureClientSecret = isClientSecretInsecure();
-        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage, legalContent, brandLogoUrl, brandLogoAlt, brandName)).build();
+        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage, legalContent, brandLogoUrl, brandLogoAlt, brandName, stage)).build();
     }
 
     /**
@@ -110,8 +113,9 @@ public class ConfigResource {
         public String brandLogoUrl;
         public String brandLogoAlt;
         public String brandName;
+        public String stage;
 
-        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage, String legalContent, String brandLogoUrl, String brandLogoAlt, String brandName) {
+        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage, String legalContent, String brandLogoUrl, String brandLogoAlt, String brandName, String stage) {
             this.signupAllowed = signupAllowed;
             this.allowNativeSignin = allowNativeSignin;
             this.allowGoogleSignin = allowGoogleSignin;
@@ -123,6 +127,7 @@ public class ConfigResource {
             this.brandLogoUrl = brandLogoUrl;
             this.brandLogoAlt = brandLogoAlt;
             this.brandName = brandName;
+            this.stage = stage;
         }
     }
 }

@@ -5,10 +5,15 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.Matchers.is;
+
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import io.restassured.http.ContentType;
 
 /**
@@ -16,7 +21,15 @@ import io.restassured.http.ContentType;
  * Tests the /public/config endpoint
  */
 @QuarkusTest
+@TestProfile(ConfigResourceTest.TestProfile.class)
 public class ConfigResourceTest {
+
+    public static class TestProfile implements QuarkusTestProfile {
+        @Override
+        public Map<String, String> getConfigOverrides() {
+            return Map.of("abstratium.stage", "test");
+        }
+    }
 
     @Test
     public void testGetConfigReturnsOk() {
@@ -141,5 +154,17 @@ public class ConfigResourceTest {
             .body("brandLogoAlt", equalTo("Abstratium Logo"))
             .body("brandName", notNullValue())
             .body("brandName", equalTo("ABSTRATIUM"));
+    }
+
+    @Test
+    void testConfigEndpointReturnsStage() {
+        given()
+            .when()
+            .get("/public/config")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+            .body("stage", notNullValue())
+            .body("stage", is("test"));
     }
 }
