@@ -23,6 +23,8 @@ import java.util.logging.Logger;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for TokenResource error paths and edge cases
@@ -400,13 +402,16 @@ public class TokenResourceTest {
             .extract()
             .path("access_token");
 
-        // Decode and verify the token contains the role
+        // Decode and verify all claims
         JsonObject claims = decodeToken(accessToken);
-        org.junit.jupiter.api.Assertions.assertTrue(claims.containsKey("groups"), "Token should have groups claim");
         String expectedGroup = ClientIdUtil.stripOrgPrefix(targetClientId) + "_api-reader";
-        org.junit.jupiter.api.Assertions.assertTrue(
-            claims.getJsonArray("groups").contains(Json.createValue(expectedGroup)),
-            "Token should contain the client role in groups claim: " + expectedGroup
+        String expectedAudience = ClientIdUtil.stripOrgPrefix(targetClientId);
+        assertClientCredentialsTokenClaims(
+            claims,
+            srcClientId,
+            defaultOrgId,
+            Set.of(expectedGroup),
+            Set.of(expectedAudience)
         );
     }
 
@@ -483,15 +488,18 @@ public class TokenResourceTest {
 
         // Verify: Token should have Org A's role, NOT Org B's role
         JsonObject claims = decodeToken(accessToken);
-        org.junit.jupiter.api.Assertions.assertTrue(claims.containsKey("groups"));
         String expectedGroupA = ClientIdUtil.stripOrgPrefix(targetClientIdA) + "_api-reader";
-        org.junit.jupiter.api.Assertions.assertTrue(
-            claims.getJsonArray("groups").contains(Json.createValue(expectedGroupA)),
-            "Token should contain Org A's client role: " + expectedGroupA
+        String expectedAudienceA = ClientIdUtil.stripOrgPrefix(targetClientIdA);
+        assertClientCredentialsTokenClaims(
+            claims,
+            srcClientIdA,
+            orgA,
+            Set.of(expectedGroupA),
+            Set.of(expectedAudienceA)
         );
         String expectedGroupB = ClientIdUtil.stripOrgPrefix(targetClientIdB) + "_api-writer";
-        org.junit.jupiter.api.Assertions.assertFalse(
-            claims.getJsonArray("groups").contains(Json.createValue(expectedGroupB)),
+        assertTrue(
+            !claims.getJsonArray("groups").contains(Json.createValue(expectedGroupB)),
             "Token should NOT contain Org B's client role (tenant isolation): " + expectedGroupB
         );
     }
@@ -520,10 +528,13 @@ public class TokenResourceTest {
             .path("access_token");
 
         JsonObject claims = decodeToken(accessToken);
-        // Groups should be empty or not present
-        if (claims.containsKey("groups")) {
-            org.junit.jupiter.api.Assertions.assertTrue(claims.getJsonArray("groups").isEmpty());
-        }
+        assertClientCredentialsTokenClaims(
+            claims,
+            clientId,
+            defaultOrgId,
+            Set.of(),
+            Set.of()
+        );
     }
 
     /**
@@ -563,9 +574,17 @@ public class TokenResourceTest {
             .extract()
             .path("access_token");
 
-        // Verify orgId claim is present
+        // Verify all claims
         JsonObject claims = decodeToken(accessToken);
-        org.junit.jupiter.api.Assertions.assertEquals(defaultOrgId, claims.getString("orgId"));
+        String expectedGroup = ClientIdUtil.stripOrgPrefix(targetClientId) + "_secure-role";
+        String expectedAudience = ClientIdUtil.stripOrgPrefix(targetClientId);
+        assertClientCredentialsTokenClaims(
+            claims,
+            srcClientId,
+            defaultOrgId,
+            Set.of(expectedGroup),
+            Set.of(expectedAudience)
+        );
     }
 
     // Helper methods for new tests
@@ -657,6 +676,47 @@ public class TokenResourceTest {
             .sign();
         LOG.info("[createRealManageTokenForOrg] orgId=" + orgId + ", accountId=" + account.getId());
         return token;
+    }
+
+    /**
+     * Asserts all claims in a client_credentials access token.
+     */
+    private void assertClientCredentialsTokenClaims(JsonObject claims, String srcClientId,
+                                                    String expectedOrgId,
+                                                    Set<String> expectedGroups,
+                                                    Set<String> expectedAudiences) {
+        assertEquals(srcClientId, claims.getString("sub"), "sub should be the source client id");
+        assertEquals(srcClientId, claims.getString("client_id"), "client_id should be the source client id");
+        assertEquals("client_credentials", claims.getString("auth_method"), "auth_method should be client_credentials");
+        assertEquals(expectedOrgId, claims.getString("orgId"), "orgId should match");
+        assertEquals("[]", claims.getString("scope"), "scope should be the default empty scopes");
+
+        assertNotNull(claims.getString("iss"), "iss should be present");
+        assertNotNull(claims.getString("jti"), "jti should be present");
+        assertTrue(claims.getJsonNumber("exp").longValue() > claims.getJsonNumber("iat").longValue(),
+                "exp should be greater than iat");
+
+        assertTrue(claims.containsKey("aud"), "aud claim should be present");
+        var audArray = claims.getJsonArray("aud");
+        assertEquals(expectedAudiences.size(), audArray.size(), "audience size should match expected target clients");
+        for (String expectedAud : expectedAudiences) {
+            assertTrue(audArray.contains(Json.createValue(expectedAud)),
+                    "aud should contain target client: " + expectedAud);
+        }
+
+        if (expectedGroups.isEmpty()) {
+            if (claims.containsKey("groups")) {
+                assertEquals(0, claims.getJsonArray("groups").size(), "groups should be empty when no roles");
+            }
+        } else {
+            assertTrue(claims.containsKey("groups"), "groups claim should be present");
+            var groupsArray = claims.getJsonArray("groups");
+            assertEquals(expectedGroups.size(), groupsArray.size(), "groups size should match expected roles");
+            for (String expectedGroup : expectedGroups) {
+                assertTrue(groupsArray.contains(Json.createValue(expectedGroup)),
+                        "groups should contain: " + expectedGroup);
+            }
+        }
     }
 
     /**

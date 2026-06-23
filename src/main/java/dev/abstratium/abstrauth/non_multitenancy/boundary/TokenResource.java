@@ -3,11 +3,14 @@ package dev.abstratium.abstrauth.non_multitenancy.boundary;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+
+import jakarta.json.Json;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -471,13 +474,9 @@ public class TokenResource {
         var jwtBuilder = Jwt.issuer(issuer)
                 .claim("jti", jti)  // JWT ID for token revocation
                 .subject(account.getId())  // ALWAYS include sub - it's the primary subject identifier
-                .audience(clientId)  // REQUIRED: ID token audience is the client_id
+                .audience(clientId)  // REQUIRED: audience is the client_id
                 .groups(groups)  // ALWAYS include groups for @RolesAllowed authorization
                 .claim("scope", scope)
-
-
-                make same but see below
-
                 .claim("client_id", clientId)
                 .claim("auth_method", authMethod)
                 .issuedAt(now)
@@ -550,15 +549,14 @@ public class TokenResource {
 
         // Build ID token with mandatory claims (OpenID Connect Core 1.0 Section 2)
         var jwtBuilder = Jwt.issuer(issuer)
+                .claim("jti", UUID.randomUUID().toString())  // Unique token ID
                 .subject(account.getId())  // REQUIRED: Subject identifier
                 .audience(clientId)  // REQUIRED: ID token audience is the client_id
-                .claim("jti", UUID.randomUUID().toString())  // Unique token ID
-                .claim("auth_method", authMethod)
                 .groups(groups)  // Add groups/roles for @RolesAllowed authorization
+                .claim("client_id", clientId)
+                .claim("auth_method", authMethod)
                 .issuedAt(now)  // REQUIRED: Issued at time
                 .expiresAt(expiresAt);  // REQUIRED: Expiration time
-
-                make same but see below;
 
         // Emit orgId claim if available (tenant context for downstream applications)
         if (orgId != null) {
@@ -639,31 +637,38 @@ public class TokenResource {
         // Use NonMultitenancyClientRoleService because orgId filter would exclude the client's own org
         var clientRoles = nonMultitenancyClientRoleService.findBySrcClientId(clientId);
         Set<String> groups = new HashSet<>();
+        Set<String> targetClientIds = new HashSet<>();
         for (var clientRole : clientRoles) {
             // Format: targetClientId_role (e.g., "target-service_api-reader")
             String displayTargetId = ClientIdUtil.stripOrgPrefix(clientRole.getTargetClientId());
             groups.add(displayTargetId + "_" + clientRole.getRole());
+            targetClientIds.add(displayTargetId);
         }
 
         // 6. Generate service token with BOTH scopes AND groups
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(3600);  // 1 hour for service tokens
 
+        // Build audience as a JsonArray so it is always emitted as a JSON array
+        var auds = new HashSet<String>();
+        for (String targetClientId : targetClientIds) {
+            auds.add(targetClientId);
+        }
+
         String accessToken = Jwt.issuer(issuer)
                 .claim("jti", UUID.randomUUID().toString())
                 .subject(clientId)  // Service ID as subject (for audit logging)
-                .audience(clientId)
+                .audience(auds)
                 .groups(groups)     // Roles for @RolesAllowed
-                .claim("client_id", clientId)
-                .claim("orgId", client.getOrgId())
                 .claim("scope", String.join(" ", requestedScopes))
+                .claim("client_id", clientId)
+                .claim("auth_method", "client_credentials")
                 .issuedAt(now)
                 .expiresAt(expiresAt)
+                .claim("orgId", client.getOrgId())
                 .jws()
                     .keyId("abstrauth-key-1")
                 .sign();
-
-make same but see below
 
         // 7. Return token response (no refresh token for client credentials)
         TokenResponse response = new TokenResponse();
