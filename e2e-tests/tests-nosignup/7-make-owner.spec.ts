@@ -5,20 +5,26 @@ import {
     signInViaInviteLink
 } from '../pages/signin.page';
 import { navigateToAccounts, signout } from '../pages/header';
-import { addAccount, tryMakeOwner, isMakeOwnerButtonVisible } from '../pages/accounts.page';
+import { addAccount, tryMakeOwner, isMakeOwnerButtonVisible, tryRemoveOwner, isRemoveOwnerButtonVisible } from '../pages/accounts.page';
 import { approveAuthorization } from '../pages/authorize.page';
 import { changePassword } from '../pages/change-password.page';
 import { dismissToasts } from '../pages/toast';
 
 /*
- * E2E tests for the "Make Owner" feature.
+ * E2E tests for the "Make Owner" and "Remove Owner" features.
  *
- * Verifies:
+ * Make Owner verifies:
  *   - Owner can promote a member to owner
  *   - Make Owner button is only visible to owners
  *   - Make Owner button is not visible for self
  *   - Non-owners cannot see the Make Owner button
  *   - Cannot make someone an owner twice (error handling)
+ *
+ * Remove Owner verifies:
+ *   - Owner with MANAGE_ACCOUNTS can demote a co-owner to member
+ *   - Demoted account retains member status
+ *   - Cannot remove the last owner
+ *   - Remove owner button is not visible for self
  */
 
 /**
@@ -40,7 +46,8 @@ async function cleanupTestAccounts(page: Page) {
             const email = await emailElement.textContent();
 
             if (email?.includes('makeowner_member_') || email?.includes('makeowner_nonowner_') ||
-                email?.includes('makeowner_twice_') || email?.includes('makeowner_promo_')) {
+                email?.includes('makeowner_twice_') || email?.includes('makeowner_promo_') ||
+                email?.includes('removeowner_')) {
                 console.log(`Found test account to clean up: ${email}`);
                 const deleteButton = tile.locator('.btn-icon-danger').first();
                 if (await deleteButton.isVisible().catch(() => false)) {
@@ -173,18 +180,19 @@ test.describe('Make Owner Feature', () => {
         expect(error1).toBeNull();
         await dismissToasts(page);
 
-        // Step 4: Reload to refresh owner status - button should now be replaced by crown badge
+        // Step 4: Reload to refresh owner status - make owner button should now be gone
         await page.reload();
         await page.waitForLoadState('networkidle');
         await navigateToAccounts(page);
 
-        // Step 5: Verify Make Owner button is no longer visible (replaced by crown badge)
+        // Step 5: Verify Make Owner button is no longer visible (account is now an owner)
         const isButtonVisible = await isMakeOwnerButtonVisible(page, ownerEmail);
         expect(isButtonVisible).toBe(false);
 
-        // Step 6: Verify crown badge is visible for the now-owner
+        // Step 6: Verify the remove-owner button is visible for the now-owner
+        // (the crown badge is replaced by a remove-owner button when the caller is an owner with MANAGE_ACCOUNTS)
         const accountTile = page.locator('.tile').filter({ hasText: ownerEmail });
-        await expect(accountTile.locator('span[title="Owner of this organisation"]')).toBeVisible();
+        await expect(accountTile.locator('[data-testid="remove-owner-button"]')).toBeVisible();
 
         console.log('✓ Test passed: cannot make someone an owner twice - button hidden after promotion');
     });
@@ -233,6 +241,90 @@ test.describe('Make Owner Feature', () => {
         expect(isVisible).toBe(true);
 
         console.log('✓ Test passed: newly promoted owner can see make owner button');
+    });
+
+    test('owner with manage-accounts can demote a co-owner to member', async ({ page }) => {
+        console.log('=== Test: owner can remove owner role from co-owner ===');
+        const ts = Date.now();
+        const coOwnerEmail = `removeowner_coowner_${ts}@abstratium.dev`;
+
+        // Step 1: Sign in as admin and create a new account
+        await signInAsAdmin(page);
+        await navigateToAccounts(page);
+        const inviteLink = await addAccount(page, coOwnerEmail, 'CoOwner');
+        expect(inviteLink).toBeTruthy();
+
+        // Step 2: Promote the new account to owner
+        const makeError = await tryMakeOwner(page, coOwnerEmail);
+        expect(makeError).toBeNull();
+        await dismissToasts(page);
+
+        // Step 3: Verify the remove-owner button is now visible for the co-owner
+        const isRemoveVisible = await isRemoveOwnerButtonVisible(page, coOwnerEmail);
+        expect(isRemoveVisible).toBe(true);
+
+        // Step 4: Remove the owner role
+        const removeError = await tryRemoveOwner(page, coOwnerEmail);
+        expect(removeError).toBeNull();
+        await dismissToasts(page);
+
+        // Step 5: After demotion, the account tile should still exist (still a member)
+        const accountTile = page.locator('.tile').filter({ hasText: coOwnerEmail });
+        await expect(accountTile).toBeVisible({ timeout: 5000 });
+
+        // Step 6: The remove-owner button should now be gone (no longer an owner)
+        // and the make-owner button should be back
+        await page.reload();
+        await page.waitForLoadState('load');
+        await navigateToAccounts(page);
+
+        const isStillRemoveVisible = await isRemoveOwnerButtonVisible(page, coOwnerEmail);
+        expect(isStillRemoveVisible).toBe(false);
+
+        const isMakeOwnerVisible = await isMakeOwnerButtonVisible(page, coOwnerEmail);
+        expect(isMakeOwnerVisible).toBe(true);
+
+        console.log('✓ Test passed: owner can demote a co-owner to member');
+    });
+
+    test('cannot remove the last owner', async ({ page }) => {
+        console.log('=== Test: cannot remove the last owner ===');
+
+        // Step 1: Sign in as admin (the only owner)
+        await signInAsAdmin(page);
+        await navigateToAccounts(page);
+
+        // Step 2: The admin is the only owner — the remove-owner button should NOT be visible for self
+        const adminTile = page.locator('.tile.highlighted-tile');
+        await expect(adminTile).toBeVisible();
+        const adminEmail = (await adminTile.locator('.tile-subtitle').textContent()) ?? '';
+
+        const isRemoveVisible = await isRemoveOwnerButtonVisible(page, adminEmail.trim());
+        expect(isRemoveVisible).toBe(false);
+
+        console.log('✓ Test passed: remove owner button not visible for self (last owner)');
+    });
+
+    test('remove owner button is not visible for non-owner tile', async ({ page }) => {
+        console.log('=== Test: remove owner button is not visible for plain members ===');
+        const ts = Date.now();
+        const memberEmail = `removeowner_member_${ts}@abstratium.dev`;
+
+        // Step 1: Sign in as admin and create a plain member (not promoted to owner)
+        await signInAsAdmin(page);
+        await navigateToAccounts(page);
+        const inviteLink = await addAccount(page, memberEmail, 'PlainMember');
+        expect(inviteLink).toBeTruthy();
+
+        // Step 2: The member is NOT an owner — the remove-owner button should not be visible
+        const isRemoveVisible = await isRemoveOwnerButtonVisible(page, memberEmail);
+        expect(isRemoveVisible).toBe(false);
+
+        // Step 3: The make-owner button should be visible (they are a member, not an owner)
+        const isMakeVisible = await isMakeOwnerButtonVisible(page, memberEmail);
+        expect(isMakeVisible).toBe(true);
+
+        console.log('✓ Test passed: remove owner button not visible for plain members');
     });
 
 });

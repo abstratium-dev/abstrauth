@@ -181,6 +181,40 @@ public class OrganisationsResource {
     }
 
     @DELETE
+    @Path("/{orgId}/members/{accountId}/owner")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Remove owner role", description = "Demotes an owner to a plain member. Caller must be an owner with MANAGE_ACCOUNTS role. The last owner cannot be demoted.")
+    @RolesAllowed(Roles.MANAGE_ACCOUNTS)
+    public Response removeOwner(@PathParam("orgId") String orgId, @PathParam("accountId") String accountId) {
+        String callerId = token.getSubject();
+
+        if (!isOwnerOfOrg(callerId, orgId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("You must be an owner of this organisation"))
+                    .build();
+        }
+
+        if (organisationService.findById(orgId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Organisation not found"))
+                    .build();
+        }
+
+        try {
+            organisationService.removeOwner(orgId, accountId);
+        } catch (IllegalStateException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+        return Response.noContent().build();
+    }
+
+    @DELETE
     @Path("/{orgId}/members/{accountId}")
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Remove member", description = "Removes an account from the organisation. Caller must be owner of that organisation.")

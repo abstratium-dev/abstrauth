@@ -536,6 +536,82 @@ export async function isMakeOwnerButtonVisible(page: Page, accountEmail: string)
 }
 
 /**
+ * Checks if the "Remove owner role" button is visible for an account.
+ * Assumes we're already on the accounts page.
+ */
+export async function isRemoveOwnerButtonVisible(page: Page, accountEmail: string): Promise<boolean> {
+    const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
+    const removeOwnerButton = accountTile.locator('[data-testid="remove-owner-button"]');
+    return await removeOwnerButton.isVisible().catch(() => false);
+}
+
+/**
+ * Attempts to remove the owner role from an account by email.
+ * Assumes we're already on the accounts page, the caller is an owner with MANAGE_ACCOUNTS.
+ * Returns the error message if one appears, or null if successful.
+ */
+export async function tryRemoveOwner(page: Page, accountEmail: string): Promise<string | null> {
+    console.log(`Attempting to remove owner role from "${accountEmail}"...`);
+
+    const accountTile = page.locator('.tile').filter({ hasText: accountEmail });
+    await expect(accountTile).toBeVisible({ timeout: 10000 });
+
+    const removeOwnerButton = accountTile.locator('[data-testid="remove-owner-button"]');
+    await expect(removeOwnerButton).toBeVisible({ timeout: 5000 });
+    await removeOwnerButton.click();
+
+    // Wait for confirmation dialog
+    const confirmButton = page.locator('button.btn-danger').filter({ hasText: 'Remove Owner' });
+    await expect(confirmButton).toBeVisible({ timeout: 2000 });
+    await confirmButton.click();
+
+    const initialErrorToastCount = await page.locator('.toast-error').count();
+    const initialSuccessToastCount = await page.locator('.toast-success').count();
+
+    console.log(`Checking for result after removing owner...`);
+
+    let result: string | null = null;
+    let iterationCount = 0;
+
+    try {
+        await expect(async () => {
+            iterationCount++;
+
+            const allToastErrors = await page.locator('.toast-error').count();
+            const allToastSuccesses = await page.locator('.toast-success').count();
+
+            if (iterationCount === 1 || iterationCount % 4 === 0) {
+                console.log(`[Remove Owner - Iteration ${iterationCount}] Error toasts: ${allToastErrors}, Success toasts: ${allToastSuccesses}`);
+            }
+
+            if (allToastErrors > initialErrorToastCount) {
+                const allErrorMessages = await page.locator('.toast-error .toast-message').allTextContents();
+                result = allErrorMessages[allErrorMessages.length - 1]?.trim() || 'Unknown error';
+                console.log(`✓ Error toast appeared: ${result}`);
+                expect(true).toBe(true);
+                return;
+            }
+
+            if (allToastSuccesses > initialSuccessToastCount) {
+                const allSuccessMessages = await page.locator('.toast-success .toast-message').allTextContents();
+                const successMessage = allSuccessMessages[allSuccessMessages.length - 1]?.trim() || 'Success';
+                console.log(`✓ Success toast appeared: ${successMessage}`);
+                result = null;
+                expect(true).toBe(true);
+                return;
+            }
+
+            throw new Error('Still waiting for toast');
+        }).toPass({ timeout: 5000, intervals: [250] });
+    } catch (e) {
+        console.log(`Timeout after ${iterationCount} iterations: No toast appeared`);
+        result = null;
+    }
+
+    return result;
+}
+
+/**
  * Attempts to delete an account by email.
  * Assumes we're already on the accounts page and user has manage-accounts role.
  * Returns the error message if one appears, or null if successful.

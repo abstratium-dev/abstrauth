@@ -13,8 +13,6 @@
 
 - make all tests only reset the db once instead of for all tests.
 
-- be able to remove owner
-
 - DO WE NEED THIS? add a public endpoint where the orgId for a client can be read, so that abstrapact can read it and use it to read products, etc. since the user might be in their own org and are not added to abstratium when they use our services.
 
 

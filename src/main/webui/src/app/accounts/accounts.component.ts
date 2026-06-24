@@ -256,6 +256,42 @@ export class AccountsComponent implements OnInit {
     }
   }
 
+  async removeOwner(account: Account): Promise<void> {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Remove Owner',
+      message: `Are you sure you want to remove "${account.name}" (${account.email}) as an owner? They will remain a member of this organisation.`,
+      confirmText: 'Remove Owner',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    const orgId = this.authService.getOrgId();
+    if (!orgId) {
+      this.toastService.error('No organisation selected');
+      return;
+    }
+
+    try {
+      await this.controller.removeOwner(orgId, account.id);
+      this.toastService.success(`${account.name} is no longer an owner of this organisation`);
+      await this.loadOwners();
+    } catch (err: any) {
+      if (err.status === 403) {
+        this.toastService.error('You do not have permission to remove owners.');
+      } else if (err.status === 400 && err.error?.error) {
+        this.toastService.error(err.error.error);
+      } else if (err.status === 404) {
+        this.toastService.error('Account or organisation not found.');
+      } else {
+        this.toastService.error('Failed to remove owner. Please try again.');
+      }
+    }
+  }
+
   toggleAddAccountForm(): void {
     this.showAddAccountForm = !this.showAddAccountForm;
     if (this.showAddAccountForm) {

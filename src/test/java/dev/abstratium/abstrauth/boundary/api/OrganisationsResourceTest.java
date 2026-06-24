@@ -57,6 +57,15 @@ public class OrganisationsResourceTest {
         return userToken(accountId, defaultOrgId);
     }
 
+    private String manageAccountsToken(String accountId, String orgId) {
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
+                .subject(accountId)
+                .upn("test@example.com")
+                .groups(Set.of(Roles.USER, Roles.MANAGE_ACCOUNTS))
+                .claim("orgId", orgId)
+                .sign();
+    }
+
     private Account createAccount(String suffix) throws Exception {
         transactionHelper.beginTransaction();
         Account account = accountService.createAccount(
@@ -390,6 +399,125 @@ public class OrganisationsResourceTest {
                 .post("/api/organisations/00000000-0000-0000-0000-000000009999/members/" + member.getId() + "/owner")
                 .then()
                 .statusCode(403);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // DELETE /api/organisations/{orgId}/members/{accountId}/owner
+    // ─────────────────────────────────────────────────────────
+
+    @Test
+    public void testRemoveOwner_success() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_rmown");
+        Account coOwner = createAccount(ts + "_rmcoown");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), coOwner.getId());
+        organisationService.addOwner(ownerOrg.getId(), coOwner.getId());
+        transactionHelper.commitTransaction();
+
+        String token = manageAccountsToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + ownerOrg.getId() + "/members/" + coOwner.getId() + "/owner")
+                .then()
+                .statusCode(204);
+
+        assertFalse(organisationService.isOwner(ownerOrg.getId(), coOwner.getId()));
+        assertTrue(organisationService.isMember(ownerOrg.getId(), coOwner.getId()));
+    }
+
+    @Test
+    public void testRemoveOwner_lastOwner_returns400() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_rmlastown");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        String token = manageAccountsToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + ownerOrg.getId() + "/members/" + owner.getId() + "/owner")
+                .then()
+                .statusCode(400)
+                .body("error", containsString("last owner"));
+    }
+
+    @Test
+    public void testRemoveOwner_notOwner_caller_returns403() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_rmownfown");
+        Account nonOwner = createAccount(ts + "_rmownfnotown");
+        Account coOwner = createAccount(ts + "_rmownfco");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), nonOwner.getId());
+        organisationService.addMember(ownerOrg.getId(), coOwner.getId());
+        organisationService.addOwner(ownerOrg.getId(), coOwner.getId());
+        transactionHelper.commitTransaction();
+
+        String token = manageAccountsToken(nonOwner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + ownerOrg.getId() + "/members/" + coOwner.getId() + "/owner")
+                .then()
+                .statusCode(403);
+    }
+
+    @Test
+    public void testRemoveOwner_withoutManageAccountsRole_returns403() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_rmownnorol");
+        Account coOwner = createAccount(ts + "_rmownco2");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), coOwner.getId());
+        organisationService.addOwner(ownerOrg.getId(), coOwner.getId());
+        transactionHelper.commitTransaction();
+
+        String token = userToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + ownerOrg.getId() + "/members/" + coOwner.getId() + "/owner")
+                .then()
+                .statusCode(403);
+    }
+
+    @Test
+    public void testRemoveOwner_notAnOwner_returns400() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_rmownnotact");
+        Account member = createAccount(ts + "_rmownmem");
+
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        transactionHelper.beginTransaction();
+        organisationService.addMember(ownerOrg.getId(), member.getId());
+        transactionHelper.commitTransaction();
+
+        String token = manageAccountsToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + ownerOrg.getId() + "/members/" + member.getId() + "/owner")
+                .then()
+                .statusCode(400)
+                .body("error", containsString("not an owner"));
     }
 
     // ─────────────────────────────────────────────────────────

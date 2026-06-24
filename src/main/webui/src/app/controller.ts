@@ -441,6 +441,17 @@ export class Controller {
     }
   }
 
+  async removeOwner(orgId: string, accountId: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(`/api/organisations/${orgId}/members/${accountId}/owner`)
+      );
+    } catch (error) {
+      console.error('Error removing owner:', error);
+      throw error;
+    }
+  }
+
   async getOrganisationOwners(orgId: string): Promise<string[]> {
     try {
       return await firstValueFrom(
