@@ -68,12 +68,6 @@ public class NonMultitenancyAccountService {
 
         NonMultitenancyAccount account = accountOpt.get();
 
-        // Load all cascade collections to ensure proper deletion order
-        // Hibernate will handle the cascade deletion of related entities
-        account.getRoles().size();
-        account.getCredentials().size();
-        account.getFederatedIdentities().size();
-
         em.remove(account);
         return true;
     }

@@ -9,11 +9,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import org.hibernate.envers.Audited;
+
 /**
  * See AGENTS.md
  */
 @Entity
 @Table(name = "T_account_roles")
+@Audited
 public class NonMultitenancyAccountRole {
 
     @Id

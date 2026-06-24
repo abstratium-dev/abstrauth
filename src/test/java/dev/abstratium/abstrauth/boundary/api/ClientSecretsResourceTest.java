@@ -96,7 +96,7 @@ public class ClientSecretsResourceTest {
         em.flush();
 
         // Generate admin token with proper JWT
-        adminToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        adminToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn(admin.getEmail())
             .subject(admin.getId())
             .groups(java.util.Set.of(Roles.MANAGE_CLIENTS, Roles.USER))

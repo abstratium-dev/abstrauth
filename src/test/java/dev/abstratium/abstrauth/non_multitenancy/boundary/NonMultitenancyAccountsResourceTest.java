@@ -248,7 +248,7 @@ public class NonMultitenancyAccountsResourceTest {
     // ─────────────────────────────────────────────────────────
 
     private String generateManageAccountsToken(String accountId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("test@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_admin", "abstratium-abstrauth_manage-accounts"))
@@ -259,7 +259,7 @@ public class NonMultitenancyAccountsResourceTest {
     }
 
     private String generateUserToken(String accountId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("test@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))

@@ -37,7 +37,7 @@ public class NonMultitenancyOrganisationService {
      * using JPA cascade.
      *
      * This uses NonMultitenancyOrganisation which has CascadeType.REMOVE on
-     * the subscriptions collection, ensuring complete deletion.
+     * the subscriptions and accounts collections, ensuring complete deletion.
      *
      * @param orgId The organisation ID to delete
      * @return true if organisation was found and deleted, false if not found
@@ -50,9 +50,6 @@ public class NonMultitenancyOrganisationService {
         }
 
         NonMultitenancyOrganisation org = orgOpt.get();
-
-        // Load cascade collection to ensure proper deletion
-        org.getSubscriptions().size();
 
         em.remove(org);
         return true;

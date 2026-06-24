@@ -33,6 +33,21 @@ public class NonMultitenancyOrganisation {
     @NotAudited
     private List<NonMultitenancySubscription> subscriptions = new ArrayList<>();
 
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "org_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
+    private List<NonMultitenancyOrganisationAccount> organisationAccounts = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "org_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
+    private List<NonMultitenancyAccountRole> accountRoles = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "org_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
+    private List<NonMultitenancyOAuthClient> oauthClients = new ArrayList<>();
+
     @PrePersist
     public void prePersist() {
         if (id == null) {
@@ -82,5 +97,29 @@ public class NonMultitenancyOrganisation {
 
     public void setSubscriptions(List<NonMultitenancySubscription> subscriptions) {
         this.subscriptions = subscriptions;
+    }
+
+    public List<NonMultitenancyOrganisationAccount> getOrganisationAccounts() {
+        return organisationAccounts;
+    }
+
+    public void setOrganisationAccounts(List<NonMultitenancyOrganisationAccount> organisationAccounts) {
+        this.organisationAccounts = organisationAccounts;
+    }
+
+    public List<NonMultitenancyAccountRole> getAccountRoles() {
+        return accountRoles;
+    }
+
+    public void setAccountRoles(List<NonMultitenancyAccountRole> accountRoles) {
+        this.accountRoles = accountRoles;
+    }
+
+    public List<NonMultitenancyOAuthClient> getOauthClients() {
+        return oauthClients;
+    }
+
+    public void setOauthClients(List<NonMultitenancyOAuthClient> oauthClients) {
+        this.oauthClients = oauthClients;
     }
 }

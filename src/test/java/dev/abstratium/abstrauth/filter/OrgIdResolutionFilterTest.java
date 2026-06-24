@@ -45,7 +45,7 @@ public class OrgIdResolutionFilterTest {
     TestTransactionHelper transactionHelper;
 
     private String tokenForOrg(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("test_" + accountId + "@example.com")
             .groups(Set.of(

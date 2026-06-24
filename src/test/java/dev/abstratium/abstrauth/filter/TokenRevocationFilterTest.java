@@ -112,7 +112,7 @@ class TokenRevocationFilterTest {
      */
     private String generateValidToken() {
         String jti = UUID.randomUUID().toString();
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .upn("test@example.com")
                 .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
                 .claim("jti", jti)
@@ -123,7 +123,7 @@ class TokenRevocationFilterTest {
      * Generate a valid JWT token with a specific JTI.
      */
     private String generateTokenWithJti(String jti) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .upn("test@example.com")
                 .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
                 .claim("jti", jti)

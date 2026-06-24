@@ -16,6 +16,9 @@ import dev.abstratium.abstrauth.entity.OAuthClient;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonValue;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
@@ -265,11 +268,12 @@ public class ClientCredentialsFlowTest {
     }
 
     /**
-     * Test that client credentials token works with /api/auth/check endpoint
-     * This verifies the M2M authentication flow works end-to-end
+     * Test that the client_credentials token is a valid JWT and contains the expected claims.
+     * M2M tokens are for other services, not for abstrauth's own BFF endpoints, so we verify
+     * by decoding the token rather than calling /api/auth/check.
      */
     @Test
-    public void testClientCredentialsTokenWorksWithAuthCheck() {
+    public void testClientCredentialsTokenContainsExpectedClaims() {
         String clientId = "test-service-authcheck-" + System.currentTimeMillis();
         String plainSecret = "test-secret-" + System.currentTimeMillis();
 
@@ -291,13 +295,28 @@ public class ClientCredentialsFlowTest {
 
         String accessToken = tokenResponse.jsonPath().getString("access_token");
 
-        // Verify token works with /api/auth/check endpoint
-        given()
-                .header("Authorization", "Bearer " + accessToken)
-                .when()
-                .get("/api/auth/check")
-                .then()
-                .statusCode(200);
+        // Verify token claims by decoding the JWT
+        JsonObject claims = decodeJwtClaims(accessToken);
+        assertEquals(clientId, claims.getString("sub"), "sub should be the service client id");
+        assertEquals(clientId, claims.getString("client_id"), "client_id should be the service client id");
+        assertEquals("client_credentials", claims.getString("auth_method"), "auth_method should be client_credentials");
+        assertTrue(claims.containsKey("aud"), "aud claim should be present");
+        JsonValue audValue = claims.get("aud");
+        if (audValue.getValueType() == JsonValue.ValueType.ARRAY) {
+            assertEquals(0, claims.getJsonArray("aud").size(), "audience should be empty when no client roles");
+        } else {
+            fail("aud should be an array when no target clients");
+        }
+    }
+
+    /**
+     * Decode a JWT access token and return its payload claims as a JsonObject.
+     */
+    private JsonObject decodeJwtClaims(String jwt) {
+        String[] parts = jwt.split("\\.");
+        assertEquals(3, parts.length, "JWT should have 3 parts");
+        String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+        return Json.createReader(new java.io.StringReader(payload)).readObject();
     }
 
     /**

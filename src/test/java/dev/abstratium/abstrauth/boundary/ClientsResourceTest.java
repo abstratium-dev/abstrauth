@@ -32,7 +32,7 @@ public class ClientsResourceTest {
      * Generate a JWT token with only the user role (no manage-clients)
      */
     private String generateUserOnlyToken() {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn("user@example.com")
             .groups(java.util.Set.of("abstratium-abstrauth_user"))
             .claim("email", "user@example.com")
@@ -45,7 +45,7 @@ public class ClientsResourceTest {
      * Generate a valid JWT token with the required role for testing
      */
     private String generateValidToken() {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn("test@example.com")
             .groups(java.util.Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
             .claim("email", "test@example.com")
@@ -58,7 +58,7 @@ public class ClientsResourceTest {
      * Generate a JWT token without the required role
      */
     private String generateTokenWithoutRole() {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn("test@example.com")
             .groups("some-other-role")
             .claim("email", "test@example.com")

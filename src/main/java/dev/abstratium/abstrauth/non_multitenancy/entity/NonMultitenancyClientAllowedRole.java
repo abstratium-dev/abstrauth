@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.non_multitenancy.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -10,6 +11,7 @@ import java.util.Objects;
  */
 @Entity
 @Table(name = "T_client_allowed_roles")
+@Audited
 public class NonMultitenancyClientAllowedRole {
 
     @Embeddable

@@ -37,7 +37,7 @@ public class MultiTenancyEdgeCaseTest {
     TestTransactionHelper transactionHelper;
 
     private String generateToken(String accountId, String orgId, Set<String> groups) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("test_" + accountId + "@example.com")
             .groups(groups)
@@ -78,7 +78,7 @@ public class MultiTenancyEdgeCaseTest {
 
         // Create token without orgId claim (omitted, not set to null)
         // This simulates a token without the orgId claim to test fallback behavior
-        String noOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String noOrgToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
@@ -106,7 +106,7 @@ public class MultiTenancyEdgeCaseTest {
         transactionHelper.commitTransaction();
 
         // Create token with empty orgId
-        String emptyOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String emptyOrgToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
@@ -139,7 +139,7 @@ public class MultiTenancyEdgeCaseTest {
         transactionHelper.commitTransaction();
 
         // Create token with invalid orgId format (not a UUID)
-        String invalidOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String invalidOrgToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
@@ -169,7 +169,7 @@ public class MultiTenancyEdgeCaseTest {
 
         // Create token with non-existent but valid UUID format orgId
         String fakeOrgId = UUID.randomUUID().toString();
-        String fakeOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String fakeOrgToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
@@ -301,7 +301,7 @@ public class MultiTenancyEdgeCaseTest {
 
         // Create token with SQL injection attempt in orgId
         String maliciousOrgId = "1' OR '1'='1";
-        String sqlInjectToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String sqlInjectToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
@@ -335,7 +335,7 @@ public class MultiTenancyEdgeCaseTest {
 
         // Create token with unicode in orgId
         String unicodeOrgId = "00000000-0000-0000-0000-00000000\u0000";
-        String unicodeToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String unicodeToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
@@ -372,7 +372,7 @@ public class MultiTenancyEdgeCaseTest {
         for (int i = 0; i < 1000; i++) {
             longOrgId.append("a");
         }
-        String longOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String longOrgToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
@@ -407,7 +407,7 @@ public class MultiTenancyEdgeCaseTest {
 
         // Create token with uppercase version of orgId
         String upperOrgId = orgId.toUpperCase();
-        String upperOrgToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String upperOrgToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn("test_" + account.getId() + "@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))

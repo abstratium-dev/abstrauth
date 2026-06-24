@@ -361,6 +361,18 @@ export class Controller {
     }
   }
 
+  async deleteOrganisation(orgId: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete(`/api/organisations/${orgId}`)
+      );
+      this.loadOrganisations();
+    } catch (error) {
+      console.error('Error deleting organisation:', error);
+      throw error;
+    }
+  }
+
   async listAllowedRoles(clientId: string): Promise<AllowedRole[]> {
     try {
       return await firstValueFrom(

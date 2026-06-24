@@ -33,8 +33,9 @@ describe('OrganisationsComponent', () => {
   ];
 
   beforeEach(async () => {
-    const authSpy = jasmine.createSpyObj('AuthService', ['getOrgId']);
+    const authSpy = jasmine.createSpyObj('AuthService', ['getOrgId', 'isAdmin']);
     authSpy.getOrgId.and.returnValue('org-1');
+    authSpy.isAdmin.and.returnValue(false);
 
     const toastSpy = jasmine.createSpyObj('ToastService', ['success', 'error']);
 
@@ -401,6 +402,18 @@ describe('OrganisationsComponent', () => {
   describe('getCurrentOrgId', () => {
     it('should return the org ID from authService', () => {
       expect(component.getCurrentOrgId()).toBe('org-1');
+    });
+  });
+
+  describe('isAdmin', () => {
+    it('should return false when user is not admin', () => {
+      authSpy.isAdmin.and.returnValue(false);
+      expect(component.isAdmin()).toBe(false);
+    });
+
+    it('should return true when user is admin', () => {
+      authSpy.isAdmin.and.returnValue(true);
+      expect(component.isAdmin()).toBe(true);
     });
   });
 });

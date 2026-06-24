@@ -11,6 +11,9 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonValue;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -80,7 +83,7 @@ public class OAuthFlowWithClientSecretTest {
         em.flush();
 
         // Generate admin token
-        adminToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        adminToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn(testAccount.getEmail())
             .subject(testAccount.getId())
             .groups(java.util.Set.of(Roles.MANAGE_CLIENTS, Roles.USER))
@@ -170,15 +173,21 @@ public class OAuthFlowWithClientSecretTest {
         String accessToken = tokenResponse.jsonPath().getString("access_token");
         assertNotNull(accessToken);
 
-        // Step 6: Verify the access token can be used to access protected resources
-        given()
-                .header("Authorization", "Bearer " + accessToken)
-                .when()
-                .get("/api/userinfo")
-                .then()
-                .statusCode(200)
-                .body("sub", equalTo(testAccount.getId()))
-                .body("email", equalTo(testAccount.getEmail()));
+        // Step 6: Verify the access token is a valid JWT for the custom client
+        // Custom-client tokens are not accepted by abstrauth's own BFF API, so we decode
+        // the claims instead of calling a protected endpoint.
+        JsonObject claims = decodeJwtClaims(accessToken);
+        assertEquals(testAccount.getId(), claims.getString("sub"), "sub should be the test account");
+        assertEquals(actualClientId, claims.getString("client_id"), "client_id should be the custom client");
+        assertEquals("native", claims.getString("auth_method"), "auth_method should reflect native authentication");
+        assertTrue(claims.containsKey("aud"), "aud claim should be present");
+        JsonValue audValue = claims.get("aud");
+        if (audValue.getValueType() == JsonValue.ValueType.ARRAY) {
+            assertEquals(1, claims.getJsonArray("aud").size(), "audience should contain the custom client");
+            assertEquals(actualClientId, claims.getJsonArray("aud").getString(0), "aud should be the custom client id");
+        } else {
+            assertEquals(actualClientId, ((jakarta.json.JsonString) audValue).getString(), "aud should be the custom client id");
+        }
     }
 
     /**
@@ -448,5 +457,12 @@ public class OAuthFlowWithClientSecretTest {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(verifier.getBytes(StandardCharsets.US_ASCII));
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+    }
+
+    private JsonObject decodeJwtClaims(String jwt) {
+        String[] parts = jwt.split("\\.");
+        assertEquals(3, parts.length, "JWT should have 3 parts");
+        String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+        return Json.createReader(new java.io.StringReader(payload)).readObject();
     }
 }

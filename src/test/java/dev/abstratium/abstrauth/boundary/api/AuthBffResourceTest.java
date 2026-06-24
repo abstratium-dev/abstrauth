@@ -20,7 +20,7 @@ public class AuthBffResourceTest {
 
     @Test
     public void testLogin_authenticated_redirectsToRoot() {
-        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String token = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject("test-account-id")
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))
@@ -39,7 +39,7 @@ public class AuthBffResourceTest {
 
     @Test
     public void testCheckAuth_authenticated_returns200() {
-        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String token = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject("test-account-id")
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))

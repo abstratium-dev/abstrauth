@@ -45,7 +45,7 @@ public class OrganisationsResourceTest {
     String defaultOrgId;
 
     private String userToken(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject(accountId)
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))
@@ -126,7 +126,7 @@ public class OrganisationsResourceTest {
     public void testGetCurrentOrganisation_noOrgInToken_returns400() throws Exception {
         long ts = System.currentTimeMillis();
         Account account = createAccount(ts + "_currnoorg");
-        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String token = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject(account.getId())
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))

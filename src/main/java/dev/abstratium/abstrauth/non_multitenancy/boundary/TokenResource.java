@@ -3,14 +3,11 @@ package dev.abstratium.abstrauth.non_multitenancy.boundary;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-
-import jakarta.json.Json;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -649,11 +646,8 @@ public class TokenResource {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(3600);  // 1 hour for service tokens
 
-        // Build audience as a JsonArray so it is always emitted as a JSON array
-        var auds = new HashSet<String>();
-        for (String targetClientId : targetClientIds) {
-            auds.add(targetClientId);
-        }
+        // Build audience from the target client ids
+        Set<String> auds = new HashSet<>(targetClientIds);
 
         String accessToken = Jwt.issuer(issuer)
                 .claim("jti", UUID.randomUUID().toString())

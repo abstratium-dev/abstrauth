@@ -377,8 +377,9 @@ M2M clients use the `groups` claim for `@RolesAllowed` authorization. The format
 **Token Claims:**
 ```json
 {
-  "iss": "https://abstrauth.abstratium.dev",
+  "iss": "https://<stage>.abstrauth.abstratium.dev",
   "sub": "my-service",
+  "aud": "my-service",
   "exp": 1234567890,
   "iat": 1234564290,
   "jti": "unique-token-id",

@@ -269,7 +269,7 @@ public class NonMultitenancyClientsResourceTest {
     // ─────────────────────────────────────────────────────────
 
     private String userToken(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject(accountId)
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))
@@ -278,7 +278,7 @@ public class NonMultitenancyClientsResourceTest {
     }
 
     private String managerToken(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject(accountId)
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER, Roles.MANAGE_ACCOUNTS, Roles.MANAGE_CLIENTS))

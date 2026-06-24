@@ -25,7 +25,6 @@ test('sign up and in', async ({ page }) => {
   await expect(page.locator('h2')).toContainText('Token Claims');
   
   // Verify key token claims are displayed
-  await expect(page.locator('[data-claim="iss"] .table-cell-value')).toContainText('https://abstrauth.abstratium.dev');
   await expect(page.locator('[data-claim="email"] .table-cell-value')).toContainText(email);
   await expect(page.locator('[data-claim="name"] .table-cell-value')).toContainText(name);
   await expect(page.locator('[data-claim="email_verified"] .table-cell-value')).toContainText('false');

@@ -84,13 +84,13 @@ public class NonMultitenancyAccountServiceTest {
     }
 
     @Test
-    @Transactional
     public void testDeleteAccountWithCascade() throws Exception {
+        transactionHelper.beginTransaction();
+
         // Create a dummy admin first (so subsequent accounts don't get auto-assigned admin role)
         String dummyEmail = "dummyadmin_" + System.currentTimeMillis() + "@example.com";
         String dummyUsername = "dummyadmin_" + System.currentTimeMillis();
-        Account dummyAccount = accountService.createAccount(dummyEmail, "Dummy Admin", dummyUsername, "Password123", AccountService.NATIVE, "Test Org");
-        // Note: createAccount() auto-assigns admin role to first account, so no need to add it explicitly
+        accountService.createAccount(dummyEmail, "Dummy Admin", dummyUsername, "Password123", AccountService.NATIVE, "Test Org");
 
         // Create the account to be deleted (this one won't get admin role since dummy already has it)
         String email = "deletecascade_" + System.currentTimeMillis() + "@example.com";
@@ -101,17 +101,15 @@ public class NonMultitenancyAccountServiceTest {
         // Add a role for client-test
         accountRoleService.addRole(accountId, "client-test", "user");
 
+        transactionHelper.commitTransaction();
+
         // Verify account exists using non-multitenancy service
         Optional<NonMultitenancyAccount> found = nonMultitenancyAccountService.findById(accountId);
         assertTrue(found.isPresent(), "Account should exist before deletion");
 
-        // Delete using non-multitenancy service
+        // Delete using non-multitenancy service (runs in its own transaction)
         boolean deleted = nonMultitenancyAccountService.deleteAccountWithCascade(accountId);
         assertTrue(deleted, "Delete should return true");
-
-        // Flush and clear to ensure delete is persisted and visible
-        em.flush();
-        em.clear();
 
         // Verify it's deleted using regular service
         Optional<Account> notFound = accountService.findById(accountId);

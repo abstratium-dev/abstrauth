@@ -373,7 +373,7 @@ public class AccountRoleServiceTest {
         transactionHelper.commitTransaction();
         
         // Call via HTTP so securityIdentity is populated and checkRoleAgainstAllowlist is enforced
-        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String token = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(testAccountId)
             .upn("caller@example.com")
             .groups(Set.of(Roles.MANAGE_ACCOUNTS))
@@ -434,7 +434,7 @@ public class AccountRoleServiceTest {
         transactionHelper.commitTransaction();
         
         // Call via HTTP so securityIdentity is populated and checkRoleAgainstAllowlist is enforced
-        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String token = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(testAccountId)
             .upn("caller@example.com")
             .groups(Set.of(Roles.MANAGE_ACCOUNTS))

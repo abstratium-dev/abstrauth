@@ -27,6 +27,8 @@ export class OrganisationsComponent implements OnInit {
   newOrgName = '';
   formSubmitting = false;
   formError: string | null = null;
+  deletingOrgId: string | null = null;
+  deleteError: string | null = null;
 
   constructor() {
     effect(() => {
@@ -52,6 +54,26 @@ export class OrganisationsComponent implements OnInit {
 
   isCurrentOrg(orgId: string): boolean {
     return this.authService.getOrgId() === orgId;
+  }
+
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  async onDeleteOrg(orgId: string, orgName: string): Promise<void> {
+    if (!confirm(`Delete organisation "${orgName} including all user membership related to it"? This cannot be undone.`)) {
+      return;
+    }
+    this.deletingOrgId = orgId;
+    this.deleteError = null;
+    try {
+      await this.controller.deleteOrganisation(orgId);
+      this.toastService.success(`Organisation "${orgName}" deleted`);
+    } catch (err: any) {
+      this.deleteError = err?.error?.error || 'Failed to delete organisation.';
+    } finally {
+      this.deletingOrgId = null;
+    }
   }
 
   toggleCreateForm(): void {

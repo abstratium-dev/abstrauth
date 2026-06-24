@@ -69,7 +69,7 @@ public class AccountsResourceTest {
     }
 
     private String generateAdminToken(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("admin@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_admin", "abstratium-abstrauth_manage-accounts"))
@@ -84,7 +84,7 @@ public class AccountsResourceTest {
     }
 
     private String generateManageAccountsToken(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("manager@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-accounts"))
@@ -95,7 +95,7 @@ public class AccountsResourceTest {
     }
 
     private String generateUserToken(String accountId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("user@example.com")
             .groups("abstratium-abstrauth_user")
@@ -1114,7 +1114,7 @@ public class AccountsResourceTest {
         transactionHelper.commitTransaction();
 
         // Generate a token with the second user's own orgId (not the default org)
-        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String token = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(secondAccountId)
             .upn(secondEmail)
             .groups("abstratium-abstrauth_user")

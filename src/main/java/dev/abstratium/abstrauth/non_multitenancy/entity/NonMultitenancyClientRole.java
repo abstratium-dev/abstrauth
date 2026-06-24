@@ -9,6 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import org.hibernate.envers.Audited;
+
 /**
  * Non-multitenancy version of ClientRole entity.
  * Used to bypass the @TenantId discriminator for cross-tenant lookups.
@@ -16,6 +18,7 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "T_client_roles")
+@Audited
 public class NonMultitenancyClientRole {
 
     @Id

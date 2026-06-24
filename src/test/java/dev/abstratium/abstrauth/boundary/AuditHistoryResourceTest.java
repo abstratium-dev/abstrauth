@@ -48,7 +48,7 @@ public class AuditHistoryResourceTest {
     // ---- Token generators ----
 
     private String generateManageAccountsToken(String accountId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("manager@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-accounts"))
@@ -59,7 +59,7 @@ public class AuditHistoryResourceTest {
     }
 
     private String generateManageClientsToken(String accountId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("clientmanager@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
@@ -70,7 +70,7 @@ public class AuditHistoryResourceTest {
     }
 
     private String generateBothRolesToken(String accountId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("both@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-accounts", "abstratium-abstrauth_manage-clients"))
@@ -81,7 +81,7 @@ public class AuditHistoryResourceTest {
     }
 
     private String generateUserOnlyToken(String accountId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("user@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))

@@ -1,4 +1,5 @@
 import { expect, Page } from '@playwright/test';
+import { selectOrganisation } from './organisations.page';
 
 // Test user credentials
 export const ADMIN_EMAIL = 'admin@abstratium.dev';
@@ -91,7 +92,7 @@ function _getDenyButton(page: Page) {
  * @param password - User password
  * @param name - User display name (used for signup if needed)
  */
-async function ensureAuthenticated(page: Page, email: string, password: string, name: string) {
+async function ensureAuthenticated(page: Page, email: string, password: string, name: string, orgName?: string) {
     await navigateToSigninPage(page);
 
     // Wait for the signin page to be ready
@@ -103,20 +104,22 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
     await _getPasswordInput(page).fill(password);
     await _getSigninButton(page).click();
 
-    // Wait for either the error message or the approve button to appear
+    // Wait for either the error message, the approve button, or the org selection page to appear
     // This handles the race condition where the error might appear slowly
     const errorBox = _getInvalidCredentialsError(page);
     const approveButton = _getApproveButton(page);
+    const orgSelectionHeading = page.locator('h1').filter({ hasText: 'Select Organisation' });
     
     try {
-        // Race between error appearing or approve button appearing
+        // Race between error, approve button, or org selection page appearing
         await Promise.race([
             errorBox.waitFor({ state: 'visible', timeout: 5000 }),
-            approveButton.waitFor({ state: 'visible', timeout: 5000 })
+            approveButton.waitFor({ state: 'visible', timeout: 5000 }),
+            orgSelectionHeading.waitFor({ state: 'visible', timeout: 5000 })
         ]);
     } catch (e) {
         // Neither appeared in time - this is unexpected
-        console.log("Neither error nor approve button appeared");
+        console.log("Neither error, approve button, nor org selection page appeared");
         throw e;
     }
 
@@ -151,6 +154,22 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
         
         // Wait for approve button after successful signup and signin
         await approveButton.waitFor({ state: 'visible', timeout: 5000 });
+    } else if (await orgSelectionHeading.isVisible().catch(() => false)) {
+        // User is a member of multiple organisations - select the requested one
+        if (!orgName) {
+            throw new Error(`Org selection required but no orgName provided for ${email}`);
+        }
+        console.log(`Org selection page shown, selecting '${orgName}' org...`);
+        await selectOrganisation(page, orgName);
+
+        // Wait for navigation and page load (important for WebKit)
+        await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+
+        // Verify we're authenticated
+        await expect(_getUserLink(page)).toBeVisible({ timeout: 10000 });
+        await expect(_getUserLink(page)).toContainText(name);
+        console.log(`Signed in as ${name} successfully (org selected)`);
+        return;
     }
 
     // At this point we should be at the authorization page
@@ -165,7 +184,7 @@ async function ensureAuthenticated(page: Page, email: string, password: string, 
 }
 
 export async function ensureAdminIsAuthenticated(page: Page) {
-    await ensureAuthenticated(page, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME);
+    await ensureAuthenticated(page, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, 'rename-me');
 }
 
 /**
@@ -222,10 +241,10 @@ export async function signInAsAdmin(page: Page) {
             throw new Error(`Sign-in failed: ${errorText}`);
         }
         
-        // If org-selection page appeared, select the first org (admin's primary org)
+        // If org-selection page appeared, select 'rename-me' (the admin's primary org)
         if (await orgSelectionHeading.isVisible().catch(() => false)) {
-            console.log("Org selection page shown, selecting first org...");
-            await page.locator('#select-org-button').click();
+            console.log("Org selection page shown, selecting 'rename-me' org...");
+            await selectOrganisation(page, 'rename-me');
             await expect(page.locator('#user-link')).toBeVisible({ timeout: 15000 });
             console.log("Signed in as admin successfully (org selected)");
             return;
@@ -403,14 +422,16 @@ export async function trySignInAsAdmin(page: Page): Promise<boolean> {
 
     const errorBox = _getInvalidCredentialsError(page);
     const approveButton = _getApproveButton(page);
+    const orgSelectionHeading = page.locator('h1').filter({ hasText: 'Select Organisation' });
     
     try {
         await Promise.race([
             errorBox.waitFor({ state: 'visible', timeout: 5000 }),
-            approveButton.waitFor({ state: 'visible', timeout: 5000 })
+            approveButton.waitFor({ state: 'visible', timeout: 5000 }),
+            orgSelectionHeading.waitFor({ state: 'visible', timeout: 5000 })
         ]);
     } catch (e) {
-        console.log("Neither error nor approve button appeared during admin sign in attempt");
+        console.log("Neither error, approve button, nor org selection appeared during admin sign in attempt");
         return false;
     }
 
@@ -419,6 +440,15 @@ export async function trySignInAsAdmin(page: Page): Promise<boolean> {
     if (isErrorVisible) {
         console.log("Admin sign in failed - account doesn't exist");
         return false;
+    }
+    
+    // Handle org selection page if the admin is a member of multiple organisations
+    if (await orgSelectionHeading.isVisible().catch(() => false)) {
+        console.log("Org selection page shown, selecting 'rename-me' org...");
+        await selectOrganisation(page, 'rename-me');
+        await expect(_getUserLink(page)).toBeVisible({ timeout: 15000 });
+        console.log("Admin sign in succeeded (org selected)");
+        return true;
     }
     
     // Sign in succeeded, click approve

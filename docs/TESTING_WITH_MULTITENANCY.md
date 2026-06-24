@@ -116,7 +116,7 @@ For REST API tests, set the tenant via a JWT with the `orgId` claim — `OrgIdRe
 
 ```java
 private String generateToken(String accountId, String orgId, Set<String> groups) {
-    return Jwt.issuer("https://abstrauth.abstratium.dev")
+    return Jwt.issuer("https://dev.abstrauth.abstratium.dev")
         .subject(accountId)
         .groups(groups)
         .claim("orgId", orgId)

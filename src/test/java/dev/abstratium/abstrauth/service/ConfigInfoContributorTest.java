@@ -29,7 +29,7 @@ class ConfigInfoContributorTest {
             .statusCode(200)
             .body("config", notNullValue())
             .body("config.allowSignup", notNullValue())
-            .body("config.jwtIssuer", equalTo("https://abstrauth.abstratium.dev"))
+            .body("config.jwtIssuer", equalTo("https://dev.abstrauth.abstratium.dev"))
             .body("config.googleRedirectUri", notNullValue())
             .body("config.rateLimitEnabled", notNullValue())
             .body("config.buildVersion", notNullValue())

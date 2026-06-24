@@ -146,7 +146,8 @@ smallrye.jwt.new-token.signature-algorithm=PS256
 # JWT Verification (for resource server role - API endpoints)
 mp.jwt.verify.publickey=...
 mp.jwt.verify.publickey.algorithm=PS256
-mp.jwt.verify.issuer=https://abstrauth.abstratium.dev
+mp.jwt.verify.issuer=https://<stage>.abstrauth.abstratium.dev
+mp.jwt.verify.audiences=abstratium-abstrauth
 
 # Map groups claim to roles
 smallrye.jwt.path.groups=groups

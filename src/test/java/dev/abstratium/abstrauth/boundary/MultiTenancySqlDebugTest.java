@@ -30,7 +30,7 @@ public class MultiTenancySqlDebugTest {
     String defaultOrgId;
 
     private String generateToken(String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject("test-user")
                 .claim("orgId", orgId)
                 .groups(Set.of("admin"))

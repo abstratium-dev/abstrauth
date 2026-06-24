@@ -6,16 +6,14 @@ import static org.hamcrest.CoreMatchers.hasItem;
 
 import java.util.Set;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.service.AccountService;
-import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for ClientAllowedRoleService focusing on cross-tenant isolation
@@ -46,7 +44,7 @@ public class ClientAllowedRoleServiceTest {
      * interceptor treats it as unauthenticated and proceeds).
      */
     private String generateTokenForOrg(String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn("test@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
             .claim("email", "test@example.com")
@@ -56,7 +54,7 @@ public class ClientAllowedRoleServiceTest {
     }
 
     private String generateOwnerTokenForOrg(String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn("owner@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients", "abstratium-abstrauth_manage-accounts"))
             .claim("email", "owner@example.com")
@@ -66,7 +64,7 @@ public class ClientAllowedRoleServiceTest {
     }
 
     private String generateUserTokenForOrg(String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn("user@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
             .claim("email", "user@example.com")
@@ -450,7 +448,7 @@ public class ClientAllowedRoleServiceTest {
         String foreignOrgId = organisationService.listOrganisationsForAccount(foreignAccount.getId()).get(0).getId();
 
         // Create token for the foreign org owner
-        String foreignOwnerToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String foreignOwnerToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(foreignAccount.getId())
             .upn(foreignAccount.getEmail())
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients", "abstratium-abstrauth_manage-accounts"))
@@ -459,7 +457,7 @@ public class ClientAllowedRoleServiceTest {
             .claim("orgId", foreignOrgId)
             .sign();
 
-        String foreignUserToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String foreignUserToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(foreignAccount.getId())
             .upn(foreignAccount.getEmail())
             .groups(Set.of("abstratium-abstrauth_user"))
@@ -611,7 +609,7 @@ public class ClientAllowedRoleServiceTest {
         String foreignOrgId = organisationService.listOrganisationsForAccount(foreignAccount.getId()).get(0).getId();
 
         // Create token for the foreign org owner
-        String foreignOwnerToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String foreignOwnerToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(foreignAccount.getId())
             .upn(foreignAccount.getEmail())
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients", "abstratium-abstrauth_manage-accounts"))

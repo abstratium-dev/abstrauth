@@ -50,7 +50,7 @@ public class MultiTenancySecurityTest {
      * Generate a JWT token with specific orgId and roles.
      */
     private String generateToken(String accountId, String orgId, Set<String> groups) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("test_" + accountId + "@example.com")
             .groups(groups)
@@ -967,7 +967,7 @@ public class MultiTenancySecurityTest {
         // Create token for accountA but with FORGED orgBId claim
         // This simulates an attacker who somehow obtained a token for org A
         // but is trying to use it to access org B by forging the orgId
-        String forgedToken = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String forgedToken = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountA.getId())
             .upn("forged_" + accountA.getId() + "@example.com")
             .groups(Set.of(

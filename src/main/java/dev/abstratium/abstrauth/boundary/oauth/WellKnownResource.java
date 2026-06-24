@@ -35,7 +35,7 @@ public class WellKnownResource {
     @ConfigProperty(name = "smallrye.jwt.sign.key")
     String privateKeyPem;
 
-    @ConfigProperty(name = "quarkus.application.name", defaultValue = "abstrauth")
+    @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
 
     @ConfigProperty(name = "server.base.url", defaultValue = "http://localhost:8080")
@@ -88,7 +88,7 @@ public class WellKnownResource {
 
     private ServerMetadata buildMetadata() {
         ServerMetadata metadata = new ServerMetadata();
-        metadata.issuer = baseUrl;
+        metadata.issuer = issuer;
         metadata.authorization_endpoint = baseUrl + "/oauth2/authorize";
         metadata.token_endpoint = baseUrl + "/oauth2/token";
         metadata.introspection_endpoint = baseUrl + "/oauth2/introspect";

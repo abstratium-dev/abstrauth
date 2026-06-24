@@ -29,7 +29,7 @@ public class ClientRoleServiceTest {
      * Generate a token for a specific orgId with manage-clients role.
      */
     private String generateManageTokenForOrg(String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn("test@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_manage-clients"))
             .claim("email", "test@example.com")
@@ -42,7 +42,7 @@ public class ClientRoleServiceTest {
      * Generate a token for a specific orgId with only user role.
      */
     private String generateUserTokenForOrg(String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .upn("user@example.com")
             .groups(Set.of("abstratium-abstrauth_user"))
             .claim("email", "user@example.com")

@@ -4,6 +4,7 @@ import { signout, navigateToAccounts, navigateToClients, getCurrentUserName } fr
 import { ensureAdminIsAuthenticated, trySignInAsAdmin, signInViaInviteLink, signInAsAdmin, signInAsManager, MANAGER_EMAIL, MANAGER_NAME, MANAGER_PASSWORD, ADMIN_EMAIL } from '../pages/signin.page';
 import { addAccount, deleteAccountsExcept, tryAddRoleToSelf, addRoleToAccount, tryDeleteRoleFromAccount, tryDeleteAccount } from '../pages/accounts.page';
 import { deleteClientsExcept, addClient, addAllowedRoleToClient, deleteClientIfExists } from '../pages/clients.page';
+import { navigateToOrganisations, deleteOrganisationsExcept } from '../pages/organisations.page';
 import { changePassword } from '../pages/change-password.page';
 import { approveAuthorization, verifySignedIn } from '../pages/authorize.page';
 import { dismissToasts } from '../pages/toast';
@@ -40,6 +41,11 @@ test('admin creates manager account and manager signs in via invite link', async
         console.log("Step 4: Cleaning up clients...");
         await navigateToClients(page);
         await deleteClientsExcept(page, 'abstratium-abstrauth');
+
+        // Navigate to organisations page and delete all orgs except 'rename-me'
+        console.log("Step 4b: Cleaning up extra organisations...");
+        await navigateToOrganisations(page);
+        await deleteOrganisationsExcept(page, 'rename-me');
         
         // Sign out after cleanup
         console.log("Step 5: Signing out after cleanup...");

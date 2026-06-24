@@ -39,7 +39,7 @@ public class CrossOrgIsolationTest {
     TestTransactionHelper transactionHelper;
 
     private String adminTokenForOrg(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("admin_" + accountId + "@example.com")
             .groups(Set.of(
@@ -52,7 +52,7 @@ public class CrossOrgIsolationTest {
     }
 
     private String manageClientsTokenForOrg(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("mgr_" + accountId + "@example.com")
             .groups(Set.of(

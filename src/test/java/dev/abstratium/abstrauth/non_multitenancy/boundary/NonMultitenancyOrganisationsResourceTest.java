@@ -5,11 +5,13 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOrganisationService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
@@ -18,6 +20,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 
 /**
  * Tests for NonMultitenancyOrganisationsResource.
@@ -38,10 +41,25 @@ public class NonMultitenancyOrganisationsResourceTest {
     NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
 
     @Inject
+    NonMultitenancyOrganisationService nonMultitenancyOrganisationService;
+
+    @Inject
+    EntityManager em;
+
+    @Inject
     TestTransactionHelper transactionHelper;
 
+    private String adminToken(String accountId, String orgId) {
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
+                .subject(accountId)
+                .upn("admin@example.com")
+                .groups(Set.of(Roles.USER, Roles.ADMIN))
+                .claim("orgId", orgId)
+                .sign();
+    }
+
     private String userToken(String accountId, String orgId) {
-        return Jwt.issuer("https://abstrauth.abstratium.dev")
+        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject(accountId)
                 .upn("test@example.com")
                 .groups(Set.of(Roles.USER))
@@ -130,6 +148,108 @@ public class NonMultitenancyOrganisationsResourceTest {
                 .post("/api/organisations")
                 .then()
                 .statusCode(400);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // DELETE /api/organisations/{orgId}
+    // ─────────────────────────────────────────────────────────
+
+    @Test
+    public void testDeleteOrganisation_success() throws Exception {
+        Account admin = createAccount(System.currentTimeMillis() + "_deladmin");
+        String orgId = accountOrgId(admin);
+        String token = adminToken(admin.getId(), orgId);
+
+        // Create a client owned by this org
+        transactionHelper.beginTransaction();
+        String clientId = "del-test-client-" + System.currentTimeMillis();
+        em.createNativeQuery(
+            "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, org_id) " +
+            "VALUES (:id, :clientId, :name, 'confidential', :redirectUris, :allowedScopes, true, false, :orgId)")
+            .setParameter("id", UUID.randomUUID().toString())
+            .setParameter("clientId", clientId)
+            .setParameter("name", "Delete Test Client")
+            .setParameter("redirectUris", "[\"http://localhost/cb\"]")
+            .setParameter("allowedScopes", "[\"openid\"]")
+            .setParameter("orgId", orgId)
+            .executeUpdate();
+        transactionHelper.commitTransaction();
+
+        // Verify account roles and client exist before deletion
+        transactionHelper.beginTransaction();
+        long rolesBefore = em.createQuery(
+            "SELECT COUNT(ar) FROM NonMultitenancyAccountRole ar WHERE ar.orgId = :orgId", Long.class)
+            .setParameter("orgId", orgId).getSingleResult();
+        assertTrue(rolesBefore > 0, "Account roles should exist before deletion");
+
+        long clientsBefore = em.createQuery(
+            "SELECT COUNT(c) FROM NonMultitenancyOAuthClient c WHERE c.orgId = :orgId", Long.class)
+            .setParameter("orgId", orgId).getSingleResult();
+        assertEquals(1, clientsBefore, "Client should exist before deletion");
+        transactionHelper.commitTransaction();
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + orgId)
+                .then()
+                .statusCode(204);
+
+        assertTrue(nonMultitenancyOrganisationService.findById(orgId).isEmpty(),
+                "Organisation should be deleted");
+
+        // Verify all children are gone
+        transactionHelper.beginTransaction();
+        long rolesAfter = em.createQuery(
+            "SELECT COUNT(ar) FROM NonMultitenancyAccountRole ar WHERE ar.orgId = :orgId", Long.class)
+            .setParameter("orgId", orgId).getSingleResult();
+        assertEquals(0, rolesAfter, "Account roles should be cascade-deleted");
+
+        long clientsAfter = em.createQuery(
+            "SELECT COUNT(c) FROM NonMultitenancyOAuthClient c WHERE c.orgId = :orgId", Long.class)
+            .setParameter("orgId", orgId).getSingleResult();
+        assertEquals(0, clientsAfter, "Clients should be cascade-deleted");
+        transactionHelper.commitTransaction();
+    }
+
+    @Test
+    public void testDeleteOrganisation_nonAdmin_returns403() throws Exception {
+        Account user = createAccount(System.currentTimeMillis() + "_delnoadmin");
+        String orgId = accountOrgId(user);
+        String token = userToken(user.getId(), orgId);
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + orgId)
+                .then()
+                .statusCode(403);
+
+        assertTrue(nonMultitenancyOrganisationService.findById(orgId).isPresent(),
+                "Organisation should not be deleted");
+    }
+
+    @Test
+    public void testDeleteOrganisation_notFound_returns404() throws Exception {
+        Account admin = createAccount(System.currentTimeMillis() + "_del404");
+        String token = adminToken(admin.getId(), accountOrgId(admin));
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/00000000-0000-0000-0000-000000009999")
+                .then()
+                .statusCode(404)
+                .body("error", containsString("Organisation not found"));
+    }
+
+    @Test
+    public void testDeleteOrganisation_unauthenticated_returns401() {
+        given()
+                .when()
+                .delete("/api/organisations/00000000-0000-0000-0000-000000009999")
+                .then()
+                .statusCode(401);
     }
 
     @Test

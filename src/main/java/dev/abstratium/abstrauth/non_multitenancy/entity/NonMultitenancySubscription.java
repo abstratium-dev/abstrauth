@@ -9,8 +9,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import org.hibernate.envers.Audited;
+
 @Entity
 @Table(name = "T_subscriptions")
+@Audited
 public class NonMultitenancySubscription {
 
     @Id

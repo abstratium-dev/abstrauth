@@ -70,15 +70,6 @@ public class NonMultitenancyOAuthClientService {
 
         NonMultitenancyOAuthClient client = clientOpt.get();
 
-        // Load all cascade collections to ensure proper deletion order
-        // Hibernate will handle the cascade deletion of related entities
-        client.getAccountRoles().size();
-        client.getClientSecrets().size();
-        client.getClientAllowedRoles().size();
-        client.getSrcClientRoles().size();
-        client.getTargetClientRoles().size();
-        client.getSubscriptions().size();
-
         em.remove(client);
         return true;
     }

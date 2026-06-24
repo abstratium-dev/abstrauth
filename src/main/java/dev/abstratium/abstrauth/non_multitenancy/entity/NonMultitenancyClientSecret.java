@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.non_multitenancy.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import java.time.Instant;
 
 /**
@@ -16,6 +17,7 @@ import java.time.Instant;
  */
 @Entity
 @Table(name = "T_oauth_client_secrets")
+@Audited
 public class NonMultitenancyClientSecret {
 
     @Id

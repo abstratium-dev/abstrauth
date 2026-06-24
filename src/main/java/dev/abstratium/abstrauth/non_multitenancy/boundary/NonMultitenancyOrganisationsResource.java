@@ -4,9 +4,11 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOrganisationService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.oidc.IdToken;
@@ -16,8 +18,10 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -46,6 +50,9 @@ public class NonMultitenancyOrganisationsResource {
     NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
 
     @Inject
+    NonMultitenancyOrganisationService nonMultitenancyOrganisationService;
+
+    @Inject
     @IdToken
     JsonWebToken token;
 
@@ -69,6 +76,21 @@ public class NonMultitenancyOrganisationsResource {
         nonMultitenancyAccountRoleService.addRole(org.getId(), accountId, clientId, Roles._MANAGE_CLIENTS_PLAIN);
 
         return Response.status(Response.Status.CREATED).entity(toOrganisationResponse(org)).build();
+    }
+
+    @DELETE
+    @Path("/{orgId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Delete organisation", description = "Deletes an organisation and all its associated data (account roles, subscriptions, memberships) via JPA cascade. Only admin users can delete organisations.")
+    @RolesAllowed(Roles.ADMIN)
+    public Response deleteOrganisation(@PathParam("orgId") String orgId) {
+        if (nonMultitenancyOrganisationService.findById(orgId).isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Organisation not found"))
+                    .build();
+        }
+        nonMultitenancyOrganisationService.deleteOrganisationWithCascade(orgId);
+        return Response.noContent().build();
     }
 
     private OrganisationResponse toOrganisationResponse(Organisation org) {

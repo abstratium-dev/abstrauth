@@ -11,6 +11,8 @@ import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
+import jakarta.json.JsonString;
+import jakarta.json.JsonValue;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -436,7 +438,7 @@ public class TokenResourceTest {
             "TokenTest Org B");
         String orgB = organisationService.listOrganisationsForAccount(orgBAccount.getId()).get(0).getId();
         // Use orgBAccount directly for the token — it's already a member of orgB
-        String manageTokenB = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String manageTokenB = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(orgBAccount.getId())
             .upn(orgBAccount.getEmail())
             .groups(Set.of(Roles.USER, Roles.MANAGE_CLIENTS))
@@ -666,7 +668,7 @@ public class TokenResourceTest {
             account = accountService.createAccount(email, "Token Test", username, "Pass123!",
                     AccountService.NATIVE, "TokenTest Org " + System.currentTimeMillis());
         }
-        String token = Jwt.issuer("https://abstrauth.abstratium.dev")
+        String token = Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(account.getId())
             .upn(account.getEmail())
             .groups(Set.of(Roles.USER, Roles.MANAGE_CLIENTS))
@@ -697,10 +699,19 @@ public class TokenResourceTest {
                 "exp should be greater than iat");
 
         assertTrue(claims.containsKey("aud"), "aud claim should be present");
-        var audArray = claims.getJsonArray("aud");
-        assertEquals(expectedAudiences.size(), audArray.size(), "audience size should match expected target clients");
+        Set<String> actualAudiences = new java.util.HashSet<>();
+        JsonValue audValue = claims.get("aud");
+        if (audValue.getValueType() == JsonValue.ValueType.ARRAY) {
+            var audArray = claims.getJsonArray("aud");
+            for (int i = 0; i < audArray.size(); i++) {
+                actualAudiences.add(audArray.getString(i));
+            }
+        } else {
+            actualAudiences.add(((JsonString) audValue).getString());
+        }
+        assertEquals(expectedAudiences.size(), actualAudiences.size(), "audience size should match expected target clients");
         for (String expectedAud : expectedAudiences) {
-            assertTrue(audArray.contains(Json.createValue(expectedAud)),
+            assertTrue(actualAudiences.contains(expectedAud),
                     "aud should contain target client: " + expectedAud);
         }
 
