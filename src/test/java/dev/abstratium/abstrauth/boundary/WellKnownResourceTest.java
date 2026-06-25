@@ -16,6 +16,8 @@ import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 import java.util.Map;
 
+import dev.abstratium.abstrauth.util.JwtSignatureVerifier;
+
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -308,26 +310,8 @@ public class WellKnownResourceTest {
 
     private boolean verifyJwtSignature(String jwt, RSAPublicKey publicKey) {
         try {
-            String[] parts = jwt.split("\\.");
-            if (parts.length != 3) {
-                return false;
-            }
-
-            String headerAndPayload = parts[0] + "." + parts[1];
-            byte[] signatureBytes = Base64.getUrlDecoder().decode(parts[2]);
-
-            // Verify using PS256 (RSA-PSS with SHA-256)
-            java.security.Signature signature = java.security.Signature.getInstance("RSASSA-PSS");
-            java.security.spec.PSSParameterSpec pssSpec = new java.security.spec.PSSParameterSpec(
-                "SHA-256", "MGF1", 
-                java.security.spec.MGF1ParameterSpec.SHA256, 
-                32, 1
-            );
-            signature.setParameter(pssSpec);
-            signature.initVerify(publicKey);
-            signature.update(headerAndPayload.getBytes(StandardCharsets.UTF_8));
-
-            return signature.verify(signatureBytes);
+            new JwtSignatureVerifier(publicKey).verifyAndDecode(jwt);
+            return true;
         } catch (Exception e) {
             System.err.println("Signature verification failed: " + e.getMessage());
             return false;

@@ -96,7 +96,7 @@ public class WellKnownResource {
         metadata.end_session_endpoint = baseUrl + "/api/auth/logout";
         metadata.jwks_uri = baseUrl + "/.well-known/jwks.json";
         metadata.response_types_supported = new String[]{"code"};
-        metadata.grant_types_supported = new String[]{"authorization_code", "refresh_token", "client_credentials"};
+        metadata.grant_types_supported = new String[]{"authorization_code", "refresh_token", "client_credentials", "urn:ietf:params:oauth:grant-type:token-exchange"};
         metadata.code_challenge_methods_supported = new String[]{"S256", "plain"};
         metadata.scopes_supported = new String[]{"openid", "profile", "email", "api:read", "api:write"};
         metadata.token_endpoint_auth_methods_supported = new String[]{"client_secret_post", "client_secret_basic"};

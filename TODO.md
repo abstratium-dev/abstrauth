@@ -18,10 +18,6 @@
 
 - when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
 
-- add a test for src/main/java/dev/abstratium/abstrauth/service/SecurityProblemLogger.java and copy that to abstracore. or is the test already there? then copy it here
-
-- see token exchange markdown and the second one about how it is used and implement that.
-
 - take flows, security design? and multitenancy design and get rid of stuff related to what has already been implemented (primarily in multitenancy design doc) and create a single spec and design document from that.
 
 - use SecurityProblemLogger everywhere that we want to warn about dodgy API usage and set up alerting for that

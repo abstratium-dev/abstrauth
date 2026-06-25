@@ -41,6 +41,9 @@ public class MetricsService {
     private Counter tokenRequestsFailure;
     private Counter tokenRevocations;
     private Counter tokenIntrospections;
+    private Counter tokenExchangeRequests;
+    private Counter tokenExchangeSuccess;
+    private Counter tokenExchangeFailure;
 
     // Counters for client management
     private Counter clientCreations;
@@ -117,6 +120,18 @@ public class MetricsService {
 
         tokenIntrospections = Counter.builder("abstrauth.oauth.token.introspection")
                 .description("Number of token introspection requests")
+                .register(registry);
+
+        tokenExchangeRequests = Counter.builder("abstrauth.oauth.token.exchange.request")
+                .description("Total number of token exchange requests")
+                .register(registry);
+
+        tokenExchangeSuccess = Counter.builder("abstrauth.oauth.token.exchange.success")
+                .description("Number of successful token exchanges")
+                .register(registry);
+
+        tokenExchangeFailure = Counter.builder("abstrauth.oauth.token.exchange.failure")
+                .description("Number of failed token exchanges")
                 .register(registry);
 
         // Client management metrics
@@ -226,6 +241,18 @@ public class MetricsService {
 
     public void recordTokenRequestFailure() {
         tokenRequestsFailure.increment();
+    }
+
+    public void recordTokenExchangeRequest() {
+        tokenExchangeRequests.increment();
+    }
+
+    public void recordTokenExchangeSuccess() {
+        tokenExchangeSuccess.increment();
+    }
+
+    public void recordTokenExchangeFailure() {
+        tokenExchangeFailure.increment();
     }
 
     // TODO: Integrate in TokenRevocationService when revocation endpoint is called

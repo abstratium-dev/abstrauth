@@ -124,11 +124,11 @@ The method should accept `@FormParam` parameters matching the request table abov
 
 ### 2. Validate the Subject Access Token
 
-Parse and cryptographically verify the incoming JWT using the same public key that the JWKS endpoint advertises (`RSAPublicKey` derived from `mp.jwt.verify.publickey.location` or the in-memory private key PEM).
+Parse and cryptographically verify the incoming JWT using the public key configured in `mp.jwt.verify.publickey` (the same key that the JWKS endpoint advertises).
 
 Checks to perform:
 
-- **Signature** — must validate against the active signing key.
+- **Signature** — must validate against the active signing key using PS256 (RSA-PSS with SHA-256). The algorithm header (`alg`) is also checked to prevent algorithm confusion attacks.
 - **Issuer (`iss`)** — must match `mp.jwt.verify.issuer`.
 - **Expiry (`exp`)** — token must not be expired.
 - **`nbf`** — token must be valid for use now.
@@ -165,19 +165,17 @@ Checks to perform:
 String subjectOrgId = /* extracted from subject token's orgId claim */;
 
 // Check audience subscription
-if (!nonMultitenancySubscriptionService.hasActiveSubscription(subjectOrgId, audience)) {
+if (nonMultitenancySubscriptionService.findNonMultitenancySubscription(subjectOrgId, audience).isEmpty()) {
     return buildErrorResponse(Response.Status.BAD_REQUEST, "unauthorized_client",
             "User's organisation is not subscribed to the requested audience");
 }
 
 // Check caller subscription (the BFF or service exchanging the token)
-if (!nonMultitenancySubscriptionService.hasActiveSubscription(subjectOrgId, callerClientId)) {
+if (nonMultitenancySubscriptionService.findNonMultitenancySubscription(subjectOrgId, callerClientId).isEmpty()) {
     return buildErrorResponse(Response.Status.BAD_REQUEST, "unauthorized_client",
             "User's organisation is not subscribed to the calling client");
 }
 ```
-
-> **Note:** `hasActiveSubscription` is a hypothetical convenience method. If the existing `NonMultitenancySubscriptionService` does not expose it, implement it as a query on `T_subscriptions` by `org_id` and `client_id`.
 
 If unauthorised, return:
 
@@ -213,7 +211,7 @@ This returns the set of roles the user has for the *target* client within the sa
 
 ```java
 if (orgId != null && !nonMultitenancyAccountRoleService.hasAnyRoleForClient(accountId, audience, orgId)) {
-    var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientId(audience);
+    var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientIdForOrg(audience, orgId);
     if (!defaultRoles.isEmpty()) {
         nonMultitenancyAccountRoleService.seedDefaultRoles(accountId, audience, orgId, defaultRoles);
     }
@@ -303,7 +301,7 @@ Issued token (the new token for the contract-fulfilment service):
 }
 ```
 
-The `sub` is still `user-123` — the token is about the user. But `act.sub` is `webshop-bff` — this tells the contract-fulfilment service that the webshop obtained this token on the user's behalf. If the contract-fulfilment service later exchanges this token for another service, the new token would contain:
+The `sub` is still `user-123` — the token is about the user. But `act.sub` is `webshop-bff` — this tells the contract-fulfilment service that the webshop obtained this token on the user's behalf. If the contract-fulfilment service later exchanges this token for a fulfilment microservice (and the chain depth has not yet reached `ABSTRAUTH_TOKEN_EXCHANGE_MAX_DEPTH`), the new token would contain:
 ```json
 {
   "sub": "user-123",
@@ -311,7 +309,7 @@ The `sub` is still `user-123` — the token is about the user. But `act.sub` is 
 }
 ```
 
-The outermost `act` is the current actor; nested `act` claims form a delegation history trail (RFC 8693 Section 4.1).
+The outermost `act` is the current actor; nested `act` claims form a delegation history trail (RFC 8693 §4.1). The maximum chain depth is enforced server-side.
 
 **Transaction token claims (from draft-ietf-oauth-transaction-tokens):**
 
@@ -354,7 +352,7 @@ metadata.grant_types_supported = new String[]{
 
 ## Security Considerations
 
-- **Token chaining depth** — A token obtained via exchange should *not* itself be exchangeable. The endpoint must reject exchange requests where `subject_token` contains a `client_id` claim matching a token previously issued by this endpoint, or where the token carries an `act` (actor) claim indicating it is already an exchanged token.
+- **Token chaining depth** — Exchange chaining is permitted up to a configurable maximum depth (default 3, controlled by `ABSTRAUTH_TOKEN_EXCHANGE_MAX_DEPTH`). The current depth is measured by counting nested `act` claims in the subject token per RFC 8693 §4.1. When the depth equals the configured maximum the request is rejected with `invalid_request`. This prevents unbounded delegation chains while supporting legitimate multi-hop flows (e.g. BFF → Order Service → Fulfilment Service).
 - **Audience restriction** — Never allow exchange for a client in a different organisation unless an explicit, active subscription exists.
 - **No refresh tokens** — The token exchange response must not include a refresh token. Refresh tokens are only issued during the authorization code flow.
 - **Revocation linkage** — If the original subject token is revoked (by JTI), any tokens issued from it are not automatically revoked in this minimal design. Document this limitation.
@@ -367,7 +365,18 @@ metadata.grant_types_supported = new String[]{
 - Unit test: revoked `subject_token` (by JTI) returns `invalid_grant`.
 - Unit test: unauthorised audience returns `unauthorized_client`.
 - Unit test: requested scope exceeding original scope returns `invalid_scope`.
+- Unit test: once-exchanged token (depth 1) can be exchanged again.
+- Unit test: `act` claim in issued token nests the previous actor (RFC 8693 §4.1 chain).
+- Unit test: token at max depth (default 3) is rejected with `invalid_request`.
 - Integration test: end-to-end exchange via REST Assured.
+
+### AGENTS.md
+
+Add `TokenExchangeResource` to the approved cross-tenant boundary endpoints table in `non_multitenancy/AGENTS.md`:
+
+| Resource | Purpose |
+|----------|--------|
+| `TokenExchangeResource` | RFC 8693 token exchange — validates subject token, checks subscriptions cross-tenant, and seeds/reads roles without a Hibernate tenant context |
 
 ## Files to Create or Modify
 

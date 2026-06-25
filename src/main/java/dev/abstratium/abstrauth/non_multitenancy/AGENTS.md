@@ -23,6 +23,7 @@ The `boundary` sub-package contains REST endpoints that perform cross-tenant (cr
 | `NonMultitenancyAccountsResource` | **DELETE endpoint only**: Deletes accounts with cross-tenant cascade (all roles, credentials, federated identities across all orgs) |
 | `NonMultitenancyOrganisationsResource` | Create new organisations with initial role assignment (bypasses tenant discriminator before orgId is established in Hibernate session). **DELETE endpoint**: Deletes organisations with cross-tenant cascade (account_roles, organisation_accounts, subscriptions across all orgs) |
 | `TokenResource` | OAuth 2.0 token endpoint — retrieves and seeds roles using non-multitenancy services (orgId from request, not Hibernate session) |
+| `TokenExchangeResource` | RFC 8693 token exchange — validates subject token, checks subscriptions cross-tenant, and seeds/reads roles using non-multitenancy services (orgId from subject token claims, not Hibernate session) |
 
 ## Approved Exceptions (Usage Outside This Package)
 
