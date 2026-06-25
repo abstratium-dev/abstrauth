@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientSecret;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOrganisation;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOrganisationAccount;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.MockMailbox;
 import io.quarkus.test.junit.QuarkusTest;
@@ -39,25 +41,50 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
     EntityManager em;
 
     private String clientId;
-    private String accountId;
-    private String accountEmail;
+    private String orgId;
+    private String ownerEmail1;
+    private String ownerEmail2;
+    private String nonOwnerEmail;
+    private String memberAccountId;
 
     @BeforeEach
     @Transactional
     public void setup() {
         clientId = "test-notification-client-" + System.currentTimeMillis();
-        accountEmail = "notification-test-" + System.currentTimeMillis() + "@example.com";
+        String orgName = "Test Org " + System.currentTimeMillis();
+        ownerEmail1 = "owner1-" + System.currentTimeMillis() + "@example.com";
+        ownerEmail2 = "owner2-" + System.currentTimeMillis() + "@example.com";
+        nonOwnerEmail = "member-" + System.currentTimeMillis() + "@example.com";
 
         // Clean up previous test data across all tenants
         em.createQuery("DELETE FROM NonMultitenancyClientSecret WHERE clientId = :clientId").setParameter("clientId", clientId).executeUpdate();
         em.createQuery("DELETE FROM NonMultitenancyOAuthClient WHERE clientId = :clientId").setParameter("clientId", clientId).executeUpdate();
-        em.createQuery("DELETE FROM NonMultitenancyAccount WHERE email = :email").setParameter("email", accountEmail).executeUpdate();
+        em.createQuery("DELETE FROM NonMultitenancyOrganisation WHERE name = :name").setParameter("name", orgName).executeUpdate();
+        em.createQuery("DELETE FROM NonMultitenancyAccount WHERE email IN (:emails)")
+                .setParameter("emails", List.of(ownerEmail1, ownerEmail2, nonOwnerEmail))
+                .executeUpdate();
 
-        NonMultitenancyAccount account = new NonMultitenancyAccount();
-        account.setEmail(accountEmail);
-        account.setName("Notification Test");
-        em.persist(account);
-        accountId = account.getId();
+        NonMultitenancyOrganisation org = new NonMultitenancyOrganisation();
+        org.setName(orgName);
+        em.persist(org);
+        orgId = org.getId();
+
+        NonMultitenancyAccount owner1 = createAccount(ownerEmail1, "Owner One");
+        NonMultitenancyAccount owner2 = createAccount(ownerEmail2, "Owner Two");
+        NonMultitenancyAccount member = createAccount(nonOwnerEmail, "Member");
+        memberAccountId = member.getId();
+
+        NonMultitenancyOrganisationAccount owner1Org = new NonMultitenancyOrganisationAccount();
+        owner1Org.setId(new NonMultitenancyOrganisationAccount.Id(orgId, owner1.getId(), "owner"));
+        em.persist(owner1Org);
+
+        NonMultitenancyOrganisationAccount owner2Org = new NonMultitenancyOrganisationAccount();
+        owner2Org.setId(new NonMultitenancyOrganisationAccount.Id(orgId, owner2.getId(), "owner"));
+        em.persist(owner2Org);
+
+        NonMultitenancyOrganisationAccount memberOrg = new NonMultitenancyOrganisationAccount();
+        memberOrg.setId(new NonMultitenancyOrganisationAccount.Id(orgId, member.getId(), "member"));
+        em.persist(memberOrg);
 
         NonMultitenancyOAuthClient client = new NonMultitenancyOAuthClient();
         client.setClientId(clientId);
@@ -66,9 +93,18 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
         client.setRedirectUris("[\"http://localhost/callback\"]");
         client.setAllowedScopes("[\"openid\"]");
         client.setRequirePkce(true);
+        client.setOrgId(orgId);
         em.persist(client);
 
         mailbox.clear();
+    }
+
+    private NonMultitenancyAccount createAccount(String email, String name) {
+        NonMultitenancyAccount account = new NonMultitenancyAccount();
+        account.setEmail(email);
+        account.setName(name);
+        em.persist(account);
+        return account;
     }
 
     @Test
@@ -80,9 +116,12 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
 
         notificationService.processFirstWarnings(now);
 
-        List<Mail> mails = mailbox.getMailsSentTo(accountEmail);
-        assertEquals(1, mails.size(), "One first warning email should be sent");
-        Mail mail = mails.get(0);
+        assertEquals(2, mailbox.getTotalMessagesSent(), "One email per owner should be sent");
+        assertEquals(1, mailbox.getMailsSentTo(ownerEmail1).size());
+        assertEquals(1, mailbox.getMailsSentTo(ownerEmail2).size());
+        assertEquals(0, mailbox.getMailsSentTo(nonOwnerEmail).size(), "Non-owner should not receive email");
+
+        Mail mail = mailbox.getMailsSentTo(ownerEmail1).get(0);
         assertTrue(mail.getSubject().contains("Client secret expires in 30 days"));
         assertTrue(mail.getSubject().contains("Notification Test Client"));
         assertTrue(mail.getText().contains("/clients?viewSecrets=" + clientId + "&highlightSecret=" + secret.getId()));
@@ -102,9 +141,9 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
 
         notificationService.processFinalWarnings(now);
 
-        List<Mail> mails = mailbox.getMailsSentTo(accountEmail);
-        assertEquals(1, mails.size(), "One final warning email should be sent");
-        assertTrue(mails.get(0).getSubject().contains("Client secret expires in 3 days"));
+        assertEquals(2, mailbox.getTotalMessagesSent(), "One email per owner should be sent");
+        assertTrue(mailbox.getMailsSentTo(ownerEmail1).get(0).getSubject().contains("Client secret expires in 3 days"));
+        assertTrue(mailbox.getMailsSentTo(ownerEmail2).get(0).getSubject().contains("Client secret expires in 3 days"));
 
         em.clear();
         NonMultitenancyClientSecret updated = em.find(NonMultitenancyClientSecret.class, secret.getId());
@@ -120,9 +159,9 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
 
         notificationService.processExpiredNotices(now);
 
-        List<Mail> mails = mailbox.getMailsSentTo(accountEmail);
-        assertEquals(1, mails.size(), "One expired notice email should be sent");
-        assertTrue(mails.get(0).getSubject().contains("Client secret has expired"));
+        assertEquals(2, mailbox.getTotalMessagesSent(), "One email per owner should be sent");
+        assertTrue(mailbox.getMailsSentTo(ownerEmail1).get(0).getSubject().contains("Client secret has expired"));
+        assertTrue(mailbox.getMailsSentTo(ownerEmail2).get(0).getSubject().contains("Client secret has expired"));
 
         em.clear();
         NonMultitenancyClientSecret updated = em.find(NonMultitenancyClientSecret.class, secret.getId());
@@ -163,7 +202,8 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
         secret.setDescription("Notification test secret");
         secret.setActive(true);
         secret.setExpiresAt(expiresAt);
-        secret.setAccountId(accountId);
+        secret.setAccountId(memberAccountId);
+        secret.setOrgId(orgId);
         secret.setFirstWarningSentAt(firstWarningSentAt);
         secret.setFinalWarningSentAt(finalWarningSentAt);
         secret.setExpiredNoticeSentAt(expiredNoticeSentAt);

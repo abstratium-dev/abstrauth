@@ -2,12 +2,14 @@ package dev.abstratium.abstrauth.non_multitenancy.service;
 
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOrganisationAccount;
 import dev.abstratium.abstrauth.service.Roles;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -32,6 +34,26 @@ public class NonMultitenancyAccountService {
      */
     public Optional<NonMultitenancyAccount> findById(String accountId) {
         return Optional.ofNullable(em.find(NonMultitenancyAccount.class, accountId));
+    }
+
+    /**
+     * Find all owner accounts for a given organisation ID across all tenants.
+     * Uses NonMultitenancyOrganisationAccount to bypass the @TenantId discriminator.
+     *
+     * @param orgId The organisation ID
+     * @return List of owner accounts (never null)
+     */
+    public List<NonMultitenancyAccount> findOwnersByOrgId(String orgId) {
+        return em.createQuery(
+                "SELECT a FROM NonMultitenancyAccount a " +
+                "WHERE a.id IN (" +
+                "  SELECT oa.id.accountId FROM NonMultitenancyOrganisationAccount oa " +
+                "  WHERE oa.id.orgId = :orgId AND oa.id.role = :role" +
+                ")",
+                NonMultitenancyAccount.class)
+                .setParameter("orgId", orgId)
+                .setParameter("role", "owner")
+                .getResultList();
     }
 
     /**

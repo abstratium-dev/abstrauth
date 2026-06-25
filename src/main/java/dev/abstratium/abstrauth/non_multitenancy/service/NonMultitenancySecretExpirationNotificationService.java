@@ -1,7 +1,6 @@
 package dev.abstratium.abstrauth.non_multitenancy.service;
 
-import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.Mailer;
 import io.quarkus.scheduler.Scheduled;
@@ -14,7 +13,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Scheduled service that sends email notifications when client secrets are
@@ -43,7 +41,7 @@ public class NonMultitenancySecretExpirationNotificationService {
     NonMultitenancyClientSecretService clientSecretService;
 
     @Inject
-    AccountService accountService;
+    NonMultitenancyAccountService accountService;
 
     @Inject
     Mailer mailer;
@@ -117,25 +115,37 @@ public class NonMultitenancySecretExpirationNotificationService {
                                   String notificationType,
                                   String bodyPhrase,
                                   String sentAtColumn) {
-        Optional<Account> accountOpt = accountService.findById(secret.accountId());
-        if (accountOpt.isEmpty()) {
-            log.warn("No account found for secret " + secret.id() + " (accountId=" + secret.accountId() + "); skipping notification");
-            return;
-        }
-
-        Account account = accountOpt.get();
-        String email = account.getEmail();
-        if (email == null || email.isBlank()) {
-            log.warn("Account " + account.getId() + " has no email; skipping notification for secret " + secret.id());
+        List<NonMultitenancyAccount> owners = accountService.findOwnersByOrgId(secret.orgId());
+        if (owners.isEmpty()) {
+            log.warn("No organisation owners found for secret " + secret.id() + " (orgId=" + secret.orgId() + "); skipping notification");
             return;
         }
 
         String subject = "[" + stage + "] Client secret " + bodyPhrase + " - " + secret.clientName();
         String body = buildEmailBody(secret, notificationType);
 
-        mailer.send(Mail.withText(email, subject, body).setFrom(fromAddress));
-        clientSecretService.markNotificationSent(secret.id(), sentAtColumn, Instant.now());
-        log.info("Sent " + notificationType + " email for secret " + secret.id() + " to " + email);
+        boolean anySent = false;
+        for (NonMultitenancyAccount owner : owners) {
+            String email = owner.getEmail();
+            if (email == null || email.isBlank()) {
+                log.warn("Owner account " + owner.getId() + " has no email; skipping notification for secret " + secret.id());
+                continue;
+            }
+
+            try {
+                mailer.send(Mail.withText(email, subject, body).setFrom(fromAddress));
+                anySent = true;
+                log.info("Sent " + notificationType + " email for secret " + secret.id() + " to owner " + email);
+            } catch (Exception e) {
+                log.error("Failed to send " + notificationType + " email for secret " + secret.id() + " to owner " + email, e);
+            }
+        }
+
+        if (anySent) {
+            clientSecretService.markNotificationSent(secret.id(), sentAtColumn, Instant.now());
+        } else {
+            log.warn("No owner emails were sent for secret " + secret.id() + "; notification timestamp not updated");
+        }
     }
 
     private String buildEmailBody(NonMultitenancyClientSecretNotificationInfo secret, String notificationType) {
