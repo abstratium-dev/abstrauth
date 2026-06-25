@@ -31,9 +31,6 @@ public class ClientSecret {
     
     @Column(name = "description")
     private String description;
-    
-    @Column(name = "account_id")
-    private String accountId;
 
     @Column(name = "first_warning_sent_at")
     private Instant firstWarningSentAt;
@@ -103,14 +100,6 @@ public class ClientSecret {
     
     public void setDescription(String description) {
         this.description = description;
-    }
-    
-    public String getAccountId() {
-        return accountId;
-    }
-    
-    public void setAccountId(String accountId) {
-        this.accountId = accountId;
     }
 
     public Instant getFirstWarningSentAt() {

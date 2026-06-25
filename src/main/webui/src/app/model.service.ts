@@ -84,7 +84,6 @@ export interface AllowedRole {
 export interface Organisation {
   id: string;
   name: string;
-  createdByAccountId: string;
   createdAt: string;
   roles: string[];
 }

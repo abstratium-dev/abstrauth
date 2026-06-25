@@ -19,14 +19,12 @@ describe('OrganisationsComponent', () => {
     {
       id: 'org-1',
       name: 'Acme Corp',
-      createdByAccountId: 'account-1',
       createdAt: '2024-01-01T00:00:00',
       roles: ['owner', 'member']
     },
     {
       id: 'org-2',
       name: 'Globex Inc',
-      createdByAccountId: 'account-2',
       createdAt: '2024-02-01T00:00:00',
       roles: ['member']
     }
@@ -317,7 +315,7 @@ describe('OrganisationsComponent', () => {
       component.onSubmitCreate();
       tick();
 
-      httpMock.expectOne('/api/organisations').flush({ id: 'org-3', name: 'New Org', createdByAccountId: 'acc', createdAt: '2024-03-01' });
+      httpMock.expectOne('/api/organisations').flush({ id: 'org-3', name: 'New Org', createdAt: '2024-03-01' });
       tick();
       httpMock.expectOne('/api/organisations').flush(mockOrgs);
 

@@ -97,7 +97,7 @@ public class NonMultitenancyClientSecretService {
 
     private String notificationInfoJpql(String notificationPredicate) {
         return "SELECT NEW " + NonMultitenancyClientSecretNotificationInfo.class.getName() +
-               "(s.id, s.clientId, c.clientName, s.description, s.expiresAt, s.accountId, s.orgId) " +
+               "(s.id, s.clientId, c.clientName, s.description, s.expiresAt, s.orgId) " +
                "FROM " + NonMultitenancyClientSecret.class.getName() + " s " +
                "JOIN " + NonMultitenancyOAuthClient.class.getName() + " c ON s.clientId = c.clientId " +
                "WHERE s.active = true " +

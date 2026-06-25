@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
@@ -18,7 +17,6 @@ import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.ClientSecretService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
-import io.quarkus.oidc.IdToken;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
@@ -56,10 +54,6 @@ public class ClientSecretsResource {
 
     @Inject
     SecurityIdentity securityIdentity;
-
-    @Inject
-    @IdToken
-    JsonWebToken token;
 
     /**
      * List all secrets for a client (metadata only, no secret values).
@@ -131,7 +125,6 @@ public class ClientSecretsResource {
         clientSecret.setDescription(request.description != null ? request.description : "Generated secret");
         clientSecret.setActive(true);
         clientSecret.setExpiresAt(expiresAt);
-        clientSecret.setAccountId(token.getSubject()); // Track who created it (account ID from JWT sub claim)
         clientSecretService.persist(clientSecret);
 
         // Return response with plain secret (only shown once)

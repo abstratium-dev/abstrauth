@@ -11,12 +11,21 @@
 
 ## Today
 
+- GDPR - see GDPR_FADP_DESIGN.md and implement it.
+  - GDPR - allow user to view all of their data
+  - GDPR - allow user to delete all of their data
+  - define who is DPO in abstratium
+  - update legal page to display what is currently configured
+
 - when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
   - search for "You do not have any roles"
 
 - take flows, security design? and multitenancy design and get rid of stuff related to what has already been implemented (primarily in multitenancy design doc) and create a single spec and design document from that.
 
 - what is this log? [io.qua.oid.run.OidcRecorder] (vert.x-eventloop-thread-2) [skey:] Session age extension will not be effective because 'quarkus.oidc.token.refresh-expired=true' is not set
+
+
+
 
 - complete other open points from first security audit
 
@@ -44,12 +53,6 @@
 - multi-tenancy: extend MetricsService with orgs, etc.
 
 - multitenancy - can we do all the stuff on the svg diagram and in the design document?
-
-- GDPR - allow user to view all of their data
-
-- GDPR - allow user to delete all of their data
-
-- make deleting accounts and roles (x2) harder -> enter the name to confirm
 
 - Subscription management UI — add ability to subscribe when not auto-subscribe. so use calls to POST /api/organisations/{orgId}/subscriptions or DELETE .../subscriptions/{clientId}.
 

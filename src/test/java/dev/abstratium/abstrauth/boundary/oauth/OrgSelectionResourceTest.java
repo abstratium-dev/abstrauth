@@ -106,7 +106,7 @@ public class OrgSelectionResourceTest {
     private Organisation addSecondOrg(Account owner) throws Exception {
         userTransaction.begin();
         Organisation org = organisationService.createOrganisation(
-                "Second Org " + System.currentTimeMillis(), owner.getId());
+                "Second Org " + System.currentTimeMillis());
         organisationService.addOwner(org.getId(), owner.getId());
         organisationService.addMember(org.getId(), owner.getId());
         userTransaction.commit();

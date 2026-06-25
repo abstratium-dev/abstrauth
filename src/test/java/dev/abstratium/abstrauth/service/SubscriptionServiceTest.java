@@ -77,7 +77,7 @@ public class SubscriptionServiceTest {
     /** Creates a new organisation and returns its id (used for isolation assertions only). */
     private String newOrg() throws Exception {
         transactionHelper.beginTransaction();
-        String orgId = organisationService.createOrganisation("Sub Test Org", null).getId();
+        String orgId = organisationService.createOrganisation("Sub Test Org").getId();
         transactionHelper.commitTransaction();
         return orgId;
     }

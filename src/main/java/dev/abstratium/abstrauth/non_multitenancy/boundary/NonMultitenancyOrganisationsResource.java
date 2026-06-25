@@ -63,7 +63,7 @@ public class NonMultitenancyOrganisationsResource {
     @RolesAllowed(Roles.USER)
     public Response createOrganisation(@Valid CreateOrganisationRequest request) {
         String accountId = token.getSubject();
-        Organisation org = organisationService.createOrganisation(request.name, accountId);
+        Organisation org = organisationService.createOrganisation(request.name);
         organisationService.addOwner(org.getId(), accountId);
         organisationService.addMember(org.getId(), accountId);
 

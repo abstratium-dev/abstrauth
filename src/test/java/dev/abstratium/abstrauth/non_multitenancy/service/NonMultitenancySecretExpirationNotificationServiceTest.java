@@ -45,7 +45,6 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
     private String ownerEmail1;
     private String ownerEmail2;
     private String nonOwnerEmail;
-    private String memberAccountId;
 
     @BeforeEach
     @Transactional
@@ -72,7 +71,6 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
         NonMultitenancyAccount owner1 = createAccount(ownerEmail1, "Owner One");
         NonMultitenancyAccount owner2 = createAccount(ownerEmail2, "Owner Two");
         NonMultitenancyAccount member = createAccount(nonOwnerEmail, "Member");
-        memberAccountId = member.getId();
 
         NonMultitenancyOrganisationAccount owner1Org = new NonMultitenancyOrganisationAccount();
         owner1Org.setId(new NonMultitenancyOrganisationAccount.Id(orgId, owner1.getId(), "owner"));
@@ -202,7 +200,6 @@ public class NonMultitenancySecretExpirationNotificationServiceTest {
         secret.setDescription("Notification test secret");
         secret.setActive(true);
         secret.setExpiresAt(expiresAt);
-        secret.setAccountId(memberAccountId);
         secret.setOrgId(orgId);
         secret.setFirstWarningSentAt(firstWarningSentAt);
         secret.setFinalWarningSentAt(finalWarningSentAt);

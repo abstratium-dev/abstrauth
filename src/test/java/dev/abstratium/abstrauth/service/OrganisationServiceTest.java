@@ -35,8 +35,8 @@ public class OrganisationServiceTest {
     }
 
     @Test
-    public void testCreateOrganisationWithNullCreator() {
-        Organisation org = organisationService.createOrganisation("Acme Corp", null);
+    public void testCreateOrganisation() {
+        Organisation org = organisationService.createOrganisation("Acme Corp");
 
         assertNotNull(org.getId());
         assertEquals("Acme Corp", org.getName());
@@ -44,18 +44,8 @@ public class OrganisationServiceTest {
     }
 
     @Test
-    public void testCreateOrganisationWithRealCreator() {
-        String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Creator Org", accountId);
-
-        assertNotNull(org.getId());
-        assertEquals("Creator Org", org.getName());
-        assertEquals(accountId, org.getCreatedByAccountId());
-    }
-
-    @Test
     public void testFindById() {
-        Organisation org = organisationService.createOrganisation("Find Me", null);
+        Organisation org = organisationService.createOrganisation("Find Me");
 
         Optional<Organisation> found = organisationService.findById(org.getId());
 
@@ -73,7 +63,7 @@ public class OrganisationServiceTest {
     @Test
     public void testAddMemberAndListOrganisationsForAccount() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Test Org for Members", null);
+        Organisation org = organisationService.createOrganisation("Test Org for Members");
 
         organisationService.addMember(org.getId(), accountId);
 
@@ -84,7 +74,7 @@ public class OrganisationServiceTest {
     @Test
     public void testAddMemberTwiceThrows() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Duplicate Member Org", null);
+        Organisation org = organisationService.createOrganisation("Duplicate Member Org");
         organisationService.addMember(org.getId(), accountId);
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -94,7 +84,7 @@ public class OrganisationServiceTest {
     @Test
     public void testIsMember() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("IsMember Org", null);
+        Organisation org = organisationService.createOrganisation("IsMember Org");
 
         assertFalse(organisationService.isMember(org.getId(), accountId));
         organisationService.addMember(org.getId(), accountId);
@@ -104,7 +94,7 @@ public class OrganisationServiceTest {
     @Test
     public void testAddOwnerAndIsOwner() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Owner Org", null);
+        Organisation org = organisationService.createOrganisation("Owner Org");
 
         assertFalse(organisationService.isOwner(org.getId(), accountId));
         OrganisationAccount oa = organisationService.addOwner(org.getId(), accountId);
@@ -117,7 +107,7 @@ public class OrganisationServiceTest {
     @Test
     public void testAddOwnerTwiceThrows() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Double Owner Org", null);
+        Organisation org = organisationService.createOrganisation("Double Owner Org");
         organisationService.addOwner(org.getId(), accountId);
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -127,7 +117,7 @@ public class OrganisationServiceTest {
     @Test
     public void testRemoveMember() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Remove Member Org", null);
+        Organisation org = organisationService.createOrganisation("Remove Member Org");
         organisationService.addMember(org.getId(), accountId);
 
         assertTrue(organisationService.isMember(org.getId(), accountId));
@@ -138,7 +128,7 @@ public class OrganisationServiceTest {
     @Test
     public void testRemoveMemberNotMemberThrows() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Not Member Org", null);
+        Organisation org = organisationService.createOrganisation("Not Member Org");
 
         assertThrows(IllegalArgumentException.class, () ->
                 organisationService.removeMember(org.getId(), accountId));
@@ -148,7 +138,7 @@ public class OrganisationServiceTest {
     public void testRemoveOwnerWhenMultipleOwners() {
         String owner1 = createTestAccount();
         String owner2 = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Multi Owner Org", null);
+        Organisation org = organisationService.createOrganisation("Multi Owner Org");
         organisationService.addOwner(org.getId(), owner1);
         organisationService.addOwner(org.getId(), owner2);
 
@@ -161,7 +151,7 @@ public class OrganisationServiceTest {
     @Test
     public void testRemoveLastOwnerThrows() {
         String owner = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Single Owner Org", null);
+        Organisation org = organisationService.createOrganisation("Single Owner Org");
         organisationService.addOwner(org.getId(), owner);
 
         assertThrows(IllegalStateException.class, () ->
@@ -173,7 +163,7 @@ public class OrganisationServiceTest {
         String owner1 = createTestAccount();
         String owner2 = createTestAccount();
         String nonMember = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Remove Non-Member", null);
+        Organisation org = organisationService.createOrganisation("Remove Non-Member");
         organisationService.addOwner(org.getId(), owner1);
         organisationService.addOwner(org.getId(), owner2);
 
@@ -184,7 +174,7 @@ public class OrganisationServiceTest {
     @Test
     public void testGetRolesForAccount_ownerAndMember() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Roles Org Owner+Member", null);
+        Organisation org = organisationService.createOrganisation("Roles Org Owner+Member");
         organisationService.addOwner(org.getId(), accountId);
         organisationService.addMember(org.getId(), accountId);
 
@@ -198,7 +188,7 @@ public class OrganisationServiceTest {
     @Test
     public void testGetRolesForAccount_memberOnly() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Roles Org Member Only", null);
+        Organisation org = organisationService.createOrganisation("Roles Org Member Only");
         organisationService.addMember(org.getId(), accountId);
 
         List<String> roles = organisationService.getRolesForAccount(org.getId(), accountId);
@@ -210,7 +200,7 @@ public class OrganisationServiceTest {
     @Test
     public void testGetRolesForAccount_noMembership_returnsEmpty() {
         String accountId = createTestAccount();
-        Organisation org = organisationService.createOrganisation("Roles Org No Member", null);
+        Organisation org = organisationService.createOrganisation("Roles Org No Member");
 
         List<String> roles = organisationService.getRolesForAccount(org.getId(), accountId);
 
@@ -222,9 +212,9 @@ public class OrganisationServiceTest {
         String accountId = createTestAccount();
         String ownerOnlyAccountId = createTestAccount();
 
-        Organisation orgA = organisationService.createOrganisation("Org A for list", null);
-        Organisation orgB = organisationService.createOrganisation("Org B for list", null);
-        Organisation orgC = organisationService.createOrganisation("Org C not member", null);
+        Organisation orgA = organisationService.createOrganisation("Org A for list");
+        Organisation orgB = organisationService.createOrganisation("Org B for list");
+        Organisation orgC = organisationService.createOrganisation("Org C not member");
 
         organisationService.addMember(orgA.getId(), accountId);
         organisationService.addMember(orgB.getId(), accountId);

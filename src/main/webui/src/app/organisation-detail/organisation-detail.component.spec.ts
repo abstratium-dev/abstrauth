@@ -17,7 +17,6 @@ describe('OrganisationDetailComponent', () => {
   const mockOrg: Organisation = {
     id: 'org-1',
     name: 'Acme Corp',
-    createdByAccountId: 'account-1',
     createdAt: '2024-01-01T00:00:00',
     roles: ['owner', 'member']
   };
@@ -25,7 +24,6 @@ describe('OrganisationDetailComponent', () => {
   const mockMemberOrg: Organisation = {
     id: 'org-2',
     name: 'Globex Inc',
-    createdByAccountId: 'account-2',
     createdAt: '2024-02-01T00:00:00',
     roles: ['member']
   };

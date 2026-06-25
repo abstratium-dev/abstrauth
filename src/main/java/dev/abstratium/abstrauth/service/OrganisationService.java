@@ -20,10 +20,9 @@ public class OrganisationService {
     EntityManager em;
 
     @Transactional
-    public Organisation createOrganisation(String name, String createdByAccountId) {
+    public Organisation createOrganisation(String name) {
         Organisation org = new Organisation();
         org.setName(name);
-        org.setCreatedByAccountId(createdByAccountId);
         em.persist(org);
         // Flush the new organisation row so that subsequent inserts into dependent
         // tables (T_organisation_accounts, etc.) find the FK target. Without this,
@@ -35,14 +34,6 @@ public class OrganisationService {
 
     public Optional<Organisation> findById(String orgId) {
         return Optional.ofNullable(em.find(Organisation.class, orgId));
-    }
-
-    @Transactional
-    public void updateCreatedBy(String orgId, String accountId) {
-        Organisation org = em.find(Organisation.class, orgId);
-        if (org != null && org.getCreatedByAccountId() == null) {
-            org.setCreatedByAccountId(accountId);
-        }
     }
 
     @Transactional

@@ -157,8 +157,8 @@ public class AuditHistoryServiceTest {
         // so Envers didn't fire. We need to update it to create an audit trail.
         transactionHelper.beginTransaction();
         em.createNativeQuery(
-                "INSERT INTO T_organisations_AUD (id, REV, REVTYPE, name, created_by_account_id, created_at) " +
-                "SELECT :orgId, r.REV, 0, 'Default Test Org', NULL, CURRENT_TIMESTAMP " +
+                "INSERT INTO T_organisations_AUD (id, REV, REVTYPE, name, created_at) " +
+                "SELECT :orgId, r.REV, 0, 'Default Test Org', CURRENT_TIMESTAMP " +
                 "FROM REVINFO r ORDER BY r.REV DESC LIMIT 1")
             .setParameter("orgId", orgId)
             .executeUpdate();

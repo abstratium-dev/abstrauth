@@ -96,7 +96,7 @@ public class AccountService {
             if (organisationName == null || organisationName.isBlank()) {
                 organisationName = name + "'s Organisation";
             }
-            Organisation org = organisationService.createOrganisation(organisationName, account.getId());
+            Organisation org = organisationService.createOrganisation(organisationName);
             orgId = org.getId();
         }
         organisationService.addOwner(orgId, account.getId());
@@ -132,7 +132,7 @@ public class AccountService {
         if (!isFirstAccount) {
             // For federated signups without invite, auto-generate org name from email
             String organisationName = email + "'s Organisation";
-            Organisation org = organisationService.createOrganisation(organisationName, account.getId());
+            Organisation org = organisationService.createOrganisation(organisationName);
             orgId = org.getId();
         } // else: First account uses the existing default organisation from migration
         organisationService.addOwner(orgId, account.getId());
@@ -185,10 +185,9 @@ public class AccountService {
         // since adding roles happens long after creating the account
         boolean isFirstAccount = countAccounts() == 1;
 
-        // First account also gets admin roles, and is recorded as the creator of the default org
+        // First account also gets admin roles
         if (isFirstAccount) {
             nonMultitenancyAccountRoleService.addRole(orgId, account.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
-            organisationService.updateCreatedBy(orgId, account.getId());
         }
 
         // All accounts get the "user" role for abstrauth, so that they can actually use it.

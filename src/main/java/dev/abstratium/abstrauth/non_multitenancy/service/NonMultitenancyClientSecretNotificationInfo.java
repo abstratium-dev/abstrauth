@@ -13,7 +13,6 @@ public record NonMultitenancyClientSecretNotificationInfo(
     String clientName,
     String description,
     Instant expiresAt,
-    String accountId,
     String orgId
 ) {
 }

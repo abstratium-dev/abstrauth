@@ -71,7 +71,7 @@ public class NonMultitenancyAuthorizationServiceTest {
         createClientWithFlags(clientId, true, true);
         // Must use a real org: T_subscriptions has FK on org_id
         transactionHelper.beginTransaction();
-        Organisation org = organisationService.createOrganisation("AutoSub Org " + System.nanoTime(), null);
+        Organisation org = organisationService.createOrganisation("AutoSub Org " + System.nanoTime());
         transactionHelper.commitTransaction();
         String orgId = org.getId();
 
@@ -111,7 +111,7 @@ public class NonMultitenancyAuthorizationServiceTest {
         createClientWithFlags(clientId, false, false);
         // Must use a real org and commit subscription before calling checkSubscription
         transactionHelper.beginTransaction();
-        Organisation org = organisationService.createOrganisation("AlreadySub Org " + System.nanoTime(), null);
+        Organisation org = organisationService.createOrganisation("AlreadySub Org " + System.nanoTime());
         String orgId = org.getId();
         NonMultitenancySubscription sub = new NonMultitenancySubscription();
         sub.setOrgId(orgId);

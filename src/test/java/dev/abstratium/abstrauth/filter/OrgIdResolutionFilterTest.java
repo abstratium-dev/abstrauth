@@ -70,7 +70,7 @@ public class OrgIdResolutionFilterTest {
         String orgO1Id = organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
 
         // Create a second organisation O2 and add the same account as a member
-        var orgO2 = organisationService.createOrganisation("Org Two " + ts, account.getId());
+        var orgO2 = organisationService.createOrganisation("Org Two " + ts);
         String orgO2Id = orgO2.getId();
         organisationService.addMember(orgO2Id, account.getId());
 

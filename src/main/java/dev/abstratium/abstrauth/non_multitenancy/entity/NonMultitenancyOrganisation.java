@@ -22,9 +22,6 @@ public class NonMultitenancyOrganisation {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "created_by_account_id", length = 36)
-    private String createdByAccountId;
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -73,14 +70,6 @@ public class NonMultitenancyOrganisation {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getCreatedByAccountId() {
-        return createdByAccountId;
-    }
-
-    public void setCreatedByAccountId(String createdByAccountId) {
-        this.createdByAccountId = createdByAccountId;
     }
 
     public LocalDateTime getCreatedAt() {

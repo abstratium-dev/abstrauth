@@ -10,7 +10,6 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientSecret;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
 import io.quarkus.test.junit.QuarkusTest;
@@ -31,7 +30,6 @@ public class NonMultitenancyClientSecretServiceTest {
     EntityManager em;
 
     private String clientId;
-    private String accountId;
 
     @BeforeEach
     @Transactional
@@ -41,13 +39,6 @@ public class NonMultitenancyClientSecretServiceTest {
         // Clean up any leftover test data across all tenants
         em.createQuery("DELETE FROM NonMultitenancyClientSecret WHERE clientId = :clientId").setParameter("clientId", clientId).executeUpdate();
         em.createQuery("DELETE FROM NonMultitenancyOAuthClient WHERE clientId = :clientId").setParameter("clientId", clientId).executeUpdate();
-        em.createQuery("DELETE FROM NonMultitenancyAccount WHERE email = :email").setParameter("email", "client-secret-test@example.com").executeUpdate();
-
-        NonMultitenancyAccount account = new NonMultitenancyAccount();
-        account.setEmail("client-secret-test@example.com");
-        account.setName("Test Account");
-        em.persist(account);
-        accountId = account.getId();
 
         NonMultitenancyOAuthClient client = new NonMultitenancyOAuthClient();
         client.setClientId(clientId);
@@ -136,7 +127,6 @@ public class NonMultitenancyClientSecretServiceTest {
         secret.setDescription("Test secret");
         secret.setActive(true);
         secret.setExpiresAt(expiresAt);
-        secret.setAccountId(accountId);
         secret.setFirstWarningSentAt(firstWarningSentAt);
         secret.setFinalWarningSentAt(finalWarningSentAt);
         secret.setExpiredNoticeSentAt(expiredNoticeSentAt);
