@@ -35,6 +35,15 @@ public class ClientSecret {
     @Column(name = "account_id")
     private String accountId;
 
+    @Column(name = "first_warning_sent_at")
+    private Instant firstWarningSentAt;
+
+    @Column(name = "final_warning_sent_at")
+    private Instant finalWarningSentAt;
+
+    @Column(name = "expired_notice_sent_at")
+    private Instant expiredNoticeSentAt;
+
     @TenantId
     @Column(name = "org_id", length = 36)
     private String orgId;
@@ -102,6 +111,30 @@ public class ClientSecret {
     
     public void setAccountId(String accountId) {
         this.accountId = accountId;
+    }
+
+    public Instant getFirstWarningSentAt() {
+        return firstWarningSentAt;
+    }
+
+    public void setFirstWarningSentAt(Instant firstWarningSentAt) {
+        this.firstWarningSentAt = firstWarningSentAt;
+    }
+
+    public Instant getFinalWarningSentAt() {
+        return finalWarningSentAt;
+    }
+
+    public void setFinalWarningSentAt(Instant finalWarningSentAt) {
+        this.finalWarningSentAt = finalWarningSentAt;
+    }
+
+    public Instant getExpiredNoticeSentAt() {
+        return expiredNoticeSentAt;
+    }
+
+    public void setExpiredNoticeSentAt(Instant expiredNoticeSentAt) {
+        this.expiredNoticeSentAt = expiredNoticeSentAt;
     }
 
     public String getOrgId() {

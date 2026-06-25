@@ -198,7 +198,7 @@ public class ApiCsrfFilter implements ContainerRequestFilter {
             return constantTimeEquals(receivedHmac, expectedHmac);
             
         } catch (Exception e) {
-            LOG.error("Error verifying HMAC signature", e);
+            securityProblemLogger.warnf("Error verifying CSRF HMAC signature: %s", e.getMessage());
             return false;
         }
     }

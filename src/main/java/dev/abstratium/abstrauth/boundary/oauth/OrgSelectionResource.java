@@ -5,8 +5,6 @@ import java.util.stream.Collectors;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.logging.Logger;
-
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import static dev.abstratium.abstrauth.entity.AuthorizationRequest.SESSION_COOKIE_NAME;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
@@ -15,6 +13,7 @@ import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthoriz
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.NoSubscriptionException;
+import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -25,6 +24,8 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
@@ -41,7 +42,8 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "Org Selection", description = "Organisation selection during OAuth sign-in")
 public class OrgSelectionResource {
 
-    private static final Logger log = Logger.getLogger(OrgSelectionResource.class);
+    @Inject
+    SecurityProblemLogger securityProblemLogger;
 
     @Inject
     AuthorizationService authorizationService;
@@ -99,7 +101,8 @@ public class OrgSelectionResource {
     public Response selectOrg(
             @FormParam("request_id") String requestId,
             @FormParam("org_id") String orgId,
-            @CookieParam(SESSION_COOKIE_NAME) String sessionAccountId) {
+            @CookieParam(SESSION_COOKIE_NAME) String sessionAccountId,
+            @Context ContainerRequestContext requestContext) {
 
         if (requestId == null || requestId.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -123,7 +126,7 @@ public class OrgSelectionResource {
 
         // Verify session cookie exists
         if (sessionAccountId == null || sessionAccountId.isBlank()) {
-            log.warn("Org selection attempted without session cookie for request " + requestId);
+            securityProblemLogger.warnfNoAuth(requestContext, "Org selection attempted without session cookie for request %s", requestId);
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(new ErrorResponse("Session cookie required"))
                     .build();
@@ -139,7 +142,7 @@ public class OrgSelectionResource {
 
         // Verify the caller is a member of the chosen org (prevents choosing arbitrary orgs)
         if (!organisationService.isMember(orgId, accountId)) {
-            log.warn("Account " + accountId + " attempted to select org " + orgId + " but is not a member");
+            securityProblemLogger.warnfNoAuth(requestContext, "Account %s attempted to select org %s but is not a member", accountId, orgId);
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(new ErrorResponse("You are not a member of the selected organisation"))
                     .build();
@@ -148,7 +151,7 @@ public class OrgSelectionResource {
         try {
             nonMultitenancyAuthorizationService.checkSubscription(orgId, authRequest.getClientId());
         } catch (NoSubscriptionException e) {
-            log.warn("Organisation " + orgId + " has no subscription to client " + authRequest.getClientId());
+            securityProblemLogger.warnfNoAuth(requestContext, "Organisation %s has no subscription to client %s", orgId, authRequest.getClientId());
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(new ErrorResponse("Your organisation is not subscribed to this application. Please contact your administrator."))
                     .build();
@@ -157,7 +160,7 @@ public class OrgSelectionResource {
         try {
             authorizationService.selectOrg(requestId, orgId, sessionAccountId);
         } catch (IllegalArgumentException e) {
-            log.warn("Session fixation guard rejected for request " + requestId + ": " + e.getMessage());
+            securityProblemLogger.warnfNoAuth(requestContext, "Session fixation guard rejected for request %s: %s", requestId, e.getMessage());
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(new ErrorResponse("Session mismatch: authentication required"))
                     .build();

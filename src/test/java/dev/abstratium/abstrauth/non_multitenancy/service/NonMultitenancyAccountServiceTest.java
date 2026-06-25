@@ -114,6 +114,15 @@ public class NonMultitenancyAccountServiceTest {
         // Verify it's deleted using regular service
         Optional<Account> notFound = accountService.findById(accountId);
         assertFalse(notFound.isPresent(), "Account should be deleted");
+
+        // Verify associated organisation accounts are deleted via JPA cascade
+        transactionHelper.beginTransaction();
+        long orgAccountCount = em.createQuery(
+                "SELECT COUNT(oa) FROM NonMultitenancyOrganisationAccount oa WHERE oa.id.accountId = :accountId", Long.class)
+                .setParameter("accountId", accountId)
+                .getSingleResult();
+        transactionHelper.commitTransaction();
+        assertEquals(0, orgAccountCount, "Organisation accounts should be deleted via JPA cascade");
     }
 
     @Test

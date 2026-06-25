@@ -41,7 +41,7 @@ import jakarta.transaction.UserTransaction;
  * Integration tests for the RFC 8693 Token Exchange endpoint (POST /oauth2/token/exchange).
  */
 @QuarkusTest
-public class TokenExchangeResourceTest {
+public class NonMultitenancyTokenExchangeResourceTest {
 
     private static final String GRANT_TYPE = "urn:ietf:params:oauth:grant-type:token-exchange";
     private static final String TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";

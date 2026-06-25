@@ -58,9 +58,9 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/oauth2/token/exchange")
 @Tag(name = "OAuth 2.0 Token Exchange", description = "RFC 8693 Token Exchange")
-public class TokenExchangeResource {
+public class NonMultitenancyTokenExchangeResource {
 
-    private static final Logger log = Logger.getLogger(TokenExchangeResource.class);
+    private static final Logger log = Logger.getLogger(NonMultitenancyTokenExchangeResource.class);
 
     private static final String GRANT_TYPE_TOKEN_EXCHANGE = "urn:ietf:params:oauth:grant-type:token-exchange";
     private static final String TOKEN_TYPE_ACCESS_TOKEN = "urn:ietf:params:oauth:token-type:access_token";

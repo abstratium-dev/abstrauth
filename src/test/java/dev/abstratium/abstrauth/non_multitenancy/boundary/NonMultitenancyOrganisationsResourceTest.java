@@ -186,6 +186,11 @@ public class NonMultitenancyOrganisationsResourceTest {
             "SELECT COUNT(c) FROM NonMultitenancyOAuthClient c WHERE c.orgId = :orgId", Long.class)
             .setParameter("orgId", orgId).getSingleResult();
         assertEquals(1, clientsBefore, "Client should exist before deletion");
+
+        long orgAccountsBefore = em.createQuery(
+            "SELECT COUNT(oa) FROM NonMultitenancyOrganisationAccount oa WHERE oa.id.orgId = :orgId", Long.class)
+            .setParameter("orgId", orgId).getSingleResult();
+        assertTrue(orgAccountsBefore > 0, "Organisation accounts should exist before deletion");
         transactionHelper.commitTransaction();
 
         given()
@@ -209,7 +214,16 @@ public class NonMultitenancyOrganisationsResourceTest {
             "SELECT COUNT(c) FROM NonMultitenancyOAuthClient c WHERE c.orgId = :orgId", Long.class)
             .setParameter("orgId", orgId).getSingleResult();
         assertEquals(0, clientsAfter, "Clients should be cascade-deleted");
+
+        long orgAccountsAfter = em.createQuery(
+            "SELECT COUNT(oa) FROM NonMultitenancyOrganisationAccount oa WHERE oa.id.orgId = :orgId", Long.class)
+            .setParameter("orgId", orgId).getSingleResult();
+        assertEquals(0, orgAccountsAfter, "Organisation accounts should be cascade-deleted");
         transactionHelper.commitTransaction();
+
+        // Account itself must remain because the DB cascade on account_id was removed
+        assertTrue(accountService.findById(admin.getId()).isPresent(),
+                "Account should not be deleted when organisation is deleted");
     }
 
     @Test

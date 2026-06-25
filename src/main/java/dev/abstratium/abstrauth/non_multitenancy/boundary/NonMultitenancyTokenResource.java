@@ -62,7 +62,7 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/oauth2/token")
 @Tag(name = "OAuth 2.0 Token", description = "OAuth 2.0 Token management endpoints")
-public class TokenResource {
+public class NonMultitenancyTokenResource {
 
     @Inject
     AuthorizationService authorizationService;

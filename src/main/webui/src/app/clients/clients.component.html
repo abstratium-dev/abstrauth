@@ -399,10 +399,12 @@
               </div>
 
               <div *ngIf="!secretsLoading && clientSecrets.length > 0" class="secrets-list">
-                <div *ngFor="let secret of clientSecrets" class="secret-card" 
+                <div *ngFor="let secret of clientSecrets" class="secret-card"
+                     [attr.data-secret-id]="secret.id"
                      [class.secret-expired]="isSecretExpired(secret)"
                      [class.secret-expiring]="isSecretExpiringSoon(secret)"
-                     [class.secret-inactive]="!secret.active">
+                     [class.secret-inactive]="!secret.active"
+                     [class.highlighted]="highlightedSecretId === secret.id">
                   <div class="secret-header">
                     <div class="secret-info">
                       <strong>{{ secret.description }}</strong>

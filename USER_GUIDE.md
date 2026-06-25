@@ -655,7 +655,7 @@ _Replace all `TODO_...` values with the values generated above.
      -e OAUTH_GOOGLE_CLIENT_ID="TODO_YOUR_GOOGLE_CLIENT_ID" \
      -e OAUTH_GOOGLE_CLIENT_SECRET="TODO_YOUR_GOOGLE_CLIENT_SECRET" \
      -e ALLOW_SIGNUP="TODO_TRUE_OR_FALSE" \
-     -e SERVER_BASE_URL="https://auth.yourdomain.com" \
+     -e ABSTRAUTH_BASE_URL="https://auth.yourdomain.com" \
      -e PASSWORD_PEPPER="TODO_YOUR_PASSWORD_PEPPER" \
      -e QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME="TODO_TRUE_IF_BEHIND_REVERSE_PROXY_WHICH_ENDS_TLS_TUNNEL" \
      -e ABSTRA_BRAND_LOGO_URL="https://your-company.com/logo.svg" \
@@ -675,6 +675,7 @@ _Replace all `TODO_...` values with the values generated above.
    - `CSRF_TOKEN_SIGNATURE_KEY`: HMAC signature key for CSRF tokens (min 32 chars, generate with `openssl rand -base64 64 | tr -d '\n'`)
    - `STAGE`: Deployment stage identifier exposed to the frontend (e.g., "dev", "test", "prod", defaults to "dev")
    - `DEFAULT_ORG_UUID`: UUID for the default organisation that existing data is migrated into (generate with `uuidgen`)
+   - `ABSTRAUTH_BASE_URL`: Public base URL of the Abstrauth™ deployment (e.g., `https://auth.yourdomain.com`). Used for links in emails such as secret expiration notifications. Must be set per stage; production has no default.
 
    **Optional Environment Variables:**
    - `OAUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID (required only for "Sign in with Google")
@@ -690,6 +691,7 @@ _Replace all `TODO_...` values with the values generated above.
    - `QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME`: set to true if Abstrauth™ runs behind a reverse proxy that terminates TLS
    - `ALLOW_NATIVE_SIGNIN`: if true, users can sign in with email & password, otherwise they can only sign in  (default: `true`)
    - `ABSTRAUTH_EMAIL_ENABLED`: Enable/disable email notifications (default: `false` in dev, `true` in prod)
+   - `SECRET_EXPIRATION_NOTIFICATION_CRON`: Cron expression for the secret expiration notification job (default: `0 0 6 * * ?`, i.e., 06:00 UTC daily). Use standard Quartz cron syntax.
    - `SMTP_HOST`: SMTP server hostname
    - `SMTP_PORT`: SMTP server port (default: `587`)
    - `SMTP_USERNAME`: SMTP authentication username

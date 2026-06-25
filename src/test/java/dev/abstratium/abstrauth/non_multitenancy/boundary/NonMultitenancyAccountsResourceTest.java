@@ -169,6 +169,12 @@ public class NonMultitenancyAccountsResourceTest {
         var fedQuery = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
         fedQuery.setParameter("accountId", accountId);
         assertEquals(1, fedQuery.getResultList().size());
+
+        var orgAccountQuery = em.createQuery(
+                "SELECT oa FROM NonMultitenancyOrganisationAccount oa WHERE oa.id.accountId = :accountId",
+                dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOrganisationAccount.class);
+        orgAccountQuery.setParameter("accountId", accountId);
+        assertEquals(1, orgAccountQuery.getResultList().size(), "Account should be a member of the default org");
         transactionHelper.commitTransaction();
 
         // Delete the account
@@ -195,6 +201,12 @@ public class NonMultitenancyAccountsResourceTest {
         var fedQueryAfter = em.createQuery("SELECT f FROM FederatedIdentity f WHERE f.accountId = :accountId", dev.abstratium.abstrauth.entity.FederatedIdentity.class);
         fedQueryAfter.setParameter("accountId", accountId);
         assertTrue(fedQueryAfter.getResultList().isEmpty(), "Federated identities should be deleted via CASCADE DELETE");
+
+        var orgAccountQueryAfter = em.createQuery(
+                "SELECT oa FROM NonMultitenancyOrganisationAccount oa WHERE oa.id.accountId = :accountId",
+                dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOrganisationAccount.class);
+        orgAccountQueryAfter.setParameter("accountId", accountId);
+        assertTrue(orgAccountQueryAfter.getResultList().isEmpty(), "Organisation accounts should be deleted via JPA cascade");
         transactionHelper.commitTransaction();
     }
 

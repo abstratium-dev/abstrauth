@@ -4,6 +4,20 @@
 
 The AbsrAuth OAuth 2.0 Authorization Server uses a relational database model supporting the Authorization Code Flow with PKCE. The schema works with both MySQL and H2 and follows a strict naming convention: tables prefixed with `T_`, foreign keys with `FK_`, and indices with `I_`.
 
+## Cascade Delete Strategy
+
+Cascade deletes are handled at the **JPA level** for all audited, non-transient tables so that Hibernate Envers lifecycle events (`@PreRemove`, `@PostRemove`) are fired and audit history is preserved. The following migrations removed the original database-level `ON DELETE CASCADE` constraints in favour of JPA `CascadeType.REMOVE`:
+
+- `V01.035__replace_cascade_delete_with_jpa_cascade.sql` — credentials, account roles, federated identities, client secrets, client allowed roles, client roles, subscriptions.
+- `V01.038__replace_org_accounts_db_cascade_with_jpa.sql` — `T_organisation_accounts.org_id`.
+- `V01.041__replace_org_accounts_account_db_cascade_with_jpa.sql` — `T_organisation_accounts.account_id`.
+
+The only remaining database-level `ON DELETE CASCADE` constraints are on the **transient OAuth2 session tables**, which carry no audit value and are cleaned up by the application independent of parent deletions:
+
+- `T_authorization_requests` → `T_accounts`, `T_oauth_clients`
+- `T_authorization_codes` → `T_authorization_requests`, `T_accounts`, `T_oauth_clients`
+- `T_revoked_tokens` → `T_authorization_codes`
+
 ## Entity Relationship Diagram
 
 ```mermaid
@@ -388,12 +402,13 @@ Membership of accounts in organisations.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| org_id | VARCHAR(36) | NOT NULL, FK | T_organisations CASCADE |
-| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts CASCADE |
+| org_id | VARCHAR(36) | NOT NULL, FK | T_organisations (JPA cascade) |
+| account_id | VARCHAR(36) | NOT NULL, FK | T_accounts (JPA cascade) |
 | role | VARCHAR(50) | NOT NULL | member/owner/etc |
 | added_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | |
 
 **PK:** (org_id, account_id, role)
+**Cascade Behavior:** Deleting an organisation or an account removes the associated membership rows via JPA `CascadeType.REMOVE` (not DB-level cascade). See [Cascade Delete Strategy](#cascade-delete-strategy).
 **Indexes:** `I_org_accounts_org`, `I_org_accounts_account`, `I_org_accounts_account_role` (account_id, role, org_id), `I_org_accounts_org_role` (org_id, role, account_id)
 
 ### T_subscriptions

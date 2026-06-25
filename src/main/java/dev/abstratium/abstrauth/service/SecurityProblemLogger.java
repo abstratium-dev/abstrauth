@@ -41,4 +41,32 @@ public class SecurityProblemLogger {
 
         log.warn(msg);
     }
+
+    public void warnfNoAuth(ContainerRequestContext ctx, String format, Object... args) {
+
+        String path = ctx.getUriInfo().getPath();
+        String method = ctx.getMethod();
+
+        String formatted = String.format(format, args);
+        String msg = String.format(
+            "SECURITY-PROBLEM for method '%s' on path '%s' (unauthenticated) and IP '%s'. Problem is: %s",
+            method,
+            path,
+            ClientIpUtil.getClientIp(ctx),
+            formatted
+        );
+
+        log.warn(msg);
+    }
+
+    public void warnfNoContext(String format, Object... args) {
+
+        String formatted = String.format(format, args);
+        String msg = String.format(
+            "SECURITY-PROBLEM (no request context). Problem is: %s",
+            formatted
+        );
+
+        log.warn(msg);
+    }
 }

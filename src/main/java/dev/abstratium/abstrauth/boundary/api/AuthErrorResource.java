@@ -1,5 +1,6 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.vertx.core.http.HttpServerRequest;
 import jakarta.annotation.security.PermitAll;
@@ -7,12 +8,12 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.logging.Logger;
 
 /**
  * Resource for handling OIDC authentication errors.
@@ -22,7 +23,8 @@ import org.jboss.logging.Logger;
 @Tag(name = "Authentication", description = "Authentication error handling")
 public class AuthErrorResource {
 
-    private static final Logger LOG = Logger.getLogger(AuthErrorResource.class);
+    @Inject
+    SecurityProblemLogger securityProblemLogger;
 
     @Inject
     SecurityIdentity securityIdentity;
@@ -32,12 +34,12 @@ public class AuthErrorResource {
     @Produces(MediaType.TEXT_HTML)
     @Operation(summary = "Handle OIDC authentication errors", 
                description = "Displays authentication errors from the OIDC flow")
-    public Response handleAuthError(@Context HttpServerRequest request) {
+    public Response handleAuthError(@Context HttpServerRequest request, @Context ContainerRequestContext requestContext) {
         String error = request.getParam("error");
         String errorDescription = request.getParam("error_description");
         String state = request.getParam("state");
 
-        LOG.warnf("OIDC authentication error: error=%s, description=%s, state=%s", 
+        securityProblemLogger.warnfNoAuth(requestContext, "OIDC authentication error: error=%s, description=%s, state=%s",
                   error, errorDescription, state);
 
         // Build a user-friendly error page

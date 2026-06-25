@@ -33,7 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
  * Tests for Feature 9: Emit orgId in JWT + Verify Membership + Seed Roles
  */
 @QuarkusTest
-public class TokenResourceOrgIdTest {
+public class NonMultitenancyTokenResourceOrgIdTest {
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD";

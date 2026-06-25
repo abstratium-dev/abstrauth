@@ -70,7 +70,8 @@ public class AuditHistoryService {
         client_secret(
             "T_oauth_client_secrets_AUD",
             "id",
-            new String[]{"id", "client_id", "created_at", "expires_at", "is_active", "description", "account_id", "org_id"},
+            new String[]{"id", "client_id", "created_at", "expires_at", "is_active", "description", "account_id", "org_id",
+                         "first_warning_sent_at", "final_warning_sent_at", "expired_notice_sent_at"},
             OrgFilterStrategy.DIRECT_ORG_ID,
             Roles.MANAGE_CLIENTS
         ),

@@ -36,7 +36,7 @@ public class NonMultitenancyAccountService {
 
     /**
      * Delete an account and all its related entities (credentials, federated identities,
-     * and account roles) across ALL organisations using JPA cascade.
+     * account roles, and organisation accounts) across ALL organisations using JPA cascade.
      *
      * This uses NonMultitenancyAccount which has CascadeType.REMOVE on all
      * related collections, ensuring complete deletion regardless of org_id.

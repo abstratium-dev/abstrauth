@@ -4,6 +4,7 @@ import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -33,6 +34,9 @@ import java.util.Optional;
 public class OAuthApprovalResource {
 
     private static final Logger log = Logger.getLogger(OAuthApprovalResource.class);
+
+    @Inject
+    SecurityProblemLogger securityProblemLogger;
 
     @Inject
     SecurityIdentity securityIdentity;
@@ -110,9 +114,7 @@ public class OAuthApprovalResource {
                 .anyMatch(role -> role.getClientId().equals(authRequest.getClientId()));
 
         if (!hasRoleForClient) {
-            String clientIp = ClientIpUtil.getClientIp(requestContext);
-            log.warn("User " + account.getEmail() + " attempted to authorize for client " + authRequest.getClientId() + 
-                    " but has no roles for this client - IP " + clientIp);
+            securityProblemLogger.warnfNoAuth(requestContext, "User %s attempted to authorize for client %s but has no roles for this client", account.getEmail(), authRequest.getClientId());
             return Response.status(Response.Status.FORBIDDEN)
                     .entity("You do not have any roles for this application. Please contact your administrator.")
                     .build();

@@ -1,5 +1,6 @@
 package dev.abstratium.abstrauth.filter;
 
+import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
@@ -9,7 +10,6 @@ import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
-import org.jboss.logging.Logger;
 
 import java.io.IOException;
 import java.util.Base64;
@@ -24,7 +24,8 @@ import java.util.Base64;
 @Priority(Priorities.AUTHORIZATION - 1)
 public class TokenRevocationFilter implements ContainerRequestFilter {
 
-    private static final Logger logger = Logger.getLogger(TokenRevocationFilter.class);
+    @Inject
+    SecurityProblemLogger securityProblemLogger;
 
     @Inject
     TokenRevocationService tokenRevocationService;
@@ -43,18 +44,17 @@ public class TokenRevocationFilter implements ContainerRequestFilter {
         String token = authHeader.substring(7);
         
         // Extract JTI from JWT payload
-        String jti = extractJtiFromToken(token);
+        String jti = extractJtiFromToken(token, requestContext);
         
         if (jti == null || jti.isBlank()) {
             // Tokens without JTI cannot be revoked individually
             // This is acceptable for tokens issued before the revocation system was implemented
-            logger.debug("JWT does not contain JTI claim, skipping revocation check");
             return;
         }
 
         // Check if the token has been revoked
         if (tokenRevocationService.isTokenRevoked(jti)) {
-            logger.warn("SECURITY: Attempt to use revoked token with JTI: " + jti);
+            securityProblemLogger.warnfNoAuth(requestContext, "Attempt to use revoked token with JTI: %s", jti);
             
             requestContext.abortWith(
                 Response.status(Response.Status.UNAUTHORIZED)
@@ -71,12 +71,12 @@ public class TokenRevocationFilter implements ContainerRequestFilter {
      * @param token The JWT token string
      * @return The JTI value, or null if not found
      */
-    private String extractJtiFromToken(String token) {
+    private String extractJtiFromToken(String token, ContainerRequestContext requestContext) {
         try {
             // JWT format: header.payload.signature
             String[] parts = token.split("\\.");
             if (parts.length != 3) {
-                logger.warn("Invalid JWT format");
+                securityProblemLogger.warnfNoAuth(requestContext, "Invalid JWT format in Authorization header");
                 return null;
             }
 
@@ -99,7 +99,7 @@ public class TokenRevocationFilter implements ContainerRequestFilter {
             
             return payload.substring(jtiStart, jtiEnd);
         } catch (Exception e) {
-            logger.error("Error extracting JTI from token", e);
+            securityProblemLogger.warnfNoAuth(requestContext, "Error extracting JTI from token: %s", e.getMessage());
             return null;
         }
     }

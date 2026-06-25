@@ -1,13 +1,12 @@
 package dev.abstratium.abstrauth.service;
 
+import java.util.List;
+
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-
-import java.time.Instant;
-import java.util.List;
 
 /**
  * Service for managing client secrets.
@@ -58,18 +57,6 @@ public class ClientSecretService {
             Long.class);
         query.setParameter("clientId", clientId);
         return query.getSingleResult();
-    }
-    
-    /**
-     * Find all expired secrets that are still marked as active.
-     * Used for cleanup jobs.
-     */
-    public List<ClientSecret> findExpiredSecrets(Instant now) {
-        var query = em.createQuery(
-            "SELECT cs FROM ClientSecret cs WHERE cs.expiresAt IS NOT NULL AND cs.expiresAt < :now AND cs.active = true", 
-            ClientSecret.class);
-        query.setParameter("now", now);
-        return query.getResultList();
     }
     
     /**

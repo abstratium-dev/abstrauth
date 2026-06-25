@@ -1,5 +1,6 @@
 package dev.abstratium.abstrauth.filter;
 
+import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
@@ -31,6 +32,9 @@ public class ApiCsrfTokenGenerator implements ContainerResponseFilter {
     
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     
+    @Inject
+    SecurityProblemLogger securityProblemLogger;
+
     @Inject
     SecurityIdentity securityIdentity;
     
@@ -78,7 +82,7 @@ public class ApiCsrfTokenGenerator implements ContainerResponseFilter {
         try {
             token = csrfFilter.generateToken(sessionId);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            LOG.error("Failed to generate CSRF token", e);
+            securityProblemLogger.warnfNoAuth(requestContext, "Failed to generate CSRF token: %s", e.getMessage());
             return;
         }
         

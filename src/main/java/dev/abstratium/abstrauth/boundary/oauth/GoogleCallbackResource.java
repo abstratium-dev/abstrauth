@@ -11,6 +11,7 @@ import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.GoogleOAuthService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -40,6 +41,9 @@ import org.jboss.logging.Logger;
 public class GoogleCallbackResource {
 
     private static final Logger log = Logger.getLogger(GoogleCallbackResource.class); 
+
+    @Inject
+    SecurityProblemLogger securityProblemLogger;
 
     @Inject
     GoogleOAuthService googleOAuthService;
@@ -141,7 +145,7 @@ public class GoogleCallbackResource {
                 try {
                     nonMultitenancyAuthorizationService.approveWithSubscriptionCheck(authRequest.getId(), account.getId(), AccountService.GOOGLE, selectedOrgId);
                 } catch (RuntimeException subEx) {
-                    log.warn("Organisation " + selectedOrgId + " has no subscription to client " + authRequest.getClientId());
+                    securityProblemLogger.warnfNoAuth(requestContext, "Organisation %s has no subscription to client %s", selectedOrgId, authRequest.getClientId());
                     return Response.status(Response.Status.FORBIDDEN)
                             .entity("<html><body><h1>Error</h1><p>Your organisation is not subscribed to this application.</p></body></html>")
                             .build();

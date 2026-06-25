@@ -31,6 +31,10 @@ export class ClientsComponent implements OnInit {
   // Deep-link state for opening allowed roles from another page
   private viewAllowedRolesClientId: string | null = null;
 
+  // Deep-link state for opening secrets and highlighting a specific secret
+  private viewSecretsClientId: string | null = null;
+  highlightedSecretId: number | null = null;
+
   // Form state
   showForm = false;
   editingClientId: string | null = null;
@@ -111,6 +115,8 @@ export class ClientsComponent implements OnInit {
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
       this.viewAllowedRolesClientId = params['viewAllowedRoles'] || null;
+      this.viewSecretsClientId = params['viewSecrets'] || null;
+      this.highlightedSecretId = params['highlightSecret'] ? Number(params['highlightSecret']) : null;
     });
     this.loadClients();
   }
@@ -183,10 +189,43 @@ export class ClientsComponent implements OnInit {
     }, 0);
   }
 
+  private checkViewSecrets(): void {
+    if (!this.viewSecretsClientId) {
+      return;
+    }
+    const client = this.filteredClients.find(c => c.clientId === this.viewSecretsClientId);
+    if (!client) {
+      return;
+    }
+    const clientId = this.viewSecretsClientId;
+    const highlightedSecretId = this.highlightedSecretId;
+    this.viewSecretsClientId = null;
+    this.highlightedSecretId = null;
+    setTimeout(async () => {
+      await this.toggleSecretsView(client);
+      if (highlightedSecretId) {
+        setTimeout(() => {
+          const secretCard = document.querySelector(`[data-secret-id="${highlightedSecretId}"]`);
+          if (secretCard) {
+            secretCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      } else {
+        setTimeout(() => {
+          const card = document.querySelector(`[data-client-id="${clientId}"]`);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      }
+    }, 0);
+  }
+
   private applyFilter(): void {
     // Called from effect when clients change
     this.filteredClients = this.clients;
     this.checkViewAllowedRoles();
+    this.checkViewSecrets();
   }
 
   hasManageClientsRole(): boolean {

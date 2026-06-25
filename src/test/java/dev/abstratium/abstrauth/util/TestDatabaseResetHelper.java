@@ -73,7 +73,7 @@ public class TestDatabaseResetHelper {
         em.createNativeQuery("SET REFERENTIAL_INTEGRITY FALSE").executeUpdate();
 
         // Delete in reverse order of dependencies to avoid FK violations.
-        // Most ON DELETE CASCADE constraints were removed in V01.035, so order matters.
+        // Most ON DELETE CASCADE constraints were removed in V01.035, V01.038 and V01.041, so order matters.
 
         // 0. Audit tables — delete all audit data before main table cleanup.
         em.createNativeQuery("DELETE FROM T_accounts_AUD").executeUpdate();

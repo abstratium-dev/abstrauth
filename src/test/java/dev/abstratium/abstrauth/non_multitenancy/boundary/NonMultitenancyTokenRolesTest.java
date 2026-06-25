@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests that verify JWT tokens contain correct groups/roles based on account_roles table
  */
 @QuarkusTest
-public class TokenRolesTest {
+public class NonMultitenancyTokenRolesTest {
 
     @Inject
     AccountService accountService;

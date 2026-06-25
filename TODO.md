@@ -11,20 +11,10 @@
 
 ## Today
 
-- make all tests only reset the db once instead of for all tests.
-
-- DO WE NEED THIS? add a public endpoint where the orgId for a client can be read, so that abstrapact can read it and use it to read products, etc. since the user might be in their own org and are not added to abstratium when they use our services.
-
-
 - when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
+  - search for "You do not have any roles"
 
 - take flows, security design? and multitenancy design and get rid of stuff related to what has already been implemented (primarily in multitenancy design doc) and create a single spec and design document from that.
-
-- use SecurityProblemLogger everywhere that we want to warn about dodgy API usage and set up alerting for that
-
-- X check emails are sent when client secrets are running out -> update 20260511 this isn't implemented. since SecretExpirationNotificationService is empty!!! see SERVICE_TO_SERVICE_AUTH.md which shows a scheduler.
-DO NOT SEND EMAIL TO noreply ACCOUNT AS IT ISN'T FORWARDED AND SHOUDLN'T BE!! 
-SEARCH for all uses of noreply since we shouldn't send emails there as it isnt monitored.
 
 - what is this log? [io.qua.oid.run.OidcRecorder] (vert.x-eventloop-thread-2) [skey:] Session age extension will not be effective because 'quarkus.oidc.token.refresh-expired=true' is not set
 
@@ -38,6 +28,8 @@ SEARCH for all uses of noreply since we shouldn't send emails there as it isnt m
 
 
 ## Tomorrow
+
+- make all tests only reset the db once instead of for all tests.
 
 - need to allow other addresses to call management address 9002 in order to get metrics. need to expose it in docker file? 
 

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -46,6 +47,11 @@ public class Account {
     @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
     @NotAudited
     private List<AccountRole> roles = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
+    private List<OrganisationAccount> organisationAccounts = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
@@ -120,5 +126,13 @@ public class Account {
 
     public void setRoles(List<AccountRole> roles) {
         this.roles = roles;
+    }
+
+    public List<OrganisationAccount> getOrganisationAccounts() {
+        return organisationAccounts;
+    }
+
+    public void setOrganisationAccounts(List<OrganisationAccount> organisationAccounts) {
+        this.organisationAccounts = organisationAccounts;
     }
 }

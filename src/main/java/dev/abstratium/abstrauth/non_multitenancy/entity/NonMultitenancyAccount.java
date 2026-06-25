@@ -50,6 +50,11 @@ public class NonMultitenancyAccount {
     @NotAudited
     private List<NonMultitenancyFederatedIdentity> federatedIdentities = new ArrayList<>();
 
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @JoinColumn(name = "account_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @NotAudited
+    private List<NonMultitenancyOrganisationAccount> organisationAccounts = new ArrayList<>();
+
     @PrePersist
     public void prePersist() {
         if (id == null) {
@@ -139,5 +144,13 @@ public class NonMultitenancyAccount {
 
     public void setFederatedIdentities(List<NonMultitenancyFederatedIdentity> federatedIdentities) {
         this.federatedIdentities = federatedIdentities;
+    }
+
+    public List<NonMultitenancyOrganisationAccount> getOrganisationAccounts() {
+        return organisationAccounts;
+    }
+
+    public void setOrganisationAccounts(List<NonMultitenancyOrganisationAccount> organisationAccounts) {
+        this.organisationAccounts = organisationAccounts;
     }
 }

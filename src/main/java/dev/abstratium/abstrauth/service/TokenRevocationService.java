@@ -19,6 +19,9 @@ public class TokenRevocationService {
     private static final Logger logger = Logger.getLogger(TokenRevocationService.class);
 
     @Inject
+    SecurityProblemLogger securityProblemLogger;
+
+    @Inject
     EntityManager em;
 
     /**
@@ -30,7 +33,7 @@ public class TokenRevocationService {
      */
     @Transactional
     public void revokeTokensByAuthorizationCode(String authCodeId, String reason) {
-        logger.warn("SECURITY: Revoking all tokens for authorization code: " + authCodeId + ", reason: " + reason);
+        securityProblemLogger.warnfNoContext("Revoking all tokens for authorization code: %s, reason: %s", authCodeId, reason);
         
         // Find all tokens issued from this authorization code
         var query = em.createQuery(

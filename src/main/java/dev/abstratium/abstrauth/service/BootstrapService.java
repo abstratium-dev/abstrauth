@@ -19,6 +19,9 @@ public class BootstrapService {
     private static final String DEFAULT_SECRET = "dev-secret-CHANGE-IN-PROD";
     
     @Inject
+    SecurityProblemLogger securityProblemLogger;
+
+    @Inject
     OAuthClientService clientService;
     
     @ConfigProperty(name = "quarkus.oidc.bff.credentials.secret")
@@ -41,12 +44,12 @@ public class BootstrapService {
         try {
             // Validate secret length
             if (clientSecret.length() < MIN_SECRET_LENGTH) {
-                Log.warn("Client secret is too short (" + clientSecret.length() + " < " + MIN_SECRET_LENGTH + " chars). Please use a stronger secret.");
+                securityProblemLogger.warnfNoContext("Client secret is too short (%d < %d chars). Please use a stronger secret.", clientSecret.length(), MIN_SECRET_LENGTH);
             }
             
             // Check if using default secret
             if (DEFAULT_SECRET.equals(clientSecret)) {
-                Log.warn("Using default client secret! Please set ABSTRAUTH_CLIENT_SECRET environment variable to a secure value.");
+                securityProblemLogger.warnfNoContext("Using default client secret! Please set ABSTRAUTH_CLIENT_SECRET environment variable to a secure value.");
             }
             
             // Update the client secret hash using the service

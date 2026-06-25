@@ -32,9 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Tests for TokenResource error paths and edge cases
  */
 @QuarkusTest
-public class TokenResourceTest {
+public class NonMultitenancyTokenResourceTest {
 
-    private static final Logger LOG = Logger.getLogger(TokenResourceTest.class.getName());
+    private static final Logger LOG = Logger.getLogger(NonMultitenancyTokenResourceTest.class.getName());
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
