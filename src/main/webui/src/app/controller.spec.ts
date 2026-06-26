@@ -1098,4 +1098,60 @@ describe('Controller', () => {
     });
   });
 
+  describe('deleteOwnAccount', () => {
+    it('should delete own account successfully', async () => {
+      const promise = controller.deleteOwnAccount();
+
+      const req = httpMock.expectOne('/api/accounts/me');
+      expect(req.request.method).toBe('DELETE');
+      req.flush(null, { status: 204, statusText: 'No Content' });
+
+      await promise;
+    });
+
+    it('should handle 400 error from backend', async () => {
+      const promise = controller.deleteOwnAccount();
+
+      const req = httpMock.expectOne('/api/accounts/me');
+      req.flush({ error: 'Cannot delete the account with the only admin role' }, { status: 400, statusText: 'Bad Request' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(400);
+        expect(err.error.error).toBe('Cannot delete the account with the only admin role');
+      }
+    });
+
+    it('should handle 404 account not found error', async () => {
+      const promise = controller.deleteOwnAccount();
+
+      const req = httpMock.expectOne('/api/accounts/me');
+      req.flush({ error: 'Account not found' }, { status: 404, statusText: 'Not Found' });
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err: any) {
+        expect(err.status).toBe(404);
+        expect(err.error.error).toBe('Account not found');
+      }
+    });
+
+    it('should handle network error', async () => {
+      const promise = controller.deleteOwnAccount();
+
+      const req = httpMock.expectOne('/api/accounts/me');
+      req.error(new ProgressEvent('error'));
+
+      try {
+        await promise;
+        fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
+    });
+  });
+
 });

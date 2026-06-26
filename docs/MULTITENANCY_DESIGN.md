@@ -446,6 +446,7 @@ non_multitenancy/
 | GET | `/api/organisations/{orgId}` | Get organisation by ID | `user` |
 | POST | `/api/organisations` | Create a new organisation | `user` |
 | PUT | `/api/organisations/{orgId}` | Update organisation name | `user` (org `owner`) |
+| DELETE | `/api/organisations/{orgId}` | Delete organisation | `admin` |
 | DELETE | `/api/organisations/{orgId}/members/{accountId}` | Remove a member | `user` (org `owner`) |
 | POST | `/api/organisations/{orgId}/subscriptions` | Subscribe org to a client | `user` (org `owner`) |
 | DELETE | `/api/organisations/{orgId}/subscriptions/{clientId}` | Unsubscribe | `user` (org `owner`) |
@@ -505,6 +506,24 @@ non_multitenancy/
 - **Code Audit**: replace any JPQL/Criteria bulk UPDATE/DELETE on scoped entities with per-row operations
 - **Security**: add `OrgAuthorizationFilter`; restrict `AccountsResource` / `ClientsResource` to current org; prevent removal of last owner; rate-limit `/api/signup`; verify org membership on token refresh; audit global-entity endpoints for cross-org leakage; enforce `T_client_allowed_roles` allowlist server-side on all role assignment paths
 
+## Organisation Deletion
+
+`DELETE /api/organisations/{orgId}` removes an organisation and all of its associated data (account roles, subscriptions, memberships, clients) using a cross-tenant cascade. To prevent accidental data loss and preserve the default landing organisation, the endpoint enforces the following rules:
+
+1. **The default organisation cannot be deleted.** This protects the shared migration organisation (`rename-me`) and the accounts that were originally linked to it.
+2. **A user cannot delete the last organisation they are a member of.** If the caller only belongs to one organisation, deleting it would leave them with no organisation context.
+3. **An organisation with other member accounts cannot be deleted.** Deletion is only allowed when the caller is the only remaining member of the target organisation.
+
+These rules are checked before the cascade delete is executed. The endpoint remains admin-only because the cascade touches data across all organisations.
+
+## Membership Removal
+
+Removing an account from an organisation deletes an `OrganisationAccount` row. Every account must remain a member of at least one organisation, so any removal that would leave an account with no organisation memberships is rejected. This applies to both `owner` and `member` rows. The service layer checks that at least one other `OrganisationAccount` row remains for the account before the target row is removed.
+
+## Organisation Ownership
+
+Every organisation must always have at least one owner. Removing an owner row is rejected if it would leave the organisation with no owners. Account deletion also upholds this invariant: if an account is the sole owner of a multi-member organisation, the deletion is blocked and the user is told to promote another member to owner first. Single-member organisations are still deleted along with the account.
+
 ## Security Considerations
 
 - **No native RLS**: MySQL and H2 do not support Row-Level Security. Isolation is enforced entirely at the application layer.
@@ -527,3 +546,5 @@ non_multitenancy/
 | 6 | How are roles in the JWT determined? | From `AccountRole` rows for the account and clientId combination. On first access those rows are seeded from the client's default roles (`T_client_allowed_roles` where `is_default = true`). |
 | 7 | Can the last owner be removed? | No. The endpoint must reject a demotion that would leave an organisation with no owner. |
 | 8 | Can an org owner grant any role they like? | No. For public clients, role names must appear in `T_client_allowed_roles`. The client owner controls that list. |
+| 9 | Can an account be removed from all organisations? | No. Any operation that deletes an `OrganisationAccount` row must leave the account with at least one remaining organisation membership. |
+| 10 | Can an organisation be left without an owner? | No. Removing an owner row is rejected if it would leave the organisation with no owners. Account deletion flows must also uphold this invariant. |

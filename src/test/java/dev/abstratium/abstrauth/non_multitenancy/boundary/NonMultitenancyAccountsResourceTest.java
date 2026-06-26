@@ -4,6 +4,8 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.FederatedIdentity;
+import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
@@ -74,7 +77,9 @@ public class NonMultitenancyAccountsResourceTest {
         String email = "onlyadmin_api_" + System.currentTimeMillis() + "@example.com";
         Account adminAccount = accountService.createAccountForOrg(email, "Only Admin", "onlyadmin_api_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, defaultOrgId);
         String adminAccountId = adminAccount.getId();
-        accountRoleService.addRole(adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        if (!accountRoleService.findRolesByAccountIdAndClientId(adminAccountId, Roles.CLIENT_ID).contains(Roles._ADMIN_PLAIN)) {
+            accountRoleService.addRole(adminAccountId, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        }
 
         // Create manager account in default org
         String managerEmail = "manager_delacct_" + System.currentTimeMillis() + "@example.com";
@@ -99,11 +104,15 @@ public class NonMultitenancyAccountsResourceTest {
         String email1 = "admin1_delacct_" + System.currentTimeMillis() + "@example.com";
         Account admin1 = accountService.createAccountForOrg(email1, "Admin 1", "admin1_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, testOrgId);
         String admin1Id = admin1.getId();
-        accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        if (!accountRoleService.findRolesByAccountIdAndClientId(admin1Id, Roles.CLIENT_ID).contains(Roles._ADMIN_PLAIN)) {
+            accountRoleService.addRole(admin1Id, Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        }
 
         String email2 = "admin2_delacct_" + System.currentTimeMillis() + "@example.com";
         Account admin2 = accountService.createAccountForOrg(email2, "Admin 2", "admin2_delacct_" + System.currentTimeMillis(), "Pass123", AccountService.NATIVE, testOrgId);
-        accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        if (!accountRoleService.findRolesByAccountIdAndClientId(admin2.getId(), Roles.CLIENT_ID).contains(Roles._ADMIN_PLAIN)) {
+            accountRoleService.addRole(admin2.getId(), Roles.CLIENT_ID, Roles._ADMIN_PLAIN);
+        }
 
         // Create manager account in default org
         String managerEmail = "manager_delacct2_" + System.currentTimeMillis() + "@example.com";
@@ -211,6 +220,62 @@ public class NonMultitenancyAccountsResourceTest {
     }
 
     @Test
+    public void testDeleteAccountSoleOwnerOfMultiMemberOrgReturns400() throws Exception {
+        transactionHelper.beginTransaction();
+
+        Organisation org = organisationService.createOrganisation("Sole Owner Org " + System.currentTimeMillis());
+        String orgId = org.getId();
+
+        Account owner = accountService.createAccountForOrg(
+                "owner_block_" + System.currentTimeMillis() + "@example.com",
+                "Owner To Delete",
+                "owner_block_" + System.currentTimeMillis(),
+                "Pass123",
+                AccountService.NATIVE,
+                orgId);
+        String ownerId = owner.getId();
+        organisationService.addOwner(orgId, ownerId);
+
+        Account member = accountService.createAccountForOrg(
+                "member_block_" + System.currentTimeMillis() + "@example.com",
+                "Member",
+                "member_block_" + System.currentTimeMillis(),
+                "Pass123",
+                AccountService.NATIVE,
+                orgId);
+        String memberId = member.getId();
+
+        Account manager = accountService.createAccountForOrg(
+                "manager_block_" + System.currentTimeMillis() + "@example.com",
+                "Manager",
+                "manager_block_" + System.currentTimeMillis(),
+                "Pass123",
+                AccountService.NATIVE,
+                orgId);
+        String managerId = manager.getId();
+        accountRoleService.addRole(managerId, Roles.CLIENT_ID, Roles._MANAGE_ACCOUNTS_PLAIN);
+
+        transactionHelper.commitTransaction();
+
+        given()
+                .auth().oauth2(generateManageAccountsTokenForOrg(managerId, orgId))
+                .when()
+                .delete("/api/accounts/" + ownerId)
+                .then()
+                .statusCode(400)
+                .body("error", containsString("sole owner"));
+
+        Account stillExistingAccount = em.find(Account.class, ownerId);
+        assertNotNull(stillExistingAccount, "Owner account should not be deleted");
+
+        Organisation keptOrg = em.find(Organisation.class, orgId);
+        assertNotNull(keptOrg, "Organisation should still exist");
+
+        assertTrue(organisationService.isOwner(orgId, ownerId), "Owner should remain the owner");
+        assertFalse(organisationService.isOwner(orgId, memberId), "Member should not be automatically promoted to owner");
+    }
+
+    @Test
     public void testDeleteAccountWithoutTokenReturns401() {
         given()
             .when()
@@ -260,13 +325,17 @@ public class NonMultitenancyAccountsResourceTest {
     // ─────────────────────────────────────────────────────────
 
     private String generateManageAccountsToken(String accountId) {
+        return generateManageAccountsTokenForOrg(accountId, defaultOrgId);
+    }
+
+    private String generateManageAccountsTokenForOrg(String accountId, String orgId) {
         return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
             .subject(accountId)
             .upn("test@example.com")
             .groups(Set.of("abstratium-abstrauth_user", "abstratium-abstrauth_admin", "abstratium-abstrauth_manage-accounts"))
             .claim("email", "test@example.com")
             .claim("name", "Test User")
-            .claim("orgId", defaultOrgId)
+            .claim("orgId", orgId)
             .sign();
     }
 

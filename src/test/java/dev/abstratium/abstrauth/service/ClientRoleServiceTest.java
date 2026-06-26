@@ -7,10 +7,13 @@ import static org.hamcrest.CoreMatchers.not;
 
 import java.util.Set;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
+import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -22,8 +25,16 @@ public class ClientRoleServiceTest {
 
     private static final String OTHER_ORG = "11111111-1111-1111-1111-111111111111";
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
+
+    @BeforeEach
+    public void resetDatabase() {
+        dbResetHelper.resetDatabase();
+    }
 
     /**
      * Generate a token for a specific orgId with manage-clients role.

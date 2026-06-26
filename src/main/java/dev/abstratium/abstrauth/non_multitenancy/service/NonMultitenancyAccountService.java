@@ -1,16 +1,17 @@
 package dev.abstratium.abstrauth.non_multitenancy.service;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
-import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOrganisationAccount;
 import dev.abstratium.abstrauth.service.Roles;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Non-multitenancy service for account operations.
@@ -24,6 +25,9 @@ public class NonMultitenancyAccountService {
 
     @Inject
     EntityManager em;
+
+    @Inject
+    NonMultitenancyOrganisationService nonMultitenancyOrganisationService;
 
     /**
      * Find an account by ID across all organisations.
@@ -58,10 +62,14 @@ public class NonMultitenancyAccountService {
 
     /**
      * Delete an account and all its related entities (credentials, federated identities,
-     * account roles, and organisation accounts) across ALL organisations using JPA cascade.
+     * account roles, organisation accounts, and single-member organisations) across ALL
+     * organisations using JPA cascade.
      *
      * This uses NonMultitenancyAccount which has CascadeType.REMOVE on all
      * related collections, ensuring complete deletion regardless of org_id.
+     *
+     * Single-member organisations are identified before the account is deleted and removed
+     * afterwards, because the organisation membership rows are deleted by the account cascade.
      *
      * Note: Authorization requests are deleted manually since they have no foreign key constraint
      * to the account table.
@@ -82,6 +90,14 @@ public class NonMultitenancyAccountService {
             throw new IllegalArgumentException("Cannot delete the account with the only admin role for " + Roles.CLIENT_ID);
         }
 
+        // Identify organisations where this account is the only member before deleting the account,
+        // because the membership rows are removed by the account cascade.
+        Set<String> singleMemberOrgIds = findSingleMemberOrganisations(accountId);
+
+        // Prevent deletion if the account is the sole owner of any multi-member organisation.
+        // The user must promote another member to owner first.
+        ensureAccountIsNotSoleOwnerOfMultiMemberOrganisation(accountId);
+
         // Delete authorization requests (no foreign key constraint to account)
         em.createQuery("SELECT ar FROM AuthorizationRequest ar WHERE ar.accountId = :accountId", AuthorizationRequest.class)
             .setParameter("accountId", accountId)
@@ -91,7 +107,70 @@ public class NonMultitenancyAccountService {
         NonMultitenancyAccount account = accountOpt.get();
 
         em.remove(account);
+        em.flush();
+
+        // Delete organisations that only contained this account
+        for (String orgId : singleMemberOrgIds) {
+            nonMultitenancyOrganisationService.deleteOrganisationWithCascade(orgId);
+        }
+
         return true;
+    }
+
+    /**
+     * Prevent account deletion if the account is the sole owner of any organisation that
+     * still has other members. In that case the user must promote another member to owner
+     * before deleting the account. Single-member organisations are allowed to be deleted.
+     *
+     * @param accountId The account ID that is about to be deleted
+     * @throws IllegalArgumentException if the account is the sole owner of a multi-member organisation
+     */
+    private void ensureAccountIsNotSoleOwnerOfMultiMemberOrganisation(String accountId) {
+        List<String> soleOwnerMultiMemberOrgIds = em.createQuery(
+                "SELECT oa.id.orgId FROM NonMultitenancyOrganisationAccount oa " +
+                "WHERE oa.id.accountId = :accountId AND oa.id.role = :ownerRole " +
+                "AND oa.id.orgId IN (" +
+                "  SELECT oa2.id.orgId FROM NonMultitenancyOrganisationAccount oa2 " +
+                "  WHERE oa2.id.role = :ownerRole " +
+                "  GROUP BY oa2.id.orgId HAVING COUNT(DISTINCT oa2.id.accountId) = 1" +
+                ") " +
+                "AND oa.id.orgId IN (" +
+                "  SELECT oa3.id.orgId FROM NonMultitenancyOrganisationAccount oa3 " +
+                "  WHERE oa3.id.accountId <> :accountId " +
+                "  GROUP BY oa3.id.orgId HAVING COUNT(DISTINCT oa3.id.accountId) >= 1" +
+                ")",
+                String.class)
+                .setParameter("accountId", accountId)
+                .setParameter("ownerRole", "owner")
+                .getResultList();
+
+        if (!soleOwnerMultiMemberOrgIds.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Cannot delete the account because it is the sole owner of one or more organisations. " +
+                    "Promote another member to owner before deleting the account.");
+        }
+    }
+
+    /**
+     * Find all organisation IDs where the given account is a member and the organisation
+     * has no other members.
+     *
+     * @param accountId The account ID
+     * @return Set of organisation IDs where the account is the sole member
+     */
+    private Set<String> findSingleMemberOrganisations(String accountId) {
+        List<String> orgIds = em.createQuery(
+                "SELECT oa.id.orgId FROM NonMultitenancyOrganisationAccount oa " +
+                "WHERE oa.id.orgId IN (" +
+                "  SELECT oa2.id.orgId FROM NonMultitenancyOrganisationAccount oa2 " +
+                "  WHERE oa2.id.accountId = :accountId" +
+                ") " +
+                "GROUP BY oa.id.orgId " +
+                "HAVING COUNT(DISTINCT oa.id.accountId) = 1",
+                String.class)
+            .setParameter("accountId", accountId)
+            .getResultList();
+        return orgIds.stream().collect(Collectors.toSet());
     }
 
     /**

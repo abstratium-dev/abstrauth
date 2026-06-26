@@ -54,6 +54,42 @@ public class NonMultitenancyAccountsResource {
     JsonWebToken token;
 
     /**
+     * Deletes the authenticated user's own account and all associated data across ALL organisations.
+     * Organisations where the user is the sole member are also deleted.
+     * This uses non-multitenancy entities to perform cross-tenant cascade deletion.
+     *
+     * @return Response indicating success or failure
+     */
+    @DELETE
+    @Path("/me")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Delete own account", description = "Deletes the authenticated user's own account and all associated data across all organisations. Organisations where the user is the sole member are also deleted.")
+    @RolesAllowed(Roles.USER)
+    public Response deleteOwnAccount() {
+        String accountId = token.getSubject();
+        if (accountId == null || accountId.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new dev.abstratium.abstrauth.boundary.ErrorResponse("Account ID is required in token"))
+                    .build();
+        }
+
+        try {
+            boolean deleted = nonMultitenancyAccountService.deleteAccountWithCascade(accountId);
+            if (!deleted) {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .entity(new dev.abstratium.abstrauth.boundary.ErrorResponse("Account not found"))
+                        .build();
+            }
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new dev.abstratium.abstrauth.boundary.ErrorResponse(e.getMessage()))
+                    .build();
+        }
+
+        return Response.noContent().build();
+    }
+
+    /**
      * Deletes an account and all associated data across ALL organisations.
      * This uses non-multitenancy entities to perform cross-tenant cascade deletion.
      * Only users with MANAGE_ACCOUNTS role can delete accounts.

@@ -46,7 +46,7 @@ function _getCancelButton(page: Page) {
 }
 
 function _getDeleteAccountButton(page: Page) {
-    return page.getByRole('button', { name: /Delete Account/i });
+    return page.getByRole('button', { name: /Delete (My )?Account/i });
 }
 
 export async function addAccount(page: Page, email: string, name: string): Promise<string> {

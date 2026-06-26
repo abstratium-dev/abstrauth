@@ -22,6 +22,7 @@ import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OAuthClientService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
@@ -47,16 +48,21 @@ public class SecurityAuditTest {
     @Inject
     OAuthClientService clientService;
 
-    private Account testAccount;
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     private OAuthClient testClient;
     private String testPassword = "SecurePassword123!";
 
     @BeforeEach
     @Transactional
     public void setup() throws Exception {
+        // Restore default client/subscription state before creating test data
+        dbResetHelper.resetDatabase();
+
         // Create test account
         try {
-            testAccount = accountService.createAccount(
+            accountService.createAccount(
             "security-test@example.com",
             "Security Test User",
             "securitytest",
@@ -65,7 +71,7 @@ public class SecurityAuditTest {
             "Test Org");
         } catch (IllegalArgumentException e) {
             // Account already exists, find it
-            testAccount = accountService.findByEmail("security-test@example.com").orElseThrow();
+            accountService.findByEmail("security-test@example.com").orElseThrow();
         }
 
         // Find existing test client or use the default one

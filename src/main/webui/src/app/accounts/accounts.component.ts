@@ -515,4 +515,38 @@ export class AccountsComponent implements OnInit {
       }
     }
   }
+
+  async deleteOwnAccount(): Promise<void> {
+    const account = this.accounts.find(a => this.isCurrentUser(a.id));
+    if (!account) {
+      this.toastService.error('Could not find your account in the current list.');
+      return;
+    }
+
+    const confirmed = await this.confirmService.confirm({
+      title: 'Delete My Account',
+      message: `Are you sure you want to permanently delete your account (${account.email})? This action cannot be undone and will remove all your data, including roles, credentials, and memberships. If you are the only member of an organisation, that organisation will also be deleted.`,
+      confirmText: 'Delete My Account',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await this.controller.deleteOwnAccount();
+      this.toastService.success('Your account has been deleted successfully');
+      this.authService.signout();
+    } catch (err: any) {
+      if (err.status === 400 && err.error?.error) {
+        this.toastService.error(err.error.error);
+      } else if (err.status === 404) {
+        this.toastService.error('Account not found.');
+      } else {
+        this.toastService.error('Failed to delete your account. Please try again.');
+      }
+    }
+  }
 }

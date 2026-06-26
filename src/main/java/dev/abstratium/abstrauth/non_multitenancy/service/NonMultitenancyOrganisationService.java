@@ -33,6 +33,34 @@ public class NonMultitenancyOrganisationService {
     }
 
     /**
+     * Count how many organisations an account is a member of, across all tenants.
+     *
+     * @param accountId The account ID
+     * @return The number of organisations the account belongs to
+     */
+    public long countOrganisationsForAccount(String accountId) {
+        return em.createQuery(
+                "SELECT COUNT(DISTINCT oa.id.orgId) FROM OrganisationAccount oa WHERE oa.id.accountId = :accountId",
+                Long.class)
+                .setParameter("accountId", accountId)
+                .getSingleResult();
+    }
+
+    /**
+     * Count how many distinct accounts are members of the given organisation, across all tenants.
+     *
+     * @param orgId The organisation ID
+     * @return The number of distinct member accounts in the organisation
+     */
+    public long countDistinctAccountsInOrganisation(String orgId) {
+        return em.createQuery(
+                "SELECT COUNT(DISTINCT oa.id.accountId) FROM OrganisationAccount oa WHERE oa.id.orgId = :orgId",
+                Long.class)
+                .setParameter("orgId", orgId)
+                .getSingleResult();
+    }
+
+    /**
      * Delete an organisation and all its subscriptions across ALL organisations
      * using JPA cascade.
      *

@@ -211,6 +211,17 @@ export class Controller {
     }
   }
 
+  async deleteOwnAccount(): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete('/api/accounts/me')
+      );
+    } catch (error) {
+      console.error('Error deleting own account:', error);
+      throw error;
+    }
+  }
+
   // Client Secret Management
 
   async listClientSecrets(clientId: string): Promise<ClientSecret[]> {

@@ -23,7 +23,7 @@ OAuth clients and client secrets are owned by the organisation, not by an indivi
 
 3. **Transient OAuth data is handled by database cascades.** `T_authorisation_codes` and `T_revoked_tokens` retain `ON DELETE CASCADE` foreign keys and are removed automatically when the account is deleted. This is acceptable because these tables are explicitly excluded from Envers auditing.
 
-4. **Ownership references are removed before implementing deletion.** The columns `T_oauth_client_secrets.account_id` and `T_organisations.created_by_account_id` are being dropped. Client secrets and organisations belong to the organisation, not to the user, so they are not deleted on account deletion.
+4. **Ownership references are removed before implementing deletion.** The columns `T_oauth_client_secrets.account_id` and `T_organisations.created_by_account_id` have been dropped. Client secrets and organisations belong to the organisation, not to the user, so they are not deleted on account deletion.
 
 5. **Single-member organisations are deleted.** If deleting an account leaves an organisation with no remaining members, the organisation is also deleted. This is necessary because the organisation name and metadata are not personal data in a multi-member context, but for a single-person organisation they effectively identify the user.
 
@@ -111,26 +111,54 @@ flowchart TD
 
 ## Implementation Tasks
 
-- [ ] Add backend endpoint `DELETE /api/accounts/me` for self-service account deletion.
+The work is split into independent features that can be implemented, reviewed, and tested one at a time.
+
+### Feature 1: Self-service account deletion
+
+- [x] Add backend endpoint `DELETE /api/accounts/me` for self-service account deletion.
+- [x] Extend `NonMultitenancyAccountService.deleteAccountWithCascade()` to delete single-member organisations.
+- [x] Add backend and integration tests for the full deletion cascade.
+- [x] Add tests for the single-member organisation deletion path.
+- [x] Add UI dialog for self-deletion with confirmation.
+- [x] Sign the user out of the UI after successful self-deletion.
+
+### Feature 2: Harder deletion confirmation for accounts and roles
+
 - [ ] Enforce a confirmation step for self-deletion (require the user to type their email or name).
+- [ ] Add backend test for the confirmation step (reject deletion if confirmation text does not match).
 - [ ] Make deleting accounts and roles harder: require the user to enter the account/role name to confirm the deletion (applies to both self-deletion and administrator deletion of roles).
-- [ ] Extend `NonMultitenancyAccountService.deleteAccountWithCascade()` to delete single-member organisations.
-- [ ] Add backend endpoint to view all personal data of the authenticated user (GDPR right of access).
-- [ ] Add backend endpoint to download/export personal data in a machine-readable format.
+- [ ] Update the administrator account deletion UI to require the account name/email confirmation.
+- [ ] Update the role deletion UI to require the role name confirmation.
+- [ ] Add backend tests for administrator account deletion confirmation.
+- [ ] Add backend tests for role deletion confirmation.
+
+### Feature 3: Right of access (view my data)
+
+- [ ] Add backend endpoint to view all personal data of the authenticated user (`GET /api/accounts/me/data`).
+- [ ] Add backend endpoint to download/export personal data in a machine-readable format (`GET /api/accounts/me/data/export`).
+- [ ] Add backend tests for the right of access endpoint and the export endpoint.
+- [ ] Add UI page for "view my data".
+- [ ] Add "Download my data" button to the view-my-data page.
+- [ ] Update the Angular controller to call the new backend endpoints (data view, export, self-delete).
+
+### Feature 4: Audit retention and purge
+
+- [ ] Add configuration property `abstrauth.audit.retention.days` with a sensible default (e.g. 90 days).
 - [ ] Periodically remove all audit data that is older than X days, where X is configurable via an environment variable or `application.properties` entry.
 - [ ] Add periodic scheduler to delete `*_AUD` rows older than the configured retention period.
+- [ ] Decide and document the audit purge schedule (e.g. daily at 02:00 UTC).
+- [ ] Log each purge run, including the number of rows deleted and the retention period used.
 - [ ] Clean up orphaned `REVINFO` rows that no longer reference any audit table.
-- [ ] Add configuration property `abstrauth.audit.retention.days` with a sensible default (e.g. 90 days).
-- [ ] Add UI dialog for self-deletion with confirmation.
-- [ ] Add UI page for "view my data".
-- [ ] Add backend and integration tests for the full deletion cascade.
 - [ ] Add tests for the audit retention purge.
-- [ ] Add tests for the single-member organisation deletion path.
+
+### Feature 5: Documentation and legal approval
+
 - [ ] Document the legitimate interest assessment (LIA) for audit retention and obtain DPO/legal approval.
+- [ ] Update the user-facing legal/privacy page to display the currently configured retention period and the user's rights.
 - [ ] Update user-facing privacy documentation to state the retention periods and deletion rights.
 
-## Open Questions
+## Questions and Answers
 
-- Exact retention period for audit data (default proposal: 90 days).
-- Whether a user can request earlier deletion of their audit history, overriding the legitimate interest retention.
-- Whether the right of access should include audit history for the requesting user only.
+- Exact retention period for audit data -> default: 90 days, configurable per installation via environment variable.
+- Whether a user can request earlier deletion of their audit history, overriding the legitimate interest retention. -> no.
+- Whether the right of access should include audit history for the requesting user only. -> no not automatically, but could be requested manually.

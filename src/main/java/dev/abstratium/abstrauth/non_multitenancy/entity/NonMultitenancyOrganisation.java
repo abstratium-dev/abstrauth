@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.non_multitenancy.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import org.hibernate.envers.NotAudited;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "T_organisations")
+@Audited
 public class NonMultitenancyOrganisation {
 
     @Id

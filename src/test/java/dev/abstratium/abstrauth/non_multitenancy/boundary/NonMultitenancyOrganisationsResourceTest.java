@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOrganisationService;
 import dev.abstratium.abstrauth.service.AccountService;
@@ -21,6 +22,7 @@ import io.restassured.http.ContentType;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for NonMultitenancyOrganisationsResource.
@@ -48,6 +50,9 @@ public class NonMultitenancyOrganisationsResourceTest {
 
     @Inject
     TestTransactionHelper transactionHelper;
+
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
 
     private String adminToken(String accountId, String orgId) {
         return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
@@ -82,6 +87,28 @@ public class NonMultitenancyOrganisationsResourceTest {
 
     private String accountOrgId(Account account) {
         return organisationService.listOrganisationsForAccount(account.getId()).get(0).getId();
+    }
+
+    private Organisation createAdditionalOrganisationForAccount(String accountId, String name) throws Exception {
+        transactionHelper.beginTransaction();
+        Organisation org = organisationService.createOrganisation(name);
+        organisationService.addOwner(org.getId(), accountId);
+        organisationService.addMember(org.getId(), accountId);
+        transactionHelper.commitTransaction();
+        return org;
+    }
+
+    private Account createAccountForOrg(String orgId) throws Exception {
+        transactionHelper.beginTransaction();
+        Account account = accountService.createAccountForOrg(
+                "nmorgtest_" + System.currentTimeMillis() + "@example.com",
+                "NMOrgTest Member",
+                "nmorgtest_" + System.currentTimeMillis(),
+                "Pass123!",
+                AccountService.NATIVE,
+                orgId);
+        transactionHelper.commitTransaction();
+        return account;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -157,7 +184,10 @@ public class NonMultitenancyOrganisationsResourceTest {
     @Test
     public void testDeleteOrganisation_success() throws Exception {
         Account admin = createAccount(System.currentTimeMillis() + "_deladmin");
-        String orgId = accountOrgId(admin);
+        String firstOrgId = accountOrgId(admin);
+        Organisation secondOrg = createAdditionalOrganisationForAccount(admin.getId(),
+                "Second Org " + System.currentTimeMillis());
+        String orgId = secondOrg.getId();
         String token = adminToken(admin.getId(), orgId);
 
         // Create a client owned by this org
@@ -224,6 +254,10 @@ public class NonMultitenancyOrganisationsResourceTest {
         // Account itself must remain because the DB cascade on account_id was removed
         assertTrue(accountService.findById(admin.getId()).isPresent(),
                 "Account should not be deleted when organisation is deleted");
+
+        // The first organisation must remain since only the second was deleted
+        assertTrue(nonMultitenancyOrganisationService.findById(firstOrgId).isPresent(),
+                "The caller's other organisation should not be affected");
     }
 
     @Test
@@ -264,6 +298,69 @@ public class NonMultitenancyOrganisationsResourceTest {
                 .delete("/api/organisations/00000000-0000-0000-0000-000000009999")
                 .then()
                 .statusCode(401);
+    }
+
+    @Test
+    public void testDeleteOrganisation_defaultOrg_returns400() throws Exception {
+        Account account = createAccountForOrg(defaultOrgId);
+        String token = adminToken(account.getId(), defaultOrgId);
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + defaultOrgId)
+                .then()
+                .statusCode(400)
+                .body("error", containsString("default organisation"));
+
+        assertTrue(nonMultitenancyOrganisationService.findById(defaultOrgId).isPresent(),
+                "Default organisation should not be deleted");
+    }
+
+    @Test
+    public void testDeleteOrganisation_lastOrg_returns400() throws Exception {
+        transactionHelper.beginTransaction();
+        Organisation soleOrg = organisationService.createOrganisation("Sole Org " + System.currentTimeMillis());
+        String orgId = soleOrg.getId();
+        transactionHelper.commitTransaction();
+
+        Account account = createAccountForOrg(orgId);
+        String token = adminToken(account.getId(), orgId);
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + orgId)
+                .then()
+                .statusCode(400)
+                .body("error", containsString("last organisation"));
+
+        assertTrue(nonMultitenancyOrganisationService.findById(orgId).isPresent(),
+                "Last organisation should not be deleted");
+    }
+
+    @Test
+    public void testDeleteOrganisation_otherMembers_returns400() throws Exception {
+        Account admin = createAccount(System.currentTimeMillis() + "_othermembers");
+        Organisation targetOrg = createAdditionalOrganisationForAccount(admin.getId(),
+                "Target Org " + System.currentTimeMillis());
+        String targetOrgId = targetOrg.getId();
+
+        // Add another member to the target organisation
+        createAccountForOrg(targetOrgId);
+
+        String token = adminToken(admin.getId(), targetOrgId);
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + targetOrgId)
+                .then()
+                .statusCode(400)
+                .body("error", containsString("other members"));
+
+        assertTrue(nonMultitenancyOrganisationService.findById(targetOrgId).isPresent(),
+                "Organisation with other members should not be deleted");
     }
 
     @Test

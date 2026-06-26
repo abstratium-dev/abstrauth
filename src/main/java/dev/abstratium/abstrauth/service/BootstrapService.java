@@ -40,7 +40,7 @@ public class BootstrapService {
      * environment variable value. This operation is idempotent and safe to
      * run on every startup.
      */
-    void syncClientSecretHash() {
+    public void syncClientSecretHash() {
         try {
             // Validate secret length
             if (clientSecret.length() < MIN_SECRET_LENGTH) {

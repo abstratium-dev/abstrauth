@@ -9,6 +9,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.BootstrapService;
 import dev.abstratium.abstrauth.service.CurrentOrgContext;
 
 /**
@@ -43,6 +44,9 @@ public class TestDatabaseResetHelper {
 
     @Inject
     AccountService accountService;
+
+    @Inject
+    BootstrapService bootstrapService;
 
     @Inject
     CurrentOrgContext currentOrgContext;
@@ -128,6 +132,13 @@ public class TestDatabaseResetHelper {
         restoreAbstrauthClient(defaultOrg, protectedClient);
         reseedTestClients(defaultOrg);
 
+        // 8. Restore the default org's subscription to abstratium-abstrauth, its allowed
+        //    roles catalog, and sync its configured secret hash. Previous tests may have
+        //    deleted these via cascades.
+        reseedDefaultSubscription(defaultOrg, protectedClient);
+        reseedDefaultClientAllowedRoles(protectedClient);
+        bootstrapService.syncClientSecretHash();
+
         log.debugv("[resetDatabase] After cleanup — abstrauth redirect_uris: {0}",
             queryRedirectUris(PROTECTED_CLIENT_ID));
     }
@@ -149,6 +160,37 @@ public class TestDatabaseResetHelper {
                 "INSERT INTO T_organisations (id, name, created_at) " +
                 "SELECT " + defaultOrg + ", 'Default Test Org', CURRENT_TIMESTAMP " +
                 "WHERE NOT EXISTS (SELECT 1 FROM T_organisations WHERE id = " + defaultOrg + ")")
+            .executeUpdate();
+    }
+
+    private void reseedDefaultSubscription(String defaultOrg, String clientIdLiteral) {
+        em.createNativeQuery(
+                "INSERT INTO T_subscriptions (id, org_id, client_id, created_at) " +
+                "SELECT UUID(), " + defaultOrg + ", " + clientIdLiteral + ", CURRENT_TIMESTAMP " +
+                "WHERE NOT EXISTS (SELECT 1 FROM T_subscriptions WHERE org_id = " + defaultOrg + " AND client_id = " + clientIdLiteral + ")")
+            .executeUpdate();
+    }
+
+    private void reseedDefaultClientAllowedRoles(String clientIdLiteral) {
+        em.createNativeQuery(
+                "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
+                "SELECT " + clientIdLiteral + ", 'manage-accounts', FALSE, TRUE " +
+                "WHERE NOT EXISTS (SELECT 1 FROM T_client_allowed_roles WHERE client_id = " + clientIdLiteral + " AND role = 'manage-accounts')")
+            .executeUpdate();
+        em.createNativeQuery(
+                "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
+                "SELECT " + clientIdLiteral + ", 'manage-clients', FALSE, TRUE " +
+                "WHERE NOT EXISTS (SELECT 1 FROM T_client_allowed_roles WHERE client_id = " + clientIdLiteral + " AND role = 'manage-clients')")
+            .executeUpdate();
+        em.createNativeQuery(
+                "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
+                "SELECT " + clientIdLiteral + ", 'user', TRUE, TRUE " +
+                "WHERE NOT EXISTS (SELECT 1 FROM T_client_allowed_roles WHERE client_id = " + clientIdLiteral + " AND role = 'user')")
+            .executeUpdate();
+        em.createNativeQuery(
+                "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
+                "SELECT " + clientIdLiteral + ", 'admin', FALSE, FALSE " +
+                "WHERE NOT EXISTS (SELECT 1 FROM T_client_allowed_roles WHERE client_id = " + clientIdLiteral + " AND role = 'admin')")
             .executeUpdate();
     }
 

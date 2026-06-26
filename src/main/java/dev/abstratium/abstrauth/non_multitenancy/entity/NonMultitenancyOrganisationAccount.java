@@ -9,12 +9,15 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
+import org.hibernate.envers.Audited;
+
 /**
  * Non-multitenancy version of OrganisationAccount.
  * Used in cascade deletion of T_organisation_accounts when an organisation is deleted.
  */
 @Entity
 @Table(name = "T_organisation_accounts")
+@Audited
 public class NonMultitenancyOrganisationAccount {
 
     @Embeddable

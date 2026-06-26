@@ -7,6 +7,7 @@ import { AuthService, ROLE_MANAGE_ACCOUNTS } from '../auth.service';
 import { Controller } from '../controller';
 import { AccountsComponent } from './accounts.component';
 import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
+import { ToastService } from '../shared/toast/toast.service';
 
 describe('AccountsComponent', () => {
   let component: AccountsComponent;
@@ -15,6 +16,8 @@ describe('AccountsComponent', () => {
   let router: jasmine.SpyObj<Router>;
   let queryParamsSubject: BehaviorSubject<any>;
   let confirmService: jasmine.SpyObj<ConfirmDialogService>;
+  let toastService: jasmine.SpyObj<ToastService>;
+  let authService!: jasmine.SpyObj<AuthService>;
 
   const mockAccounts = [
     {
@@ -70,6 +73,8 @@ describe('AccountsComponent', () => {
     const confirmServiceSpy = jasmine.createSpyObj('ConfirmDialogService', ['confirm']);
     confirmServiceSpy.confirm.and.returnValue(Promise.resolve(true)); // Default to confirming
     
+    const toastServiceSpy = jasmine.createSpyObj('ToastService', ['success', 'error', 'info']);
+    
     await TestBed.configureTestingModule({
       imports: [AccountsComponent],
       providers: [
@@ -78,6 +83,7 @@ describe('AccountsComponent', () => {
         { provide: Router, useValue: routerSpy },
         { provide: AuthService, useValue: authServiceSpy },
         { provide: ConfirmDialogService, useValue: confirmServiceSpy },
+        { provide: ToastService, useValue: toastServiceSpy },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -93,6 +99,8 @@ describe('AccountsComponent', () => {
     httpMock = TestBed.inject(HttpTestingController);
     router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
     confirmService = TestBed.inject(ConfirmDialogService) as jasmine.SpyObj<ConfirmDialogService>;
+    toastService = TestBed.inject(ToastService) as jasmine.SpyObj<ToastService>;
+    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
   });
 
   afterEach(() => {
@@ -1327,6 +1335,245 @@ describe('AccountsComponent', () => {
       
       // No DELETE request should be made if user cancels
       httpMock.expectNone(`/api/accounts/${accountToDelete.id}`);
+    }));
+  });
+
+  describe('Delete Own Account Functionality', () => {
+    const mockClients = [
+      { 
+        id: '1',
+        orgId: 'test-org',
+        clientId: 'client-1', 
+        clientName: 'Client 1', 
+        clientType: 'confidential',
+        redirectUris: 'http://localhost', 
+        allowedScopes: 'openid profile',
+        requirePkce: false,
+        autoSubscribe: true,
+        publik: false,
+        createdAt: '2024-01-01T00:00:00Z'
+      }
+    ];
+
+    it('should delete own account when confirmed', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+
+      const promise = component.deleteOwnAccount();
+      tick(); // Wait for confirmation Promise to resolve
+
+      const deleteReq = httpMock.expectOne('/api/accounts/me');
+      expect(deleteReq.request.method).toBe('DELETE');
+      deleteReq.flush(null, { status: 204, statusText: 'No Content' });
+      tick();
+
+      let settled = false;
+      promise.then(() => settled = true).catch(() => settled = true);
+      tick();
+      expect(settled).toBe(true);
+
+      expect(toastService.success).toHaveBeenCalledWith('Your account has been deleted successfully');
+      expect(authService.signout).toHaveBeenCalled();
+    }));
+
+    it('should not delete own account when cancelled', fakeAsync(() => {
+      confirmService.confirm.and.returnValue(Promise.resolve(false));
+      
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+
+      component.deleteOwnAccount();
+      tick(); // Wait for confirmation Promise to resolve
+      
+      httpMock.expectNone('/api/accounts/me');
+      expect(authService.signout).not.toHaveBeenCalled();
+    }));
+
+    it('should show error when own account is not in the list', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts.slice(1)); // Exclude account with id '1'
+      tick();
+
+      flushOwnersRequest();
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+
+      component.deleteOwnAccount();
+      tick();
+
+      httpMock.expectNone('/api/accounts/me');
+      expect(toastService.error).toHaveBeenCalledWith('Could not find your account in the current list.');
+      expect(authService.signout).not.toHaveBeenCalled();
+    }));
+
+    it('should handle 400 error when deleting own account', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+
+      const promise = component.deleteOwnAccount();
+      tick(); // Wait for confirmation Promise to resolve
+
+      const deleteReq = httpMock.expectOne('/api/accounts/me');
+      deleteReq.flush({ error: 'Cannot delete the account with the only admin role' }, { status: 400, statusText: 'Bad Request' });
+      tick();
+
+      let settled = false;
+      promise.then(() => settled = true).catch(() => settled = true);
+      tick();
+      expect(settled).toBe(true);
+
+      expect(toastService.error).toHaveBeenCalledWith('Cannot delete the account with the only admin role');
+      expect(authService.signout).not.toHaveBeenCalled();
+    }));
+
+    it('should handle 404 error when deleting own account', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+
+      const promise = component.deleteOwnAccount();
+      tick(); // Wait for confirmation Promise to resolve
+
+      const deleteReq = httpMock.expectOne('/api/accounts/me');
+      deleteReq.flush({ error: 'Account not found' }, { status: 404, statusText: 'Not Found' });
+      tick();
+
+      let settled = false;
+      promise.then(() => settled = true).catch(() => settled = true);
+      tick();
+      expect(settled).toBe(true);
+
+      expect(toastService.error).toHaveBeenCalledWith('Account not found.');
+      expect(authService.signout).not.toHaveBeenCalled();
+    }));
+
+    it('should handle generic error when deleting own account', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+
+      const promise = component.deleteOwnAccount();
+      tick(); // Wait for confirmation Promise to resolve
+
+      const deleteReq = httpMock.expectOne('/api/accounts/me');
+      deleteReq.error(new ProgressEvent('error'));
+      tick();
+
+      // Ensure the component promise has settled
+      let settled = false;
+      promise.then(() => settled = true).catch(() => settled = true);
+      tick();
+      expect(settled).toBe(true);
+
+      expect(toastService.error).toHaveBeenCalledWith('Failed to delete your account. Please try again.');
+      expect(authService.signout).not.toHaveBeenCalled();
+    }));
+
+    it('should only show delete-my-account button for the current user', fakeAsync(() => {
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement;
+      const ownAccountButtons = compiled.querySelectorAll('[title="Delete my account"]');
+      const otherAccountButtons = compiled.querySelectorAll('[title="Delete account"]');
+
+      expect(ownAccountButtons.length).toBe(1);
+      expect(otherAccountButtons.length).toBe(2);
+    }));
+
+    it('should show delete-my-account button without manage accounts role', fakeAsync(() => {
+      authService.hasRole.and.returnValue(false);
+      
+      fixture.detectChanges();
+      
+      const accountsReq = httpMock.expectOne('/api/accounts');
+      accountsReq.flush(mockAccounts);
+      tick();
+
+      flushOwnersRequest();
+      tick();
+
+      const clientsReq = httpMock.expectOne('/api/clients');
+      clientsReq.flush(mockClients);
+      tick();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement;
+      const ownAccountButtons = compiled.querySelectorAll('[title="Delete my account"]');
+      const otherAccountButtons = compiled.querySelectorAll('[title="Delete account"]');
+
+      expect(ownAccountButtons.length).toBe(1);
+      expect(otherAccountButtons.length).toBe(0);
     }));
   });
 

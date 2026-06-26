@@ -85,6 +85,7 @@ public class OrganisationService {
         if (ownerCount <= 1) {
             throw new IllegalStateException("Cannot remove the last owner of an organisation");
         }
+        ensureAccountKeepsMembership(accountId, ownerRow.getId());
         em.remove(ownerRow);
     }
 
@@ -98,6 +99,7 @@ public class OrganisationService {
             if (ownerCount <= 1) {
                 throw new IllegalStateException("Cannot remove the last owner of an organisation");
             }
+            ensureAccountKeepsMembership(accountId, ownerRow.get().getId());
             em.remove(ownerRow.get());
             return;
         }
@@ -106,7 +108,20 @@ public class OrganisationService {
         OrganisationAccount memberRow = findMemberRow(orgId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account is not a member of this organisation"));
 
+        ensureAccountKeepsMembership(accountId, memberRow.getId());
         em.remove(memberRow);
+    }
+
+    private void ensureAccountKeepsMembership(String accountId, OrganisationAccount.Id rowBeingRemoved) {
+        long remainingMemberships = em.createQuery(
+                "SELECT COUNT(oa) FROM OrganisationAccount oa WHERE oa.id.accountId = :accountId AND oa.id <> :rowId",
+                Long.class)
+                .setParameter("accountId", accountId)
+                .setParameter("rowId", rowBeingRemoved)
+                .getSingleResult();
+        if (remainingMemberships < 1) {
+            throw new IllegalStateException("Cannot remove an account from its last organisation membership as it would have no organisation");
+        }
     }
 
     public List<String> getRolesForAccount(String orgId, String accountId) {

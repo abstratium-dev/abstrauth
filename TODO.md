@@ -11,11 +11,16 @@
 
 ## Today
 
-- GDPR - see GDPR_FADP_DESIGN.md and implement it.
-  - GDPR - allow user to view all of their data
-  - GDPR - allow user to delete all of their data
+- GDPR - see GDPR_FADP_DESIGN.md and continue with the unimplemented parts
   - define who is DPO in abstratium
   - update legal page to display what is currently configured
+
+- test migrations against prod data
+
+- run all e2e tests
+
+- upgrade everything
+
 
 - when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
   - search for "You do not have any roles"

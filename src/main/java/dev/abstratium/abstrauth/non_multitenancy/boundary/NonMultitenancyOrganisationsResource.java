@@ -25,6 +25,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * REST endpoints for cross-tenant organisation operations.
@@ -56,6 +57,10 @@ public class NonMultitenancyOrganisationsResource {
     @IdToken
     JsonWebToken token;
 
+    @Inject
+    @ConfigProperty(name = "default.org.uuid")
+    String defaultOrgId;
+
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
@@ -81,14 +86,35 @@ public class NonMultitenancyOrganisationsResource {
     @DELETE
     @Path("/{orgId}")
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Delete organisation", description = "Deletes an organisation and all its associated data (account roles, subscriptions, memberships) via JPA cascade. Only admin users can delete organisations.")
+    @Operation(summary = "Delete organisation", description = "Deletes an organisation and all its associated data (account roles, subscriptions, memberships) via JPA cascade. Only admin users can delete organisations. The default organisation, the caller's last organisation, and organisations that still have other member accounts cannot be deleted.")
     @RolesAllowed(Roles.ADMIN)
     public Response deleteOrganisation(@PathParam("orgId") String orgId) {
+        String accountId = token.getSubject();
+
         if (nonMultitenancyOrganisationService.findById(orgId).isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(new ErrorResponse("Organisation not found"))
                     .build();
         }
+
+        if (defaultOrgId.equals(orgId)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Cannot delete the default organisation"))
+                    .build();
+        }
+
+        if (organisationService.isMember(orgId, accountId) && nonMultitenancyOrganisationService.countOrganisationsForAccount(accountId) <= 1) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Cannot delete the last organisation you are a member of since you would not be in an organisation"))
+                    .build();
+        }
+
+        if (nonMultitenancyOrganisationService.countDistinctAccountsInOrganisation(orgId) > 1) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Cannot delete an organisation that has other members, remove them first"))
+                    .build();
+        }
+
         nonMultitenancyOrganisationService.deleteOrganisationWithCascade(orgId);
         return Response.noContent().build();
     }

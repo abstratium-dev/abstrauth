@@ -6,6 +6,7 @@ import { AuthService } from '../auth.service';
 import { Controller } from '../controller';
 import { Organisation } from '../model.service';
 import { ToastService } from '../shared/toast/toast.service';
+import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 import { OrganisationsComponent } from './organisations.component';
 
 describe('OrganisationsComponent', () => {
@@ -14,6 +15,7 @@ describe('OrganisationsComponent', () => {
   let httpMock: HttpTestingController;
   let authService: jasmine.SpyObj<AuthService>;
   let toastService: jasmine.SpyObj<ToastService>;
+  let confirmService: jasmine.SpyObj<ConfirmDialogService>;
 
   const mockOrgs: Organisation[] = [
     {
@@ -36,6 +38,8 @@ describe('OrganisationsComponent', () => {
     authSpy.isAdmin.and.returnValue(false);
 
     const toastSpy = jasmine.createSpyObj('ToastService', ['success', 'error']);
+    const confirmServiceSpy = jasmine.createSpyObj('ConfirmDialogService', ['confirm']);
+    confirmServiceSpy.confirm.and.returnValue(Promise.resolve(true));
 
     await TestBed.configureTestingModule({
       imports: [OrganisationsComponent, RouterTestingModule],
@@ -43,7 +47,8 @@ describe('OrganisationsComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: AuthService, useValue: authSpy },
-        { provide: ToastService, useValue: toastSpy }
+        { provide: ToastService, useValue: toastSpy },
+        { provide: ConfirmDialogService, useValue: confirmServiceSpy }
       ]
     }).compileComponents();
 
@@ -52,6 +57,7 @@ describe('OrganisationsComponent', () => {
     httpMock = TestBed.inject(HttpTestingController);
     authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
     toastService = TestBed.inject(ToastService) as jasmine.SpyObj<ToastService>;
+    confirmService = TestBed.inject(ConfirmDialogService) as jasmine.SpyObj<ConfirmDialogService>;
   });
 
   afterEach(() => {
@@ -405,12 +411,12 @@ describe('OrganisationsComponent', () => {
 
   describe('isAdmin', () => {
     it('should return false when user is not admin', () => {
-      authSpy.isAdmin.and.returnValue(false);
+      authService.isAdmin.and.returnValue(false);
       expect(component.isAdmin()).toBe(false);
     });
 
     it('should return true when user is admin', () => {
-      authSpy.isAdmin.and.returnValue(true);
+      authService.isAdmin.and.returnValue(true);
       expect(component.isAdmin()).toBe(true);
     });
   });

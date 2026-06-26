@@ -181,7 +181,13 @@
                     title="View audit history">
               🕒
             </a>
-            <button *ngIf="hasManageAccountsRole()" 
+            <button *ngIf="isCurrentUser(account.id)" 
+                    class="btn-icon btn-icon-danger" 
+                    (click)="deleteOwnAccount()" 
+                    title="Delete my account">
+              🗑️
+            </button>
+            <button *ngIf="hasManageAccountsRole() && !isCurrentUser(account.id)" 
                     class="btn-icon btn-icon-danger" 
                     (click)="deleteAccount(account)" 
                     title="Delete account">

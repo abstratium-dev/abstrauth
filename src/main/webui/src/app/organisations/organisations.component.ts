@@ -6,6 +6,7 @@ import { Controller } from '../controller';
 import { ModelService, Organisation } from '../model.service';
 import { AuthService } from '../auth.service';
 import { ToastService } from '../shared/toast/toast.service';
+import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-organisations',
@@ -18,6 +19,7 @@ export class OrganisationsComponent implements OnInit {
   private modelService = inject(ModelService);
   private authService = inject(AuthService);
   private toastService = inject(ToastService);
+  private confirmService = inject(ConfirmDialogService);
 
   organisations: Organisation[] = [];
   loading = true;
@@ -61,7 +63,13 @@ export class OrganisationsComponent implements OnInit {
   }
 
   async onDeleteOrg(orgId: string, orgName: string): Promise<void> {
-    if (!confirm(`Delete organisation "${orgName} including all user membership related to it"? This cannot be undone.`)) {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Delete Organisation',
+      message: `Delete organisation "${orgName}" including all user memberships related to it? This cannot be undone.`,
+      confirmText: 'Delete Organisation',
+      confirmClass: 'btn-danger'
+    });
+    if (!confirmed) {
       return;
     }
     this.deletingOrgId = orgId;

@@ -3,9 +3,11 @@ package dev.abstratium.abstrauth.service;
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.ClientSecretService;
+import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -29,8 +31,16 @@ public class BootstrapServiceTest {
     @Inject
     ClientSecretService clientSecretService;
 
+    @Inject
+    TestDatabaseResetHelper dbResetHelper;
+
     @ConfigProperty(name = "quarkus.oidc.bff.credentials.secret")
     String clientSecret;
+
+    @BeforeEach
+    public void resetDatabase() {
+        dbResetHelper.resetDatabase();
+    }
 
     @Test
     public void testBootstrapServiceExists() {

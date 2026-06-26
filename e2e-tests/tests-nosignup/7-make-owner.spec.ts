@@ -36,29 +36,62 @@ async function cleanupTestAccounts(page: Page) {
     try {
         await dismissToasts(page);
 
-        // Try to delete test accounts if they exist
-        const tiles = page.locator('.tile');
-        const count = await tiles.count();
+        const isTestAccount = (email: string | null) =>
+            email?.includes('makeowner_member_') || email?.includes('makeowner_nonowner_') ||
+            email?.includes('makeowner_twice_') || email?.includes('makeowner_promo_') ||
+            email?.includes('removeowner_');
 
-        for (let i = count - 1; i >= 0; i--) {
-            const tile = tiles.nth(i);
-            const emailElement = tile.locator('.tile-subtitle');
-            const email = await emailElement.textContent();
+        // Re-query the tile list after each deletion so we never reference stale tiles.
+        // Also stop if the current user self-deleted and the page redirected to signin.
+        while (true) {
+            if (await page.locator('#signin-button').isVisible().catch(() => false)) {
+                console.log('Cleanup: page is on signin, current user was self-deleted');
+                break;
+            }
 
-            if (email?.includes('makeowner_member_') || email?.includes('makeowner_nonowner_') ||
-                email?.includes('makeowner_twice_') || email?.includes('makeowner_promo_') ||
-                email?.includes('removeowner_')) {
-                console.log(`Found test account to clean up: ${email}`);
-                const deleteButton = tile.locator('.btn-icon-danger').first();
-                if (await deleteButton.isVisible().catch(() => false)) {
-                    await deleteButton.click();
-                    const confirmButton = page.locator('button.btn-danger').filter({ hasText: 'Delete Account' });
-                    await expect(confirmButton).toBeVisible({ timeout: 2000 });
-                    await confirmButton.click();
-                    // Wait for toast
-                    await page.waitForTimeout(1000);
-                    await dismissToasts(page);
+            const tiles = page.locator('.tile');
+            const count = await tiles.count();
+            if (count === 0) {
+                console.log('Cleanup: no account tiles found');
+                break;
+            }
+
+            let deletedAny = false;
+            for (let i = 0; i < count; i++) {
+                const tile = tiles.nth(i);
+                const emailElement = tile.locator('.tile-subtitle').first();
+                const email = await emailElement.textContent().catch(() => null);
+
+                if (isTestAccount(email)) {
+                    console.log(`Found test account to clean up: ${email}`);
+                    const deleteButton = tile.locator('.btn-icon-danger').first();
+                    if (await deleteButton.isVisible().catch(() => false)) {
+                        await deleteButton.click();
+                        const confirmButton = page.locator('button.btn-danger').filter({ hasText: /Delete (My )?Account/i });
+                        await expect(confirmButton).toBeVisible({ timeout: 2000 });
+                        await confirmButton.click();
+
+                        // Wait for the tile to disappear or for the page to redirect to signin
+                        await expect(async () => {
+                            if (await page.locator('#signin-button').isVisible().catch(() => false)) {
+                                return;
+                            }
+                            const stillVisible = await tile.isVisible().catch(() => false);
+                            if (stillVisible) {
+                                throw new Error('Tile still visible after deletion');
+                            }
+                        }).toPass({ timeout: 5000 });
+
+                        await dismissToasts(page);
+                        deletedAny = true;
+                    }
+                    break; // restart the outer loop with a fresh tile list
                 }
+            }
+
+            if (!deletedAny) {
+                console.log('Cleanup: no more test accounts to delete');
+                break;
             }
         }
     } catch (e) {
@@ -68,13 +101,19 @@ async function cleanupTestAccounts(page: Page) {
 
 test.describe('Make Owner Feature', () => {
 
+    test.setTimeout(60000);
+
     test.afterEach(async ({ page }) => {
         // Clean up after each test - only if we're signed in (accounts link visible)
-        const accountsLink = page.locator('#accounts-link');
+        let accountsLink = page.locator('#accounts-link');
         if (await accountsLink.isVisible().catch(() => false)) {
             await navigateToAccounts(page);
             await cleanupTestAccounts(page);
-            await signout(page);
+            // Cleanup may have self-deleted the current user, which already signs out
+            accountsLink = page.locator('#accounts-link');
+            if (await accountsLink.isVisible().catch(() => false)) {
+                await signout(page);
+            }
         }
     });
 
