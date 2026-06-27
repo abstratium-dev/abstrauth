@@ -1,33 +1,177 @@
 <div class="container">
-  <h1>User Profile</h1>
-  
-  <div class="card">
-    <h2>Token Claims</h2>
-    <p class="description">All claims contained in your JWT identity token:</p>
-    
-    <div class="data-table">
-      <div class="table-row header">
-        <div class="table-cell-key">Claim</div>
-        <div class="table-cell-value">Value</div>
+  <div class="page-header">
+    <h1>User Profile</h1>
+    <div class="page-actions">
+      <button class="btn-secondary" (click)="downloadMyData()" [disabled]="personalDataLoading$()">
+        Download my data
+      </button>
+      <button class="btn-danger" (click)="deleteMyAccount()">
+        Delete my account
+      </button>
+    </div>
+  </div>
+
+  @if (personalDataLoading$()) {
+    <div class="loading">
+      <p>Loading your personal data...</p>
+    </div>
+  }
+
+  @if (personalDataError$()) {
+    <div class="error-box">
+      <p>{{ personalDataError$() }}</p>
+      <button (click)="controller.loadPersonalData()">Retry</button>
+    </div>
+  }
+
+  @if (personalData$(); as data) {
+    <div class="card">
+      <h2>Account</h2>
+      <div class="data-table">
+        <div class="table-row">
+          <div class="table-cell-key">Email</div>
+          <div class="table-cell-value">{{ data.account.email }}</div>
+        </div>
+        <div class="table-row">
+          <div class="table-cell-key">Name</div>
+          <div class="table-cell-value">{{ data.account.name }}</div>
+        </div>
+        <div class="table-row">
+          <div class="table-cell-key">Email verified</div>
+          <div class="table-cell-value">{{ data.account.emailVerified ? 'Yes' : 'No' }}</div>
+        </div>
+        <div class="table-row">
+          <div class="table-cell-key">Auth provider</div>
+          <div class="table-cell-value">{{ data.account.authProvider }}</div>
+        </div>
+        <div class="table-row">
+          <div class="table-cell-key">Created</div>
+          <div class="table-cell-value">{{ formatTimestamp(data.account.createdAt) }}</div>
+        </div>
       </div>
-      
-      @for (claim of tokenClaims; track $index) {
-        <div class="table-row" [attr.data-claim]="claim.key">
-          <div class="table-cell-key">{{ claim.key }}</div>
-          <div class="table-cell-value">
-            @if (!isArray(claim.value)) {
-              {{ claim.value }}
-            }
-            @else {
-              <ul class="bullet-list">
-              @for (item of claim.value; track $index) {
-                <li>{{ item }}</li>
-              }
-              </ul>
-            }
+    </div>
+
+    <div class="card">
+      <h2>Organisation Memberships</h2>
+      @if (data.organisationMemberships.length === 0) {
+        <p class="description">You are not a member of any organisations.</p>
+      } @else {
+        <div class="data-table">
+          <div class="table-row header">
+            <div class="table-cell-key">Organisation</div>
+            <div class="table-cell-key">Role</div>
+            <div class="table-cell-key">Added</div>
           </div>
+          @for (membership of data.organisationMemberships; track membership.orgId + membership.role) {
+            <div class="table-row">
+              <div class="table-cell-value">{{ membership.organisationName || membership.orgId }}</div>
+              <div class="table-cell-value">{{ membership.role }}</div>
+              <div class="table-cell-value">{{ formatTimestamp(membership.addedAt) }}</div>
+            </div>
+          }
         </div>
       }
     </div>
+
+    <div class="card">
+      <h2>Roles</h2>
+      @if (data.roles.length === 0) {
+        <p class="description">You have no role assignments.</p>
+      } @else {
+        <div class="data-table">
+          <div class="table-row header">
+            <div class="table-cell-key">Client</div>
+            <div class="table-cell-key">Role</div>
+            <div class="table-cell-key">Organisation</div>
+          </div>
+          @for (role of data.roles; track role.id) {
+            <div class="table-row">
+              <div class="table-cell-value">{{ role.clientId }}</div>
+              <div class="table-cell-value">{{ role.role }}</div>
+              <div class="table-cell-value">{{ role.orgId }}</div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="card">
+      <h2>Credentials</h2>
+      @if (data.credentials.length === 0) {
+        <p class="description">You have no native credentials stored.</p>
+      } @else {
+        <div class="data-table">
+          <div class="table-row header">
+            <div class="table-cell-key">Username</div>
+            <div class="table-cell-key">Failed logins</div>
+            <div class="table-cell-key">Locked until</div>
+          </div>
+          @for (credential of data.credentials; track credential.id) {
+            <div class="table-row">
+              <div class="table-cell-value">{{ credential.username }}</div>
+              <div class="table-cell-value">{{ credential.failedLoginAttempts }}</div>
+              <div class="table-cell-value">{{ formatTimestamp(credential.lockedUntil) }}</div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="card">
+      <h2>Federated Identities</h2>
+      @if (data.federatedIdentities.length === 0) {
+        <p class="description">You have no linked federated identities.</p>
+      } @else {
+        <div class="data-table">
+          <div class="table-row header">
+            <div class="table-cell-key">Provider</div>
+            <div class="table-cell-key">Provider user ID</div>
+            <div class="table-cell-key">Email</div>
+          </div>
+          @for (identity of data.federatedIdentities; track identity.id) {
+            <div class="table-row">
+              <div class="table-cell-value">{{ identity.provider }}</div>
+              <div class="table-cell-value">{{ identity.providerUserId }}</div>
+              <div class="table-cell-value">{{ identity.email }}</div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <div class="card token-claims-card">
+    <div class="token-claims-header" (click)="toggleTokenClaims()">
+      <h2>Token Claims</h2>
+      <button type="button" class="btn-toggle">
+        {{ showTokenClaims ? 'Hide' : 'Show' }}
+      </button>
+    </div>
+    @if (showTokenClaims) {
+      <p class="description">All claims contained in your JWT identity token:</p>
+      <div class="data-table">
+        <div class="table-row header">
+          <div class="table-cell-key">Claim</div>
+          <div class="table-cell-value">Value</div>
+        </div>
+        @for (claim of tokenClaims; track $index) {
+          <div class="table-row" [attr.data-claim]="claim.key">
+            <div class="table-cell-key">{{ claim.key }}</div>
+            <div class="table-cell-value">
+              @if (!isArray(claim.value)) {
+                {{ claim.value }}
+              }
+              @else {
+                <ul class="bullet-list">
+                  @for (item of claim.value; track $index) {
+                    <li>{{ item }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
   </div>
 </div>

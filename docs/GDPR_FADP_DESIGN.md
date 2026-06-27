@@ -135,12 +135,12 @@ The work is split into independent features that can be implemented, reviewed, a
 
 ### Feature 3: Right of access (view my data)
 
-- [ ] Add backend endpoint to view all personal data of the authenticated user (`GET /api/accounts/me/data`).
-- [ ] Add backend endpoint to download/export personal data in a machine-readable format (`GET /api/accounts/me/data/export`).
-- [ ] Add backend tests for the right of access endpoint and the export endpoint.
-- [ ] Add UI page for "view my data" (route: `/user`).
-- [ ] Add "Download my data" button to the view-my-data page.
-- [ ] Update the Angular controller to call the new backend endpoints (data view, export, self-delete).
+- [x] Add backend endpoint to view all personal data of the authenticated user (`GET /api/accounts/me/data`).
+- [x] Add backend endpoint to download/export personal data in a machine-readable format (`GET /api/accounts/me/data/export`).
+- [x] Add backend tests for the right of access endpoint and the export endpoint.
+- [x] Add UI page for "view my data" (extend route `/user` so that the certificate data can be expanded and isn't the main point of the page).
+- [x] Add "Download my data" button to the view-my-data page.
+- [x] Update the Angular controller to call the new backend endpoints (data view, export, self-delete).
 
 ### Feature 4: Audit retention and purge
 

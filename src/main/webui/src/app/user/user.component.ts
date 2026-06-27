@@ -1,6 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject } from '@angular/core';
+import { Component, effect, inject, OnInit, Signal } from '@angular/core';
 import { AuthService, Token } from '../auth.service';
+import { Controller } from '../controller';
+import { ModelService, PersonalData } from '../model.service';
+import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
+import { ToastService } from '../shared/toast/toast.service';
 
 @Component({
   selector: 'user',
@@ -8,17 +12,75 @@ import { AuthService, Token } from '../auth.service';
   templateUrl: './user.component.html',
   styleUrl: './user.component.scss',
 })
-export class UserComponent {
+export class UserComponent implements OnInit {
   private authService = inject(AuthService);
-  
+  controller = inject(Controller);
+  private modelService = inject(ModelService);
+  private confirmService = inject(ConfirmDialogService);
+  private toastService = inject(ToastService);
+
   token!: Token;
   tokenClaims: { key: string; value: any }[] = [];
+  showTokenClaims = false;
+
+  personalData$: Signal<PersonalData | null>;
+  personalDataLoading$: Signal<boolean>;
+  personalDataError$: Signal<string | null>;
 
   constructor() {
+    this.personalData$ = this.modelService.personalData$;
+    this.personalDataLoading$ = this.modelService.personalDataLoading$;
+    this.personalDataError$ = this.modelService.personalDataError$;
+
     effect(() => {
       this.token = this.authService.token$();
       this.tokenClaims = this.extractClaims(this.token);
     });
+  }
+
+  ngOnInit(): void {
+    this.controller.loadPersonalData();
+  }
+
+  toggleTokenClaims(): void {
+    this.showTokenClaims = !this.showTokenClaims;
+  }
+
+  async downloadMyData(): Promise<void> {
+    try {
+      await this.controller.exportPersonalData();
+      this.toastService.success('Your data export has started.');
+    } catch (error) {
+      this.toastService.error('Failed to download your data. Please try again.');
+    }
+  }
+
+  async deleteMyAccount(): Promise<void> {
+    const confirmed = await this.confirmService.confirm({
+      title: 'Delete My Account',
+      message: 'Are you sure you want to permanently delete your account and all personal data? This action cannot be undone.',
+      confirmText: 'Delete My Account',
+      cancelText: 'Cancel',
+      confirmClass: 'btn-danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await this.controller.deleteOwnAccount();
+      this.toastService.success('Your account has been deleted successfully');
+      this.authService.signout();
+    } catch (err: any) {
+      if (err.status === 400 && err.error?.error) {
+        this.toastService.error(err.error.error);
+      } else if (err.status === 404) {
+        this.toastService.error('Account not found.');
+      } else {
+        this.toastService.error('Failed to delete your account. Please try again.');
+      }
+    }
   }
 
   private extractClaims(token: Token): { key: string; value: any }[] {
@@ -49,5 +111,16 @@ export class UserComponent {
 
   isArray(value: any): boolean {
     return Array.isArray(value);
+  }
+
+  formatTimestamp(value: string | null): string {
+    if (!value) {
+      return '-';
+    }
+    try {
+      return new Date(value).toLocaleString();
+    } catch {
+      return value;
+    }
   }
 }

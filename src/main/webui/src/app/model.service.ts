@@ -126,6 +126,56 @@ export interface ConfigResponse {
   auditRetentionDays: number;
 }
 
+export interface PersonalDataAccount {
+  id: string;
+  email: string;
+  name: string;
+  emailVerified: boolean;
+  authProvider: string;
+  picture: string | null;
+  createdAt: string;
+}
+
+export interface PersonalDataCredential {
+  id: string;
+  username: string;
+  failedLoginAttempts: number;
+  lockedUntil: string | null;
+  createdAt: string;
+}
+
+export interface PersonalDataFederatedIdentity {
+  id: string;
+  provider: string;
+  providerUserId: string;
+  email: string;
+  connectedAt: string;
+}
+
+export interface PersonalDataOrganisationMembership {
+  orgId: string;
+  organisationName: string;
+  role: string;
+  addedAt: string;
+}
+
+export interface PersonalDataRole {
+  id: string;
+  clientId: string;
+  role: string;
+  orgId: string;
+  createdAt: string;
+}
+
+export interface PersonalData {
+  account: PersonalDataAccount;
+  credentials: PersonalDataCredential[];
+  federatedIdentities: PersonalDataFederatedIdentity[];
+  organisationMemberships: PersonalDataOrganisationMembership[];
+  roles: PersonalDataRole[];
+  exportTimestamp: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -158,6 +208,9 @@ export class ModelService {
   private brandName = signal<string>(this.defaultBrandName);
   private readonly defaultAuditRetentionDays = 90;
   private auditRetentionDays = signal<number>(this.defaultAuditRetentionDays);
+  private personalData = signal<PersonalData | null>(null);
+  private personalDataLoading = signal<boolean>(false);
+  private personalDataError = signal<string | null>(null);
 
   legalContent$: Signal<string | null> = this.legalContent.asReadonly();
   brandLogoUrl$: Signal<string> = this.brandLogoUrl.asReadonly();
@@ -182,6 +235,9 @@ export class ModelService {
   organisationsError$: Signal<string | null> = this.organisationsError.asReadonly();
   currentOrganisation$: Signal<Organisation | null> = this.currentOrganisation.asReadonly();
   auditRetentionDays$: Signal<number> = this.auditRetentionDays.asReadonly();
+  personalData$: Signal<PersonalData | null> = this.personalData.asReadonly();
+  personalDataLoading$: Signal<boolean> = this.personalDataLoading.asReadonly();
+  personalDataError$: Signal<string | null> = this.personalDataError.asReadonly();
 
   setSignUpUsername(username: string) {
     this.signUpUsername.set(username);
@@ -277,5 +333,17 @@ export class ModelService {
 
   setAuditRetentionDays(days: number) {
     this.auditRetentionDays.set(days > 0 ? days : this.defaultAuditRetentionDays);
+  }
+
+  setPersonalData(data: PersonalData | null) {
+    this.personalData.set(data);
+  }
+
+  setPersonalDataLoading(loading: boolean) {
+    this.personalDataLoading.set(loading);
+  }
+
+  setPersonalDataError(error: string | null) {
+    this.personalDataError.set(error);
   }
 }

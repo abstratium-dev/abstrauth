@@ -11,6 +11,8 @@
 
 ## Today
 
+- update README.md and USER_GUIDE.md to state that it is fully audited. and GDPF/FADP compliant.
+
 - GDPR - see GDPR_FADP_DESIGN.md and continue with the unimplemented parts
   - update legal page to display what is currently configured
 

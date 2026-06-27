@@ -1,0 +1,46 @@
+.page-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.token-claims-card {
+  margin-top: 1.5rem;
+}
+
+.token-claims-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.btn-toggle {
+  background: transparent;
+  border: 1px solid var(--color-border-primary);
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 0.875rem;
+
+  &:hover {
+    background: var(--color-bg-hover);
+  }
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+
+.error-box {
+  button {
+    margin-top: 0.75rem;
+  }
+}

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Account, AddClientRoleRequest, AllowedRole, AuditEntry, ClientRole, ClientRolesResponse, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, UpdateOrganisationRequest } from './model.service';
+import { Account, AddClientRoleRequest, AllowedRole, AuditEntry, ClientRole, ClientRolesResponse, ClientSecret, ConfigResponse, CreateAccountResponse, CreateOrganisationRequest, CreateSecretRequest, CreateSecretResponse, ModelService, OAuthClient, Organisation, PersonalData, UpdateOrganisationRequest } from './model.service';
 
 @Injectable({
   providedIn: 'root',
@@ -220,6 +220,47 @@ export class Controller {
       );
     } catch (error) {
       console.error('Error deleting own account:', error);
+      throw error;
+    }
+  }
+
+  loadPersonalData(): Promise<void> {
+    this.modelService.setPersonalDataLoading(true);
+    this.modelService.setPersonalDataError(null);
+    return firstValueFrom(
+      this.http.get<PersonalData>('/api/accounts/me/data')
+    ).then(data => {
+      this.modelService.setPersonalData(data);
+      this.modelService.setPersonalDataLoading(false);
+    }).catch(err => {
+      console.error('Error loading personal data:', err);
+      this.modelService.setPersonalDataError('Failed to load your data. Please try again.');
+      this.modelService.setPersonalDataLoading(false);
+    });
+  }
+
+  async exportPersonalData(): Promise<void> {
+    try {
+      const response = await firstValueFrom(
+        this.http.get('/api/accounts/me/data/export', {
+          responseType: 'blob',
+          observe: 'response'
+        })
+      );
+      const contentDisposition = response.headers.get('Content-Disposition') || '';
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch ? filenameMatch[1] : 'abstrauth-personal-data.json';
+      const blob = response.body as Blob;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting personal data:', error);
       throw error;
     }
   }

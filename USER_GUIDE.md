@@ -660,7 +660,8 @@ _Replace all `TODO_...` values with the values generated above.
      -e QUARKUS_OIDC_BFF_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME="TODO_TRUE_IF_BEHIND_REVERSE_PROXY_WHICH_ENDS_TLS_TUNNEL" \
      -e ABSTRA_BRAND_LOGO_URL="https://your-company.com/logo.svg" \
      -e ABSTRA_BRAND_LOGO_ALT="Your Company Logo" \
-     -e ABSTRA_BRAND_NAME="YOUR COMPANY"
+     -e ABSTRA_BRAND_NAME="YOUR COMPANY" \
+     -e ABSTRAUTH_AUDIT_RETENTION_DAYS="90"
      ghcr.io/abstratium-dev/abstrauth:latest
    ```
 
@@ -701,6 +702,7 @@ _Replace all `TODO_...` values with the values generated above.
    - `ABSTRA_BRAND_LOGO_URL`: URL of the logo image shown in the header. Defaults to `https://abstratium.dev/abstratium-logo-small.png`.
    - `ABSTRA_BRAND_LOGO_ALT`: Alt text for the header logo image. Defaults to `Abstratium Logo`.
    - `ABSTRA_BRAND_NAME`: Brand name text shown next to the logo in the header. Defaults to `ABSTRATIUM`.
+   - `ABSTRAUTH_AUDIT_RETENTION_DAYS`: Number of days to retain Envers audit history (changes to accounts, credentials, roles, federated identities, and organisation memberships). Default: `90`. Audit rows older than this period are purged daily at 02:00 UTC. This value is also displayed on the legal/privacy page.
    - `ABSTRAUTH_TOKEN_EXCHANGE_MAX_DEPTH`: Maximum number of token exchange hops in a delegation chain (default: `3`). A value of 3 allows BFF → Service A → Service B but rejects a fourth hop. Set to `1` to prohibit any chaining of exchanged tokens.
    - `ABSTRA_LEGAL_CONTENT_FILE`: **Required for non-abstratium deployments.** Absolute path inside the container to an HTML file containing your organisation's legal page content. When set, this file's contents are served to the frontend and displayed instead of the built-in abstratium legal text — with no misconfiguration warnings. If this variable is not set and the deployment is not on `abstratium.dev`, the legal page will display a prominent error warning to users, and the home page will display a disclaimer stating that abstratium is not responsible for this deployment. Example: `-e ABSTRA_LEGAL_CONTENT_FILE=/config/legal.html -v /host/legal.html:/config/legal.html`.
 

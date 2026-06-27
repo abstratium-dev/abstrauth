@@ -1,12 +1,15 @@
 package dev.abstratium.abstrauth.non_multitenancy.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOrganisation;
 import dev.abstratium.abstrauth.service.Roles;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -115,6 +118,95 @@ public class NonMultitenancyAccountService {
         }
 
         return true;
+    }
+
+    /**
+     * Collect all personal data held by the system for a given account.
+     * This is a cross-tenant read because roles, credentials, federated identities,
+     * and organisation memberships may span multiple organisations.
+     *
+     * @param accountId The account ID
+     * @return A structured personal data package (never null)
+     * @throws IllegalArgumentException if the account does not exist
+     */
+    @Transactional
+    public PersonalData getPersonalData(String accountId) {
+        NonMultitenancyAccount account = findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        // Touch lazy collections to initialise them inside the transaction
+        account.getRoles().size();
+        account.getCredentials().size();
+        account.getFederatedIdentities().size();
+        account.getOrganisationAccounts().size();
+
+        Map<String, String> organisationNames = em.createQuery(
+                "SELECT o FROM NonMultitenancyOrganisation o WHERE o.id IN :orgIds",
+                NonMultitenancyOrganisation.class)
+                .setParameter("orgIds", account.getOrganisationAccounts().stream()
+                        .map(oa -> oa.getOrgId())
+                        .distinct()
+                        .collect(Collectors.toList()))
+                .getResultStream()
+                .collect(Collectors.toMap(NonMultitenancyOrganisation::getId, NonMultitenancyOrganisation::getName));
+
+        PersonalData.AccountInfo accountInfo = new PersonalData.AccountInfo(
+                account.getId(),
+                account.getEmail(),
+                account.getName(),
+                account.getEmailVerified(),
+                account.getAuthProvider(),
+                account.getPicture(),
+                account.getCreatedAt() != null ? account.getCreatedAt().toString() : null
+        );
+
+        List<PersonalData.CredentialInfo> credentials = account.getCredentials().stream()
+                .map(c -> new PersonalData.CredentialInfo(
+                        c.getId(),
+                        c.getUsername(),
+                        c.getFailedLoginAttempts(),
+                        c.getLockedUntil() != null ? c.getLockedUntil().toString() : null,
+                        c.getCreatedAt() != null ? c.getCreatedAt().toString() : null
+                ))
+                .collect(Collectors.toList());
+
+        List<PersonalData.FederatedIdentityInfo> federatedIdentities = account.getFederatedIdentities().stream()
+                .map(f -> new PersonalData.FederatedIdentityInfo(
+                        f.getId(),
+                        f.getProvider(),
+                        f.getProviderUserId(),
+                        f.getEmail(),
+                        f.getConnectedAt() != null ? f.getConnectedAt().toString() : null
+                ))
+                .collect(Collectors.toList());
+
+        List<PersonalData.OrganisationMembershipInfo> memberships = account.getOrganisationAccounts().stream()
+                .map(oa -> new PersonalData.OrganisationMembershipInfo(
+                        oa.getOrgId(),
+                        organisationNames.getOrDefault(oa.getOrgId(), ""),
+                        oa.getRole(),
+                        oa.getAddedAt() != null ? oa.getAddedAt().toString() : null
+                ))
+                .collect(Collectors.toList());
+
+        List<PersonalData.RoleInfo> roles = account.getRoles().stream()
+                .map(r -> new PersonalData.RoleInfo(
+                        r.getId(),
+                        r.getClientId(),
+                        r.getRole(),
+                        r.getOrgId(),
+                        r.getCreatedAt() != null ? r.getCreatedAt().toString() : null
+                ))
+                .collect(Collectors.toList());
+
+        return new PersonalData(
+                accountInfo,
+                credentials,
+                federatedIdentities,
+                memberships,
+                roles,
+                LocalDateTime.now().toString()
+        );
     }
 
     /**

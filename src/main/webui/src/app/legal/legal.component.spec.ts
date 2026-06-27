@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
+import { Subject } from 'rxjs';
 import { LegalComponent } from './legal.component';
 import { DomainService } from '../domain.service';
 import { ModelService } from '../model.service';
@@ -17,13 +18,22 @@ function makeMocks(isAbstratiumDomain: boolean, legalContent: string | null, aud
 async function buildFixture(isAbstratiumDomain: boolean, legalContent: string | null): Promise<ComponentFixture<LegalComponent>> {
   TestBed.resetTestingModule();
   const { mockDomainService, mockModelService } = makeMocks(isAbstratiumDomain, legalContent);
-  const mockRouter = { navigate: jasmine.createSpy('navigate'), url: '/' };
+  const routerEventsSubject = new Subject();
+  const mockRouter = {
+    navigate: jasmine.createSpy('navigate'),
+    url: '/',
+    events: routerEventsSubject.asObservable(),
+    createUrlTree: () => ({ root: { segments: [], children: {}, hasChildren: false, numberOfChildren: 0 }, queryParams: {}, fragment: null, queryParamMap: { get: () => null, getAll: () => [], has: () => false } }),
+    serializeUrl: () => '/'
+  };
+  const mockActivatedRoute = { snapshot: {} };
   await TestBed.configureTestingModule({
     imports: [LegalComponent],
     providers: [
       { provide: DomainService, useValue: mockDomainService },
       { provide: ModelService, useValue: mockModelService },
       { provide: Router, useValue: mockRouter },
+      { provide: ActivatedRoute, useValue: mockActivatedRoute },
     ]
   }).compileComponents();
   const f = TestBed.createComponent(LegalComponent);
@@ -139,3 +149,4 @@ describe('LegalComponent', () => {
     });
   });
 });
+

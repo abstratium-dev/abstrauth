@@ -1,11 +1,16 @@
 package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountService;
+import dev.abstratium.abstrauth.non_multitenancy.service.PersonalData;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.CurrentOrgContext;
 import dev.abstratium.abstrauth.service.OrganisationService;
@@ -13,6 +18,7 @@ import dev.abstratium.abstrauth.service.Roles;
 import io.quarkus.oidc.IdToken;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -52,6 +58,72 @@ public class NonMultitenancyAccountsResource {
     @Inject
     @IdToken
     JsonWebToken token;
+
+    /**
+     * Returns all personal data held about the authenticated user across ALL organisations.
+     * This is a cross-tenant read because a user may belong to multiple organisations and
+     * their roles, credentials, federated identities, and memberships are not limited to a
+     * single tenant.
+     *
+     * @return A structured view of the user's personal data
+     */
+    @GET
+    @Path("/me/data")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "View my data", description = "Returns all personal data held about the authenticated user across all organisations.")
+    @RolesAllowed(Roles.USER)
+    public Response getMyData() {
+        String accountId = token.getSubject();
+        if (accountId == null || accountId.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Account ID is required in token"))
+                    .build();
+        }
+
+        try {
+            PersonalData data = nonMultitenancyAccountService.getPersonalData(accountId);
+            return Response.ok(data).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+    }
+
+    /**
+     * Downloads all personal data held about the authenticated user in a machine-readable JSON
+     * format. The response is identical to GET /me/data but is returned with a
+     * Content-Disposition header so browsers treat it as a download.
+     *
+     * @return A JSON file attachment containing the user's personal data
+     */
+    @GET
+    @Path("/me/data/export")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Export my data", description = "Downloads all personal data held about the authenticated user in a machine-readable JSON format.")
+    @RolesAllowed(Roles.USER)
+    public Response exportMyData() {
+        String accountId = token.getSubject();
+        if (accountId == null || accountId.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Account ID is required in token"))
+                    .build();
+        }
+
+        try {
+            PersonalData data = nonMultitenancyAccountService.getPersonalData(accountId);
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+            String filename = "abstrauth-personal-data-" + accountId + "-" + timestamp + ".json";
+            String sanitized = filename.replaceAll("[^a-zA-Z0-9._-]", "_");
+            return Response.ok(data, MediaType.APPLICATION_JSON)
+                    .header("Content-Disposition", "attachment; filename=\"" + sanitized + "\"")
+                    .build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+    }
 
     /**
      * Deletes the authenticated user's own account and all associated data across ALL organisations.
