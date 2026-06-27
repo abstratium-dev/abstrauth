@@ -12,7 +12,6 @@
 ## Today
 
 - GDPR - see GDPR_FADP_DESIGN.md and continue with the unimplemented parts
-  - define who is DPO in abstratium
   - update legal page to display what is currently configured
 
 - test migrations against prod data

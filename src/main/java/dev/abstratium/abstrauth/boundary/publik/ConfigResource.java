@@ -37,6 +37,9 @@ public class ConfigResource {
     @ConfigProperty(name = "abstrauth.session.timeout.seconds", defaultValue = "900")
     int sessionTimeoutSeconds;
 
+    @ConfigProperty(name = "abstrauth.audit.retention.days", defaultValue = "90")
+    int auditRetentionDays;
+
     @ConfigProperty(name = "quarkus.oidc.bff.credentials.secret")
     String clientSecret;
 
@@ -83,7 +86,7 @@ public class ConfigResource {
         boolean allowGoogleSignin = authorizationService.isGoogleSigninAllowed();
         boolean allowMicrosoftSignin = authorizationService.isMicrosoftSigninAllowed();
         boolean insecureClientSecret = isClientSecretInsecure();
-        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage, legalContent, brandLogoUrl, brandLogoAlt, brandName, stage)).build();
+        return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage, legalContent, brandLogoUrl, brandLogoAlt, brandName, stage, auditRetentionDays)).build();
     }
 
     /**
@@ -114,8 +117,9 @@ public class ConfigResource {
         public String brandLogoAlt;
         public String brandName;
         public String stage;
+        public int auditRetentionDays;
 
-        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage, String legalContent, String brandLogoUrl, String brandLogoAlt, String brandName, String stage) {
+        public ConfigResponse(boolean signupAllowed, boolean allowNativeSignin, boolean allowGoogleSignin, boolean allowMicrosoftSignin, int sessionTimeoutSeconds, boolean insecureClientSecret, String warningMessage, String legalContent, String brandLogoUrl, String brandLogoAlt, String brandName, String stage, int auditRetentionDays) {
             this.signupAllowed = signupAllowed;
             this.allowNativeSignin = allowNativeSignin;
             this.allowGoogleSignin = allowGoogleSignin;
@@ -128,6 +132,7 @@ public class ConfigResource {
             this.brandLogoAlt = brandLogoAlt;
             this.brandName = brandName;
             this.stage = stage;
+            this.auditRetentionDays = auditRetentionDays;
         }
     }
 }

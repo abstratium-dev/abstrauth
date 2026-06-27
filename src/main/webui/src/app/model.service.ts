@@ -123,6 +123,7 @@ export interface ConfigResponse {
   brandLogoUrl: string;
   brandLogoAlt: string;
   brandName: string;
+  auditRetentionDays: number;
 }
 
 @Injectable({
@@ -155,6 +156,8 @@ export class ModelService {
   private brandLogoUrl = signal<string>(this.defaultBrandLogoUrl);
   private brandLogoAlt = signal<string>(this.defaultBrandLogoAlt);
   private brandName = signal<string>(this.defaultBrandName);
+  private readonly defaultAuditRetentionDays = 90;
+  private auditRetentionDays = signal<number>(this.defaultAuditRetentionDays);
 
   legalContent$: Signal<string | null> = this.legalContent.asReadonly();
   brandLogoUrl$: Signal<string> = this.brandLogoUrl.asReadonly();
@@ -178,6 +181,7 @@ export class ModelService {
   organisationsLoading$: Signal<boolean> = this.organisationsLoading.asReadonly();
   organisationsError$: Signal<string | null> = this.organisationsError.asReadonly();
   currentOrganisation$: Signal<Organisation | null> = this.currentOrganisation.asReadonly();
+  auditRetentionDays$: Signal<number> = this.auditRetentionDays.asReadonly();
 
   setSignUpUsername(username: string) {
     this.signUpUsername.set(username);
@@ -269,5 +273,9 @@ export class ModelService {
 
   setBrandName(name: string) {
     this.brandName.set(name || this.defaultBrandName);
+  }
+
+  setAuditRetentionDays(days: number) {
+    this.auditRetentionDays.set(days > 0 ? days : this.defaultAuditRetentionDays);
   }
 }

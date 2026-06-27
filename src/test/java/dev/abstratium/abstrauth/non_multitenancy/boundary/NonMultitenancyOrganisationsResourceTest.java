@@ -190,6 +190,11 @@ public class NonMultitenancyOrganisationsResourceTest {
         String orgId = secondOrg.getId();
         String token = adminToken(admin.getId(), orgId);
 
+        // Seed a role for the admin in this org so the cascade delete has something to remove
+        transactionHelper.beginTransaction();
+        nonMultitenancyAccountRoleService.addRole(orgId, admin.getId(), Roles.CLIENT_ID, Roles._USER_PLAIN);
+        transactionHelper.commitTransaction();
+
         // Create a client owned by this org
         transactionHelper.beginTransaction();
         String clientId = "del-test-client-" + System.currentTimeMillis();

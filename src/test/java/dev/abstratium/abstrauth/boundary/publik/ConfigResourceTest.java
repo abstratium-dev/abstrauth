@@ -52,7 +52,8 @@ public class ConfigResourceTest {
             .body("allowNativeSignin", notNullValue())
             .body("sessionTimeoutSeconds", notNullValue())
             .body("insecureClientSecret", notNullValue())
-            .body("warningMessage", notNullValue());
+            .body("warningMessage", notNullValue())
+            .body("auditRetentionDays", notNullValue());
     }
 
     @Test
@@ -75,6 +76,26 @@ public class ConfigResourceTest {
             .body("signupAllowed", instanceOf(Boolean.class))
             .body("allowNativeSignin", instanceOf(Boolean.class))
             .body("insecureClientSecret", instanceOf(Boolean.class));
+    }
+
+    @Test
+    public void testGetConfigReturnsIntegerForAuditRetentionDays() {
+        given()
+            .when()
+            .get("/public/config")
+            .then()
+            .statusCode(200)
+            .body("auditRetentionDays", instanceOf(Integer.class));
+    }
+
+    @Test
+    public void testGetConfigReturnsDefaultAuditRetentionDays() {
+        given()
+            .when()
+            .get("/public/config")
+            .then()
+            .statusCode(200)
+            .body("auditRetentionDays", equalTo(90)); // Default value
     }
 
     @Test

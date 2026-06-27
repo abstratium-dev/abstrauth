@@ -269,10 +269,11 @@ public class NonMultitenancyTokenResourceOrgIdTest {
         String authCode = extractParam(consentResponse.getHeader("Location"), "code");
         assertNotNull(authCode);
 
-        // Remove account from organisation (simulate membership revocation)
-        // First add another owner so we can remove the original account
+        // Remove account from the selected organisation (simulate membership revocation)
         transactionHelper.beginTransaction();
         Organisation org = organisationService.listOrganisationsForAccount(account.getId()).get(0);
+
+        // Add another owner so the org is not left without one when the account is removed
         Account otherAccount = accountService.createAccount(
                 "orgid_" + ts + "_other@example.com",
                 "Other " + ts,
@@ -281,6 +282,11 @@ public class NonMultitenancyTokenResourceOrgIdTest {
                 AccountService.NATIVE,
                 null);
         organisationService.addOwner(org.getId(), otherAccount.getId());
+
+        // Give the account another organisation membership so it does not lose its last membership
+        Organisation otherOrg = organisationService.createOrganisation("Other Org " + ts);
+        organisationService.addMember(otherOrg.getId(), account.getId());
+
         organisationService.removeMember(org.getId(), account.getId()); // removes owner row
         organisationService.removeMember(org.getId(), account.getId()); // removes member row
         transactionHelper.commitTransaction();

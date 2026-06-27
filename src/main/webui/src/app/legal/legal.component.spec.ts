@@ -1,23 +1,29 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { LegalComponent } from './legal.component';
 import { DomainService } from '../domain.service';
 import { ModelService } from '../model.service';
 
-function makeMocks(isAbstratiumDomain: boolean, legalContent: string | null) {
+function makeMocks(isAbstratiumDomain: boolean, legalContent: string | null, auditRetentionDays: number = 90) {
   const mockDomainService = { isAbstratiumDomain };
-  const mockModelService = { legalContent$: signal(legalContent) };
+  const mockModelService = {
+    legalContent$: signal(legalContent),
+    auditRetentionDays$: signal(auditRetentionDays)
+  };
   return { mockDomainService, mockModelService };
 }
 
 async function buildFixture(isAbstratiumDomain: boolean, legalContent: string | null): Promise<ComponentFixture<LegalComponent>> {
   TestBed.resetTestingModule();
   const { mockDomainService, mockModelService } = makeMocks(isAbstratiumDomain, legalContent);
+  const mockRouter = { navigate: jasmine.createSpy('navigate'), url: '/' };
   await TestBed.configureTestingModule({
     imports: [LegalComponent],
     providers: [
       { provide: DomainService, useValue: mockDomainService },
       { provide: ModelService, useValue: mockModelService },
+      { provide: Router, useValue: mockRouter },
     ]
   }).compileComponents();
   const f = TestBed.createComponent(LegalComponent);
@@ -113,6 +119,12 @@ describe('LegalComponent', () => {
     it('should render privacy section', () => {
       const titles = Array.from(fixture.nativeElement.querySelectorAll('.notice-card-title')).map((el: any) => el.textContent);
       expect(titles).toContain('Privacy & Data Protection');
+    });
+
+    it('should display the configured audit retention period', () => {
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('90 days');
+      expect(compiled.textContent).toContain('Audit history');
     });
 
     it('should render contact section', () => {

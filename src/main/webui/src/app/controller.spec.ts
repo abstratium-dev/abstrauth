@@ -354,26 +354,28 @@ describe('Controller', () => {
 
       const req = httpMock.expectOne('/public/config');
       expect(req.request.method).toBe('GET');
-      req.flush({ signupAllowed: true, allowNativeSignin: true, sessionTimeoutSeconds: 900 });
+      req.flush({ signupAllowed: true, allowNativeSignin: true, sessionTimeoutSeconds: 900, auditRetentionDays: 90 });
 
       await promise;
 
       expect(modelService.signupAllowed$()).toBe(true);
       expect(modelService.allowNativeSignin$()).toBe(true);
       expect(modelService.sessionTimeoutSeconds$()).toBe(900);
+      expect(modelService.auditRetentionDays$()).toBe(90);
     });
 
     it('should handle false signup allowed', async () => {
       const promise = controller.loadConfig();
 
       const req = httpMock.expectOne('/public/config');
-      req.flush({ signupAllowed: false, allowNativeSignin: false, sessionTimeoutSeconds: 1800 });
+      req.flush({ signupAllowed: false, allowNativeSignin: false, sessionTimeoutSeconds: 1800, auditRetentionDays: 180 });
 
       await promise;
 
       expect(modelService.signupAllowed$()).toBe(false);
       expect(modelService.allowNativeSignin$()).toBe(false);
       expect(modelService.sessionTimeoutSeconds$()).toBe(1800);
+      expect(modelService.auditRetentionDays$()).toBe(180);
     });
 
     it('should handle error when loading config', async () => {
@@ -387,6 +389,18 @@ describe('Controller', () => {
       expect(modelService.signupAllowed$()).toBe(false);
       expect(modelService.allowNativeSignin$()).toBe(false);
       expect(modelService.sessionTimeoutSeconds$()).toBe(900); // Default fallback
+      expect(modelService.auditRetentionDays$()).toBe(90); // Default fallback
+    });
+
+    it('should default auditRetentionDays when missing from response', async () => {
+      const promise = controller.loadConfig();
+
+      const req = httpMock.expectOne('/public/config');
+      req.flush({ signupAllowed: true, allowNativeSignin: true, sessionTimeoutSeconds: 900 });
+
+      await promise;
+
+      expect(modelService.auditRetentionDays$()).toBe(90);
     });
   });
 

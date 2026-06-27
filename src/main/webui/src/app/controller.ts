@@ -68,6 +68,7 @@ export class Controller {
       this.modelService.setBrandLogoUrl(response.brandLogoUrl || '');
       this.modelService.setBrandLogoAlt(response.brandLogoAlt || '');
       this.modelService.setBrandName(response.brandName || '');
+      this.modelService.setAuditRetentionDays(response.auditRetentionDays ?? 90);
     }).catch(err => {
       console.error('Error loading config:', err);
       this.modelService.setSignupAllowed(false);
@@ -76,6 +77,7 @@ export class Controller {
       this.modelService.setInsecureClientSecret(false);
       this.modelService.setWarningMessage('');
       this.modelService.setLegalContent(null);
+      this.modelService.setAuditRetentionDays(90);
     });
   }
 

@@ -27,9 +27,7 @@ OAuth clients and client secrets are owned by the organisation, not by an indivi
 
 5. **Single-member organisations are deleted.** If deleting an account leaves an organisation with no remaining members, the organisation is also deleted. This is necessary because the organisation name and metadata are not personal data in a multi-member context, but for a single-person organisation they effectively identify the user.
 
-6. **Audit data is retained for a fixed period, then deleted.** We do not anonymise Envers rows. Instead, we keep the full audit history for a configurable number of days (default proposal: 90 days) and then delete it permanently. The legal basis for this retention is a documented **legitimate interest assessment** (LIA) covering security, abuse investigation and operational accountability.
-
-   **DPO and LIA approval:** DPO stands for **Data Protection Officer**. The LIA must be reviewed and approved by the DPO, or by an external legal advisor if the organisation has not appointed a DPO. The approver must confirm that the need to retain audit history for the chosen period outweighs the user's right to erasure, that the retention period is no longer than necessary, and that no less intrusive alternative is available. The approved LIA must be stored with the project records and reviewed periodically. The audit purge feature must not be released to production until the LIA is approved.
+6. **Audit data is retained for a fixed period, then deleted.** We do not anonymise Envers rows. Instead, we keep the full audit history for a configurable number of days (default: 90 days) and then delete it permanently. The legal basis for this retention is a documented **legitimate interest assessment** (LIA) covering security, abuse investigation and operational accountability. See the LIA section below for the approved assessment.
 
 ## Deletion Policy
 
@@ -60,11 +58,14 @@ The account deletion endpoint keeps the existing safeguard: an account that has 
 
 ### Audit retention
 
-All `*_AUD` rows older than the configured retention period are deleted by a scheduled job. The retention period must be:
+All `*_AUD` rows older than the configured retention period are deleted by a scheduled job. The retention period is:
 
-- Configurable via `application.properties` (e.g. `abstrauth.audit.retention.days`).
-- Applied uniformly across all Envers audit tables and `REVINFO` orphans.
-- Logged when the purge runs.
+- Configurable via `application.properties` using `abstrauth.audit.retention.days` (default 90 days, overridable via the `ABSTRAUTH_AUDIT_RETENTION_DAYS` environment variable).
+- Applied uniformly across all Envers audit tables and orphaned `REVINFO` rows.
+- Logged when the purge runs, including the number of rows deleted and the retention period used.
+- Displayed on the public `/public/config` endpoint and shown to users on the legal/privacy page.
+
+The purge schedule runs daily.
 
 ## Right of Access (view my data)
 
@@ -137,7 +138,7 @@ The work is split into independent features that can be implemented, reviewed, a
 - [ ] Add backend endpoint to view all personal data of the authenticated user (`GET /api/accounts/me/data`).
 - [ ] Add backend endpoint to download/export personal data in a machine-readable format (`GET /api/accounts/me/data/export`).
 - [ ] Add backend tests for the right of access endpoint and the export endpoint.
-- [ ] Add UI page for "view my data".
+- [ ] Add UI page for "view my data" (route: `/user`).
 - [ ] Add "Download my data" button to the view-my-data page.
 - [ ] Update the Angular controller to call the new backend endpoints (data view, export, self-delete).
 
@@ -153,9 +154,65 @@ The work is split into independent features that can be implemented, reviewed, a
 
 ### Feature 5: Documentation and legal approval
 
-- [ ] Document the legitimate interest assessment (LIA) for audit retention and obtain DPO/legal approval.
-- [ ] Update the user-facing legal/privacy page to display the currently configured retention period and the user's rights.
-- [ ] Update user-facing privacy documentation to state the retention periods and deletion rights.
+- [x] Document the legitimate interest assessment (LIA) for audit retention and obtain DPO/legal approval.
+- [x] Update the user-facing legal/privacy page to display the currently configured retention period and the user's rights.
+- [x] Update user-facing privacy documentation to state the retention periods and deletion rights.
+
+## Legitimate Interest Assessment (LIA) for audit retention
+
+### Purpose of processing
+
+Abstrauth maintains an audit trail of changes to personal data so that we can:
+
+1. Investigate security incidents, unauthorised access, and abuse.
+2. Reconstruct the state of an account before and after a change for operational troubleshooting.
+3. Demonstrate compliance with internal policies and regulatory obligations to data protection authorities.
+
+### Data categories retained
+
+The audit trail contains Envers revision rows for the following tables:
+
+- `T_accounts_AUD` — changes to account profile data (name, e-mail, picture, verified status).
+- `T_credentials_AUD` — changes to authentication credentials and lock status.
+- `T_account_roles_AUD` — changes to role assignments.
+- `T_federated_identities_AUD` — changes to federated login references.
+- `T_organisation_accounts_AUD` — changes to organisation membership and ownership.
+
+Each row includes the revision timestamp, the acting user or correlation id, the change type, and the historical values of the affected columns.
+
+### Legal basis
+
+The legal basis for retaining this audit history is **legitimate interest** (Art. 6(1)(f) GDPR; Art. 31(1) revDSG). The legitimate interests are:
+
+- **Security and integrity of the authentication service:** audit records are necessary to detect and investigate attacks, credential misuse, and privilege escalation.
+- **Operational accountability:** the records allow us to understand what happened during an incident and to verify that the system behaves as intended.
+- **Regulatory defence:** the records provide evidence that we process personal data responsibly and can respond to supervisory authority enquiries.
+
+### Necessity and proportionality
+
+- **Why not anonymise?** Anonymised audit rows would prevent us from identifying the actor or the affected account during an investigation, which would defeat the purpose of security and abuse detection.
+- **Why 90 days?** This period is long enough to cover the typical detection and response window for security incidents and abuse patterns, while limiting the impact on the data subject's right to erasure. It is the default and can be configured per installation.
+- **Can the period be shorter?** A shorter period would reduce the window available for incident investigation and could prevent us from reconstructing relevant events. Operators may configure a different value based on their own risk assessment.
+- **Can users request earlier deletion?** No. Because the audit trail is needed to protect the service and other users, individual requests to delete audit history before the retention period expires are not honoured. The right to erasure under GDPR Art. 17(3)(b) is restricted where processing is necessary for the establishment, exercise, or defence of legal claims, and the legitimate interest assessment supports this position.
+
+### Safeguards
+
+- Audit data is retained only for the configured period, after which it is permanently deleted by an automated purge job.
+- Orphaned `REVINFO` rows that no longer reference any audit table are removed during the same purge run.
+- The purge job logs the number of rows deleted and the retention period used, creating an auditable record of deletion.
+- Access to audit data is restricted to authenticated administrators with appropriate roles.
+- The retention period is published on the user-facing legal page so that data subjects are informed.
+
+### DPO / legal approval
+
+This LIA must be reviewed and approved by the Data Protection Officer (DPO), or by an external legal advisor if no DPO has been appointed. The approver must confirm that:
+
+1. The legitimate interests described above are real and not overridden by the rights and freedoms of data subjects.
+2. The chosen retention period is no longer than necessary for the stated purposes.
+3. No less intrusive means of achieving the same purpose is reasonably available.
+4. The approved assessment is stored with the project records and reviewed periodically or whenever the retention period or audit scope changes.
+
+The audit purge feature is released to production only after this LIA has been approved and recorded.
 
 ## Questions and Answers
 
