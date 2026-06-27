@@ -144,13 +144,13 @@ The work is split into independent features that can be implemented, reviewed, a
 
 ### Feature 4: Audit retention and purge
 
-- [ ] Add configuration property `abstrauth.audit.retention.days` with a sensible default (e.g. 90 days).
-- [ ] Periodically remove all audit data that is older than X days, where X is configurable via an environment variable or `application.properties` entry.
-- [ ] Add periodic scheduler to delete `*_AUD` rows older than the configured retention period.
-- [ ] Decide and document the audit purge schedule (e.g. daily at 02:00 UTC).
-- [ ] Log each purge run, including the number of rows deleted and the retention period used.
-- [ ] Clean up orphaned `REVINFO` rows that no longer reference any audit table.
-- [ ] Add tests for the audit retention purge.
+- [x] Add configuration property `abstrauth.audit.retention.days` with a sensible default (e.g. 90 days).
+- [x] Periodically remove all audit data that is older than X days, where X is configurable via an environment variable or `application.properties` entry.
+- [x] Add periodic scheduler to delete `*_AUD` rows older than the configured retention period.
+- [x] Decide and document the audit purge schedule (e.g. daily at 03:00 UTC).
+- [x] Log each purge run, including the number of rows deleted and the retention period used.
+- [x] Clean up orphaned `REVINFO` rows that no longer reference any audit table.
+- [x] Add tests for the audit retention purge.
 
 ### Feature 5: Documentation and legal approval
 
