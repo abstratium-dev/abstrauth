@@ -249,6 +249,7 @@ public class AuthorizationResource {
                         name = "Authorization Request Details",
                         value = """
                         {
+                            "clientId": "example-client",
                             "clientName": "Example Client",
                             "scope": "openid profile email"
                         }
@@ -278,10 +279,10 @@ public class AuthorizationResource {
         AuthorizationRequest authRequest = requestOpt.get();
         OAuthClient client = clientService.findByClientId(authRequest.getClientId()).get();
 
-        return Response.ok(new AuthRequestDetails(client.getClientName(), authRequest.getScope())).build();
+        return Response.ok(new AuthRequestDetails(authRequest.getClientId(), client.getClientName(), authRequest.getScope())).build();
     }
 
-    public record AuthRequestDetails(String clientName, String scope) {
+    public record AuthRequestDetails(String clientId, String clientName, String scope) {
 
     }
 

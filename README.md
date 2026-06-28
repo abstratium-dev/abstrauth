@@ -44,6 +44,7 @@ Abstrauth™ functions as:
 - **Security hardened** - PKCE required, CSRF protection, rate limiting, CSP headers, role allowlist enforcement, session-fixation protection during org selection.
 - **Low footprint** - ~64 MB RAM at idle; built as a GraalVM native image.
 - **Based on Quarkus and Angular** - industry-standard frameworks.
+- **GDPR and Swiss FADP compliant** - full audit trail with configurable retention and automated purge, self-service right of access and erasure, and typed-phrase confirmation for destructive actions.
 
 **Security Architecture:**
 - Tokens stored in encrypted HTTP-only cookies (never accessible to JavaScript)
@@ -64,13 +65,15 @@ For information about the security implementation and features, see [SECURITY_DE
 ## Documentation
 
 - [User Guide](USER_GUIDE.md)
+- [GDPR / Swiss FADP Design](docs/GDPR_FADP_DESIGN.md)
 - [OAuth 2.0 Authorization Flows](docs/oauth/FLOWS.md)
 - [Federated Login](docs/oauth/FEDERATED_LOGIN.md)
-- [Database](docs/DATABASE.md)
+- [Database and Domain Model](docs/DATABASE.md)
 - [Native Image Build](docs/NATIVE_IMAGE_BUILD.md)
 - [Why do I need to implement a BFF?](decisions/BFF.md)
 - [Metrics and Grafana](docs/METRICS.md)
 - [Machine to Machine authentication](USER_GUIDE.md#machine-to-machine-m2m-authentication)
+- [Multi-Tenancy](docs/MULTITENANCY_DESIGN.md)
 
 ## Running the Application
 

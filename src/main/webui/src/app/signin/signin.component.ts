@@ -7,9 +7,9 @@ import { ModelService } from '../model.service';
 import { Controller } from '../controller';
 import { AutofocusDirective } from '../autofocus.directive';
 import { AuthService } from '../auth.service';
-import { AuthorizeComponent, CLIENT_ID } from '../authorize/authorize.component';
 
 interface AuthRequestDetails {
+    clientId: string;
     clientName: string;
     scope: string;
 }
@@ -42,6 +42,7 @@ export class SigninComponent implements OnInit {
     authService = inject(AuthService)
 
     requestId = "";
+    clientId = "";
     clientName = "";
     scopes: string[] = [];
     errorMessage = "";
@@ -115,6 +116,7 @@ export class SigninComponent implements OnInit {
         this.http.get<AuthRequestDetails>(`/oauth2/authorize/details/${this.requestId}`)
             .subscribe({
                 next: (details) => {
+                    this.clientId = details.clientId;
                     this.clientName = details.clientName;
                     this.scopes = details.scope.split(" ");
                     
@@ -139,7 +141,7 @@ export class SigninComponent implements OnInit {
                                 console.error("[SIGNIN] Failed to approve for authenticated user:", error);
                                 if (error.status === 403) {
                                     // User has no roles for this client
-                                    this.errorMessage = (error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + CLIENT_ID + ")";
+                                    this.errorMessage = (error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + this.clientId + ")";
                                 } else {
                                     this.errorMessage = "Failed to process authorization request. Please try again.";
                                 }
@@ -208,7 +210,7 @@ export class SigninComponent implements OnInit {
                     this.signinIsExpired = true;
                 } else if (error.status === 403) {
                     // User has no roles for this client
-                    this.errorMessage = (error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + CLIENT_ID + ")";
+                    this.errorMessage = (error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + this.clientId + ")";
                 } else {
                     this.errorMessage = error?.error?.details || error.error || error.message || 'Authentication failed';
                 }

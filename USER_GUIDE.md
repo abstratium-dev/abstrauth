@@ -501,6 +501,17 @@ Org owners manage subscriptions from the organisation management area.
 
 Click your name in the header to view the **User Profile** page. This displays all claims in your current JWT identity token, including `orgId`, `groups` (roles), `email`, `name`, and standard OIDC claims.
 
+## Privacy & Data Protection
+
+Abstrauth™ is designed to comply with the EU GDPR and the Swiss FADP. Key rights and features:
+
+- **Right of access** — the User Profile page shows all personal data the system holds about you (account, credentials, roles, federated identities, and organisation memberships). Use **Download my data** to export a machine-readable copy.
+- **Right to erasure** — use the **Delete My Account** button on the User Profile or Accounts page to permanently delete your account and all associated data. Single-member organisations you own are deleted at the same time.
+- **Audit trail** — all changes to accounts, credentials, roles, and memberships are recorded. Audit data is retained for a configurable period (default 90 days, set via `ABSTRAUTH_AUDIT_RETENTION_DAYS`) and then permanently deleted by a scheduled purge job.
+- **Deletion safeguards** — destructive actions (account and role deletion) require you to type the account email or role name before the confirm button is enabled.
+
+See [GDPR / Swiss FADP Design](docs/GDPR_FADP_DESIGN.md) for the full data protection design and the legitimate interest assessment for audit retention.
+
 ## Change Password
 
 Users with native (email/password) accounts can change their password from the user profile area.
