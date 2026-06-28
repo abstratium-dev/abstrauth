@@ -157,8 +157,10 @@ ng update @angular/cli @angular/core
 ```
 
 6. Ensure that there are no nodejs vulnerabilities:
+
 ```bash
-cd ../../../client-example
+cd client-example
+nvm use v26.4.0
 npm i
 npm audit fix
 ```
