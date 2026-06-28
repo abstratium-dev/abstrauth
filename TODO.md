@@ -11,17 +11,13 @@
 
 ## Today
 
-- update README.md and USER_GUIDE.md to state that it is fully audited. and GDPF/FADP compliant.
-
 - GDPR - see GDPR_FADP_DESIGN.md and continue with the unimplemented parts
-  - update legal page to display what is currently configured
+  - update README.md and USER_GUIDE.md to state that it is fully audited. and GDPF/FADP compliant.
+
 
 - test migrations against prod data
 
-- run all e2e tests
-
 - upgrade everything
-
 
 - when i have no roles for abstracore, i get an error when i sign in, but the error message shows abstratium-abstrauth as the client-id, rather than that which is probably in the request object in the db? 
   - search for "You do not have any roles"
@@ -31,7 +27,7 @@
 - what is this log? [io.qua.oid.run.OidcRecorder] (vert.x-eventloop-thread-2) [skey:] Session age extension will not be effective because 'quarkus.oidc.token.refresh-expired=true' is not set
 
 
-
+## Tomorrow
 
 - complete other open points from first security audit
 
@@ -40,9 +36,6 @@
 - add more oauth providers:
   - Apple
   - Github
-
-
-## Tomorrow
 
 - make all tests only reset the db once instead of for all tests.
 

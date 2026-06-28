@@ -459,7 +459,8 @@ export class AccountsComponent implements OnInit {
       message: `Are you sure you want to delete the role "${role}"? This action cannot be undone.`,
       confirmText: 'Delete Role',
       cancelText: 'Cancel',
-      confirmClass: 'btn-danger'
+      confirmClass: 'btn-danger',
+      requiredPhrase: role
     });
 
     if (!confirmed) {
@@ -488,7 +489,8 @@ export class AccountsComponent implements OnInit {
       message: `Are you sure you want to delete the account for "${account.email}"? This action cannot be undone and will remove all associated data including roles, credentials, and authorization codes.`,
       confirmText: 'Delete Account',
       cancelText: 'Cancel',
-      confirmClass: 'btn-danger'
+      confirmClass: 'btn-danger',
+      requiredPhrase: account.email
     });
 
     if (!confirmed) {
@@ -528,7 +530,8 @@ export class AccountsComponent implements OnInit {
       message: `Are you sure you want to permanently delete your account (${account.email})? This action cannot be undone and will remove all your data, including roles, credentials, and memberships. If you are the only member of an organisation, that organisation will also be deleted.`,
       confirmText: 'Delete My Account',
       cancelText: 'Cancel',
-      confirmClass: 'btn-danger'
+      confirmClass: 'btn-danger',
+      requiredPhrase: account.email
     });
 
     if (!confirmed) {

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, effect, inject, OnInit, Signal } from '@angular/core';
 import { AuthService, Token } from '../auth.service';
 import { Controller } from '../controller';
-import { ModelService, PersonalData } from '../model.service';
+import { ModelService, PersonalData, PersonalDataOrganisationMembership } from '../model.service';
 import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../shared/toast/toast.service';
 
@@ -56,12 +56,14 @@ export class UserComponent implements OnInit {
   }
 
   async deleteMyAccount(): Promise<void> {
+    const email = this.token?.email as string | undefined;
     const confirmed = await this.confirmService.confirm({
       title: 'Delete My Account',
       message: 'Are you sure you want to permanently delete your account and all personal data? This action cannot be undone.',
       confirmText: 'Delete My Account',
       cancelText: 'Cancel',
-      confirmClass: 'btn-danger'
+      confirmClass: 'btn-danger',
+      requiredPhrase: email
     });
 
     if (!confirmed) {
@@ -107,6 +109,10 @@ export class UserComponent implements OnInit {
       return value ? 'true' : 'false';
     }
     return value;
+  }
+
+  getOrgName(orgId: string, memberships: PersonalDataOrganisationMembership[]): string {
+    return memberships.find(m => m.orgId === orgId)?.organisationName || orgId;
   }
 
   isArray(value: any): boolean {

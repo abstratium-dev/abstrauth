@@ -100,4 +100,72 @@ describe('ConfirmDialogComponent', () => {
 
     expect(component.cancel).toHaveBeenCalled();
   });
+
+  describe('requiredPhrase', () => {
+    it('should show phrase input when requiredPhrase is set', () => {
+      service.confirm({
+        title: 'Delete',
+        message: 'Are you sure?',
+        requiredPhrase: 'myemail@example.com'
+      });
+      fixture.detectChanges();
+
+      const input = fixture.nativeElement.querySelector('[data-testid="confirm-phrase-input"]');
+      expect(input).toBeTruthy();
+      expect(fixture.nativeElement.textContent).toContain('myemail@example.com');
+    });
+
+    it('should not show phrase input when requiredPhrase is not set', () => {
+      service.confirm({ title: 'Delete', message: 'Are you sure?' });
+      fixture.detectChanges();
+
+      const input = fixture.nativeElement.querySelector('[data-testid="confirm-phrase-input"]');
+      expect(input).toBeFalsy();
+    });
+
+    it('should disable confirm button until phrase matches', () => {
+      service.confirm({
+        title: 'Delete',
+        message: 'Are you sure?',
+        requiredPhrase: 'confirm-me'
+      });
+      fixture.detectChanges();
+
+      const confirmBtn = fixture.nativeElement.querySelector('.btn-danger');
+      expect(confirmBtn.disabled).toBe(true);
+
+      service.updateTypedPhrase('confirm-me');
+      fixture.detectChanges();
+      expect(confirmBtn.disabled).toBe(false);
+    });
+
+    it('should not fire handleConfirm when phrase does not match', () => {
+      spyOn(service, 'handleConfirm');
+      service.confirm({
+        title: 'Delete',
+        message: 'Are you sure?',
+        requiredPhrase: 'confirm-me'
+      });
+      fixture.detectChanges();
+
+      component.confirm();
+
+      expect(service.handleConfirm).not.toHaveBeenCalled();
+    });
+
+    it('should fire handleConfirm when phrase matches', () => {
+      spyOn(service, 'handleConfirm');
+      service.confirm({
+        title: 'Delete',
+        message: 'Are you sure?',
+        requiredPhrase: 'confirm-me'
+      });
+      service.updateTypedPhrase('confirm-me');
+      fixture.detectChanges();
+
+      component.confirm();
+
+      expect(service.handleConfirm).toHaveBeenCalled();
+    });
+  });
 });

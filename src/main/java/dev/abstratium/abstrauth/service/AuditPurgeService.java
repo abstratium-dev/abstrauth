@@ -72,24 +72,32 @@ public class AuditPurgeService {
     public AuditPurgeResult purgeAuditData(int retentionDays) {
         Instant cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS);
         long cutoffMillis = cutoff.toEpochMilli();
+        long jobStart = System.currentTimeMillis();
+
+        log.infof("Starting audit purge: retentionDays=%d, cutoff=%d", retentionDays, cutoffMillis);
 
         Map<String, Long> deletedByTable = new LinkedHashMap<>();
         long totalDeleted = 0;
 
         for (String table : AUDIT_TABLES) {
             String sql = String.format(DELETE_AUDIT_TABLE_TEMPLATE, table);
+            long tableStart = System.currentTimeMillis();
             Query query = em.createNativeQuery(sql);
             query.setParameter("cutoff", cutoffMillis);
             long deleted = query.executeUpdate();
+            long tableMs = System.currentTimeMillis() - tableStart;
+            log.infof("  %s: deleted %d rows in %d ms", table, deleted, tableMs);
             deletedByTable.put(table, deleted);
             totalDeleted += deleted;
         }
 
+        long revInfoStart = System.currentTimeMillis();
         long revInfoDeleted = deleteOrphanedRevInfo(cutoffMillis);
+        log.infof("  REVINFO (orphaned): deleted %d rows in %d ms", revInfoDeleted, System.currentTimeMillis() - revInfoStart);
         totalDeleted += revInfoDeleted;
 
-        log.infof("Purged %d audit rows older than %d days (cutoff=%d). Deleted by table: %s, REVINFO rows deleted: %d",
-                totalDeleted, retentionDays, cutoffMillis, deletedByTable, revInfoDeleted);
+        log.infof("Audit purge complete: %d total rows deleted in %d ms (retentionDays=%d, cutoff=%d)",
+                totalDeleted, System.currentTimeMillis() - jobStart, retentionDays, cutoffMillis);
 
         return new AuditPurgeResult(retentionDays, cutoffMillis, deletedByTable, revInfoDeleted, totalDeleted);
     }

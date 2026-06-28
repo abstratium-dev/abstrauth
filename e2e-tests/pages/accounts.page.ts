@@ -88,6 +88,16 @@ export async function addAccount(page: Page, email: string, name: string): Promi
 }
 
 /**
+ * Types the required phrase into the confirmation dialog if a phrase input is present.
+ */
+async function _typeRequiredPhraseIfPresent(page: Page, phrase: string): Promise<void> {
+    const phraseInput = page.locator('[data-testid="confirm-phrase-input"]');
+    if (await phraseInput.isVisible({ timeout: 500 }).catch(() => false)) {
+        await phraseInput.fill(phrase);
+    }
+}
+
+/**
  * Deletes all accounts except the one with the given name.
  * Assumes we're already on the accounts page.
  */
@@ -116,6 +126,9 @@ export async function deleteAccountsExcept(page: Page, keepAccountName: string) 
             console.log(`Deleting account: ${accountName}`);
             
             const currentCount = await tiles.count();
+
+            // Get the account email for the required-phrase input
+            const accountEmail = (await tile.locator('.tile-subtitle').first().textContent())?.trim() ?? '';
             
             // Find and click the delete button (trash icon) for this account
             const deleteButton = tile.locator('.btn-icon-danger').first();
@@ -124,6 +137,9 @@ export async function deleteAccountsExcept(page: Page, keepAccountName: string) 
             // Wait for confirmation dialog to appear
             const deleteAccountButton = _getDeleteAccountButton(page);
             await expect(deleteAccountButton).toBeVisible({ timeout: 2000 });
+
+            // Type the required phrase before confirming
+            await _typeRequiredPhraseIfPresent(page, accountEmail);
             
             // Click the confirm button in the dialog
             await deleteAccountButton.click();
@@ -381,6 +397,9 @@ export async function tryDeleteRoleFromAccount(page: Page, accountEmail: string,
     // Wait for confirmation dialog to appear
     const confirmButton = page.locator('button.btn-danger').filter({ hasText: 'Delete Role' });
     await expect(confirmButton).toBeVisible({ timeout: 2000 });
+
+    // Type the role name as the required phrase
+    await _typeRequiredPhraseIfPresent(page, roleName);
     
     // Click confirm button in the confirmation dialog
     await confirmButton.click();
@@ -630,6 +649,9 @@ export async function tryDeleteAccount(page: Page, accountEmail: string): Promis
     // Wait for confirmation dialog to appear
     const deleteAccountButton = _getDeleteAccountButton(page);
     await expect(deleteAccountButton).toBeVisible({ timeout: 2000 });
+
+    // Type the account email as the required phrase
+    await _typeRequiredPhraseIfPresent(page, accountEmail);
     
     // Click the confirm button in the dialog
     await deleteAccountButton.click();

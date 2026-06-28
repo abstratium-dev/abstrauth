@@ -213,7 +213,9 @@ describe('UserComponent', () => {
     deleteButton.click();
     tick();
 
-    expect(confirmServiceSpy.confirm).toHaveBeenCalled();
+    expect(confirmServiceSpy.confirm).toHaveBeenCalledWith(
+      jasmine.objectContaining({ requiredPhrase: mockToken.email })
+    );
     expect(controllerSpy.deleteOwnAccount).toHaveBeenCalled();
     expect(toastServiceSpy.success).toHaveBeenCalledWith('Your account has been deleted successfully');
     expect(authService.signout).toHaveBeenCalled();

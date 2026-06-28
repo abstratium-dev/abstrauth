@@ -875,7 +875,9 @@ describe('AccountsComponent', () => {
       reloadReq.flush(mockAccounts);
 
       tick();
-      expect(confirmService.confirm).toHaveBeenCalled();
+      expect(confirmService.confirm).toHaveBeenCalledWith(
+        jasmine.objectContaining({ requiredPhrase: 'admin' })
+      );
     }));
 
     it('should not delete role if user cancels confirmation', fakeAsync(() => {
@@ -1298,6 +1300,10 @@ describe('AccountsComponent', () => {
 
       // Simulate user confirming the dialog
       tick();
+
+      expect(confirmService.confirm).toHaveBeenCalledWith(
+        jasmine.objectContaining({ requiredPhrase: accountToDelete.email })
+      );
       
       const deleteReq = httpMock.expectOne(`/api/accounts/${accountToDelete.id}`);
       expect(deleteReq.request.method).toBe('DELETE');
@@ -1372,6 +1378,11 @@ describe('AccountsComponent', () => {
 
       const promise = component.deleteOwnAccount();
       tick(); // Wait for confirmation Promise to resolve
+
+      const ownAccount = mockAccounts.find(a => a.id === '1')!;
+      expect(confirmService.confirm).toHaveBeenCalledWith(
+        jasmine.objectContaining({ requiredPhrase: ownAccount.email })
+      );
 
       const deleteReq = httpMock.expectOne('/api/accounts/me');
       expect(deleteReq.request.method).toBe('DELETE');

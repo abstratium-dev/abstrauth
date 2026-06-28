@@ -78,4 +78,36 @@ describe('ConfirmDialogService', () => {
     expect(result).toBe(false);
     expect(service.state$().isOpen).toBe(false);
   });
+
+  it('should expose requiredPhrase in config', () => {
+    service.confirm({
+      title: 'Test',
+      message: 'Test',
+      requiredPhrase: 'delete-me'
+    });
+
+    expect(service.state$().config?.requiredPhrase).toBe('delete-me');
+    expect(service.state$().typedPhrase).toBe('');
+  });
+
+  it('should update typedPhrase via updateTypedPhrase', () => {
+    service.confirm({ title: 'Test', message: 'Test', requiredPhrase: 'delete-me' });
+
+    service.updateTypedPhrase('delete');
+    expect(service.state$().typedPhrase).toBe('delete');
+
+    service.updateTypedPhrase('delete-me');
+    expect(service.state$().typedPhrase).toBe('delete-me');
+  });
+
+  it('should reset typedPhrase on close', async () => {
+    const promise = service.confirm({ title: 'Test', message: 'Test', requiredPhrase: 'delete-me' });
+    service.updateTypedPhrase('delete-me');
+    service.handleConfirm();
+    await promise;
+
+    // re-open
+    service.confirm({ title: 'Test', message: 'Test', requiredPhrase: 'other' });
+    expect(service.state$().typedPhrase).toBe('');
+  });
 });

@@ -46,6 +46,11 @@ async function cleanupSelfDeleteAccounts(page: Page) {
                     await deleteButton.click();
                     const confirmButton = page.locator('button.btn-danger').filter({ hasText: /Delete (My )?Account/i });
                     await expect(confirmButton).toBeVisible({ timeout: 2000 });
+                    // Type the email as the required phrase (if the input is visible)
+                    const phraseInput = page.locator('[data-testid="confirm-phrase-input"]');
+                    if (await phraseInput.isVisible({ timeout: 500 }).catch(() => false)) {
+                        await phraseInput.fill(email?.trim() ?? '');
+                    }
                     await confirmButton.click();
                     await page.waitForResponse(
                         response => response.url().includes('/api/accounts') && response.request().method() === 'DELETE',

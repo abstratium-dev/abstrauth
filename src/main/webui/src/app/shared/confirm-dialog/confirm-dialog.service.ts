@@ -6,12 +6,17 @@ export interface ConfirmDialogConfig {
   confirmText?: string;
   cancelText?: string;
   confirmClass?: string;
+  /**
+   * When set, the user must type this exact phrase before the confirm button is enabled.
+   */
+  requiredPhrase?: string;
 }
 
 interface ConfirmDialogState {
   isOpen: boolean;
   config: ConfirmDialogConfig | null;
   resolve: ((value: boolean) => void) | null;
+  typedPhrase: string;
 }
 
 @Injectable({
@@ -22,6 +27,7 @@ export class ConfirmDialogService {
     isOpen: false,
     config: null,
     resolve: null,
+    typedPhrase: '',
   });
 
   state$: Signal<ConfirmDialogState> = this.state.asReadonly();
@@ -37,8 +43,13 @@ export class ConfirmDialogService {
           confirmClass: config.confirmClass || 'btn-danger',
         },
         resolve,
+        typedPhrase: '',
       });
     });
+  }
+
+  updateTypedPhrase(phrase: string): void {
+    this.state.update(s => ({ ...s, typedPhrase: phrase }));
   }
 
   handleConfirm(): void {
@@ -62,6 +73,7 @@ export class ConfirmDialogService {
       isOpen: false,
       config: null,
       resolve: null,
+      typedPhrase: '',
     });
   }
 }

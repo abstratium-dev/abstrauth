@@ -125,13 +125,16 @@ The work is split into independent features that can be implemented, reviewed, a
 
 ### Feature 2: Harder deletion confirmation for accounts and roles
 
-- [ ] Enforce a confirmation step for self-deletion (require the user to type their email or name).
-- [ ] Add backend test for the confirmation step (reject deletion if confirmation text does not match).
-- [ ] Make deleting accounts and roles harder: require the user to enter the account/role name to confirm the deletion (applies to both self-deletion and administrator deletion of roles).
-- [ ] Update the administrator account deletion UI to require the account name/email confirmation.
-- [ ] Update the role deletion UI to require the role name confirmation.
-- [ ] Add backend tests for administrator account deletion confirmation.
-- [ ] Add backend tests for role deletion confirmation.
+Confirmation is enforced in the UI only (no backend changes). The existing confirm dialog is extended with a typed-phrase input; the confirm button is disabled until the phrase matches exactly.
+
+- [x] Extend `ConfirmDialogService` / `ConfirmDialogConfig` with an optional `requiredPhrase` field.
+- [x] Extend `ConfirmDialogComponent` to render a text input and disable the confirm button until the phrase matches.
+- [x] Self-deletion on the `/user` page requires the user to type their email address.
+- [x] Self-deletion button on the Accounts page requires the user to type their email address.
+- [x] Administrator account deletion requires the user to type the target account's email.
+- [x] Role deletion requires the user to type the role name.
+- [x] Update Angular unit tests to cover the new typed-phrase requirement.
+- [x] Update e2e tests to type the required phrase before confirming deletion.
 
 ### Feature 3: Right of access (view my data)
 

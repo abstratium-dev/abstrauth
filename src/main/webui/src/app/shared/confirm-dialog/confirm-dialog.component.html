@@ -3,16 +3,30 @@
     <div class="dialog-header">
       <h2>{{ state().config?.title }}</h2>
     </div>
-    
+
     <div class="dialog-body">
       <p>{{ state().config?.message }}</p>
+
+      <div *ngIf="state().config?.requiredPhrase" class="dialog-phrase-confirm">
+        <label class="dialog-phrase-label">
+          Type <strong>{{ state().config?.requiredPhrase }}</strong> to confirm:
+        </label>
+        <input
+          type="text"
+          class="dialog-phrase-input"
+          [value]="state().typedPhrase"
+          (input)="updateTypedPhrase($any($event.target).value)"
+          autocomplete="off"
+          data-testid="confirm-phrase-input"
+        />
+      </div>
     </div>
-    
+
     <div class="dialog-actions">
       <button type="button" class="btn-secondary" (click)="cancel()">
         {{ state().config?.cancelText }}
       </button>
-      <button type="button" [ngClass]="state().config?.confirmClass" (click)="confirm()">
+      <button type="button" [ngClass]="state().config?.confirmClass" [disabled]="isConfirmDisabled()" (click)="confirm()">
         {{ state().config?.confirmText }}
       </button>
     </div>

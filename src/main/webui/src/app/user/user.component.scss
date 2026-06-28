@@ -33,6 +33,10 @@
   }
 }
 
+.three-col .table-row {
+  grid-template-columns: 200px 120px 1fr;
+}
+
 .loading {
   text-align: center;
   padding: 2rem;
