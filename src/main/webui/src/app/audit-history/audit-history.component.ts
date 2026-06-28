@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { AuditEntry } from '../model.service';
@@ -8,6 +8,7 @@ import { Controller } from '../controller';
   selector: 'app-audit-history',
   imports: [CommonModule],
   templateUrl: './audit-history.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './audit-history.component.scss'
 })
 export class AuditHistoryComponent implements OnInit {

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { OrgSelectionComponent } from './org-selection.component';
 import { AuthService } from '../auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -45,7 +45,7 @@ describe('OrgSelectionComponent', () => {
         ReactiveFormsModule
       ],
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         FormBuilder,
         { provide: AuthService, useValue: authServiceSpy },

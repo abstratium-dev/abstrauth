@@ -1,5 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -19,6 +19,7 @@ interface OrgSelectionResponse {
     selector: 'app-org-selection',
     imports: [CommonModule, ReactiveFormsModule],
     templateUrl: './org-selection.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './org-selection.component.scss',
 })
 export class OrgSelectionComponent implements OnInit {

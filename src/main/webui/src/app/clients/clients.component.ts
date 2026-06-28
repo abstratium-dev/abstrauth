@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
@@ -13,6 +13,7 @@ import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.se
   selector: 'clients',
   imports: [CommonModule, RouterLink, UrlFilterComponent, FormsModule],
   templateUrl: './clients.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './clients.component.scss',
 })
 export class ClientsComponent implements OnInit {

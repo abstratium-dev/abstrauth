@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { WINDOW } from '../window.token';
 
 export const CLIENT_ID = 'abstratium-abstrauth';
@@ -17,6 +17,7 @@ export const CLIENT_ID = 'abstratium-abstrauth';
     selector: 'authorize',
     imports: [],
     templateUrl: './authorize.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './authorize.component.scss',
 })
 export class AuthorizeComponent {

@@ -1,4 +1,4 @@
-import { Component, effect, inject, OnInit, untracked } from '@angular/core';
+import { Component, effect, inject, OnInit, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -13,6 +13,7 @@ import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.se
   selector: 'app-accounts',
   imports: [CommonModule, FormsModule, RouterLink, UrlFilterComponent],
   templateUrl: './accounts.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './accounts.component.scss'
 })
 export class AccountsComponent implements OnInit {

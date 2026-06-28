@@ -1,5 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, effect, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -29,6 +29,7 @@ interface InviteData {
     selector: 'signin',
     imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink, AutofocusDirective],
     templateUrl: './signin.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './signin.component.scss',
 })
 export class SigninComponent implements OnInit {

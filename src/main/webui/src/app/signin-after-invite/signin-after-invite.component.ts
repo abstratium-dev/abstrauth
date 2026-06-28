@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
@@ -12,6 +12,7 @@ interface InviteData {
   selector: 'app-signin-after-invite',
   imports: [CommonModule],
   templateUrl: './signin-after-invite.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './signin-after-invite.component.scss'
 })
 export class SigninAfterInviteComponent implements OnInit {

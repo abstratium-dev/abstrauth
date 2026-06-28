@@ -1,4 +1,4 @@
-import { Component, inject, Signal } from '@angular/core';
+import { Component, inject, Signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DomainService } from '../domain.service';
@@ -9,6 +9,7 @@ import { ModelService } from '../model.service';
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './legal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './legal.component.scss'
 })
 export class LegalComponent {

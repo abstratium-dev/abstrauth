@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, Signal } from '@angular/core';
+import { Component, computed, inject, OnInit, Signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -10,6 +10,7 @@ import { ToastService } from '../shared/toast/toast.service';
   selector: 'app-organisation-detail',
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './organisation-detail.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './organisation-detail.component.scss'
 })
 export class OrganisationDetailComponent implements OnInit {

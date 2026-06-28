@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, EMPTY } from 'rxjs';
 import { ClientsComponent } from './clients.component';
@@ -57,7 +57,7 @@ describe('ClientsComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ClientsComponent],
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         { provide: Router, useValue: routerSpy },
         { provide: ConfirmDialogService, useValue: confirmServiceSpy },

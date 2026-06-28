@@ -1,4 +1,4 @@
-import { HttpClient, provideHttpClient, withXsrfConfiguration } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withXsrfConfiguration, withXhr } from '@angular/common/http';
 import { ApplicationConfig, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -11,7 +11,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideHttpClient(
+    provideHttpClient(withXhr(), 
       withXsrfConfiguration({
         cookieName: 'XSRF-TOKEN',
         headerName: 'X-XSRF-TOKEN',

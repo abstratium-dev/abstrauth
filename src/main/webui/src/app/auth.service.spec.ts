@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService, ANONYMOUS, Token } from './auth.service';
 import { RouteRestorationService } from './route-restoration.service';
@@ -63,7 +63,7 @@ describe('AuthService (BFF Pattern)', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         AuthService,
         RouteRestorationService,

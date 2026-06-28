@@ -1,4 +1,4 @@
-import { Component, effect, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -12,6 +12,7 @@ import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.se
   selector: 'app-organisations',
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './organisations.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './organisations.component.scss'
 })
 export class OrganisationsComponent implements OnInit {

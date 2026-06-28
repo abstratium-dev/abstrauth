@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject, OnInit, Signal } from '@angular/core';
+import { Component, effect, inject, OnInit, Signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService, Token } from '../auth.service';
 import { Controller } from '../controller';
@@ -10,6 +10,7 @@ import { ThemeService } from '../theme.service';
     selector: 'header',
     imports: [RouterLink, RouterLinkActive, CommonModule],
     templateUrl: './header.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './header.component.scss',
 })
 export class HeaderComponent implements OnInit {

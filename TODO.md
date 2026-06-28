@@ -13,6 +13,11 @@
 
 - upgrade everything
 
+- upgrade angular tests:
+
+    Note: To refactor your test files from Jasmine to Vitest, consider running the following command:
+      ng g @schematics/angular:refactor-jasmine-vitest <project_name>
+
 
 
 ## Tomorrow

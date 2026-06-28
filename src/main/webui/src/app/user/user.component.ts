@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject, OnInit, Signal } from '@angular/core';
+import { Component, effect, inject, OnInit, Signal, ChangeDetectionStrategy } from '@angular/core';
 import { AuthService, Token } from '../auth.service';
 import { Controller } from '../controller';
 import { ModelService, PersonalData, PersonalDataOrganisationMembership } from '../model.service';
@@ -10,6 +10,7 @@ import { ToastService } from '../shared/toast/toast.service';
   selector: 'user',
   imports: [CommonModule],
   templateUrl: './user.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './user.component.scss',
 })
 export class UserComponent implements OnInit {

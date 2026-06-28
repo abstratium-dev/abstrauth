@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ChangePasswordComponent } from './change-password.component';
 import { Controller } from '../controller';
 import { ToastService } from '../shared/toast/toast.service';
@@ -20,7 +20,7 @@ describe('ChangePasswordComponent', () => {
       providers: [
         Controller, 
         ToastService,
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideHttpClientTesting()
       ]
     }).compileComponents();

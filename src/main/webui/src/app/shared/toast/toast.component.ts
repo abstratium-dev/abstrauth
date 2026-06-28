@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToastService } from './toast.service';
 
@@ -7,6 +7,7 @@ import { ToastService } from './toast.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './toast.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './toast.component.scss'
 })
 export class ToastComponent {
