@@ -17,4 +17,4 @@ Instead use `mvn test -DskipTests` to run angular tests.
 
 If you are generating forms, use `https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill` to make the form use use autocomplete with values that a user has used before.
 
-If you do anything with node or npm, run `nvm use v24.11.1` first.
+If you do anything with node or npm, run `nvm use v26.4.0` first.

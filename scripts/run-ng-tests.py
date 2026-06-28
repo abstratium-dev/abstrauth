@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Run Angular tests via npm and extract key information for LLM consumption.
-Mimics how Maven runs tests: sources nvm, uses node v24.11.1, runs ChromeHeadless with coverage.
+Mimics how Maven runs tests: sources nvm, uses node v26.4.0, runs ChromeHeadless with coverage.
 """
 
 import subprocess
@@ -92,10 +92,10 @@ def run_tests():
     # Ensure tmp directory exists
     TMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Command to run - same as Maven: source nvm, use node v24.11.1, run npm test
+    # Command to run - same as Maven: source nvm, use node v26.4.0, run npm test
     cmd = [
         "bash", "-c",
-        "source ~/.nvm/nvm.sh && nvm use v24.11.1 && npm test -- --browsers=ChromeHeadless --code-coverage --watch=false"
+        "source ~/.nvm/nvm.sh && nvm use v26.4.0 && npm test -- --browsers=ChromeHeadless --code-coverage --watch=false"
     ]
 
     print(f"[run] Executing: {' '.join(cmd)}")
