@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
 Run Angular tests via npm and extract key information for LLM consumption.
-Mimics how Maven runs tests: sources nvm, uses node v26.4.0, runs ChromeHeadless with coverage.
+Mimics how Maven runs tests: sources nvm, uses node v26.4.0, runs Vitest with coverage.
 """
 
 import subprocess
 import re
+import json
 import os
+import threading
 import sys
 import glob
 from datetime import datetime
@@ -33,6 +35,17 @@ SKIP_PATTERNS = [
     re.compile(r'^\s*Chrome\s+\d+\.\d+\.\d+\.\d+.*: Executed \d+ of \d+ SUCCESS'),  # Successful tests
     re.compile(r'^\s*ERROR:\s*\'\[AUTH\]'),  # Auth error logs (usually expected in tests)
     re.compile(r'^\s*DEBUG:\s*\'Token expires in\''),  # Token expiration debug messages
+    re.compile(r'^\s*\[ROUTE RESTORATION\]'),  # Route restoration service logs
+    re.compile(r'^\s*\[AUTH\]'),  # Auth service logs
+    re.compile(r'^\s*\[AUTH GUARD\]'),  # Auth guard logs
+    re.compile(r'^\s*Token expires in'),  # Token expiration messages
+    re.compile(r'^\s*Using Vitest configuration file:'),  # Vitest startup message
+    re.compile(r'^\s*Watch mode enabled\.'),  # Vitest watch mode
+    re.compile(r'^\s*DEV\s+v\d+\.\d+\.\d+'),  # Vitest version line
+    re.compile(r'^\s*Coverage enabled with v8'),  # Vitest coverage startup message
+    re.compile(r'^\s*stdout\s*\|'),  # Captured stdout from tests
+    re.compile(r'^\s*stderr\s*\|'),  # Captured stderr from tests
+    re.compile(r'^\s*Note:'),  # Vitest notes
     re.compile(r'^\s*$'),  # Empty lines
 ]
 
@@ -45,20 +58,33 @@ COVERAGE_PATTERNS = [
     re.compile(r'Lines\s*[:\s]*\d+', re.IGNORECASE),
     re.compile(r'Filename\s*\|\s*%\s*Stmts', re.IGNORECASE),
     re.compile(r'[-]+\|[-]+'),  # Coverage table separator
+    # Vitest v8 coverage report patterns
+    re.compile(r'Coverage report from v8', re.IGNORECASE),
+    re.compile(r'File\s*\|\s*%\s*Stmts', re.IGNORECASE),
+    re.compile(r'All files\s*\|', re.IGNORECASE),
+    re.compile(r'^\s*[-]+[\|\-]+\s*$'),  # Coverage table separator line
+    re.compile(r'^\s*\|[-]+\|', re.IGNORECASE),  # Coverage table separator line
 ]
 
 # Pattern for FAILED tests - captures the test name
-# Format: "Chrome Headless 148.0.0.0 (Linux 0.0.0) Test Name Here FAILED [error message]"
-FAILED_TEST_PATTERN = re.compile(r'^(Chrome(?:\s+Headless)?\s+\S+\s+\([^)]+\))\s+(.+?)\s+FAILED')
+# Format (Vitest): "FAIL   abstrauth  src/app/...spec.ts > Suite > Test name"
+FAILED_TEST_PATTERN = re.compile(r'^\s*FAIL\s+(?:\S+\s+)*(src/\S+\.spec\.ts)\s*>\s*(.+)$')
 
 # Pattern for stack trace frames - keep only source code frames (not node_modules)
-SOURCE_CODE_FRAME_PATTERN = re.compile(r'^\s+at\s+.*\(src/.*:\d+:\d+\)')
-NODE_MODULES_FRAME_PATTERN = re.compile(r'^\s+at\s+.*\(node_modules/')
-GENERIC_FRAME_PATTERN = re.compile(r'^\s+at\s+')
+SOURCE_CODE_FRAME_PATTERN = re.compile(r'^\s+(?:at\s+.*\(src/.*:\d+:\d+\)|❯\s+.*?src/.*:\d+:\d+)')
+NODE_MODULES_FRAME_PATTERN = re.compile(r'^\s+(?:at\s+.*\(node_modules/|❯\s+.*?node_modules/)')
+GENERIC_FRAME_PATTERN = re.compile(r'^\s+(?:at\s+|❯\s+)')
 
-# Pattern for overall result
-OVERALL_SUCCESS_PATTERN = re.compile(r'TOTAL:\s+(\d+)\s+SUCCESS')
-OVERALL_FAILURE_PATTERN = re.compile(r'TOTAL:\s+(\d+)\s+FAILED')
+# Pattern for uncaught exceptions / unhandled rejections emitted by Vitest
+UNCAUGHT_EXCEPTION_PATTERN = re.compile(r'(Uncaught Exception|Unhandled Rejection)', re.IGNORECASE)
+
+# Pattern for overall result (Vitest: "Test Files  1 passed (1)")
+OVERALL_SUCCESS_PATTERN = re.compile(r'Test Files\s+\d+\s+passed')
+OVERALL_FAILURE_PATTERN = re.compile(r'Test Files\s+\d+\s+failed')
+
+# Pattern for test summary counts (Vitest: "Tests  10 passed (10)" / "Tests  5 failed | 5 passed (10)")
+# Group 1 = failed count (optional), group 2 = passed count, group 3 = total count in parentheses
+TESTS_SUMMARY_PATTERN = re.compile(r'Tests\s+.*?(?:(\d+)\s+failed\s+\|\s+)?(\d+)\s+passed\s+\((\d+)\)')
 
 # Pattern for karma progress lines (e.g., "Executed 235 of 258 (55 FAILED)")
 KARMA_PROGRESS_PATTERN = re.compile(r'^\s*Executed\s+\d+\s+of\s+\d+\s+\(\d+\s+FAILED\)')
@@ -93,9 +119,10 @@ def run_tests():
     TMP_DIR.mkdir(parents=True, exist_ok=True)
 
     # Command to run - same as Maven: source nvm, use node v26.4.0, run npm test
+    # Coverage is enabled in angular.json via the @angular/build:unit-test builder.
     cmd = [
         "bash", "-c",
-        "source ~/.nvm/nvm.sh && nvm use v26.4.0 && npm test -- --browsers=ChromeHeadless --code-coverage --watch=false"
+        "source ~/.nvm/nvm.sh && nvm use v26.4.0 && npm test -- --watch=false"
     ]
 
     print(f"[run] Executing: {' '.join(cmd)}")
@@ -104,24 +131,35 @@ def run_tests():
     print()
 
     try:
+        stderr_lines = []
+
+        def read_stderr():
+            for line in process.stderr:
+                stderr_lines.append(line)
+
         with open(output_file, "w") as f:
             process = subprocess.Popen(
                 cmd,
                 cwd=WEBUI_DIR,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
                 universal_newlines=True
             )
 
-            # Write all output to file in real-time
+            stderr_thread = threading.Thread(target=read_stderr)
+            stderr_thread.start()
+
+            # Write stdout to file in real-time; stderr is captured separately
             for line in process.stdout:
                 f.write(line)
                 f.flush()
 
             process.wait()
-            return output_file, process.returncode
+            stderr_thread.join()
+
+            return output_file, stderr_lines, process.returncode
 
     except Exception as e:
         print(f"[error] Failed to run tests: {e}")
@@ -157,6 +195,58 @@ def is_node_modules_frame(line):
 def is_any_frame(line):
     """Check if line is any stack frame."""
     return GENERIC_FRAME_PATTERN.match(line) is not None
+
+
+def compute_coverage_summary():
+    """Read the generated v8 coverage-final.json and return a top-level summary.
+
+    Vitest's v8 reporter does not always print the text coverage table to stdout,
+    but it always writes coverage-final.json. This function computes the same
+    All files percentages that the text reporter would show.
+    """
+    coverage_files = list(WEBUI_DIR.glob("coverage/**/coverage-final.json"))
+    if not coverage_files:
+        return []
+    try:
+        data = json.loads(coverage_files[0].read_text())
+    except Exception as e:
+        return [f"Could not read coverage report: {e}"]
+
+    total_statements = covered_statements = 0
+    total_branches = covered_branches = 0
+    total_functions = covered_functions = 0
+    all_lines = set()
+    covered_lines = set()
+
+    for file_data in data.values():
+        s = file_data.get("s", {})
+        total_statements += len(s)
+        covered_statements += sum(1 for v in s.values() if v > 0)
+
+        f = file_data.get("f", {})
+        total_functions += len(f)
+        covered_functions += sum(1 for v in f.values() if v > 0)
+
+        b = file_data.get("b", {})
+        for branch_paths in b.values():
+            total_branches += len(branch_paths)
+            covered_branches += sum(1 for v in branch_paths if v > 0)
+
+        statement_map = file_data.get("statementMap", {})
+        for stmt_id, loc in statement_map.items():
+            line = loc.get("start", {}).get("line")
+            if line is not None:
+                all_lines.add(line)
+                if s.get(stmt_id, 0) > 0:
+                    covered_lines.add(line)
+
+    def pct(covered, total):
+        return f"{round(covered / total * 100, 2)}%" if total else "0%"
+
+    return [
+        "Coverage report from v8 (computed from coverage-final.json)",
+        f"All files | Stmts {pct(covered_statements, total_statements)} | Branch {pct(covered_branches, total_branches)} | Funcs {pct(covered_functions, total_functions)} | Lines {pct(len(covered_lines), len(all_lines))}",
+    ]
 
 
 ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
@@ -203,8 +293,8 @@ def combine_wrapped_lines(lines):
     return combined
 
 
-def parse_output(output_file):
-    """Parse the test output file and extract relevant information."""
+def parse_lines(raw_lines):
+    """Parse raw test output lines and extract relevant information."""
     failed_tests = []
     coverage_lines = []
     tsc_errors = []  # TypeScript compilation errors
@@ -217,9 +307,6 @@ def parse_output(output_file):
     failed_count = 0
     overall_success = False
 
-    with open(output_file, "r") as f:
-        raw_lines = f.readlines()
-
     # First, combine wrapped lines to handle terminal width wrapping
     lines = combine_wrapped_lines(raw_lines)
 
@@ -227,28 +314,44 @@ def parse_output(output_file):
     while i < len(lines):
         line = lines[i]
 
+        # Skip noise lines so they don't pollute the summary or error grep
+        if should_skip_line(line):
+            i += 1
+            continue
+
         # Check for overall result
         success_match = OVERALL_SUCCESS_PATTERN.search(line)
         if success_match:
             overall_success = True
-            total_tests = int(success_match.group(1))
-            success_tests = total_tests
             i += 1
             continue
 
         failure_match = OVERALL_FAILURE_PATTERN.search(line)
         if failure_match:
             overall_success = False
-            failed_count = int(failure_match.group(1))
             i += 1
             continue
 
-        # Check for failed test start
+        # Vitest test-count summary lines
+        # Handles "Tests  10 passed (10)" and "Tests  1 failed | 655 passed (656)"
+        tests_summary_match = TESTS_SUMMARY_PATTERN.search(line)
+        if tests_summary_match:
+            failed_count = int(tests_summary_match.group(1) or 0)
+            success_tests = int(tests_summary_match.group(2))
+            total_tests = int(tests_summary_match.group(3))
+            i += 1
+            continue
+
+        # Check for failed test or uncaught exception start
         failed_match = FAILED_TEST_PATTERN.match(line)
-        if failed_match:
+        uncaught_match = UNCAUGHT_EXCEPTION_PATTERN.search(line)
+        if failed_match or uncaught_match:
             if current_failed_test:
                 failed_tests.append(current_failed_test)
-            test_name = f"{failed_match.group(1).strip()} {failed_match.group(2).strip()}"
+            if failed_match:
+                test_name = f"{failed_match.group(1).strip()} {failed_match.group(2).strip()}"
+            else:
+                test_name = uncaught_match.group(1).strip()
             current_failed_test = {
                 "name": test_name,
                 "error": "",
@@ -259,38 +362,51 @@ def parse_output(output_file):
             i += 1
             continue
 
-        # If in failed test section
+        # If in failed test / uncaught exception section
         if in_failed_test:
-            # Check for next failed test or TOTAL line that ends this test
-            if FAILED_TEST_PATTERN.match(line) or OVERALL_SUCCESS_PATTERN.search(line) or OVERALL_FAILURE_PATTERN.search(line):
+            # Check for next failed test, uncaught exception, or summary line that ends this section
+            if (FAILED_TEST_PATTERN.match(line) or
+                UNCAUGHT_EXCEPTION_PATTERN.search(line) or
+                OVERALL_SUCCESS_PATTERN.search(line) or
+                OVERALL_FAILURE_PATTERN.search(line)):
                 if current_failed_test:
                     failed_tests.append(current_failed_test)
                     current_failed_test = None
                 in_failed_test = False
+                i += 1
                 continue
 
-            # Store first 5 raw lines for context (skip karma progress lines)
-            if len(current_failed_test["raw_lines"]) < 5 and not KARMA_PROGRESS_PATTERN.match(line):
+            # Store first 8 raw lines for context (skip karma progress lines)
+            if len(current_failed_test["raw_lines"]) < 8 and not KARMA_PROGRESS_PATTERN.match(line):
                 current_failed_test["raw_lines"].append(line.rstrip())
 
-            # Check if this is an error message line (starts with "Error:")
-            if line.strip().startswith("Error:") or line.strip().startswith("Expected"):
-                current_failed_test["error"] += line.strip() + "\n"
+            # Check if this is an error / diff / assertion line
+            stripped = line.strip()
+            if (stripped.startswith("Error:") or
+                stripped.startswith("TypeError:") or
+                stripped.startswith("ReferenceError:") or
+                stripped.startswith("RangeError:") or
+                stripped.startswith("AssertionError:") or
+                stripped.startswith("Expected") or
+                stripped.startswith("- ") or
+                stripped.startswith("+ ") or
+                stripped.startswith("~ ")):
+                current_failed_test["error"] += stripped + "\n"
                 i += 1
                 continue
 
             # Check for stack frames - keep only source code frames
             if is_source_code_frame(line):
                 frame = line.strip()
-                # Clean up the frame to be more readable
-                frame = re.sub(r'^\s+at\s+', '  at ', frame)
+                # Clean up the frame to be more readable (handle both "at" and Vitest "❯")
+                frame = re.sub(r'^\s+(?:at\s+|❯\s+)', '  at ', frame)
                 current_failed_test["stack_frames"].append(frame)
             # Skip node_modules frames silently
             elif is_node_modules_frame(line):
                 pass
-            # Include other error context lines
-            elif line.strip() and not is_any_frame(line):
-                current_failed_test["error"] += line.strip() + "\n"
+            # Include other error context lines (e.g., code snippets, extra context)
+            elif stripped and not is_any_frame(line):
+                current_failed_test["error"] += stripped + "\n"
 
             i += 1
             continue
@@ -366,6 +482,13 @@ def parse_output(output_file):
     }
 
 
+def parse_output(output_file):
+    """Parse the test output file and extract relevant information."""
+    with open(output_file, "r") as f:
+        raw_lines = f.readlines()
+    return parse_lines(raw_lines)
+
+
 def print_summary(results, output_file):
     """Print a concise summary of test results."""
     print("=" * 60)
@@ -389,11 +512,14 @@ def print_summary(results, output_file):
         print()
 
     # Coverage info
-    if results["coverage"]:
+    coverage_lines = results["coverage"]
+    if not coverage_lines:
+        coverage_lines = compute_coverage_summary()
+    if coverage_lines:
         print("-" * 40)
         print("CODE COVERAGE:")
         print("-" * 40)
-        for line in results["coverage"]:
+        for line in coverage_lines:
             print(line)
         print()
 
@@ -485,17 +611,19 @@ def show_error_grep(output_file):
 
         error_pattern = re.compile(r'ERROR|FAILED|Error', re.IGNORECASE)
         for i, line in enumerate(lines, 1):
+            if should_skip_line(line):
+                continue
             if error_pattern.search(line):
                 # Show line with context (1 line before and after)
                 context = []
                 if i > 1:
                     prev_line = lines[i - 2].rstrip()
-                    if prev_line:
+                    if prev_line and not should_skip_line(prev_line):
                         context.append(f"{i-1}-{prev_line[:100]}")
                 context.append(f"{i}:{line.rstrip()[:100]}")
                 if i < len(lines):
                     next_line = lines[i].rstrip()
-                    if next_line:
+                    if next_line and not should_skip_line(next_line):
                         context.append(f"{i+1}-{next_line[:100]}")
                 for ctx_line in context:
                     print(f"  {ctx_line}")
@@ -507,8 +635,20 @@ def show_error_grep(output_file):
 
 def main():
     cleanup_old_tmp_files()
-    output_file, return_code = run_tests()
+    output_file, stderr_lines, return_code = run_tests()
     results = parse_output(output_file)
+
+    # The actual failed test blocks are written to stderr by Vitest/Angular.
+    # Parse them separately and merge them into the stdout-based results.
+    stderr_results = parse_lines(stderr_lines)
+    if not stderr_results["overall_success"]:
+        results["overall_success"] = False
+    if stderr_results["failed_count"] > results["failed_count"]:
+        results["failed_count"] = stderr_results["failed_count"]
+    results["failed_tests"].extend(stderr_results["failed_tests"])
+    results["coverage"].extend(stderr_results["coverage"])
+    results["tsc_errors"].extend(stderr_results["tsc_errors"])
+
     print_summary(results, output_file)
 
     # Exit with appropriate code

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, effect, inject, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -18,8 +18,11 @@ export class SignupComponent implements OnDestroy {
   private http = inject(HttpClient);
   private router = inject(Router);
   private modelService = inject(ModelService);
+  private cdr = inject(ChangeDetectorRef);
 
-  requestId = "";
+  get requestId(): string {
+    return this.modelService.signInRequestId$();
+  }
 
   signupForm: FormGroup;
   message: string = '';
@@ -30,10 +33,6 @@ export class SignupComponent implements OnDestroy {
 
   constructor(
   ) {
-    effect(() => {
-      this.requestId = this.modelService.signInRequestId$();
-    });
-
     this.signupForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       name: [''],
@@ -89,6 +88,7 @@ export class SignupComponent implements OnDestroy {
         this.messageType = 'success';
         this.message = `Account created successfully! Your account ID is: ${response.id}`;
         this.isSubmitting = false;
+        this.cdr.markForCheck();
         
         // Store username and password for signin page
         const username = this.signupForm.value.email; // username is currently always equal to the email
@@ -111,6 +111,7 @@ export class SignupComponent implements OnDestroy {
         this.messageType = 'error';
         this.message = error.error?.error_description || error.error?.error || 'Signing up failed';
         this.isSubmitting = false;
+        this.cdr.markForCheck();
       }
     });
   }

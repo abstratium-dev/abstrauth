@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, effect, inject, OnInit, signal, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
@@ -23,14 +23,28 @@ export class ClientsComponent implements OnInit {
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmDialogService);
   private route = inject(ActivatedRoute);
+  private cdr = inject(ChangeDetectorRef);
   
-  clients: OAuthClient[] = [];
-  filteredClients: OAuthClient[] = [];
-  loading = true;
-  error: string | null = null;
-  
-  // Deep-link state for opening allowed roles from another page
+  private currentFilter = signal('');
   private viewAllowedRolesClientId: string | null = null;
+
+  get clients(): OAuthClient[] {
+    return this.modelService.clients$();
+  }
+
+  get filteredClients(): OAuthClient[] {
+    return this.applyFilter();
+  }
+
+  get loading(): boolean {
+    return this.modelService.clientsLoading$();
+  }
+
+  get error(): string | null {
+    return this.modelService.clientsError$();
+  }
+
+  // Deep-link state for opening allowed roles from another page
 
   // Deep-link state for opening secrets and highlighting a specific secret
   private viewSecretsClientId: string | null = null;
@@ -56,13 +70,13 @@ export class ClientsComponent implements OnInit {
   newClientSecret: string | null = null;
   newClientId: string | null = null;
   newClientName: string | null = null;
-  clientIdCopied = false;
-  secretCopied = false;
+  clientIdCopied = signal(false);
+  secretCopied = signal(false);
 
   // Secret management state
   viewingSecretsFor: string | null = null;
   clientSecrets: ClientSecret[] = [];
-  secretsLoading = false;
+  secretsLoading = signal(false);
   secretsError: string | null = null;
   showCreateSecretForm = false;
   createSecretData = {
@@ -73,7 +87,7 @@ export class ClientsComponent implements OnInit {
   // Client-to-Client (M2M) Role management state
   viewingClientRolesFor: string | null = null;
   clientRoles: { targetClientId: string; role: string; createdAt: string }[] = [];
-  clientRolesLoading = false;
+  clientRolesLoading = signal(false);
   clientRolesError: string | null = null;
   showAddClientRoleForm = false;
   addClientRoleData = {
@@ -82,15 +96,15 @@ export class ClientsComponent implements OnInit {
   };
   // Available clients for target selection (subscribed clients)
   availableTargetClients: OAuthClient[] = [];
-  loadingTargetClients = false;
+  loadingTargetClients = signal(false);
   // Allowed roles for selected target client
   availableClientRoleRoles: AllowedRole[] = [];
-  loadingClientRoleRoles = false;
+  loadingClientRoleRoles = signal(false);
 
   // Allowed roles management state
   viewingAllowedRolesFor: string | null = null;
   allowedRoles: AllowedRole[] = [];
-  allowedRolesLoading = false;
+  allowedRolesLoading = signal(false);
   allowedRolesError: string | null = null;
   showAddAllowedRoleForm = false;
   addAllowedRoleData = {
@@ -106,10 +120,10 @@ export class ClientsComponent implements OnInit {
 
   constructor() {
     effect(() => {
-      this.clients = this.modelService.clients$();
-      this.loading = this.modelService.clientsLoading$();
-      this.error = this.modelService.clientsError$();
-      this.applyFilter();
+      // Track the clients signal so deep-link checks run after clients load.
+      this.modelService.clients$();
+      this.checkViewAllowedRoles();
+      this.checkViewSecrets();
     });
   }
 
@@ -118,6 +132,7 @@ export class ClientsComponent implements OnInit {
       this.viewAllowedRolesClientId = params['viewAllowedRoles'] || null;
       this.viewSecretsClientId = params['viewSecrets'] || null;
       this.highlightedSecretId = params['highlightSecret'] ? Number(params['highlightSecret']) : null;
+      this.cdr.markForCheck();
     });
     this.loadClients();
   }
@@ -135,38 +150,9 @@ export class ClientsComponent implements OnInit {
   }
 
   onFilterChange(filterText: string): void {
-    const searchTerm = filterText.toLowerCase().trim();
-    
-    if (!searchTerm) {
-      this.filteredClients = this.clients;
-    } else {
-      this.filteredClients = this.clients.filter(client => {
-      // Search in client name
-      if (client.clientName.toLowerCase().includes(searchTerm)) {
-        return true;
-      }
-      // Search in client ID
-      if (client.clientId.toLowerCase().includes(searchTerm)) {
-        return true;
-      }
-      // Search in client type
-      if (client.clientType.toLowerCase().includes(searchTerm)) {
-        return true;
-      }
-      // Search in redirect URIs
-      const redirectUris = this.parseJsonArray(client.redirectUris);
-      if (redirectUris.some(uri => uri.toLowerCase().includes(searchTerm))) {
-        return true;
-      }
-      // Search in allowed scopes
-      const scopes = this.parseJsonArray(client.allowedScopes);
-      if (scopes.some(scope => scope.toLowerCase().includes(searchTerm))) {
-        return true;
-      }
-      return false;
-      });
-    }
+    this.currentFilter.set(filterText.toLowerCase().trim());
     this.checkViewAllowedRoles();
+    this.checkViewSecrets();
   }
 
   private checkViewAllowedRoles(): void {
@@ -222,11 +208,36 @@ export class ClientsComponent implements OnInit {
     }, 0);
   }
 
-  private applyFilter(): void {
-    // Called from effect when clients change
-    this.filteredClients = this.clients;
-    this.checkViewAllowedRoles();
-    this.checkViewSecrets();
+  private applyFilter(): OAuthClient[] {
+    const searchTerm = this.currentFilter();
+    if (!searchTerm) {
+      return this.clients;
+    }
+    return this.clients.filter(client => {
+      // Search in client name
+      if (client.clientName.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      // Search in client ID
+      if (client.clientId.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      // Search in client type
+      if (client.clientType.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      // Search in redirect URIs
+      const redirectUris = this.parseJsonArray(client.redirectUris);
+      if (redirectUris.some(uri => uri.toLowerCase().includes(searchTerm))) {
+        return true;
+      }
+      // Search in allowed scopes
+      const scopes = this.parseJsonArray(client.allowedScopes);
+      if (scopes.some(scope => scope.toLowerCase().includes(searchTerm))) {
+        return true;
+      }
+      return false;
+    });
   }
 
   hasManageClientsRole(): boolean {
@@ -321,7 +332,7 @@ export class ClientsComponent implements OnInit {
   copyClientId(): void {
     if (this.newClientId) {
       navigator.clipboard.writeText(this.newClientId).then(() => {
-        this.clientIdCopied = true;
+        this.clientIdCopied.set(true);
         this.toastService.success('Client ID copied to clipboard');
       }).catch(err => {
         console.error('Failed to copy client ID:', err);
@@ -333,7 +344,7 @@ export class ClientsComponent implements OnInit {
   copySecret(): void {
     if (this.newClientSecret) {
       navigator.clipboard.writeText(this.newClientSecret).then(() => {
-        this.secretCopied = true;
+        this.secretCopied.set(true);
         this.toastService.success('Client secret copied to clipboard');
       }).catch(err => {
         console.error('Failed to copy secret:', err);
@@ -346,8 +357,8 @@ export class ClientsComponent implements OnInit {
     this.newClientSecret = null;
     this.newClientId = null;
     this.newClientName = null;
-    this.clientIdCopied = false;
-    this.secretCopied = false;
+    this.clientIdCopied.set(false);
+    this.secretCopied.set(false);
   }
 
   async onSubmit(): Promise<void> {
@@ -432,8 +443,8 @@ export class ClientsComponent implements OnInit {
           this.newClientSecret = response.clientSecret;
           this.newClientId = clientId;
           this.newClientName = clientName;
-          this.clientIdCopied = false;
-          this.secretCopied = false;
+          this.clientIdCopied.set(false);
+          this.secretCopied.set(false);
         } else {
           this.toastService.success(`Client "${clientName}" created successfully`);
         }
@@ -476,7 +487,7 @@ export class ClientsComponent implements OnInit {
   }
 
   async loadClientSecrets(clientId: string): Promise<void> {
-    this.secretsLoading = true;
+    this.secretsLoading.set(true);
     this.secretsError = null;
     
     try {
@@ -486,7 +497,7 @@ export class ClientsComponent implements OnInit {
       this.secretsError = 'Failed to load secrets';
       this.clientSecrets = [];
     } finally {
-      this.secretsLoading = false;
+      this.secretsLoading.set(false);
     }
   }
 
@@ -518,8 +529,8 @@ export class ClientsComponent implements OnInit {
       this.newClientSecret = response.secret;
       this.newClientId = `${this.clients.find(c => c.clientId === clientId)?.clientId}`;
       this.newClientName = `${this.clients.find(c => c.clientId === clientId)?.clientName} - New Secret`;
-      this.clientIdCopied = false;
-      this.secretCopied = false;
+      this.clientIdCopied.set(false);
+      this.secretCopied.set(false);
       
       // Reload secrets list
       await this.loadClientSecrets(clientId);
@@ -677,7 +688,7 @@ export class ClientsComponent implements OnInit {
   }
 
   async loadClientRoles(srcClientId: string): Promise<void> {
-    this.clientRolesLoading = true;
+    this.clientRolesLoading.set(true);
     this.clientRolesError = null;
     try {
       const response = await this.controller.listClientRoles(srcClientId);
@@ -687,7 +698,7 @@ export class ClientsComponent implements OnInit {
       this.clientRolesError = 'Failed to load client roles';
       this.clientRoles = [];
     } finally {
-      this.clientRolesLoading = false;
+      this.clientRolesLoading.set(false);
     }
   }
 
@@ -716,7 +727,7 @@ export class ClientsComponent implements OnInit {
       return;
     }
 
-    this.loadingClientRoleRoles = true;
+    this.loadingClientRoleRoles.set(true);
     try {
       // Load allowed roles for the selected target client
       // This returns roles that can be assigned to users in the current org
@@ -726,7 +737,7 @@ export class ClientsComponent implements OnInit {
       this.toastService.error('Failed to load available roles for selected client');
       this.availableClientRoleRoles = [];
     } finally {
-      this.loadingClientRoleRoles = false;
+      this.loadingClientRoleRoles.set(false);
     }
   }
 
@@ -813,7 +824,7 @@ export class ClientsComponent implements OnInit {
   }
 
   async loadAllowedRoles(clientId: string): Promise<void> {
-    this.allowedRolesLoading = true;
+    this.allowedRolesLoading.set(true);
     this.allowedRolesError = null;
     try {
       this.allowedRoles = await this.controller.listAllowedRolesForUsersInClientsOrg(clientId);
@@ -822,7 +833,7 @@ export class ClientsComponent implements OnInit {
       this.allowedRolesError = 'Failed to load allowed roles';
       this.allowedRoles = [];
     } finally {
-      this.allowedRolesLoading = false;
+      this.allowedRolesLoading.set(false);
     }
   }
 

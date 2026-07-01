@@ -2,8 +2,8 @@
   <div class="page-header">
     <h1>Organisations</h1>
     <button *ngIf="!loading" id="create-org-button" class="btn-add" (click)="toggleCreateForm()"
-      [disabled]="formSubmitting">
-      {{ showCreateForm ? 'Cancel' : '+ New Organisation' }}
+      [disabled]="formSubmitting()">
+      {{ showCreateForm() ? 'Cancel' : '+ New Organisation' }}
     </button>
   </div>
 
@@ -17,10 +17,10 @@
   </div>
 
   <!-- Create Organisation Form -->
-  <div *ngIf="showCreateForm && !loading" class="form-container">
+  <div *ngIf="showCreateForm() && !loading" class="form-container">
     <h2>New Organisation</h2>
     <form (ngSubmit)="onSubmitCreate()">
-      <div *ngIf="formError" class="error-box">{{ formError }}</div>
+      <div *ngIf="formError()" class="error-box">{{ formError() }}</div>
       <div class="form-group">
         <label for="org-name">Organisation Name *</label>
         <input
@@ -30,14 +30,14 @@
           [(ngModel)]="newOrgName"
           required
           placeholder="e.g. Acme Corp"
-          [disabled]="formSubmitting">
+          [disabled]="formSubmitting()">
         <small class="form-hint">Name for your new organisation</small>
       </div>
       <div class="form-actions">
-        <button type="submit" id="submit-create-org-button" class="btn-primary" [disabled]="formSubmitting">
-          {{ formSubmitting ? 'Creating...' : 'Create Organisation' }}
+        <button type="submit" id="submit-create-org-button" class="btn-primary" [disabled]="formSubmitting()">
+          {{ formSubmitting() ? 'Creating...' : 'Create Organisation' }}
         </button>
-        <button type="button" id="cancel-create-org-button" class="btn-secondary" (click)="toggleCreateForm()" [disabled]="formSubmitting">
+        <button type="button" id="cancel-create-org-button" class="btn-secondary" (click)="toggleCreateForm()" [disabled]="formSubmitting()">
           Cancel
         </button>
       </div>
@@ -48,8 +48,8 @@
     <p>You are not a member of any organisations.</p>
   </div>
 
-  <div *ngIf="deleteError" class="error-box">
-    <p>{{ deleteError }}</p>
+  <div *ngIf="deleteError()" class="error-box">
+    <p>{{ deleteError() }}</p>
   </div>
 
   <div *ngIf="!loading && !error && organisations.length > 0" class="tile-grid">
@@ -72,10 +72,10 @@
           <button *ngIf="isAdmin()"
                   class="btn-delete-small"
                   [attr.data-testid]="'delete-org-' + org.id"
-                  [disabled]="deletingOrgId === org.id"
+                  [disabled]="deletingOrgId() === org.id"
                   (click)="onDeleteOrg(org.id, org.name)"
                   title="Delete organisation">
-            {{ deletingOrgId === org.id ? 'Deleting...' : 'Delete' }}
+            {{ deletingOrgId() === org.id ? 'Deleting...' : 'Delete' }}
           </button>
         </div>
       </div>

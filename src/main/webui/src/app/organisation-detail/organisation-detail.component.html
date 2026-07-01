@@ -12,16 +12,16 @@
     <div class="card-header">
       <h2 id="org-name">{{ org.name }}</h2>
       <div class="card-actions">
-        <button *ngIf="isOwner() && !editMode" id="edit-button" class="btn-primary" (click)="startEdit()">
+        <button *ngIf="isOwner() && !editMode()" id="edit-button" class="btn-primary" (click)="startEdit()">
           Edit Name
         </button>
       </div>
     </div>
 
-    <div *ngIf="editMode" class="form-container">
+    <div *ngIf="editMode()" class="form-container">
       <h2>Rename Organisation</h2>
       <form (ngSubmit)="onSubmitEdit()">
-        <div *ngIf="formError" class="error-box">{{ formError }}</div>
+        <div *ngIf="formError()" class="error-box">{{ formError() }}</div>
         <div class="form-group">
           <label for="edit-org-name">Organisation Name *</label>
           <input
@@ -30,13 +30,13 @@
             name="editOrgName"
             [(ngModel)]="editName"
             required
-            [disabled]="formSubmitting">
+            [disabled]="formSubmitting()">
         </div>
         <div class="form-actions">
-          <button type="submit" id="submit-edit-button" class="btn-primary" [disabled]="formSubmitting">
-            {{ formSubmitting ? 'Saving...' : 'Save' }}
+          <button type="submit" id="submit-edit-button" class="btn-primary" [disabled]="formSubmitting()">
+            {{ formSubmitting() ? 'Saving...' : 'Save' }}
           </button>
-          <button type="button" id="cancel-edit-button" class="btn-secondary" (click)="cancelEdit()" [disabled]="formSubmitting">
+          <button type="button" id="cancel-edit-button" class="btn-secondary" (click)="cancelEdit()" [disabled]="formSubmitting()">
             Cancel
           </button>
         </div>

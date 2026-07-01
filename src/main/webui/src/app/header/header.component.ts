@@ -21,19 +21,23 @@ export class HeaderComponent implements OnInit {
     themeService = inject(ThemeService);
     emailMismatchWarning: string | null = null;
 
-    token!: Token;
-    isSignedIn = false;
     currentOrg: Signal<Organisation | null> = this.modelService.currentOrganisation$;
     protected brandLogoUrl$ = this.modelService.brandLogoUrl$;
     protected brandLogoAlt$ = this.modelService.brandLogoAlt$;
     protected brandName$ = this.modelService.brandName$;
 
+    get token(): Token {
+        return this.authService.token$();
+    }
+
+    get isSignedIn(): boolean {
+        return this.token.isAuthenticated;
+    }
+
     constructor() {
         effect(() => {
-            this.token = this.authService.token$();
-            this.isSignedIn = this.token.isAuthenticated;
-
-            if (this.isSignedIn && this.token.orgId) {
+            const token = this.authService.token$();
+            if (token.isAuthenticated && token.orgId) {
                 this.controller.loadCurrentOrganisation();
             } else {
                 this.modelService.setCurrentOrganisation(null);

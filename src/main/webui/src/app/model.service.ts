@@ -346,4 +346,33 @@ export class ModelService {
   setPersonalDataError(error: string | null) {
     this.personalDataError.set(error);
   }
+
+  reset(): void {
+    this.signUpUsername.set('');
+    this.signUpPassword.set('');
+    this.signInRequestId.set('');
+    this.accounts.set([]);
+    this.clients.set([]);
+    this.signupAllowed.set(false);
+    this.allowNativeSignin.set(false);
+    this.allowGoogleSignin.set(false);
+    this.allowMicrosoftSignin.set(false);
+    this.sessionTimeoutSeconds.set(900);
+    this.insecureClientSecret.set(false);
+    this.warningMessage.set('');
+    this.clientsLoading.set(false);
+    this.clientsError.set(null);
+    this.organisations.set([]);
+    this.organisationsLoading.set(false);
+    this.organisationsError.set(null);
+    this.currentOrganisation.set(null);
+    this.legalContent.set(null);
+    this.brandLogoUrl.set(this.defaultBrandLogoUrl);
+    this.brandLogoAlt.set(this.defaultBrandLogoAlt);
+    this.brandName.set(this.defaultBrandName);
+    this.auditRetentionDays.set(this.defaultAuditRetentionDays);
+    this.personalData.set(null);
+    this.personalDataLoading.set(false);
+    this.personalDataError.set(null);
+  }
 }

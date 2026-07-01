@@ -11,12 +11,9 @@
 
 ## Today
 
-- upgrade everything
+- there are still a few places that use `markForCheck()` and i want to get rid of those calls and use something better.
 
-- upgrade angular tests:
 
-    Note: To refactor your test files from Jasmine to Vitest, consider running the following command:
-      ng g @schematics/angular:refactor-jasmine-vitest <project_name>
 
 
 

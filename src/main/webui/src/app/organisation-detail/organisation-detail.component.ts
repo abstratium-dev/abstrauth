@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, Signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, Signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -25,10 +25,10 @@ export class OrganisationDetailComponent implements OnInit {
 
   orgId = '';
 
-  editMode = false;
+  editMode = signal(false);
   editName = '';
-  formSubmitting = false;
-  formError: string | null = null;
+  formSubmitting = signal(false);
+  formError = signal<string | null>(null);
 
   ngOnInit(): void {
     this.orgId = this.route.snapshot.paramMap.get('orgId') ?? '';
@@ -41,46 +41,46 @@ export class OrganisationDetailComponent implements OnInit {
     const org = this.organisation();
     if (org) {
       this.editName = org.name;
-      this.editMode = true;
-      this.formError = null;
+      this.editMode.set(true);
+      this.formError.set(null);
     }
   }
 
   cancelEdit(): void {
-    this.editMode = false;
+    this.editMode.set(false);
     this.editName = '';
-    this.formError = null;
+    this.formError.set(null);
   }
 
   async onSubmitEdit(): Promise<void> {
     if (!this.editName.trim()) {
-      this.formError = 'Organisation name is required.';
+      this.formError.set('Organisation name is required.');
       return;
     }
 
-    this.formSubmitting = true;
-    this.formError = null;
+    this.formSubmitting.set(true);
+    this.formError.set(null);
 
     try {
       const org = await this.controller.updateOrganisationName(this.orgId, { name: this.editName.trim() });
       this.toastService.success(`Organisation renamed to "${org.name}"`);
-      this.editMode = false;
+      this.editMode.set(false);
     } catch (err: any) {
       if (err.status === 400) {
         if (err.error?.violations && Array.isArray(err.error.violations)) {
-          this.formError = err.error.violations.map((v: any) => v.message).join('; ');
+          this.formError.set(err.error.violations.map((v: any) => v.message).join('; '));
         } else {
-          this.formError = 'Invalid input. Please check your entries.';
+          this.formError.set('Invalid input. Please check your entries.');
         }
       } else if (err.status === 403) {
-        this.formError = 'You do not have permission to rename this organisation.';
+        this.formError.set('You do not have permission to rename this organisation.');
       } else if (err.status === 404) {
-        this.formError = 'Organisation not found.';
+        this.formError.set('Organisation not found.');
       } else {
-        this.formError = 'Failed to update organisation. Please try again.';
+        this.formError.set('Failed to update organisation. Please try again.');
       }
     } finally {
-      this.formSubmitting = false;
+      this.formSubmitting.set(false);
     }
   }
 }

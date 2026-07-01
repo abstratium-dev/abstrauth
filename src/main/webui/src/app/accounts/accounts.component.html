@@ -163,7 +163,7 @@
             <!-- Crown badge/button for owner status -->
             <span *ngIf="isAccountOwner(account) && !(isOwner() && hasManageAccountsRole() && !isCurrentUser(account.id))" class="badge badge-owner" title="Owner of this organisation">👑</span>
             <button *ngIf="isAccountOwner(account) && isOwner() && hasManageAccountsRole() && !isCurrentUser(account.id)"
-                    class="btn-icon btn-icon-owner"
+                    class="btn-icon btn-icon-owner btn-icon-owner-active"
                     (click)="removeOwner(account)"
                     title="Remove owner role"
                     data-testid="remove-owner-button">

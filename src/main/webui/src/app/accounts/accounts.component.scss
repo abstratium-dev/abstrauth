@@ -128,7 +128,7 @@
   cursor: default;
 }
 
-/* Owner button - grey crown that becomes gold on hover */
+/* Owner button - grey crown for non-owners, normal crown for owners */
 .btn-icon-owner {
   opacity: 0.4;
   filter: grayscale(100%);
@@ -137,7 +137,11 @@
   &:hover:not(:disabled) {
     opacity: 1;
     filter: grayscale(0%);
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-    border-color: #d97706;
   }
+}
+
+/* Active owner button - crown is shown in its normal color */
+.btn-icon-owner-active {
+  opacity: 1;
+  filter: grayscale(0%);
 }

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -25,8 +25,8 @@ export class ChangePasswordComponent implements OnInit {
   private toastService = inject(ToastService);
 
   passwordForm: FormGroup;
-  isSubmitting = false;
-  errorMessage: string | null = null;
+  isSubmitting = signal(false);
+  errorMessage = signal<string | null>(null);
   inviteData: InviteData | null = null;
 
   constructor() {
@@ -72,12 +72,12 @@ export class ChangePasswordComponent implements OnInit {
 
     // Check if new passwords match
     if (newPassword !== confirmPassword) {
-      this.errorMessage = 'New passwords do not match';
+      this.errorMessage.set('New passwords do not match');
       return;
     }
 
-    this.isSubmitting = true;
-    this.errorMessage = null;
+    this.isSubmitting.set(true);
+    this.errorMessage.set(null);
 
     try {
       await this.controller.resetPassword(oldPassword, newPassword);
@@ -92,12 +92,12 @@ export class ChangePasswordComponent implements OnInit {
       this.router.navigate(['/']);
     } catch (err: any) {
       if (err.status === 400) {
-        this.errorMessage = err.error?.error || 'Old password is incorrect';
+        this.errorMessage.set(err.error?.error || 'Old password is incorrect');
       } else {
-        this.errorMessage = 'Failed to change password. Please try again.';
+        this.errorMessage.set('Failed to change password. Please try again.');
       }
     } finally {
-      this.isSubmitting = false;
+      this.isSubmitting.set(false);
     }
   }
 

@@ -1,382 +1,388 @@
+import type { MockedObject } from "vitest";
+import { createMock } from '../../testing/vitest-mocks';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { Router } from '@angular/router';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { SignupComponent } from './signup.component';
 
 describe('SignupComponent', () => {
-  let component: SignupComponent;
-  let fixture: ComponentFixture<SignupComponent>;
-  let mockRouter: jasmine.SpyObj<Router>;
-  let httpMock: HttpTestingController;
+    let component: SignupComponent;
+    let fixture: ComponentFixture<SignupComponent>;
+    let mockRouter: MockedObject<Router>;
+    let httpMock: HttpTestingController;
 
-  beforeEach(async () => {
-    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+    beforeEach(async () => {
+        mockRouter = createMock<Router>({
+            navigate: vi.fn().mockName("Router.navigate")
+        });
 
-    await TestBed.configureTestingModule({
-      imports: [SignupComponent],
-      providers: [
-        provideHttpClient(withXhr()),
-        provideHttpClientTesting(),
-        { provide: Router, useValue: mockRouter }
-      ]
-    })
-    .compileComponents();
+        await TestBed.configureTestingModule({
+            imports: [SignupComponent],
+            providers: [
+                provideZonelessChangeDetection(),
+                provideHttpClient(withXhr()),
+                provideHttpClientTesting(),
+                { provide: Router, useValue: mockRouter }
+            ]
+        })
+            .compileComponents();
 
-    fixture = TestBed.createComponent(SignupComponent);
-    component = fixture.componentInstance;
-    httpMock = TestBed.inject(HttpTestingController);
-    fixture.detectChanges();
-  });
-
-  afterEach(() => {
-    httpMock.verify();
-  });
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
-  describe('Form Initialization', () => {
-    it('should initialize form with empty values', () => {
-      expect(component.signupForm.value).toEqual({
-        email: '',
-        name: '',
-        organisationName: '',
-        password: '',
-        password2: ''
-      });
+        fixture = TestBed.createComponent(SignupComponent);
+        component = fixture.componentInstance;
+        httpMock = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
     });
 
-    it('should have required validators on email field', () => {
-      const emailControl = component.signupForm.get('email');
-      emailControl?.setValue('');
-      expect(emailControl?.hasError('required')).toBe(true);
+    afterEach(() => {
+        httpMock.verify();
     });
 
-    it('should have email validator on email field', () => {
-      const emailControl = component.signupForm.get('email');
-      emailControl?.setValue('invalid-email');
-      expect(emailControl?.hasError('email')).toBe(true);
+    it('should create', () => {
+        expect(component).toBeTruthy();
     });
 
-    it('should have required validator on password field', () => {
-      const passwordControl = component.signupForm.get('password');
-      passwordControl?.setValue('');
-      expect(passwordControl?.hasError('required')).toBe(true);
+    describe('Form Initialization', () => {
+        it('should initialize form with empty values', () => {
+            expect(component.signupForm.value).toEqual({
+                email: '',
+                name: '',
+                organisationName: '',
+                password: '',
+                password2: ''
+            });
+        });
+
+        it('should have required validators on email field', () => {
+            const emailControl = component.signupForm.get('email');
+            emailControl?.setValue('');
+            expect(emailControl?.hasError('required')).toBe(true);
+        });
+
+        it('should have email validator on email field', () => {
+            const emailControl = component.signupForm.get('email');
+            emailControl?.setValue('invalid-email');
+            expect(emailControl?.hasError('email')).toBe(true);
+        });
+
+        it('should have required validator on password field', () => {
+            const passwordControl = component.signupForm.get('password');
+            passwordControl?.setValue('');
+            expect(passwordControl?.hasError('required')).toBe(true);
+        });
+
+        it('should have required and minLength validators on password field', () => {
+            const passwordControl = component.signupForm.get('password');
+            passwordControl?.setValue('');
+            expect(passwordControl?.hasError('required')).toBe(true);
+
+            passwordControl?.setValue('short');
+            expect(passwordControl?.hasError('minlength')).toBe(true);
+        });
+
+        it('should accept valid password with 8 characters', () => {
+            const passwordControl = component.signupForm.get('password');
+            passwordControl?.setValue('12345678');
+            expect(passwordControl?.valid).toBe(true);
+        });
+
+        it('should not require name field', () => {
+            const nameControl = component.signupForm.get('name');
+            nameControl?.setValue('');
+            expect(nameControl?.valid).toBe(true);
+        });
+
+        it('should have required validator on organisationName field', () => {
+            const orgControl = component.signupForm.get('organisationName');
+            orgControl?.setValue('');
+            expect(orgControl?.hasError('required')).toBe(true);
+        });
     });
 
-    it('should have required and minLength validators on password field', () => {
-      const passwordControl = component.signupForm.get('password');
-      passwordControl?.setValue('');
-      expect(passwordControl?.hasError('required')).toBe(true);
-      
-      passwordControl?.setValue('short');
-      expect(passwordControl?.hasError('minlength')).toBe(true);
+    describe('Form Validation', () => {
+        it('should mark form as invalid when required fields are empty', () => {
+            expect(component.signupForm.invalid).toBe(true);
+        });
+
+        it('should mark form as valid when all required fields are filled correctly', () => {
+            component.signupForm.patchValue({
+                email: 'test@example.com',
+                organisationName: 'Test Organisation',
+                password: 'password123',
+                password2: 'password123'
+            });
+            expect(component.signupForm.valid).toBe(true);
+        });
+
+        it('should not submit when form is invalid', () => {
+            component.signup();
+
+            expect(component.isSubmitting).toBe(false);
+            httpMock.expectNone('/api/signup');
+        });
+
+        it('should mark all fields as touched when submitting invalid form', () => {
+            component.signup();
+
+            expect(component.signupForm.get('email')?.touched).toBe(true);
+            expect(component.signupForm.get('organisationName')?.touched).toBe(true);
+            expect(component.signupForm.get('password')?.touched).toBe(true);
+            expect(component.signupForm.get('password2')?.touched).toBe(true);
+        });
     });
 
-    it('should accept valid password with 8 characters', () => {
-      const passwordControl = component.signupForm.get('password');
-      passwordControl?.setValue('12345678');
-      expect(passwordControl?.valid).toBe(true);
+    describe('Signup Success', () => {
+        beforeEach(() => {
+            component.signupForm.patchValue({
+                email: 'test@example.com',
+                name: 'Test User',
+                organisationName: 'Test Organisation',
+                password: 'password123',
+                password2: 'password123'
+            });
+        });
+
+        it('should submit form data successfully', () => {
+            component.signup();
+
+            expect(component.isSubmitting).toBe(true);
+
+            const req = httpMock.expectOne('/api/signup');
+            expect(req.request.method).toBe('POST');
+            expect(req.request.headers.get('Content-Type')).toBe('application/x-www-form-urlencoded');
+
+            const body = req.request.body as string;
+            expect(body).toContain('email=test%40example.com');
+            expect(body).toContain('name=Test+User');
+            expect(body).toContain('username=test%40example.com'); // username is the email
+            expect(body).toContain('password=password123');
+            expect(body).toContain('organisationName=Test+Organisation');
+
+            req.flush({ id: '123' });
+
+            expect(component.messageType).toBe('success');
+            expect(component.message).toContain('Account created successfully');
+            expect(component.message).toContain('123');
+            expect(component.isSubmitting).toBe(false);
+        });
+
+        it('should store username and password in model service', () => {
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ id: '123' });
+
+            expect(component['modelService'].signUpUsername$()).toBe('test@example.com'); // username is the email
+            expect(component['modelService'].signUpPassword$()).toBe('password123');
+        });
+
+        it('should navigate to signin page with requestId', () => {
+            component['modelService'].setSignInRequestId('test-request-123');
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ id: '123' });
+
+            expect(mockRouter.navigate).toHaveBeenCalledWith(['/signin', 'test-request-123']);
+        });
+
+        it('should reset form after successful signup', () => {
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ id: '123' });
+
+            expect(component.signupForm.value).toEqual({
+                email: null,
+                name: null,
+                organisationName: null,
+                password: null,
+                password2: null
+            });
+        });
+
+        it('should clear message before submitting', () => {
+            component.message = 'Previous message';
+            component.messageType = 'error';
+
+            component.signup();
+
+            expect(component.message).toBe('');
+            expect(component.messageType).toBe('');
+
+            // Clean up the pending request
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ id: '123' });
+        });
     });
 
-    it('should not require name field', () => {
-      const nameControl = component.signupForm.get('name');
-      nameControl?.setValue('');
-      expect(nameControl?.valid).toBe(true);
+    describe('Signup Error', () => {
+        beforeEach(() => {
+            component.signupForm.patchValue({
+                email: 'test@example.com',
+                name: 'Test User',
+                organisationName: 'Test Organisation',
+                password: 'password123',
+                password2: 'password123'
+            });
+        });
+
+        it('should handle error with error_description', () => {
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ error_description: 'Username already exists' }, { status: 400, statusText: 'Bad Request' });
+
+            expect(component.messageType).toBe('error');
+            expect(component.message).toBe('Username already exists');
+            expect(component.isSubmitting).toBe(false);
+        });
+
+        it('should handle error with error field', () => {
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ error: 'Invalid email' }, { status: 400, statusText: 'Bad Request' });
+
+            expect(component.messageType).toBe('error');
+            expect(component.message).toBe('Invalid email');
+            expect(component.isSubmitting).toBe(false);
+        });
+
+        it('should handle error with default message', () => {
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush('Server error', { status: 500, statusText: 'Internal Server Error' });
+
+            expect(component.messageType).toBe('error');
+            expect(component.message).toBe('Signing up failed');
+            expect(component.isSubmitting).toBe(false);
+        });
+
+        it('should not navigate on error', () => {
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ error: 'Error' }, { status: 400, statusText: 'Bad Request' });
+
+            expect(mockRouter.navigate).not.toHaveBeenCalled();
+        });
+
+        it('should not reset form on error', () => {
+            const originalValues = { ...component.signupForm.value };
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ error: 'Error' }, { status: 400, statusText: 'Bad Request' });
+
+            expect(component.signupForm.value).toEqual(originalValues);
+        });
     });
 
-    it('should have required validator on organisationName field', () => {
-      const orgControl = component.signupForm.get('organisationName');
-      orgControl?.setValue('');
-      expect(orgControl?.hasError('required')).toBe(true);
-    });
-  });
+    describe('Request ID Effect', () => {
+        it('should update requestId from model service', () => {
+            component['modelService'].setSignInRequestId('new-request-id');
+            fixture.detectChanges();
 
-  describe('Form Validation', () => {
-    it('should mark form as invalid when required fields are empty', () => {
-      expect(component.signupForm.invalid).toBe(true);
-    });
+            expect(component.requestId).toBe('new-request-id');
+        });
 
-    it('should mark form as valid when all required fields are filled correctly', () => {
-      component.signupForm.patchValue({
-        email: 'test@example.com',
-        organisationName: 'Test Organisation',
-        password: 'password123',
-        password2: 'password123'
-      });
-      expect(component.signupForm.valid).toBe(true);
+        it('should handle empty requestId', () => {
+            component['modelService'].setSignInRequestId('');
+            fixture.detectChanges();
+
+            expect(component.requestId).toBe('');
+        });
     });
 
-    it('should not submit when form is invalid', () => {
-      component.signup();
-      
-      expect(component.isSubmitting).toBe(false);
-      httpMock.expectNone('/api/signup');
+    describe('Edge Cases', () => {
+        it('should handle signup with only required fields', () => {
+            component.signupForm.patchValue({
+                email: 'minimal@example.com',
+                name: '',
+                organisationName: 'Minimal Organisation',
+                password: 'password123',
+                password2: 'password123'
+            });
+
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            const body = req.request.body as string;
+            expect(body).toContain('email=minimal%40example.com');
+            expect(body).toContain('name=');
+            expect(body).toContain('username=minimal%40example.com'); // username is the email
+            expect(body).toContain('organisationName=Minimal+Organisation');
+
+            req.flush({ id: '456' });
+            expect(component.messageType).toBe('success');
+        });
+
+        it('should handle special characters in form fields', () => {
+            component.signupForm.patchValue({
+                email: 'test+tag@example.com',
+                name: 'Test O\'Brien',
+                organisationName: 'O\'Brien Corp',
+                password: 'P@ssw0rd!',
+                password2: 'P@ssw0rd!'
+            });
+
+            component.signup();
+
+            const req = httpMock.expectOne('/api/signup');
+            req.flush({ id: '789' });
+
+            expect(component.messageType).toBe('success');
+        });
     });
 
-    it('should mark all fields as touched when submitting invalid form', () => {
-      component.signup();
-      
-      expect(component.signupForm.get('email')?.touched).toBe(true);
-      expect(component.signupForm.get('organisationName')?.touched).toBe(true);
-      expect(component.signupForm.get('password')?.touched).toBe(true);
-      expect(component.signupForm.get('password2')?.touched).toBe(true);
+    describe('Organisation Name Auto-population', () => {
+        it('should auto-populate organisationName when name changes', () => {
+            component.signupForm.get('name')?.setValue('John Doe');
+            fixture.detectChanges();
+
+            expect(component.signupForm.get('organisationName')?.value).toBe("John Doe's Organisation");
+        });
+
+        it('should not auto-populate organisationName when name is empty', () => {
+            component.signupForm.get('name')?.setValue('');
+            fixture.detectChanges();
+
+            expect(component.signupForm.get('organisationName')?.value).toBe('');
+        });
+
+        it('should not auto-populate after user manually edits organisationName', () => {
+            component.signupForm.get('name')?.setValue('John Doe');
+            fixture.detectChanges();
+            expect(component.signupForm.get('organisationName')?.value).toBe("John Doe's Organisation");
+
+            // Simulate user editing the field
+            component.onOrganisationNameChange();
+            component.signupForm.get('organisationName')?.setValue('Custom Org Name');
+
+            // Now change the name again - org name should not auto-update
+            component.signupForm.get('name')?.setValue('Jane Smith');
+            fixture.detectChanges();
+
+            expect(component.signupForm.get('organisationName')?.value).toBe('Custom Org Name');
+        });
+
+        it('should mark organisationNameManuallyEdited when onOrganisationNameChange is called', () => {
+            expect(component.organisationNameManuallyEdited).toBe(false);
+
+            component.onOrganisationNameChange();
+
+            expect(component.organisationNameManuallyEdited).toBe(true);
+        });
+
+        it('should unsubscribe from name changes on destroy', () => {
+            const unsubscribeSpy = vi.spyOn(component['nameSubscription'], 'unsubscribe').mockReturnValue(undefined);
+
+            component.ngOnDestroy();
+
+            expect(unsubscribeSpy).toHaveBeenCalled();
+        });
     });
-  });
-
-  describe('Signup Success', () => {
-    beforeEach(() => {
-      component.signupForm.patchValue({
-        email: 'test@example.com',
-        name: 'Test User',
-        organisationName: 'Test Organisation',
-        password: 'password123',
-        password2: 'password123'
-      });
-    });
-
-    it('should submit form data successfully', () => {
-      component.signup();
-
-      expect(component.isSubmitting).toBe(true);
-
-      const req = httpMock.expectOne('/api/signup');
-      expect(req.request.method).toBe('POST');
-      expect(req.request.headers.get('Content-Type')).toBe('application/x-www-form-urlencoded');
-      
-      const body = req.request.body as string;
-      expect(body).toContain('email=test%40example.com');
-      expect(body).toContain('name=Test+User');
-      expect(body).toContain('username=test%40example.com'); // username is the email
-      expect(body).toContain('password=password123');
-      expect(body).toContain('organisationName=Test+Organisation');
-
-      req.flush({ id: '123' });
-
-      expect(component.messageType).toBe('success');
-      expect(component.message).toContain('Account created successfully');
-      expect(component.message).toContain('123');
-      expect(component.isSubmitting).toBe(false);
-    });
-
-    it('should store username and password in model service', () => {
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ id: '123' });
-
-      expect(component['modelService'].signUpUsername$()).toBe('test@example.com'); // username is the email
-      expect(component['modelService'].signUpPassword$()).toBe('password123');
-    });
-
-    it('should navigate to signin page with requestId', () => {
-      component.requestId = 'test-request-123';
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ id: '123' });
-
-      expect(mockRouter.navigate).toHaveBeenCalledWith(['/signin', 'test-request-123']);
-    });
-
-    it('should reset form after successful signup', () => {
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ id: '123' });
-
-      expect(component.signupForm.value).toEqual({
-        email: null,
-        name: null,
-        organisationName: null,
-        password: null,
-        password2: null
-      });
-    });
-
-    it('should clear message before submitting', () => {
-      component.message = 'Previous message';
-      component.messageType = 'error';
-      
-      component.signup();
-
-      expect(component.message).toBe('');
-      expect(component.messageType).toBe('');
-      
-      // Clean up the pending request
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ id: '123' });
-    });
-  });
-
-  describe('Signup Error', () => {
-    beforeEach(() => {
-      component.signupForm.patchValue({
-        email: 'test@example.com',
-        name: 'Test User',
-        organisationName: 'Test Organisation',
-        password: 'password123',
-        password2: 'password123'
-      });
-    });
-
-    it('should handle error with error_description', () => {
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ error_description: 'Username already exists' }, { status: 400, statusText: 'Bad Request' });
-
-      expect(component.messageType).toBe('error');
-      expect(component.message).toBe('Username already exists');
-      expect(component.isSubmitting).toBe(false);
-    });
-
-    it('should handle error with error field', () => {
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ error: 'Invalid email' }, { status: 400, statusText: 'Bad Request' });
-
-      expect(component.messageType).toBe('error');
-      expect(component.message).toBe('Invalid email');
-      expect(component.isSubmitting).toBe(false);
-    });
-
-    it('should handle error with default message', () => {
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush('Server error', { status: 500, statusText: 'Internal Server Error' });
-
-      expect(component.messageType).toBe('error');
-      expect(component.message).toBe('Signing up failed');
-      expect(component.isSubmitting).toBe(false);
-    });
-
-    it('should not navigate on error', () => {
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ error: 'Error' }, { status: 400, statusText: 'Bad Request' });
-
-      expect(mockRouter.navigate).not.toHaveBeenCalled();
-    });
-
-    it('should not reset form on error', () => {
-      const originalValues = { ...component.signupForm.value };
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ error: 'Error' }, { status: 400, statusText: 'Bad Request' });
-
-      expect(component.signupForm.value).toEqual(originalValues);
-    });
-  });
-
-  describe('Request ID Effect', () => {
-    it('should update requestId from model service', () => {
-      component['modelService'].setSignInRequestId('new-request-id');
-      fixture.detectChanges();
-      
-      expect(component.requestId).toBe('new-request-id');
-    });
-
-    it('should handle empty requestId', () => {
-      component['modelService'].setSignInRequestId('');
-      fixture.detectChanges();
-      
-      expect(component.requestId).toBe('');
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('should handle signup with only required fields', () => {
-      component.signupForm.patchValue({
-        email: 'minimal@example.com',
-        name: '',
-        organisationName: 'Minimal Organisation',
-        password: 'password123',
-        password2: 'password123'
-      });
-
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      const body = req.request.body as string;
-      expect(body).toContain('email=minimal%40example.com');
-      expect(body).toContain('name=');
-      expect(body).toContain('username=minimal%40example.com'); // username is the email
-      expect(body).toContain('organisationName=Minimal+Organisation');
-
-      req.flush({ id: '456' });
-      expect(component.messageType).toBe('success');
-    });
-
-    it('should handle special characters in form fields', () => {
-      component.signupForm.patchValue({
-        email: 'test+tag@example.com',
-        name: 'Test O\'Brien',
-        organisationName: 'O\'Brien Corp',
-        password: 'P@ssw0rd!',
-        password2: 'P@ssw0rd!'
-      });
-
-      component.signup();
-
-      const req = httpMock.expectOne('/api/signup');
-      req.flush({ id: '789' });
-
-      expect(component.messageType).toBe('success');
-    });
-  });
-
-  describe('Organisation Name Auto-population', () => {
-    it('should auto-populate organisationName when name changes', () => {
-      component.signupForm.get('name')?.setValue('John Doe');
-      fixture.detectChanges();
-
-      expect(component.signupForm.get('organisationName')?.value).toBe("John Doe's Organisation");
-    });
-
-    it('should not auto-populate organisationName when name is empty', () => {
-      component.signupForm.get('name')?.setValue('');
-      fixture.detectChanges();
-
-      expect(component.signupForm.get('organisationName')?.value).toBe('');
-    });
-
-    it('should not auto-populate after user manually edits organisationName', () => {
-      component.signupForm.get('name')?.setValue('John Doe');
-      fixture.detectChanges();
-      expect(component.signupForm.get('organisationName')?.value).toBe("John Doe's Organisation");
-
-      // Simulate user editing the field
-      component.onOrganisationNameChange();
-      component.signupForm.get('organisationName')?.setValue('Custom Org Name');
-
-      // Now change the name again - org name should not auto-update
-      component.signupForm.get('name')?.setValue('Jane Smith');
-      fixture.detectChanges();
-
-      expect(component.signupForm.get('organisationName')?.value).toBe('Custom Org Name');
-    });
-
-    it('should mark organisationNameManuallyEdited when onOrganisationNameChange is called', () => {
-      expect(component.organisationNameManuallyEdited).toBe(false);
-
-      component.onOrganisationNameChange();
-
-      expect(component.organisationNameManuallyEdited).toBe(true);
-    });
-
-    it('should unsubscribe from name changes on destroy', () => {
-      const unsubscribeSpy = spyOn(component['nameSubscription'], 'unsubscribe');
-
-      component.ngOnDestroy();
-
-      expect(unsubscribeSpy).toHaveBeenCalled();
-    });
-  });
 });

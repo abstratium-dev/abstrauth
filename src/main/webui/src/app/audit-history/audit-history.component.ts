@@ -1,8 +1,8 @@
-import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { AuditEntry } from '../model.service';
 import { Controller } from '../controller';
+import { AuditEntry } from '../model.service';
 
 @Component({
   selector: 'app-audit-history',
@@ -17,21 +17,21 @@ export class AuditHistoryComponent implements OnInit {
 
   entityType = '';
   primaryKey = '';
-  entries: AuditEntry[] = [];
-  relatedEntries: AuditEntry[] = [];
-  relatedEntityType: string | null = null;
-  relatedLoading = false;
-  relatedError: string | null = null;
-  loading = true;
-  error: string | null = null;
+  entries = signal<AuditEntry[]>([]);
+  relatedEntries = signal<AuditEntry[]>([]);
+  relatedEntityType = signal<string | null>(null);
+  relatedLoading = signal(false);
+  relatedError = signal<string | null>(null);
+  loading = signal(true);
+  error = signal<string | null>(null);
 
   ngOnInit(): void {
     this.entityType = this.route.snapshot.paramMap.get('entityType') ?? '';
     this.primaryKey = this.route.snapshot.paramMap.get('primaryKey') ?? '';
 
     if (!this.entityType || !this.primaryKey) {
-      this.error = 'Missing entity type or primary key.';
-      this.loading = false;
+      this.error.set('Missing entity type or primary key.');
+      this.loading.set(false);
       return;
     }
 
@@ -39,21 +39,21 @@ export class AuditHistoryComponent implements OnInit {
   }
 
   async loadHistory(): Promise<void> {
-    this.loading = true;
-    this.error = null;
+    this.loading.set(true);
+    this.error.set(null);
 
     try {
-      this.entries = await this.controller.getAuditHistory(this.entityType, this.primaryKey);
+      this.entries.set(await this.controller.getAuditHistory(this.entityType, this.primaryKey));
     } catch (err: any) {
       if (err.status === 403) {
-        this.error = 'You do not have permission to view this audit history.';
+        this.error.set('You do not have permission to view this audit history.');
       } else if (err.status === 400) {
-        this.error = err.error?.error ?? 'Invalid request.';
+        this.error.set(err.error?.error ?? 'Invalid request.');
       } else {
-        this.error = 'Failed to load audit history. Please try again.';
+        this.error.set('Failed to load audit history. Please try again.');
       }
     } finally {
-      this.loading = false;
+      this.loading.set(false);
     }
 
     if (this.entityType === 'account') {
@@ -62,22 +62,22 @@ export class AuditHistoryComponent implements OnInit {
   }
 
   async loadRelatedHistory(relatedType: string): Promise<void> {
-    this.relatedEntityType = relatedType;
-    this.relatedLoading = true;
-    this.relatedError = null;
+    this.relatedEntityType.set(relatedType);
+    this.relatedLoading.set(true);
+    this.relatedError.set(null);
 
     try {
-      this.relatedEntries = await this.controller.getRelatedAuditHistory(
+      this.relatedEntries.set(await this.controller.getRelatedAuditHistory(
         relatedType, this.entityType, this.primaryKey
-      );
+      ));
     } catch (err: any) {
       if (err.status === 403) {
-        this.relatedError = 'You do not have permission to view related audit history.';
+        this.relatedError.set('You do not have permission to view related audit history.');
       } else {
-        this.relatedError = 'Failed to load related audit history.';
+        this.relatedError.set('Failed to load related audit history.');
       }
     } finally {
-      this.relatedLoading = false;
+      this.relatedLoading.set(false);
     }
   }
 

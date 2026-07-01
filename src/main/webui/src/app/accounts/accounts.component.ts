@@ -1,4 +1,4 @@
-import { Component, effect, inject, OnInit, untracked, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, signal, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -24,15 +24,31 @@ export class AccountsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmDialogService);
+  private cdr = inject(ChangeDetectorRef);
 
-  accounts: Account[] = [];
-  filteredAccounts: Account[] = [];
-  clients: OAuthClient[] = [];
-  loading = true;
-  error: string | null = null;
-  private currentFilter: string = '';
-  private isFirstLoad = true;
+  private currentFilter = signal('');
+  private errorSignal = signal<string | null>(null);
   ownerIds: string[] = [];
+
+  get accounts(): Account[] {
+    return this.modelService.accounts$();
+  }
+
+  get clients(): OAuthClient[] {
+    return this.modelService.clients$();
+  }
+
+  get filteredAccounts(): Account[] {
+    return this.applyFilter();
+  }
+
+  get loading(): boolean {
+    return this.errorSignal() === null && this.modelService.accounts$().length === 0;
+  }
+
+  get error(): string | null {
+    return this.errorSignal();
+  }
 
   // Add Account Form state
   showAddAccountForm = false;
@@ -62,31 +78,6 @@ export class AccountsComponent implements OnInit {
   rolesInfoHidden = false;
   private readonly ROLES_INFO_HIDDEN_KEY = 'abstrauth_roles_info_hidden';
 
-  constructor() {
-    effect(() => {
-      const newAccounts = this.modelService.accounts$();
-      this.accounts = newAccounts;
-      
-      if (this.accounts.length > 0 || this.error) {
-        this.loading = false;
-      }
-      
-      // Skip filter update on first load to avoid change detection error
-      // The filter will be applied in ngOnInit after the first render
-      if (!this.isFirstLoad) {
-        if (this.currentFilter) {
-          this.onFilterChange(this.currentFilter);
-        } else {
-          this.applyFilter();
-        }
-      }
-    });
-
-    effect(() => {
-      this.clients = this.modelService.clients$();
-    });
-  }
-
   ngOnInit(): void {
     this.loadAccounts();
     this.loadOwners();
@@ -94,10 +85,6 @@ export class AccountsComponent implements OnInit {
 
     // Check if user has previously hidden the roles info note
     this.rolesInfoHidden = localStorage.getItem(this.ROLES_INFO_HIDDEN_KEY) === 'true';
-
-    // Apply initial filter after first render
-    this.isFirstLoad = false;
-    this.applyFilter();
   }
 
   async loadOwners(): Promise<void> {
@@ -108,6 +95,8 @@ export class AccountsComponent implements OnInit {
     } catch (err) {
       console.error('Failed to load owners:', err);
       this.ownerIds = [];
+    } finally {
+      this.cdr.markForCheck();
     }
   }
 
@@ -117,15 +106,13 @@ export class AccountsComponent implements OnInit {
   }
 
   loadAccounts(): void {
-    this.loading = true;
-    this.error = null;
+    this.errorSignal.set(null);
     this.controller.loadAccounts();
-    
+
     // Set a timeout to handle errors
     setTimeout(() => {
       if (this.loading && this.accounts.length === 0) {
-        this.error = 'Failed to load accounts. Please try again.';
-        this.loading = false;
+        this.errorSignal.set('Failed to load accounts. Please try again.');
       }
     }, 5000);
   }
@@ -164,11 +151,7 @@ export class AccountsComponent implements OnInit {
   }
 
   onFilterChange(filter: string): void {
-    this.currentFilter = filter;
-    // Defer filter application to avoid change detection errors
-    setTimeout(() => {
-      this.applyFilter();
-    }, 0);
+    this.currentFilter.set(filter);
   }
 
   filterByRole(roleName: string): void {
@@ -180,14 +163,14 @@ export class AccountsComponent implements OnInit {
     });
   }
 
-  private applyFilter(): void {
-    if (!this.currentFilter) {
-      this.filteredAccounts = this.accounts;
-      return;
+  private applyFilter(): Account[] {
+    const filter = this.currentFilter();
+    if (!filter) {
+      return this.accounts;
     }
 
-    const lowerFilter = this.currentFilter.toLowerCase();
-    this.filteredAccounts = this.accounts.filter(account => {
+    const lowerFilter = filter.toLowerCase();
+    return this.accounts.filter(account => {
       // Check basic account fields
       if (account.name.toLowerCase().includes(lowerFilter) ||
           account.email.toLowerCase().includes(lowerFilter) ||
@@ -254,6 +237,8 @@ export class AccountsComponent implements OnInit {
       } else {
         this.toastService.error('Failed to make owner. Please try again.');
       }
+    } finally {
+      this.cdr.markForCheck();
     }
   }
 
@@ -290,6 +275,8 @@ export class AccountsComponent implements OnInit {
       } else {
         this.toastService.error('Failed to remove owner. Please try again.');
       }
+    } finally {
+      this.cdr.markForCheck();
     }
   }
 
@@ -310,6 +297,7 @@ export class AccountsComponent implements OnInit {
 
   async onSubmitAddAccount(): Promise<void> {
     this.formSubmitting = true;
+    this.cdr.markForCheck();
     this.formError = null;
 
     try {
@@ -346,6 +334,7 @@ export class AccountsComponent implements OnInit {
       }
     } finally {
       this.formSubmitting = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -410,6 +399,7 @@ export class AccountsComponent implements OnInit {
       this.allowedRoles = [];
     } finally {
       this.loadingAllowedRoles = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -451,6 +441,7 @@ export class AccountsComponent implements OnInit {
       }
     } finally {
       this.roleFormSubmitting = false;
+      this.cdr.markForCheck();
     }
   }
 

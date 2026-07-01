@@ -1,4 +1,4 @@
-import { Component, effect, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -22,30 +22,26 @@ export class OrganisationsComponent implements OnInit {
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmDialogService);
 
-  organisations: Organisation[] = [];
-  loading = true;
-  error: string | null = null;
-
-  showCreateForm = false;
-  newOrgName = '';
-  formSubmitting = false;
-  formError: string | null = null;
-  deletingOrgId: string | null = null;
-  deleteError: string | null = null;
-
-  constructor() {
-    effect(() => {
-      this.organisations = this.modelService.organisations$();
-    });
-
-    effect(() => {
-      this.loading = this.modelService.organisationsLoading$();
-    });
-
-    effect(() => {
-      this.error = this.modelService.organisationsError$();
-    });
+  get organisations(): Organisation[] {
+    return this.modelService.organisations$();
   }
+
+  get loading(): boolean {
+    return this.modelService.organisationsLoading$();
+  }
+
+  get error(): string | null {
+    return this.modelService.organisationsError$();
+  }
+
+  showCreateForm = signal(false);
+  private _newOrgName = signal('');
+  get newOrgName(): string { return this._newOrgName(); }
+  set newOrgName(value: string) { this._newOrgName.set(value); }
+  formSubmitting = signal(false);
+  formError = signal<string | null>(null);
+  deletingOrgId = signal<string | null>(null);
+  deleteError = signal<string | null>(null);
 
   ngOnInit(): void {
     this.controller.loadOrganisations();
@@ -73,54 +69,54 @@ export class OrganisationsComponent implements OnInit {
     if (!confirmed) {
       return;
     }
-    this.deletingOrgId = orgId;
-    this.deleteError = null;
+    this.deletingOrgId.set(orgId);
+    this.deleteError.set(null);
     try {
       await this.controller.deleteOrganisation(orgId);
       this.toastService.success(`Organisation "${orgName}" deleted`);
     } catch (err: any) {
-      this.deleteError = err?.error?.error || 'Failed to delete organisation.';
+      this.deleteError.set(err?.error?.error || 'Failed to delete organisation.');
     } finally {
-      this.deletingOrgId = null;
+      this.deletingOrgId.set(null);
     }
   }
 
   toggleCreateForm(): void {
-    this.showCreateForm = !this.showCreateForm;
-    if (!this.showCreateForm) {
+    this.showCreateForm.set(!this.showCreateForm());
+    if (!this.showCreateForm()) {
       this.newOrgName = '';
-      this.formError = null;
+      this.formError.set(null);
     }
   }
 
   async onSubmitCreate(): Promise<void> {
     if (!this.newOrgName.trim()) {
-      this.formError = 'Organisation name is required.';
+      this.formError.set('Organisation name is required.');
       return;
     }
 
-    this.formSubmitting = true;
-    this.formError = null;
+    this.formSubmitting.set(true);
+    this.formError.set(null);
 
     try {
       const org = await this.controller.createOrganisation({ name: this.newOrgName.trim() });
       this.toastService.success(`Organisation "${org.name}" created successfully`);
-      this.showCreateForm = false;
+      this.showCreateForm.set(false);
       this.newOrgName = '';
     } catch (err: any) {
       if (err.status === 400) {
         if (err.error?.violations && Array.isArray(err.error.violations)) {
-          this.formError = err.error.violations.map((v: any) => v.message).join('; ');
+          this.formError.set(err.error.violations.map((v: any) => v.message).join('; '));
         } else {
-          this.formError = 'Invalid input. Please check your entries.';
+          this.formError.set('Invalid input. Please check your entries.');
         }
       } else if (err.status === 403) {
-        this.formError = 'You do not have permission to create organisations.';
+        this.formError.set('You do not have permission to create organisations.');
       } else {
-        this.formError = 'Failed to create organisation. Please try again.';
+        this.formError.set('Failed to create organisation. Please try again.');
       }
     } finally {
-      this.formSubmitting = false;
+      this.formSubmitting.set(false);
     }
   }
 

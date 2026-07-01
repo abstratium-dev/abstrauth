@@ -125,14 +125,29 @@ jbang jdk install 25
 jbang jdk default 25
 ```
 
-2. Update Quarkus:
+Ensure `maven.compiler.release` in `pom.xml` matches JDK version above.
+Update all the version properties in `pom.xml`.
+
+2. Install/Update Maven:
+
+```bash
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+sdk install maven
+
+# OR if already installed
+
+sdk upgrade maven
+```
+
+3. Update Quarkus:
 ```bash
 quarkus update
 ```
 
-3. Update the quarkus extensions too, if the above doesn't do it - this is done by using the internet to find the latest version of the extension and updating the version in `pom.xml`.
+4. Update the quarkus extensions too, if the above doesn't do it - this is done by using the internet to find the latest version of the extension and updating the version in `pom.xml`.
 
-4. Update node/npm using nvm.
+5. Update node/npm using nvm.
 See https://angular.dev/reference/versions
 Needs you to reinstall the ng cli. 
 Give `nvm use` the version that was just installed.
@@ -146,7 +161,9 @@ npm i -g @angular/cli
 Do this if Angular needs a new version.
 Search for `nvm` in all the docs in this project and update which version is used, e.g. `v26.4.0`
 
-5. Update Angular:
+Search also just for `26.4.0`, since e.g. application.properties doesn't have `v` in front of it.
+
+6. Update Angular:
 
 ```bash
 cd src/main/webui
@@ -156,7 +173,7 @@ ng update
 ng update @angular/cli @angular/core
 ```
 
-6. Ensure that there are no nodejs vulnerabilities:
+7. Ensure that there are no nodejs vulnerabilities:
 
 ```bash
 cd client-example
@@ -165,7 +182,7 @@ npm i
 npm audit fix
 ```
 
-7. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
+8. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
 
 # Issues with Webkit
 

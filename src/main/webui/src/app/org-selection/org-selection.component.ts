@@ -1,5 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -29,6 +29,7 @@ export class OrgSelectionComponent implements OnInit {
     fb = inject(FormBuilder);
     authService = inject(AuthService);
     window = inject(WINDOW);
+    cdr = inject(ChangeDetectorRef);
 
     requestId = "";
     organisations: Organisation[] = [];
@@ -88,11 +89,12 @@ export class OrgSelectionComponent implements OnInit {
                             }
                         }
                     }
-
+                    this.cdr.markForCheck();
                 },
                 error: (error) => {
                     this.isLoading = false;
                     this.errorMessage = error?.error?.error || "Failed to load organisations. Please try again.";
+                    this.cdr.markForCheck();
                 }
             });
     }
@@ -154,6 +156,7 @@ export class OrgSelectionComponent implements OnInit {
                 error: (error) => {
                     this.isSubmitting = false;
                     this.errorMessage = error?.error?.error || "Failed to select organisation. Please try again.";
+                    this.cdr.markForCheck();
                 }
             });
     }

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject, OnInit, Signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, signal, Signal, ChangeDetectionStrategy } from '@angular/core';
 import { AuthService, Token } from '../auth.service';
 import { Controller } from '../controller';
 import { ModelService, PersonalData, PersonalDataOrganisationMembership } from '../model.service';
@@ -20,23 +20,24 @@ export class UserComponent implements OnInit {
   private confirmService = inject(ConfirmDialogService);
   private toastService = inject(ToastService);
 
-  token!: Token;
-  tokenClaims: { key: string; value: any }[] = [];
-  showTokenClaims = false;
+  showTokenClaims = signal(false);
 
   personalData$: Signal<PersonalData | null>;
   personalDataLoading$: Signal<boolean>;
   personalDataError$: Signal<string | null>;
 
+  get token(): Token {
+    return this.authService.token$();
+  }
+
+  get tokenClaims(): { key: string; value: any }[] {
+    return this.extractClaims(this.token);
+  }
+
   constructor() {
     this.personalData$ = this.modelService.personalData$;
     this.personalDataLoading$ = this.modelService.personalDataLoading$;
     this.personalDataError$ = this.modelService.personalDataError$;
-
-    effect(() => {
-      this.token = this.authService.token$();
-      this.tokenClaims = this.extractClaims(this.token);
-    });
   }
 
   ngOnInit(): void {
@@ -44,7 +45,7 @@ export class UserComponent implements OnInit {
   }
 
   toggleTokenClaims(): void {
-    this.showTokenClaims = !this.showTokenClaims;
+    this.showTokenClaims.set(!this.showTokenClaims());
   }
 
   async downloadMyData(): Promise<void> {

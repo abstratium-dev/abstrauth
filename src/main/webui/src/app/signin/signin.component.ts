@@ -1,5 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, effect, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -41,6 +41,7 @@ export class SigninComponent implements OnInit {
     http = inject(HttpClient)
     fb = inject(FormBuilder)
     authService = inject(AuthService)
+    cdr = inject(ChangeDetectorRef)
 
     requestId = "";
     clientId = "";
@@ -51,14 +52,26 @@ export class SigninComponent implements OnInit {
     signinForm: FormGroup;
     isSubmitting = false;
     name = "";
-    showSignup = false;
     signinIsExpired = false;
     inviteData: InviteData | null = null;
-    showNativeSignin = true;
-    showGoogleSignin = false;
-    showMicrosoftSignin = false;
     rememberApproval = false;
     shouldShowApproval = false;
+
+    get showSignup(): boolean {
+        return this.modelService.signupAllowed$();
+    }
+
+    get showNativeSignin(): boolean {
+        return this.inviteData ? this.inviteData.authProvider === 'native' : this.modelService.allowNativeSignin$();
+    }
+
+    get showGoogleSignin(): boolean {
+        return this.inviteData ? this.inviteData.authProvider === 'google' : this.modelService.allowGoogleSignin$();
+    }
+
+    get showMicrosoftSignin(): boolean {
+        return this.inviteData ? this.inviteData.authProvider === 'microsoft' : this.modelService.allowMicrosoftSignin$();
+    }
 
     constructor(
     ) {
@@ -66,22 +79,16 @@ export class SigninComponent implements OnInit {
         const inviteDataStr = sessionStorage.getItem('inviteData');
         if (inviteDataStr) {
             try {
-                this.showGoogleSignin = false;
-                this.showMicrosoftSignin = false;
-                this.showNativeSignin = false;
                 this.inviteData = JSON.parse(inviteDataStr);
                 // Filter sign-in options based on invite data
-                if (this.inviteData?.authProvider === 'native') {
-                    this.showNativeSignin = true;
-                } else if (this.inviteData?.authProvider === 'google') {
-                    this.showGoogleSignin = true;
-                } else if (this.inviteData?.authProvider === 'microsoft') {
-                    this.showMicrosoftSignin = true;
-                } else {
+                if (this.inviteData?.authProvider !== 'native'
+                    && this.inviteData?.authProvider !== 'google'
+                    && this.inviteData?.authProvider !== 'microsoft') {
                     throw new Error("Unexpected authorization provider '" + this.inviteData?.authProvider + "' please contact support")
                 }
             } catch (err) {
                 console.error('Error parsing invite data:', err);
+                this.inviteData = null;
             }
         }
 
@@ -91,21 +98,6 @@ export class SigninComponent implements OnInit {
         this.signinForm = this.fb.group({
             username: [username, Validators.required],
             password: [password, Validators.required]
-        });
-
-        effect(() => {
-            this.showSignup = this.modelService.signupAllowed$();
-
-            // if invite data is present, we may have already decided if we
-            // should show native sign in, so only let the backend override if
-            // there is no invite data. invite data is read in the constructor 
-            // which is always called before this code
-            let allowNativeSignin = this.modelService.allowNativeSignin$();
-            if(!this.inviteData) {
-                this.showNativeSignin = allowNativeSignin;
-                this.showGoogleSignin = this.modelService.allowGoogleSignin$();
-                this.showMicrosoftSignin = this.modelService.allowMicrosoftSignin$();
-            }
         });
     }
 
@@ -134,6 +126,7 @@ export class SigninComponent implements OnInit {
                         ).subscribe({
                             next: (response) => {
                                 this.name = response.name;
+                                this.cdr.markForCheck();
                                 
                                 // Check for stored approval - will set getApproval = true only if UI needs to be shown
                                 setTimeout(() => this.checkStoredApproval(), 100);
@@ -148,12 +141,15 @@ export class SigninComponent implements OnInit {
                                 }
                                 // Show the error on the signin page (not approval page)
                                 this.getApproval = false;
+                                this.cdr.markForCheck();
                             }
                         });
                     }
+                    this.cdr.markForCheck();
                 },
                 error: (error) => {
                     this.errorMessage = error.message;
+                    this.cdr.markForCheck();
                 }
             });
 
@@ -161,6 +157,7 @@ export class SigninComponent implements OnInit {
         // the request then
         setTimeout(() => {
             this.signinIsExpired = true;
+            this.cdr.markForCheck();
         }, (10 * 60 * 1000) - (30 * 1000));
     }
 
@@ -194,6 +191,7 @@ export class SigninComponent implements OnInit {
                 }
 
                 this.name = authenticationResponse.name;
+                this.cdr.markForCheck();
 
                 // Check if we need to redirect to password change for native invite
                 if (this.inviteData?.authProvider === 'native' && this.inviteData?.password) {
@@ -216,6 +214,7 @@ export class SigninComponent implements OnInit {
                     this.errorMessage = error?.error?.details || error.error || error.message || 'Authentication failed';
                 }
                 this.isSubmitting = false;
+                this.cdr.markForCheck();
             }
         });
     }
@@ -239,6 +238,7 @@ export class SigninComponent implements OnInit {
             this.getApproval = true;
             this.shouldShowApproval = true;
             console.debug("[SIGNIN] No stored approval found");
+            this.cdr.markForCheck();
             return;
         }
         
@@ -253,6 +253,7 @@ export class SigninComponent implements OnInit {
                 this.shouldShowApproval = true;
                 localStorage.removeItem(key);
                 console.debug("[SIGNIN] Approval is older than 30 days");
+                this.cdr.markForCheck();
                 return;
             }
             
@@ -264,6 +265,7 @@ export class SigninComponent implements OnInit {
                 this.shouldShowApproval = true;
                 localStorage.removeItem(key);
                 console.debug("[SIGNIN] Scopes do not match");
+                this.cdr.markForCheck();
                 return;
             }
             
@@ -271,11 +273,13 @@ export class SigninComponent implements OnInit {
             // Keep shouldShowApproval false to hide the UI, submit directly
             this.shouldShowApproval = false;
             this.autoApproveDirectly();
+            this.cdr.markForCheck();
         } catch (err) {
             console.error('Error checking stored approval:', err);
             this.getApproval = true;
             this.shouldShowApproval = true;
             localStorage.removeItem(key);
+            this.cdr.markForCheck();
         }
     }
 
