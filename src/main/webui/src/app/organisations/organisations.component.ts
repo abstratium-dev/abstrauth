@@ -12,7 +12,7 @@ import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.se
   selector: 'app-organisations',
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './organisations.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './organisations.component.scss'
 })
 export class OrganisationsComponent implements OnInit {

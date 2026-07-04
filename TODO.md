@@ -11,9 +11,6 @@
 
 ## Today
 
-- remove change detection EAGER and use onpush - see angular.md
-- is `TestBed.resetTestingModule` really necessary everywhere?
-
 ## Tomorrow
 
 - complete other open points from first security audit

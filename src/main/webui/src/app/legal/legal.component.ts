@@ -9,7 +9,7 @@ import { ModelService } from '../model.service';
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './legal.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './legal.component.scss'
 })
 export class LegalComponent {

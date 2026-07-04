@@ -19,7 +19,7 @@ interface OrgSelectionResponse {
     selector: 'app-org-selection',
     imports: [CommonModule, ReactiveFormsModule],
     templateUrl: './org-selection.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './org-selection.component.scss',
 })
 export class OrgSelectionComponent implements OnInit {

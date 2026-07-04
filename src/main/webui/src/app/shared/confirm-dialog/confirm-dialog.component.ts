@@ -8,7 +8,7 @@ import { ConfirmDialogService } from './confirm-dialog.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './confirm-dialog.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './confirm-dialog.component.scss'
 })
 export class ConfirmDialogComponent {

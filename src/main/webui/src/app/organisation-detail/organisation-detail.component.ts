@@ -10,7 +10,7 @@ import { ToastService } from '../shared/toast/toast.service';
   selector: 'app-organisation-detail',
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './organisation-detail.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './organisation-detail.component.scss'
 })
 export class OrganisationDetailComponent implements OnInit {

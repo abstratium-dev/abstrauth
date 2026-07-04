@@ -10,7 +10,7 @@ import { ThemeService } from '../theme.service';
     selector: 'header',
     imports: [RouterLink, RouterLinkActive, CommonModule],
     templateUrl: './header.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './header.component.scss',
 })
 export class HeaderComponent implements OnInit {

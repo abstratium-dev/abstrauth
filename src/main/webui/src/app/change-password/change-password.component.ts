@@ -15,7 +15,7 @@ interface InviteData {
   selector: 'app-change-password',
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './change-password.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './change-password.component.scss'
 })
 export class ChangePasswordComponent implements OnInit {

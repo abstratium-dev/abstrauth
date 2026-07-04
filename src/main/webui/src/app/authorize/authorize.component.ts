@@ -17,7 +17,7 @@ export const CLIENT_ID = 'abstratium-abstrauth';
     selector: 'authorize',
     imports: [],
     templateUrl: './authorize.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './authorize.component.scss',
 })
 export class AuthorizeComponent {

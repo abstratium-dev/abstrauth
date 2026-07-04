@@ -12,7 +12,7 @@ interface InviteData {
   selector: 'app-signin-after-invite',
   imports: [CommonModule],
   templateUrl: './signin-after-invite.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './signin-after-invite.component.scss'
 })
 export class SigninAfterInviteComponent implements OnInit {

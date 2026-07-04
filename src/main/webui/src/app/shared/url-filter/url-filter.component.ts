@@ -26,7 +26,7 @@ import { ActivatedRoute, Router } from '@angular/router';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './url-filter.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './url-filter.component.scss'
 })
 export class UrlFilterComponent implements OnInit {

@@ -10,7 +10,7 @@ import { ToastService } from '../shared/toast/toast.service';
   selector: 'user',
   imports: [CommonModule],
   templateUrl: './user.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './user.component.scss',
 })
 export class UserComponent implements OnInit {

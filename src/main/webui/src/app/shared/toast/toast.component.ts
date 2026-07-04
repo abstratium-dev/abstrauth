@@ -7,7 +7,7 @@ import { ToastService } from './toast.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './toast.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './toast.component.scss'
 })
 export class ToastComponent {

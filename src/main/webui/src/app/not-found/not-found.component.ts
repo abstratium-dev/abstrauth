@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
   selector: 'not-found',
   imports: [CommonModule, RouterLink],
   templateUrl: './not-found.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './not-found.component.scss',
 })
 export class NotFoundComponent {

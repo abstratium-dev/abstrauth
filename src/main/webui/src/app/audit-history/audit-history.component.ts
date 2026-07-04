@@ -8,7 +8,7 @@ import { AuditEntry } from '../model.service';
   selector: 'app-audit-history',
   imports: [CommonModule],
   templateUrl: './audit-history.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './audit-history.component.scss'
 })
 export class AuditHistoryComponent implements OnInit {

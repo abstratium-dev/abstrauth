@@ -8,7 +8,7 @@ import { RouterModule } from '@angular/router';
   selector: 'home',
   imports: [CommonModule, RouterModule],
   templateUrl: './home.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './home.component.scss',
 })
 export class HomeComponent {

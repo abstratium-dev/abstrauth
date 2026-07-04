@@ -13,7 +13,7 @@ import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.se
   selector: 'clients',
   imports: [CommonModule, RouterLink, UrlFilterComponent, FormsModule],
   templateUrl: './clients.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './clients.component.scss',
 })
 export class ClientsComponent implements OnInit {

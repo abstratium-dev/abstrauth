@@ -29,7 +29,7 @@ interface InviteData {
     selector: 'signin',
     imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink, AutofocusDirective],
     templateUrl: './signin.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './signin.component.scss',
 })
 export class SigninComponent implements OnInit {

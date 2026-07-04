@@ -11,7 +11,7 @@ import { DomainService } from './domain.service';
   selector: 'app-root',
   imports: [CommonModule, RouterOutlet, HeaderComponent, ToastComponent, ConfirmDialogComponent, RouterModule],
   templateUrl: './app.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './app.component.scss'
 })
 export class AppComponent {

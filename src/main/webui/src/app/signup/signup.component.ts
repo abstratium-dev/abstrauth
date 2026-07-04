@@ -10,7 +10,7 @@ import { ModelService } from '../model.service';
   selector: 'signup',
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './signup.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './signup.component.scss',
 })
 export class SignupComponent {
