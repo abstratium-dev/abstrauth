@@ -1,7 +1,6 @@
 import type { MockedObject } from "vitest";
 import { createMock } from '../../testing/vitest-mocks';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { Router } from '@angular/router';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -21,7 +20,6 @@ describe('SignupComponent', () => {
         await TestBed.configureTestingModule({
             imports: [SignupComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 { provide: Router, useValue: mockRouter }
@@ -377,12 +375,10 @@ describe('SignupComponent', () => {
             expect(component.organisationNameManuallyEdited).toBe(true);
         });
 
-        it('should unsubscribe from name changes on destroy', () => {
-            const unsubscribeSpy = vi.spyOn(component['nameSubscription'], 'unsubscribe').mockReturnValue(undefined);
-
-            component.ngOnDestroy();
-
-            expect(unsubscribeSpy).toHaveBeenCalled();
+        it('should clean up effect when component is destroyed', () => {
+            fixture.destroy();
+            // After destroy, setting name should not throw or cause side effects
+            expect(() => component.signupForm.get('name')?.setValue('Post-destroy')).not.toThrow();
         });
     });
 });

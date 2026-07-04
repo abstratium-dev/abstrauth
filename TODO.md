@@ -11,11 +11,8 @@
 
 ## Today
 
-- there are still a few places that use `markForCheck()` and i want to get rid of those calls and use something better.
-
-
-
-
+- remove change detection EAGER and use onpush - see angular.md
+- is `TestBed.resetTestingModule` really necessary everywhere?
 
 ## Tomorrow
 

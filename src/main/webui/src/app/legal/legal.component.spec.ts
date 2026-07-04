@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { signal } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
@@ -31,7 +30,6 @@ async function buildFixture(isAbstratiumDomain: boolean, legalContent: string | 
     await TestBed.configureTestingModule({
         imports: [LegalComponent],
         providers: [
-            provideZonelessChangeDetection(),
             { provide: DomainService, useValue: mockDomainService },
             { provide: ModelService, useValue: mockModelService },
             { provide: Router, useValue: mockRouter },

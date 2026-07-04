@@ -3,7 +3,6 @@ import { createMock } from '../../testing/vitest-mocks';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { vi } from 'vitest';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, EMPTY } from 'rxjs';
@@ -101,7 +100,6 @@ describe('AccountsComponent', () => {
         await TestBed.configureTestingModule({
             imports: [AccountsComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 { provide: Router, useValue: routerSpy },
@@ -129,8 +127,10 @@ describe('AccountsComponent', () => {
     });
 
     afterEach(() => {
+        vi.clearAllTimers();
         vi.useRealTimers();
         httpMock.verify();
+        TestBed.resetTestingModule();
     });
 
     // Helper functions to flush the requests that happen on init
@@ -1811,6 +1811,666 @@ describe('AccountsComponent', () => {
             expect(makeOwnerButton).toBeFalsy();
             expect(removeOwnerButton).toBeTruthy();
             expect(removeOwnerButton.classList.contains('btn-icon-owner-active')).toBe(true);
+        });
+    });
+
+    describe('Owner Management', () => {
+        const mockClients = [
+            {
+                id: '1',
+                orgId: 'test-org',
+                clientId: 'client-1',
+                clientName: 'Client 1',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost',
+                allowedScopes: 'openid profile',
+                requirePkce: false,
+                autoSubscribe: true,
+                publik: false,
+                createdAt: '2024-01-01T00:00:00Z'
+            }
+        ];
+
+        beforeEach(async () => {
+            fixture.detectChanges();
+            const accountsReq = httpMock.expectOne('/api/accounts');
+            accountsReq.flush(mockAccounts);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const ownersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+            ownersReq.flush(['1']);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const clientsReq = httpMock.expectOne('/api/clients');
+            clientsReq.flush(mockClients);
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should show error when no org selected for makeOwner', async () => {
+            authService.getOrgId.mockReturnValue(undefined);
+            await component.makeOwner(mockAccounts[1]);
+            expect(toastService.error).toHaveBeenCalledWith('No organisation selected');
+        });
+
+        it('should make owner successfully', async () => {
+            const promise = component.makeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const makeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            makeOwnerReq.flush(null, { status: 204, statusText: 'No Content' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const reloadOwnersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+            reloadOwnersReq.flush(['1', '2']);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.success).toHaveBeenCalledWith('Regular User is now an owner of this organisation');
+        });
+
+        it('should handle 403 when making owner', async () => {
+            const promise = component.makeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const makeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            makeOwnerReq.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.error).toHaveBeenCalledWith('You do not have permission to make owners.');
+        });
+
+        it('should handle 404 when making owner', async () => {
+            const promise = component.makeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const makeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            makeOwnerReq.flush({ error: 'Not found' }, { status: 404, statusText: 'Not Found' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.error).toHaveBeenCalledWith('Account or organisation not found.');
+        });
+
+        it('should handle 400 error when making owner', async () => {
+            const promise = component.makeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const makeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            makeOwnerReq.flush({ error: 'Already an owner' }, { status: 400, statusText: 'Bad Request' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.error).toHaveBeenCalledWith('Already an owner');
+        });
+
+        it('should handle generic error when making owner', async () => {
+            const promise = component.makeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const makeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            makeOwnerReq.error(new ProgressEvent('error'));
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.error).toHaveBeenCalledWith('Failed to make owner. Please try again.');
+        });
+
+        it('should remove owner successfully', async () => {
+            component.ownerIds = ['1', '2'];
+            const promise = component.removeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const removeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            expect(removeOwnerReq.request.method).toBe('DELETE');
+            removeOwnerReq.flush(null, { status: 204, statusText: 'No Content' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const reloadOwnersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+            reloadOwnersReq.flush(['1']);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.success).toHaveBeenCalledWith('Regular User is no longer an owner of this organisation');
+        });
+
+        it('should handle 403 when removing owner', async () => {
+            component.ownerIds = ['1', '2'];
+            const promise = component.removeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const removeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            removeOwnerReq.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.error).toHaveBeenCalledWith('You do not have permission to remove owners.');
+        });
+
+        it('should handle 404 when removing owner', async () => {
+            component.ownerIds = ['1', '2'];
+            const promise = component.removeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const removeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            removeOwnerReq.flush({ error: 'Not found' }, { status: 404, statusText: 'Not Found' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.error).toHaveBeenCalledWith('Account or organisation not found.');
+        });
+
+        it('should handle 400 error when removing owner', async () => {
+            component.ownerIds = ['1', '2'];
+            const promise = component.removeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const removeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            removeOwnerReq.flush({ error: 'Last owner' }, { status: 400, statusText: 'Bad Request' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.error).toHaveBeenCalledWith('Last owner');
+        });
+
+        it('should handle generic error when removing owner', async () => {
+            component.ownerIds = ['1', '2'];
+            const promise = component.removeOwner(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const removeOwnerReq = httpMock.expectOne('/api/organisations/test-org/members/2/owner');
+            removeOwnerReq.error(new ProgressEvent('error'));
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(toastService.error).toHaveBeenCalledWith('Failed to remove owner. Please try again.');
+        });
+    });
+
+    describe('Form Helpers', () => {
+        let clipboardWriteTextSpy: Mock;
+
+        beforeEach(async () => {
+            clipboardWriteTextSpy = vi.fn();
+            Object.defineProperty(navigator, 'clipboard', {
+                get: () => ({ writeText: clipboardWriteTextSpy }),
+                configurable: true
+            });
+
+            fixture.detectChanges();
+            const accountsReq = httpMock.expectOne('/api/accounts');
+            accountsReq.flush(mockAccounts);
+            await Promise.resolve(); TestBed.flushEffects();
+            flushOwnersRequest();
+            await Promise.resolve(); TestBed.flushEffects();
+            const clientsReq = httpMock.expectOne('/api/clients');
+            clientsReq.flush([]);
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        afterEach(() => {
+            Object.defineProperty(navigator, 'clipboard', {
+                get: () => undefined,
+                configurable: true
+            });
+        });
+
+        it('should copy invite link successfully', async () => {
+            clipboardWriteTextSpy.mockResolvedValue(undefined);
+            component.inviteLink = 'http://localhost/invite?token=abc';
+            component.copyInviteLink();
+            await Promise.resolve();
+            expect(clipboardWriteTextSpy).toHaveBeenCalledWith('http://localhost/invite?token=abc');
+            expect(toastService.success).toHaveBeenCalledWith('Invite link copied to clipboard!');
+        });
+
+        it('should handle copy invite link failure', async () => {
+            clipboardWriteTextSpy.mockImplementation(() => Promise.reject(new Error('Copy failed')));
+            component.inviteLink = 'http://localhost/invite?token=abc';
+            component.copyInviteLink();
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(toastService.error).toHaveBeenCalledWith('Failed to copy link to clipboard');
+        });
+
+        it('should close invite link and reset form', () => {
+            component.showInviteLink = true;
+            component.showAddedToOrg = true;
+            component.inviteLink = 'http://localhost/invite?token=abc';
+            component.showAddAccountForm = true;
+            component.accountFormData = { email: 'test@example.com', name: 'Test', authProvider: 'google' };
+
+            component.closeInviteLink();
+
+            expect(component.showInviteLink).toBe(false);
+            expect(component.showAddedToOrg).toBe(false);
+            expect(component.inviteLink).toBeNull();
+            expect(component.showAddAccountForm).toBe(false);
+            expect(component.accountFormData).toEqual({ email: '', name: '', authProvider: '' });
+        });
+
+        it('should hide roles info and persist in localStorage', () => {
+            component.hideRolesInfo();
+            expect(component.rolesInfoHidden).toBe(true);
+            expect(localStorage.getItem('abstrauth_roles_info_hidden')).toBe('true');
+        });
+
+        it('should filter by role via router', () => {
+            component.filterByRole('admin');
+            expect(router.navigate).toHaveBeenCalledWith([], {
+                relativeTo: component['route'],
+                queryParams: { filter: 'admin' },
+                queryParamsHandling: 'merge'
+            });
+        });
+
+        it('should return correct provider badge for microsoft', () => {
+            expect(component.getProviderBadgeClass('microsoft')).toBe('badge-microsoft');
+        });
+
+        it('should handle loadOwners error', async () => {
+            const loadPromise = component.loadOwners();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const ownersReq = httpMock.expectOne('/api/organisations/test-org/owners');
+            ownersReq.flush('Error', { status: 500, statusText: 'Server Error' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await loadPromise;
+            expect(component.ownerIds).toEqual([]);
+        });
+    });
+
+    describe('Client Role Selection', () => {
+        const mockClients = [
+            {
+                id: '1',
+                orgId: 'test-org',
+                clientId: 'client-1',
+                clientName: 'Client 1',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost',
+                allowedScopes: 'openid profile',
+                requirePkce: false,
+                autoSubscribe: true,
+                publik: false,
+                createdAt: '2024-01-01T00:00:00Z'
+            }
+        ];
+
+        beforeEach(async () => {
+            fixture.detectChanges();
+            const accountsReq = httpMock.expectOne('/api/accounts');
+            accountsReq.flush(mockAccounts);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            flushOwnersRequest();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const clientsReq = httpMock.expectOne('/api/clients');
+            clientsReq.flush(mockClients);
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should clear allowed roles when no client selected', async () => {
+            component.roleFormData = { clientId: '', role: '' };
+            component.allowedRoles = [{ clientId: 'client-1', role: 'admin', isDefault: false, availableToForeignOrgs: false }];
+            await component.onClientSelected();
+            expect(component.allowedRoles).toEqual([]);
+            expect(component.roleFormData.role).toBe('');
+        });
+
+        it('should load allowed roles for selected client', async () => {
+            component.roleFormData = { clientId: 'client-1', role: '' };
+            const promise = component.onClientSelected();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const rolesReq = httpMock.expectOne('/api/clients/client-1/allowed-roles');
+            rolesReq.flush([{ clientId: 'client-1', role: 'admin', isDefault: false, availableToForeignOrgs: false }]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(component.allowedRoles.length).toBe(1);
+            expect(component.loadingAllowedRoles).toBe(false);
+        });
+
+        it('should handle error loading allowed roles', async () => {
+            component.roleFormData = { clientId: 'client-1', role: '' };
+            const promise = component.onClientSelected();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const rolesReq = httpMock.expectOne('/api/clients/client-1/allowed-roles');
+            rolesReq.flush({ error: 'Error' }, { status: 500, statusText: 'Server Error' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+            expect(component.roleFormError).toBe('Failed to load allowed roles for this client.');
+            expect(component.allowedRoles).toEqual([]);
+        });
+    });
+
+    describe('Role Submission Error Handling', () => {
+        const mockClients = [
+            {
+                id: '1',
+                orgId: 'test-org',
+                clientId: 'client-1',
+                clientName: 'Client 1',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost',
+                allowedScopes: 'openid profile',
+                requirePkce: false,
+                autoSubscribe: true,
+                publik: false,
+                createdAt: '2024-01-01T00:00:00Z'
+            }
+        ];
+
+        beforeEach(async () => {
+            fixture.detectChanges();
+            const accountsReq = httpMock.expectOne('/api/accounts');
+            accountsReq.flush(mockAccounts);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            flushOwnersRequest();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const clientsReq = httpMock.expectOne('/api/clients');
+            clientsReq.flush(mockClients);
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should handle 400 error object when submitting role', async () => {
+            component.roleFormData = { clientId: 'client-1', role: 'admin' };
+            const promise = component.onSubmitRole('account-123');
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const roleReq = httpMock.expectOne('/api/accounts/role');
+            roleReq.flush({ error: 'Invalid role' }, { status: 400, statusText: 'Bad Request' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await promise;
+
+            expect(component.roleFormError).toBe('Invalid role');
+            expect(component.roleFormSubmitting).toBe(false);
+        });
+
+        it('should handle 409 conflict when submitting role', async () => {
+            component.roleFormData = { clientId: 'client-1', role: 'admin' };
+            const promise = component.onSubmitRole('account-123');
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const roleReq = httpMock.expectOne('/api/accounts/role');
+            roleReq.flush({ error: 'Role exists' }, { status: 409, statusText: 'Conflict' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await promise;
+
+            expect(component.roleFormError).toBe('Role already exists.');
+            expect(component.roleFormSubmitting).toBe(false);
+        });
+
+        it('should handle generic error when submitting role', async () => {
+            component.roleFormData = { clientId: 'client-1', role: 'admin' };
+            const promise = component.onSubmitRole('account-123');
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const roleReq = httpMock.expectOne('/api/accounts/role');
+            roleReq.error(new ProgressEvent('error'));
+            await Promise.resolve(); TestBed.flushEffects();
+            await promise;
+
+            expect(component.roleFormError).toBe('Failed to add role. Please try again.');
+            expect(component.roleFormSubmitting).toBe(false);
+        });
+    });
+
+    describe('Delete Role Error Handling', () => {
+        const mockClients = [
+            {
+                id: '1',
+                orgId: 'test-org',
+                clientId: 'client-1',
+                clientName: 'Client 1',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost',
+                allowedScopes: 'openid profile',
+                requirePkce: false,
+                autoSubscribe: true,
+                publik: false,
+                createdAt: '2024-01-01T00:00:00Z'
+            }
+        ];
+
+        beforeEach(async () => {
+            fixture.detectChanges();
+            const accountsReq = httpMock.expectOne('/api/accounts');
+            accountsReq.flush(mockAccounts);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            flushOwnersRequest();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const clientsReq = httpMock.expectOne('/api/clients');
+            clientsReq.flush(mockClients);
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should handle 400 error when deleting role', async () => {
+            const promise = component.deleteRole('account-123', 'client-1', 'admin');
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const deleteReq = httpMock.expectOne('/api/accounts/role');
+            deleteReq.flush({ error: 'Bad role' }, { status: 400, statusText: 'Bad Request' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await promise;
+
+            expect(toastService.error).toHaveBeenCalledWith('Bad role');
+        });
+    });
+
+    describe('Delete Account Error Handling', () => {
+        const mockClients = [
+            {
+                id: '1',
+                orgId: 'test-org',
+                clientId: 'client-1',
+                clientName: 'Client 1',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost',
+                allowedScopes: 'openid profile',
+                requirePkce: false,
+                autoSubscribe: true,
+                publik: false,
+                createdAt: '2024-01-01T00:00:00Z'
+            }
+        ];
+
+        beforeEach(async () => {
+            fixture.detectChanges();
+            const accountsReq = httpMock.expectOne('/api/accounts');
+            accountsReq.flush(mockAccounts);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            flushOwnersRequest();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const clientsReq = httpMock.expectOne('/api/clients');
+            clientsReq.flush(mockClients);
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should handle 403 when deleting account', async () => {
+            const promise = component.deleteAccount(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const deleteReq = httpMock.expectOne('/api/accounts/2');
+            deleteReq.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await promise;
+
+            expect(toastService.error).toHaveBeenCalledWith('You do not have permission to delete accounts.');
+        });
+
+        it('should handle 404 when deleting account', async () => {
+            const promise = component.deleteAccount(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const deleteReq = httpMock.expectOne('/api/accounts/2');
+            deleteReq.flush({ error: 'Not found' }, { status: 404, statusText: 'Not Found' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await promise;
+
+            expect(toastService.error).toHaveBeenCalledWith('Account not found.');
+        });
+
+        it('should handle 400 error when deleting account', async () => {
+            const promise = component.deleteAccount(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const deleteReq = httpMock.expectOne('/api/accounts/2');
+            deleteReq.flush({ error: 'Cannot delete' }, { status: 400, statusText: 'Bad Request' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await promise;
+
+            expect(toastService.error).toHaveBeenCalledWith('Cannot delete');
+        });
+
+        it('should handle generic error when deleting account', async () => {
+            const promise = component.deleteAccount(mockAccounts[1]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const deleteReq = httpMock.expectOne('/api/accounts/2');
+            deleteReq.error(new ProgressEvent('error'));
+            await Promise.resolve(); TestBed.flushEffects();
+            await promise;
+
+            expect(toastService.error).toHaveBeenCalledWith('Failed to delete account. Please try again.');
+        });
+
+        it('should sign out when deleting own account', async () => {
+            authService.getEmail.mockReturnValue('admin@example.com');
+            const promise = component.deleteAccount(mockAccounts[0]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const deleteReq = httpMock.expectOne('/api/accounts/1');
+            deleteReq.flush(null, { status: 204, statusText: 'No Content' });
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const reloadReq = httpMock.expectOne('/api/accounts');
+            reloadReq.flush(mockAccounts.slice(1));
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await promise;
+
+            expect(authService.signout).toHaveBeenCalled();
+        });
+    });
+
+    describe('Template Rendering', () => {
+        const mockClients = [
+            {
+                id: '1',
+                orgId: 'test-org',
+                clientId: 'client-1',
+                clientName: 'Client 1',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost',
+                allowedScopes: 'openid profile',
+                requirePkce: false,
+                autoSubscribe: true,
+                publik: false,
+                createdAt: '2024-01-01T00:00:00Z'
+            }
+        ];
+
+        beforeEach(async () => {
+            fixture.detectChanges();
+            const accountsReq = httpMock.expectOne('/api/accounts');
+            accountsReq.flush(mockAccounts);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            flushOwnersRequest(['1']);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const clientsReq = httpMock.expectOne('/api/clients');
+            clientsReq.flush(mockClients);
+            await Promise.resolve(); TestBed.flushEffects();
+            await Promise.resolve();
+            fixture.detectChanges();
+        });
+
+        it('should render add account form', () => {
+            component.toggleAddAccountForm();
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Create New Account');
+            expect(compiled.querySelector('#email')).toBeTruthy();
+            expect(compiled.querySelector('#authProvider')).toBeTruthy();
+        });
+
+        it('should render native name field when provider is native', () => {
+            component.toggleAddAccountForm();
+            component.accountFormData.authProvider = 'native';
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.querySelector('#name')).toBeTruthy();
+        });
+
+        it('should render invite link display', () => {
+            component.showAddAccountForm = true;
+            component.showInviteLink = true;
+            component.inviteLink = 'http://localhost/invite?token=abc';
+            component.accountFormData = { email: 'new@example.com', name: '', authProvider: 'google' };
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Account Created Successfully');
+            expect(compiled.querySelector('#invite-link-input')).toBeTruthy();
+        });
+
+        it('should render added to org display', () => {
+            component.showAddAccountForm = true;
+            component.showAddedToOrg = true;
+            component.accountFormData = { email: 'existing@example.com', name: '', authProvider: 'google' };
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('User Added Successfully');
+        });
+
+        it('should render roles info note', () => {
+            component.rolesInfoHidden = false;
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Additional default roles');
+        });
+
+        it('should render add role form', () => {
+            component.startAddRole('1');
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Select a client');
+            expect(compiled.textContent).toContain('Add Role');
+        });
+
+        it('should render owner management buttons', () => {
+            const modelService = TestBed.inject(ModelService);
+            modelService.setCurrentOrganisation({
+                id: 'test-org',
+                name: 'Test Org',
+                createdAt: '2024-01-01T00:00:00Z',
+                roles: ['owner']
+            });
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const removeButtons = compiled.querySelectorAll('[data-testid="remove-owner-button"]');
+            const makeButtons = compiled.querySelectorAll('button[title="Make owner"]');
+            expect(removeButtons.length + makeButtons.length).toBeGreaterThan(0);
+        });
+
+        it('should render delete role button', () => {
+            const compiled = fixture.nativeElement;
+            const deleteButtons = compiled.querySelectorAll('.sub-tile-header button[title="Delete role"]');
+            expect(deleteButtons.length).toBeGreaterThan(0);
         });
     });
 });

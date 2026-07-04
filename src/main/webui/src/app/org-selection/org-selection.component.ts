@@ -1,5 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, inject, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -29,17 +29,28 @@ export class OrgSelectionComponent implements OnInit {
     fb = inject(FormBuilder);
     authService = inject(AuthService);
     window = inject(WINDOW);
-    cdr = inject(ChangeDetectorRef);
 
     requestId = "";
-    organisations: Organisation[] = [];
-    selectedOrgId = "";
-    errorMessage = "";
-    isLoading = true;
-    isSubmitting = false;
     readonly HAS_SUBMITTED_KEY = 'orgSelectionSubmitted';
 
     orgSelectionForm: FormGroup;
+
+    private organisations$ = signal<Organisation[]>([]);
+    private selectedOrgId$ = signal<string>("");
+    private errorMessage$ = signal<string>("");
+    private isLoading$ = signal<boolean>(true);
+    private isSubmitting$ = signal<boolean>(false);
+
+    get organisations(): Organisation[] { return this.organisations$(); }
+    set organisations(v: Organisation[]) { this.organisations$.set(v); }
+    get selectedOrgId(): string { return this.selectedOrgId$(); }
+    set selectedOrgId(v: string) { this.selectedOrgId$.set(v); }
+    get errorMessage(): string { return this.errorMessage$(); }
+    set errorMessage(v: string) { this.errorMessage$.set(v); }
+    get isLoading(): boolean { return this.isLoading$(); }
+    set isLoading(v: boolean) { this.isLoading$.set(v); }
+    get isSubmitting(): boolean { return this.isSubmitting$(); }
+    set isSubmitting(v: boolean) { this.isSubmitting$.set(v); }
 
     constructor() {
         this.orgSelectionForm = this.fb.group({
@@ -60,23 +71,23 @@ export class OrgSelectionComponent implements OnInit {
     }
 
     loadOrganisations(): void {
-        this.isLoading = true;
-        this.errorMessage = "";
+        this.isLoading$.set(true);
+        this.errorMessage$.set("");
 
         this.http.get<Organisation[]>(`/api/org-selection/${this.requestId}`)
             .subscribe({
                 next: (orgs) => {
-                    this.organisations = orgs;
-                    this.isLoading = false;
+                    this.organisations$.set(orgs);
+                    this.isLoading$.set(false);
 
                     if (orgs.length === 0) {
-                        this.errorMessage = "You are not a member of any organisation. Please contact your administrator.";
+                        this.errorMessage$.set("You are not a member of any organisation. Please contact your administrator.");
                         return;
                     }
 
                     if (orgs.length === 1) {
                         // Auto-select if only one org
-                        this.selectedOrgId = orgs[0].id;
+                        this.selectedOrgId$.set(orgs[0].id);
                         this.orgSelectionForm.patchValue({ orgId: orgs[0].id });
                     } else {
                         // Check for lastOrgId in localStorage
@@ -84,33 +95,31 @@ export class OrgSelectionComponent implements OnInit {
                         if (lastOrgId) {
                             const validOrg = orgs.find(o => o.id === lastOrgId);
                             if (validOrg) {
-                                this.selectedOrgId = lastOrgId;
+                                this.selectedOrgId$.set(lastOrgId);
                                 this.orgSelectionForm.patchValue({ orgId: lastOrgId });
                             }
                         }
                     }
-                    this.cdr.markForCheck();
                 },
                 error: (error) => {
-                    this.isLoading = false;
-                    this.errorMessage = error?.error?.error || "Failed to load organisations. Please try again.";
-                    this.cdr.markForCheck();
+                    this.isLoading$.set(false);
+                    this.errorMessage$.set(error?.error?.error || "Failed to load organisations. Please try again.");
                 }
             });
     }
 
     onOrgChange(orgId: string): void {
-        this.selectedOrgId = orgId;
+        this.selectedOrgId$.set(orgId);
     }
 
     selectOrg(): void {
-        if (this.orgSelectionForm.invalid || !this.selectedOrgId) {
-            this.errorMessage = "Please select an organisation.";
+        if (this.orgSelectionForm.invalid || !this.selectedOrgId$()) {
+            this.errorMessage$.set("Please select an organisation.");
             return;
         }
 
-        this.isSubmitting = true;
-        this.errorMessage = "";
+        this.isSubmitting$.set(true);
+        this.errorMessage$.set("");
 
         const headers = new HttpHeaders({
             'Content-Type': 'application/x-www-form-urlencoded'
@@ -118,14 +127,14 @@ export class OrgSelectionComponent implements OnInit {
 
         const formData = new URLSearchParams();
         formData.append('request_id', this.requestId);
-        formData.append('org_id', this.selectedOrgId);
+        formData.append('org_id', this.selectedOrgId$());
         // account_id is now extracted from the OIDC session token by the backend
 
         this.http.post<OrgSelectionResponse>('/api/org-selection', formData.toString(), { headers })
             .subscribe({
                 next: (response) => {
                     // Store selected org as lastOrgId in localStorage
-                    this.authService.setLastOrgId(this.selectedOrgId);
+                    this.authService.setLastOrgId(this.selectedOrgId$());
 
                     // Mark as submitted in sessionStorage to prevent reload errors
                     sessionStorage.setItem(this.HAS_SUBMITTED_KEY, this.requestId);
@@ -154,9 +163,8 @@ export class OrgSelectionComponent implements OnInit {
                     document.body.removeChild(form);
                 },
                 error: (error) => {
-                    this.isSubmitting = false;
-                    this.errorMessage = error?.error?.error || "Failed to select organisation. Please try again.";
-                    this.cdr.markForCheck();
+                    this.isSubmitting$.set(false);
+                    this.errorMessage$.set(error?.error?.error || "Failed to select organisation. Please try again.");
                 }
             });
     }

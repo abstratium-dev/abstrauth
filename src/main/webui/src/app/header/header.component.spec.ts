@@ -1,7 +1,6 @@
 import { vi, type Mock, type MockedObject } from "vitest";
 import { createMock } from '../../testing/vitest-mocks';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
@@ -50,7 +49,6 @@ describe('HeaderComponent', () => {
         await TestBed.configureTestingModule({
             imports: [HeaderComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 provideRouter([]),

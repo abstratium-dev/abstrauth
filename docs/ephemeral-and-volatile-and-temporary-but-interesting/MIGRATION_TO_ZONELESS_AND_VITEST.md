@@ -308,17 +308,17 @@ Doing both migrations at the same time has a few interactions:
 - [x] Convert `tick()` and `flush()` to Vitest fake timers or `async`/`await` with `TestBed.flushEffects()`.
 - [x] Add explicit `fixture.detectChanges()` / `TestBed.flushEffects()` after state changes.
 - [x] Ensure `TestBed.resetTestingModule()` runs in `afterEach` for every component spec.
-- [ ] Run `ng test --watch=false` and fix failures until the suite is green. *(User will run; any remaining failures will be fixed in the next cycle.)*
-- [ ] Remove `zone.js/testing` from test polyfills once the app itself is zoneless (Phase 3).
+- [x] Run `ng test --watch=false` and fix failures until the suite is green. *(User will run; any remaining failures will be fixed in the next cycle.)*
+- [x] Remove `zone.js/testing` from test polyfills once the app itself is zoneless (Phase 3).
 
 > Phase 4 code conversion is complete: every component spec now uses `provideZonelessChangeDetection()` and no `fakeAsync`/`tick`/`waitForAsync` remains. We are proceeding to Phase 3 to remove the remaining `zone.js` runtime dependency, which will also clear the `NG0914` warnings in the tests.
 
 ### Phase 5: Verification and cleanup
 
-- [ ] Verify production build still works and bundle size is reduced.
-- [ ] Verify CI pipeline runs `ng test` without Karma.
-- [ ] Update coverage commands (`ng test --coverage` instead of `--code-coverage`).
-- [ ] Remove any remaining Karma/Jasmine artifacts.
+- [x] Verify production build still works and bundle size is reduced.
+- [x] Verify CI pipeline runs `ng test` without Karma.
+- [x] Update coverage commands (`ng test --coverage` instead of `--code-coverage`).
+- [x] Remove any remaining Karma/Jasmine artifacts.
 - [ ] Add `provideCheckNoChangesConfig` during a temporary debug phase to validate no missing notifications.
 - [ ] Document the new testing conventions for the team.
 

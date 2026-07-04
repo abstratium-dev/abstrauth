@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject, OnInit, signal, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, effect, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
@@ -23,8 +23,6 @@ export class ClientsComponent implements OnInit {
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmDialogService);
   private route = inject(ActivatedRoute);
-  private cdr = inject(ChangeDetectorRef);
-  
   private currentFilter = signal('');
   private viewAllowedRolesClientId: string | null = null;
 
@@ -132,7 +130,6 @@ export class ClientsComponent implements OnInit {
       this.viewAllowedRolesClientId = params['viewAllowedRoles'] || null;
       this.viewSecretsClientId = params['viewSecrets'] || null;
       this.highlightedSecretId = params['highlightSecret'] ? Number(params['highlightSecret']) : null;
-      this.cdr.markForCheck();
     });
     this.loadClients();
   }

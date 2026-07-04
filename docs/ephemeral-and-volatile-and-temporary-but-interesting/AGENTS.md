@@ -1,0 +1,1 @@
+The files in this folder (`docs/ephemeral-and-volatile-and-temporary-but-interesting`) are not necessarily still correct. They were probably correct at their time of writing, but that may have been a long time ago. Take what they say with a pinch of salt!

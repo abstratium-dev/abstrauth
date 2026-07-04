@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { vi } from 'vitest';
 import { ToastComponent } from './toast.component';
 import { ToastService } from './toast.service';
@@ -18,7 +17,7 @@ describe('ToastComponent', () => {
         vi.useFakeTimers();
         await TestBed.configureTestingModule({
             imports: [ToastComponent],
-            providers: [provideZonelessChangeDetection()]
+            providers: []
         })
             .compileComponents();
 

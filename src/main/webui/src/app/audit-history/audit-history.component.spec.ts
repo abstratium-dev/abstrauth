@@ -1,6 +1,5 @@
 import type { MockedObject } from "vitest";
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Controller } from '../controller';
 import { AuditHistoryComponent } from './audit-history.component';
@@ -48,7 +47,6 @@ describe('AuditHistoryComponent', () => {
         TestBed.configureTestingModule({
             imports: [AuditHistoryComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 { provide: Controller, useValue: controllerSpy },
                 {
                     provide: ActivatedRoute,

@@ -2,7 +2,6 @@ import type { MockedObject } from "vitest";
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { RouterTestingModule } from '@angular/router/testing';
 import { AuthService } from '../auth.service';
 import { Controller } from '../controller';
@@ -54,7 +53,6 @@ describe('OrganisationsComponent', () => {
         await TestBed.configureTestingModule({
             imports: [OrganisationsComponent, RouterTestingModule],
             providers: [
-                provideZonelessChangeDetection(),
                 provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 { provide: AuthService, useValue: authSpy },

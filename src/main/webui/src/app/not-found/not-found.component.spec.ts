@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { NotFoundComponent } from './not-found.component';
 
@@ -11,7 +10,6 @@ describe('NotFoundComponent', () => {
         await TestBed.configureTestingModule({
             imports: [NotFoundComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 provideRouter([]),
                 {
                     provide: ActivatedRoute,

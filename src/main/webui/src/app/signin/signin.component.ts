@@ -1,5 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, inject, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -41,21 +41,44 @@ export class SigninComponent implements OnInit {
     http = inject(HttpClient)
     fb = inject(FormBuilder)
     authService = inject(AuthService)
-    cdr = inject(ChangeDetectorRef)
 
     requestId = "";
-    clientId = "";
-    clientName = "";
-    scopes: string[] = [];
-    errorMessage = "";
-    getApproval = false;
     signinForm: FormGroup;
-    isSubmitting = false;
-    name = "";
-    signinIsExpired = false;
-    inviteData: InviteData | null = null;
-    rememberApproval = false;
-    shouldShowApproval = false;
+
+    private clientId$ = signal<string>("");
+    private clientName$ = signal<string>("");
+    private scopes$ = signal<string[]>([]);
+    private errorMessage$ = signal<string>("");
+    private getApproval$ = signal<boolean>(false);
+    private isSubmitting$ = signal<boolean>(false);
+    private name$ = signal<string>("");
+    private signinIsExpired$ = signal<boolean>(false);
+    private inviteData$ = signal<InviteData | null>(null);
+    private rememberApproval$ = signal<boolean>(false);
+    private shouldShowApproval$ = signal<boolean>(false);
+
+    get clientId(): string { return this.clientId$(); }
+    set clientId(v: string) { this.clientId$.set(v); }
+    get clientName(): string { return this.clientName$(); }
+    set clientName(v: string) { this.clientName$.set(v); }
+    get scopes(): string[] { return this.scopes$(); }
+    set scopes(v: string[]) { this.scopes$.set(v); }
+    get errorMessage(): string { return this.errorMessage$(); }
+    set errorMessage(v: string) { this.errorMessage$.set(v); }
+    get getApproval(): boolean { return this.getApproval$(); }
+    set getApproval(v: boolean) { this.getApproval$.set(v); }
+    get isSubmitting(): boolean { return this.isSubmitting$(); }
+    set isSubmitting(v: boolean) { this.isSubmitting$.set(v); }
+    get name(): string { return this.name$(); }
+    set name(v: string) { this.name$.set(v); }
+    get signinIsExpired(): boolean { return this.signinIsExpired$(); }
+    set signinIsExpired(v: boolean) { this.signinIsExpired$.set(v); }
+    get inviteData(): InviteData | null { return this.inviteData$(); }
+    set inviteData(v: InviteData | null) { this.inviteData$.set(v); }
+    get rememberApproval(): boolean { return this.rememberApproval$(); }
+    set rememberApproval(v: boolean) { this.rememberApproval$.set(v); }
+    get shouldShowApproval(): boolean { return this.shouldShowApproval$(); }
+    set shouldShowApproval(v: boolean) { this.shouldShowApproval$.set(v); }
 
     get showSignup(): boolean {
         return this.modelService.signupAllowed$();
@@ -79,21 +102,22 @@ export class SigninComponent implements OnInit {
         const inviteDataStr = sessionStorage.getItem('inviteData');
         if (inviteDataStr) {
             try {
-                this.inviteData = JSON.parse(inviteDataStr);
+                const parsed: InviteData = JSON.parse(inviteDataStr);
                 // Filter sign-in options based on invite data
-                if (this.inviteData?.authProvider !== 'native'
-                    && this.inviteData?.authProvider !== 'google'
-                    && this.inviteData?.authProvider !== 'microsoft') {
-                    throw new Error("Unexpected authorization provider '" + this.inviteData?.authProvider + "' please contact support")
+                if (parsed?.authProvider !== 'native'
+                    && parsed?.authProvider !== 'google'
+                    && parsed?.authProvider !== 'microsoft') {
+                    throw new Error("Unexpected authorization provider '" + parsed?.authProvider + "' please contact support")
                 }
+                this.inviteData$.set(parsed);
             } catch (err) {
                 console.error('Error parsing invite data:', err);
-                this.inviteData = null;
+                this.inviteData$.set(null);
             }
         }
 
-        const username = this.inviteData?.email || this.modelService.signUpUsername$();
-        const password = this.inviteData?.password || this.modelService.signUpPassword$();
+        const username = this.inviteData$()?.email || this.modelService.signUpUsername$();
+        const password = this.inviteData$()?.password || this.modelService.signUpPassword$();
 
         this.signinForm = this.fb.group({
             username: [username, Validators.required],
@@ -125,8 +149,7 @@ export class SigninComponent implements OnInit {
                             null
                         ).subscribe({
                             next: (response) => {
-                                this.name = response.name;
-                                this.cdr.markForCheck();
+                                this.name$.set(response.name);
                                 
                                 // Check for stored approval - will set getApproval = true only if UI needs to be shown
                                 setTimeout(() => this.checkStoredApproval(), 100);
@@ -135,29 +158,25 @@ export class SigninComponent implements OnInit {
                                 console.error("[SIGNIN] Failed to approve for authenticated user:", error);
                                 if (error.status === 403) {
                                     // User has no roles for this client
-                                    this.errorMessage = (error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + this.clientId + ")";
+                                    this.errorMessage$.set((error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + this.clientId$() + ")");
                                 } else {
-                                    this.errorMessage = "Failed to process authorization request. Please try again.";
+                                    this.errorMessage$.set("Failed to process authorization request. Please try again.");
                                 }
                                 // Show the error on the signin page (not approval page)
-                                this.getApproval = false;
-                                this.cdr.markForCheck();
+                                this.getApproval$.set(false);
                             }
                         });
                     }
-                    this.cdr.markForCheck();
                 },
                 error: (error) => {
-                    this.errorMessage = error.message;
-                    this.cdr.markForCheck();
+                    this.errorMessage$.set(error.message);
                 }
             });
 
         // set a timeout for just under 10 minutes time, since the server will expire
         // the request then
         setTimeout(() => {
-            this.signinIsExpired = true;
-            this.cdr.markForCheck();
+            this.signinIsExpired$.set(true);
         }, (10 * 60 * 1000) - (30 * 1000));
     }
 
@@ -167,8 +186,8 @@ export class SigninComponent implements OnInit {
             return;
         }
 
-        this.isSubmitting = true;
-        this.errorMessage = '';
+        this.isSubmitting$.set(true);
+        this.errorMessage$.set('');
 
         const headers = new HttpHeaders({
             'Content-Type': 'application/x-www-form-urlencoded'
@@ -181,7 +200,7 @@ export class SigninComponent implements OnInit {
 
         this.http.post<AuthenticationResponse>(`/oauth2/authorize/authenticate`, formData.toString(), { headers }).subscribe({
             next: (authenticationResponse) => {
-                this.isSubmitting = false;
+                this.isSubmitting$.set(false);
 
                 // Check if we need to redirect to org-selection page (multiple orgs)
                 if (authenticationResponse.redirectTo) {
@@ -190,11 +209,10 @@ export class SigninComponent implements OnInit {
                     return;
                 }
 
-                this.name = authenticationResponse.name;
-                this.cdr.markForCheck();
+                this.name$.set(authenticationResponse.name);
 
                 // Check if we need to redirect to password change for native invite
-                if (this.inviteData?.authProvider === 'native' && this.inviteData?.password) {
+                if (this.inviteData$()?.authProvider === 'native' && this.inviteData$()?.password) {
                     // Mark that password change is needed
                     sessionStorage.setItem('requirePasswordChange', 'true');
                     console.debug("[SIGNIN] Marked password change required");
@@ -209,12 +227,11 @@ export class SigninComponent implements OnInit {
                     this.signinIsExpired = true;
                 } else if (error.status === 403) {
                     // User has no roles for this client
-                    this.errorMessage = (error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + this.clientId + ")";
+                    this.errorMessage = (error.error?.error || error.error || "You do not have any roles for this application. Please contact your administrator.") + " (" + this.clientId + ")";
                 } else {
                     this.errorMessage = error?.error?.details || error.error || error.message || 'Authentication failed';
                 }
-                this.isSubmitting = false;
-                this.cdr.markForCheck();
+                this.isSubmitting$.set(false);
             }
         });
     }
@@ -235,10 +252,9 @@ export class SigninComponent implements OnInit {
         console.debug("[SIGNIN] Checking stored approval: " + stored);
         
         if (!stored) {
-            this.getApproval = true;
-            this.shouldShowApproval = true;
+            this.getApproval$.set(true);
+            this.shouldShowApproval$.set(true);
             console.debug("[SIGNIN] No stored approval found");
-            this.cdr.markForCheck();
             return;
         }
         
@@ -250,10 +266,9 @@ export class SigninComponent implements OnInit {
             
             // Check if approval is older than 30 days
             if (daysDiff > 30) {
-                this.shouldShowApproval = true;
+                this.shouldShowApproval$.set(true);
                 localStorage.removeItem(key);
                 console.debug("[SIGNIN] Approval is older than 30 days");
-                this.cdr.markForCheck();
                 return;
             }
             
@@ -262,24 +277,21 @@ export class SigninComponent implements OnInit {
             const currentScopes = this.scopes.sort().join(',');
             
             if (storedScopes !== currentScopes) {
-                this.shouldShowApproval = true;
+                this.shouldShowApproval$.set(true);
                 localStorage.removeItem(key);
                 console.debug("[SIGNIN] Scopes do not match");
-                this.cdr.markForCheck();
                 return;
             }
             
             // Approval is valid, auto-approve
             // Keep shouldShowApproval false to hide the UI, submit directly
-            this.shouldShowApproval = false;
+            this.shouldShowApproval$.set(false);
             this.autoApproveDirectly();
-            this.cdr.markForCheck();
         } catch (err) {
             console.error('Error checking stored approval:', err);
-            this.getApproval = true;
-            this.shouldShowApproval = true;
+            this.getApproval$.set(true);
+            this.shouldShowApproval$.set(true);
             localStorage.removeItem(key);
-            this.cdr.markForCheck();
         }
     }
 
@@ -325,11 +337,11 @@ export class SigninComponent implements OnInit {
     onApproveClick(form: HTMLFormElement, consent: HTMLInputElement) {
         // Save approval to localStorage if checkbox is checked
         // This runs BEFORE the form submits (button click happens before form submit)
-        if (this.rememberApproval) {
+        if (this.rememberApproval$()) {
             const key = `approval_${this.clientName}`;
             const approval = {
                 date: new Date().toISOString(),
-                scopes: this.scopes
+                scopes: this.scopes$()
             };
             localStorage.setItem(key, JSON.stringify(approval));
         }

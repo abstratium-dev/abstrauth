@@ -1,14 +1,14 @@
 import type { MockedObject } from "vitest";
 import { createMock } from '../../testing/vitest-mocks';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, EMPTY } from 'rxjs';
+import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
 import { ClientsComponent } from './clients.component';
 import { ConfirmDialogService } from '../shared/confirm-dialog/confirm-dialog.service';
-import { AllowedRole, ModelService } from '../model.service';
+import { AllowedRole, ClientSecret, ModelService } from '../model.service';
 
 describe('ClientsComponent', () => {
     let component: ClientsComponent;
@@ -47,6 +47,7 @@ describe('ClientsComponent', () => {
     ];
 
     beforeEach(async () => {
+        vi.useFakeTimers();
         queryParamsSubject = new BehaviorSubject({});
 
         const routerSpy = createMock<Router>({
@@ -66,7 +67,6 @@ describe('ClientsComponent', () => {
         await TestBed.configureTestingModule({
             imports: [ClientsComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 { provide: Router, useValue: routerSpy },
@@ -97,7 +97,10 @@ describe('ClientsComponent', () => {
             }
         });
 
+        vi.clearAllTimers();
+        vi.useRealTimers();
         httpMock.verify();
+        TestBed.resetTestingModule();
     });
 
     it('should create', () => {
@@ -1661,6 +1664,870 @@ describe('ClientsComponent', () => {
                 removeReq.flush({ error: 'Role assignment not found' }, { status: 404, statusText: 'Not Found' });
                 await Promise.resolve(); TestBed.flushEffects();
             });
+        });
+    });
+
+    describe('Filtering', () => {
+        beforeEach(() => {
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should return all clients when filter is empty', () => {
+            component.onFilterChange('');
+            expect(component.filteredClients.length).toBe(2);
+        });
+
+        it('should filter by client name', () => {
+            component.onFilterChange('Test Client 1');
+            expect(component.filteredClients.length).toBe(1);
+            expect(component.filteredClients[0].clientId).toBe('test_client_1');
+        });
+
+        it('should filter by client id', () => {
+            component.onFilterChange('test_client_2');
+            expect(component.filteredClients.length).toBe(1);
+            expect(component.filteredClients[0].clientId).toBe('test_client_2');
+        });
+
+        it('should filter by client type', () => {
+            component.onFilterChange('confidential');
+            expect(component.filteredClients.length).toBe(2);
+        });
+
+        it('should filter by redirect URI', () => {
+            component.onFilterChange('4000');
+            expect(component.filteredClients.length).toBe(1);
+            expect(component.filteredClients[0].clientId).toBe('test_client_2');
+        });
+
+        it('should filter by allowed scope', () => {
+            component.onFilterChange('admin');
+            expect(component.filteredClients.length).toBe(1);
+            expect(component.filteredClients[0].clientId).toBe('test_client_2');
+        });
+
+        it('should return no results when filter does not match', () => {
+            component.onFilterChange('nonexistent');
+            expect(component.filteredClients.length).toBe(0);
+        });
+    });
+
+    describe('Form helpers', () => {
+        let clipboardSpy: ReturnType<typeof vi.fn>;
+
+        beforeEach(() => {
+            clipboardSpy = vi.fn();
+            Object.defineProperty(navigator, 'userAgent', {
+                get: () => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+                configurable: true
+            });
+            Object.defineProperty(navigator, 'clipboard', {
+                get: () => ({ writeText: clipboardSpy }),
+                configurable: true
+            });
+
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        afterEach(() => {
+            Object.defineProperty(navigator, 'clipboard', {
+                get: () => undefined,
+                configurable: true
+            });
+        });
+
+        it('should clear autoSubscribe when publik is unchecked', () => {
+            component.formData.publik = false;
+            component.formData.autoSubscribe = true;
+            component.onPublikChange();
+            expect(component.formData.autoSubscribe).toBe(false);
+        });
+
+        it('should keep autoSubscribe when publik remains checked', () => {
+            component.formData.publik = true;
+            component.formData.autoSubscribe = true;
+            component.onPublikChange();
+            expect(component.formData.autoSubscribe).toBe(true);
+        });
+
+        it('should copy client id to clipboard', async () => {
+            clipboardSpy.mockResolvedValue(undefined);
+            component.newClientId = 'new_client_id';
+            component.copyClientId();
+            await Promise.resolve();
+            expect(clipboardSpy).toHaveBeenCalledWith('new_client_id');
+            expect(component.clientIdCopied()).toBe(true);
+        });
+
+        it('should handle error copying client id', async () => {
+            clipboardSpy.mockRejectedValue(new Error('Clipboard denied'));
+            component.newClientId = 'new_client_id';
+            component.copyClientId();
+            await Promise.resolve();
+            expect(component.clientIdCopied()).toBe(false);
+        });
+
+        it('should copy secret to clipboard', async () => {
+            clipboardSpy.mockResolvedValue(undefined);
+            component.newClientSecret = 'super_secret';
+            component.copySecret();
+            await Promise.resolve();
+            expect(clipboardSpy).toHaveBeenCalledWith('super_secret');
+            expect(component.secretCopied()).toBe(true);
+        });
+
+        it('should handle error copying secret', async () => {
+            clipboardSpy.mockRejectedValue(new Error('Clipboard denied'));
+            component.newClientSecret = 'super_secret';
+            component.copySecret();
+            await Promise.resolve();
+            expect(component.secretCopied()).toBe(false);
+        });
+
+        it('should close secret dialog and reset copied state', () => {
+            component.newClientSecret = 'secret';
+            component.newClientId = 'id';
+            component.newClientName = 'name';
+            component.clientIdCopied.set(true);
+            component.secretCopied.set(true);
+            component.closeSecretDialog();
+            expect(component.newClientSecret).toBeNull();
+            expect(component.newClientId).toBeNull();
+            expect(component.newClientName).toBeNull();
+            expect(component.clientIdCopied()).toBe(false);
+            expect(component.secretCopied()).toBe(false);
+        });
+    });
+
+    describe('Client Submission Edge Cases', () => {
+        beforeEach(() => {
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should show secret dialog when clientSecret is returned', async () => {
+            component.formData = {
+                clientId: 'secret_client',
+                clientName: 'Secret Client',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost:3000/callback',
+                allowedScopes: 'openid',
+                requirePkce: true,
+                autoSubscribe: false,
+                publik: false
+            };
+
+            const submitPromise = component.onSubmit();
+
+            const createReq = httpMock.expectOne('/api/clients');
+            createReq.flush({
+                id: '3',
+                orgId: 'test-org',
+                clientId: 'secret_client',
+                clientName: 'Secret Client',
+                clientType: 'confidential',
+                redirectUris: '["http://localhost:3000/callback"]',
+                allowedScopes: '["openid"]',
+                requirePkce: true,
+                autoSubscribe: false,
+                publik: false,
+                createdAt: '2024-01-03T00:00:00Z',
+                clientSecret: 'generated-secret'
+            });
+
+            await Promise.resolve();
+            const reloadReq = httpMock.expectOne('/api/clients');
+            reloadReq.flush([...mockClients]);
+
+            await submitPromise;
+
+            expect(component.newClientSecret).toBe('generated-secret');
+            expect(component.newClientId).toBe('secret_client');
+            expect(component.newClientName).toBe('Secret Client');
+        });
+
+        it('should handle 400 with validation violations', async () => {
+            component.formData = {
+                clientId: 'new_client',
+                clientName: 'New Client',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost:3000/callback',
+                allowedScopes: 'openid',
+                requirePkce: true,
+                autoSubscribe: false,
+                publik: false
+            };
+
+            const submitPromise = component.onSubmit();
+
+            const createReq = httpMock.expectOne('/api/clients');
+            createReq.flush({
+                violations: [{ message: 'Invalid client ID' }, { message: 'Name too short' }]
+            }, { status: 400, statusText: 'Bad Request' });
+
+            await submitPromise;
+
+            expect(component.formError).toBe('Invalid client ID; Name too short');
+            expect(component.formSubmitting).toBe(false);
+        });
+
+        it('should handle 400 with error object', async () => {
+            component.formData = {
+                clientId: 'new_client',
+                clientName: 'New Client',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost:3000/callback',
+                allowedScopes: 'openid',
+                requirePkce: true,
+                autoSubscribe: false,
+                publik: false
+            };
+
+            const submitPromise = component.onSubmit();
+
+            const createReq = httpMock.expectOne('/api/clients');
+            createReq.flush({ error: 'Bad request' }, { status: 400, statusText: 'Bad Request' });
+
+            await submitPromise;
+
+            expect(component.formError).toBe('Bad request');
+        });
+
+        it('should handle 400 with generic error', async () => {
+            component.formData = {
+                clientId: 'new_client',
+                clientName: 'New Client',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost:3000/callback',
+                allowedScopes: 'openid',
+                requirePkce: true,
+                autoSubscribe: false,
+                publik: false
+            };
+
+            const submitPromise = component.onSubmit();
+
+            const createReq = httpMock.expectOne('/api/clients');
+            createReq.flush({}, { status: 400, statusText: 'Bad Request' });
+
+            await submitPromise;
+
+            expect(component.formError).toBe('Invalid input. Please check your entries.');
+        });
+
+        it('should handle 400 error when deleting client', async () => {
+            const deletePromise = component.deleteClient(mockClients[0]);
+            await Promise.resolve();
+            const deleteReq = httpMock.expectOne('/api/clients/test_client_1');
+            deleteReq.flush({ error: 'Cannot delete client with active secrets' }, { status: 400, statusText: 'Bad Request' });
+            await deletePromise;
+        });
+    });
+
+    describe('Secret Management', () => {
+        const mockSecret: ClientSecret = {
+            id: 1,
+            description: 'Test Secret',
+            createdAt: '2024-01-01T00:00:00Z',
+            expiresAt: null,
+            active: true
+        };
+
+        beforeEach(() => {
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should toggle secrets view open and load secrets', async () => {
+            const togglePromise = component.toggleSecretsView(mockClients[0]);
+            const secretsReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            secretsReq.flush([mockSecret]);
+            await togglePromise;
+            expect(component.viewingSecretsFor).toBe('test_client_1');
+            expect(component.clientSecrets.length).toBe(1);
+            expect(component.showCreateSecretForm).toBe(false);
+        });
+
+        it('should toggle secrets view closed', async () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.clientSecrets = [mockSecret];
+            component.showCreateSecretForm = true;
+            await component.toggleSecretsView(mockClients[0]);
+            expect(component.viewingSecretsFor).toBeNull();
+            expect(component.clientSecrets.length).toBe(0);
+            expect(component.showCreateSecretForm).toBe(false);
+        });
+
+        it('should handle error loading secrets', async () => {
+            const togglePromise = component.toggleSecretsView(mockClients[0]);
+            const secretsReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            secretsReq.flush({}, { status: 500, statusText: 'Server Error' });
+            await togglePromise;
+            expect(component.secretsError).toBe('Failed to load secrets');
+            expect(component.secretsLoading()).toBe(false);
+        });
+
+        it('should toggle create secret form', () => {
+            expect(component.showCreateSecretForm).toBe(false);
+            component.toggleCreateSecretForm();
+            expect(component.showCreateSecretForm).toBe(true);
+            expect(component.createSecretData.description).toBe('');
+            component.toggleCreateSecretForm();
+            expect(component.showCreateSecretForm).toBe(false);
+        });
+
+        it('should create secret successfully', async () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.createSecretData = { description: 'Production secret', expiresInDays: 90 };
+
+            const createPromise = component.createSecret('test_client_1');
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const createReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            expect(createReq.request.body).toEqual({ description: 'Production secret', expiresInDays: 90 });
+            createReq.flush({
+                id: 2,
+                secret: 'new-secret-value',
+                description: 'Production secret',
+                createdAt: '2024-01-02T00:00:00Z',
+                expiresAt: '2024-04-02T00:00:00Z'
+            });
+            await Promise.resolve(); TestBed.flushEffects();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const reloadReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            reloadReq.flush([mockSecret, { id: 2, description: 'Production secret', createdAt: '2024-01-02T00:00:00Z', expiresAt: '2024-04-02T00:00:00Z', active: true }]);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            await createPromise;
+
+            expect(component.newClientSecret).toBe('new-secret-value');
+            expect(component.showCreateSecretForm).toBe(false);
+            expect(component.createSecretData.description).toBe('');
+        });
+
+        it('should reject creating secret without description', async () => {
+            component.createSecretData = { description: '', expiresInDays: null };
+            await component.createSecret('test_client_1');
+            httpMock.expectNone('/api/clients/test_client_1/secrets');
+        });
+
+        it('should keep form open on error creating secret', async () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.showCreateSecretForm = true;
+            component.createSecretData = { description: 'Test', expiresInDays: null };
+
+            component.createSecret('test_client_1');
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const createReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            createReq.flush({}, { status: 403, statusText: 'Forbidden' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await Promise.resolve(); TestBed.flushEffects();
+
+            expect(component.showCreateSecretForm).toBe(true);
+        });
+
+        it('should revoke secret successfully', async () => {
+            component.viewingSecretsFor = 'test_client_1';
+            const revokePromise = component.revokeSecret('test_client_1', mockSecret);
+            await Promise.resolve();
+            const revokeReq = httpMock.expectOne('/api/clients/test_client_1/secrets/1');
+            revokeReq.flush({});
+            await Promise.resolve();
+            await Promise.resolve();
+            const reloadReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            reloadReq.flush([{ ...mockSecret, active: false }]);
+            await revokePromise;
+            expect(component.clientSecrets[0].active).toBe(false);
+        });
+
+        it('should not revoke secret when cancelled', async () => {
+            confirmService.confirm.mockResolvedValue(false);
+            await component.revokeSecret('test_client_1', mockSecret);
+            httpMock.expectNone('/api/clients/test_client_1/secrets/1');
+        });
+
+        it('should handle 400 error when revoking secret', async () => {
+            const revokePromise = component.revokeSecret('test_client_1', mockSecret);
+            await Promise.resolve();
+            const revokeReq = httpMock.expectOne('/api/clients/test_client_1/secrets/1');
+            revokeReq.flush({}, { status: 400, statusText: 'Bad Request' });
+            await revokePromise;
+        });
+
+        it('should handle 404 error when revoking secret', async () => {
+            const revokePromise = component.revokeSecret('test_client_1', mockSecret);
+            await Promise.resolve();
+            const revokeReq = httpMock.expectOne('/api/clients/test_client_1/secrets/1');
+            revokeReq.flush({}, { status: 404, statusText: 'Not Found' });
+            await revokePromise;
+        });
+
+        it('should delete secret successfully', async () => {
+            const inactiveSecret = { ...mockSecret, active: false };
+            component.viewingSecretsFor = 'test_client_1';
+            const deletePromise = component.deleteSecret('test_client_1', inactiveSecret);
+            await Promise.resolve();
+            const deleteReq = httpMock.expectOne('/api/clients/test_client_1/secrets/1/permanent');
+            deleteReq.flush({});
+            await Promise.resolve();
+            await Promise.resolve();
+            const reloadReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            reloadReq.flush([]);
+            await deletePromise;
+            expect(component.clientSecrets.length).toBe(0);
+        });
+
+        it('should not delete secret when cancelled', async () => {
+            confirmService.confirm.mockResolvedValue(false);
+            await component.deleteSecret('test_client_1', { ...mockSecret, active: false });
+            httpMock.expectNone('/api/clients/test_client_1/secrets/1/permanent');
+        });
+
+        it('should handle 400 error when deleting secret', async () => {
+            const deletePromise = component.deleteSecret('test_client_1', { ...mockSecret, active: false });
+            await Promise.resolve();
+            const deleteReq = httpMock.expectOne('/api/clients/test_client_1/secrets/1/permanent');
+            deleteReq.flush({}, { status: 400, statusText: 'Bad Request' });
+            await deletePromise;
+        });
+
+        it('should handle 404 error when deleting secret', async () => {
+            const deletePromise = component.deleteSecret('test_client_1', { ...mockSecret, active: false });
+            await Promise.resolve();
+            const deleteReq = httpMock.expectOne('/api/clients/test_client_1/secrets/1/permanent');
+            deleteReq.flush({}, { status: 404, statusText: 'Not Found' });
+            await deletePromise;
+        });
+    });
+
+    describe('Role Utilities', () => {
+        beforeEach(() => {
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should allow role management when no scopes configured', () => {
+            const client = { ...mockClients[0], allowedScopes: '[]' };
+            expect(component.canManageRoles(client)).toBe(true);
+        });
+
+        it('should disallow role management when scopes configured', () => {
+            expect(component.canManageRoles(mockClients[0])).toBe(false);
+        });
+
+        it('should strip valid UUID org prefix for group name', () => {
+            const uuid = '12345678-1234-1234-1234-123456789012';
+            const clientId = `${uuid}__my_client`;
+            expect(component.groupNameFor(clientId, 'admin')).toBe('my_client_admin');
+        });
+
+        it('should keep client id unchanged when no valid prefix', () => {
+            expect(component.groupNameFor('plain_client', 'admin')).toBe('plain_client_admin');
+            expect(component.groupNameFor('short__client', 'admin')).toBe('short__client_admin');
+        });
+
+        it('should format date', () => {
+            const formatted = component.formatDate('2024-01-01T00:00:00Z');
+            expect(formatted).toContain('2024');
+            expect(formatted).toContain(':'); // time portion present
+        });
+    });
+
+    describe('Target Client Selection', () => {
+        beforeEach(() => {
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should reset role selection when no target client selected', async () => {
+            component.addClientRoleData.role = 'some-role';
+            component.availableClientRoleRoles = [{ clientId: 'x', role: 'reader', isDefault: false, availableToForeignOrgs: false }];
+            await component.onTargetClientSelected('');
+            expect(component.addClientRoleData.role).toBe('');
+            expect(component.availableClientRoleRoles.length).toBe(0);
+        });
+
+        it('should load available roles for target client', async () => {
+            const targetPromise = component.onTargetClientSelected('test_client_2');
+            await Promise.resolve(); TestBed.flushEffects();
+            const rolesReq = httpMock.expectOne('/api/clients/test_client_2/allowed-roles');
+            rolesReq.flush([{ clientId: 'test_client_2', role: 'reader', isDefault: false, availableToForeignOrgs: false }]);
+            await Promise.resolve(); TestBed.flushEffects();
+            await targetPromise;
+            expect(component.availableClientRoleRoles.length).toBe(1);
+            expect(component.loadingClientRoleRoles()).toBe(false);
+        });
+
+        it('should handle error loading target client roles', async () => {
+            const targetPromise = component.onTargetClientSelected('test_client_2');
+            await Promise.resolve(); TestBed.flushEffects();
+            const rolesReq = httpMock.expectOne('/api/clients/test_client_2/allowed-roles');
+            rolesReq.flush({}, { status: 500, statusText: 'Server Error' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await targetPromise;
+            expect(component.availableClientRoleRoles.length).toBe(0);
+            expect(component.loadingClientRoleRoles()).toBe(false);
+        });
+    });
+
+    describe('Additional Role Error Handling', () => {
+        beforeEach(() => {
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should handle 403 error when adding client role', async () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.addClientRoleData = { targetClientId: 'target_1', role: 'some-role' };
+            component.addClientRole('test_client_1');
+            await Promise.resolve(); TestBed.flushEffects();
+            const addReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+            addReq.flush({}, { status: 403, statusText: 'Forbidden' });
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should handle generic error when adding client role', async () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.addClientRoleData = { targetClientId: 'target_1', role: 'some-role' };
+            component.addClientRole('test_client_1');
+            await Promise.resolve(); TestBed.flushEffects();
+            const addReq = httpMock.expectOne('/api/clients/test_client_1/client-roles');
+            addReq.flush({}, { status: 500, statusText: 'Server Error' });
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should handle generic error when removing client role', async () => {
+            confirmService.confirm.mockResolvedValue(true);
+            component.viewingClientRolesFor = 'test_client_1';
+            component.removeClientRole('test_client_1', 'target_1', 'reader');
+            await Promise.resolve(); TestBed.flushEffects();
+            const removeReq = httpMock.expectOne('/api/clients/test_client_1/client-roles/target_1/reader');
+            removeReq.flush({}, { status: 500, statusText: 'Server Error' });
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should handle generic error when adding allowed role', async () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.addAllowedRoleData = { role: 'new-role', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRole('test_client_1');
+            await Promise.resolve(); TestBed.flushEffects();
+            const addReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles');
+            addReq.flush({}, { status: 500, statusText: 'Server Error' });
+            await Promise.resolve(); TestBed.flushEffects();
+        });
+
+        it('should confirm retraction before updating allowed role', async () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.editingAllowedRole = 'editor';
+            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', true, false);
+            await Promise.resolve();
+            expect(confirmService.confirm).toHaveBeenCalled();
+            const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
+            updateReq.flush({});
+            await Promise.resolve(); TestBed.flushEffects();
+            await Promise.resolve(); TestBed.flushEffects();
+            const reloadReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
+            reloadReq.flush([]);
+            await Promise.resolve(); TestBed.flushEffects();
+            await updatePromise;
+            expect(component.editingAllowedRole).toBeNull();
+        });
+
+        it('should cancel update if retraction is declined', async () => {
+            confirmService.confirm.mockResolvedValue(false);
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.editingAllowedRole = 'editor';
+            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+            await component.updateAllowedRole('test_client_1', 'editor', true, false);
+            httpMock.expectNone('/api/clients/test_client_1/allowed-roles/editor');
+        });
+
+        it('should show info toast when removing default status', async () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.editingAllowedRole = 'editor';
+            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, true);
+            await Promise.resolve(); TestBed.flushEffects();
+            const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
+            updateReq.flush({});
+            await Promise.resolve(); TestBed.flushEffects();
+            await Promise.resolve(); TestBed.flushEffects();
+            const reloadReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
+            reloadReq.flush([]);
+            await Promise.resolve(); TestBed.flushEffects();
+            await updatePromise;
+            expect(component.editingAllowedRole).toBeNull();
+        });
+
+        it('should handle generic error when updating allowed role', async () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.editingAllowedRole = 'editor';
+            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, false);
+            await Promise.resolve(); TestBed.flushEffects();
+            const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
+            updateReq.flush({}, { status: 500, statusText: 'Server Error' });
+            await Promise.resolve(); TestBed.flushEffects();
+            await updatePromise;
+        });
+    });
+
+    describe('Template Rendering', () => {
+        beforeEach(() => {
+            const authService = TestBed.inject(AuthService);
+            const token = {
+                ...authService['token'],
+                groups: [ROLE_MANAGE_CLIENTS],
+                orgId: 'test-org'
+            };
+            authService['token'] = token;
+            authService.token$.set(token);
+
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should render client secret modal', () => {
+            component.newClientSecret = 'secret';
+            component.newClientId = 'client_id';
+            component.newClientName = 'Client Name';
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Client Secret Created');
+            expect(compiled.textContent).toContain('secret');
+        });
+
+        it('should render add client form', () => {
+            component.showForm = true;
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.querySelector('#clientId')).toBeTruthy();
+            expect(compiled.querySelector('#clientName')).toBeTruthy();
+        });
+
+        it('should render edit client form', () => {
+            component.editingClientId = '1';
+            component.formData = {
+                clientId: 'test_client_1',
+                clientName: 'Test',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost:3000/callback',
+                allowedScopes: 'openid',
+                requirePkce: true,
+                autoSubscribe: false,
+                publik: false
+            };
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Edit Client');
+            expect(compiled.querySelector('#edit-clientName')).toBeTruthy();
+        });
+
+        it('should render external badge for foreign org client', () => {
+            const foreignClient = { ...mockClients[0], orgId: 'other-org' };
+            TestBed.inject(ModelService).setClients([foreignClient]);
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('External');
+        });
+
+        it('should render secrets management section', () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.clientSecrets = [
+                { id: 1, description: 'Secret', createdAt: '2024-01-01T00:00:00Z', expiresAt: null, active: true }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Client Secrets');
+            expect(compiled.textContent).toContain('Secret');
+        });
+
+        it('should render create secret form', () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.showCreateSecretForm = true;
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Generate New Secret');
+            expect(compiled.querySelector('#secret-description')).toBeTruthy();
+        });
+
+        it('should render client-to-client roles section', () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.clientRoles = [
+                { targetClientId: 'target_1', role: 'reader', createdAt: '2024-01-01T00:00:00Z' }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Client-to-Client Roles');
+            expect(compiled.textContent).toContain('target_1');
+            expect(compiled.textContent).toContain('reader');
+        });
+
+        it('should render allowed roles section with edit panel', () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.allowedRoles = [
+                { clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: true }
+            ];
+            component.editingAllowedRole = 'viewer';
+            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Allowed Roles');
+            expect(compiled.textContent).toContain('viewer');
+        });
+
+        it('should render inactive secret with delete button', () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.clientSecrets = [
+                { id: 1, description: 'Inactive', createdAt: '2024-01-01T00:00:00Z', expiresAt: null, active: false }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Revoked');
+            expect(compiled.textContent).toContain('Delete');
+        });
+
+        it('should render expiring secret warning', () => {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 5);
+            component.viewingSecretsFor = 'test_client_1';
+            component.clientSecrets = [
+                { id: 1, description: 'Expiring', createdAt: '2024-01-01T00:00:00Z', expiresAt: tomorrow.toISOString(), active: true }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('will expire soon');
+        });
+
+        it('should render auto-subscribe Yes when public and enabled', () => {
+            const publicClient = { ...mockClients[0], publik: true, autoSubscribe: true };
+            TestBed.inject(ModelService).setClients([publicClient]);
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const rows = compiled.querySelectorAll('.detail-row');
+            let autoSubscribeText = '';
+            rows.forEach((row: Element) => {
+                if (row.textContent?.includes('Auto-subscribe')) {
+                    autoSubscribeText = row.textContent || '';
+                }
+            });
+            expect(autoSubscribeText).toContain('Yes');
+        });
+    });
+
+    describe('Deep-link query params', () => {
+        let scrollIntoViewSpy: ReturnType<typeof vi.spyOn>;
+
+        beforeEach(() => {
+            scrollIntoViewSpy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            scrollIntoViewSpy.mockRestore();
+        });
+
+        beforeEach(() => {
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should open allowed roles view from query param', async () => {
+            queryParamsSubject.next({ viewAllowedRoles: 'test_client_1' });
+            component.loadClients();
+            fixture.detectChanges();
+
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+
+            vi.advanceTimersByTime(0);
+            await Promise.resolve();
+
+            const rolesReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
+            rolesReq.flush([]);
+            await Promise.resolve();
+            vi.advanceTimersByTime(100);
+
+            expect(component.viewingAllowedRolesFor).toBe('test_client_1');
+        });
+
+        it('should open secrets view from query param', async () => {
+            queryParamsSubject.next({ viewSecrets: 'test_client_1' });
+            component.loadClients();
+            fixture.detectChanges();
+
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+
+            vi.advanceTimersByTime(0);
+            await Promise.resolve();
+
+            const secretsReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            secretsReq.flush([]);
+            await Promise.resolve();
+            vi.advanceTimersByTime(100);
+
+            expect(component.viewingSecretsFor).toBe('test_client_1');
+        });
+
+        it('should open secrets view and highlight secret from query param', async () => {
+            queryParamsSubject.next({ viewSecrets: 'test_client_1', highlightSecret: '42' });
+            component.loadClients();
+            fixture.detectChanges();
+
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+
+            vi.advanceTimersByTime(0);
+            await Promise.resolve();
+
+            const secretsReq = httpMock.expectOne('/api/clients/test_client_1/secrets');
+            secretsReq.flush([]);
+            await Promise.resolve();
+            vi.advanceTimersByTime(100);
+
+            expect(component.viewingSecretsFor).toBe('test_client_1');
+        });
+
+        it('should do nothing when query param client is not found', async () => {
+            queryParamsSubject.next({ viewAllowedRoles: 'nonexistent' });
+            component.loadClients();
+            fixture.detectChanges();
+
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+
+            vi.advanceTimersByTime(0);
+            await Promise.resolve();
+            vi.advanceTimersByTime(100);
+
+            expect(component.viewingAllowedRolesFor).toBeNull();
         });
     });
 });

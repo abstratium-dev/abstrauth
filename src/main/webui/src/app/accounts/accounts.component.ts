@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -24,11 +24,55 @@ export class AccountsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmDialogService);
-  private cdr = inject(ChangeDetectorRef);
-
   private currentFilter = signal('');
   private errorSignal = signal<string | null>(null);
-  ownerIds: string[] = [];
+
+  private ownerIds$ = signal<string[]>([]);
+  private showAddAccountForm$ = signal(false);
+  private accountFormData$ = signal({ email: '', name: '', authProvider: '' });
+  private formSubmitting$ = signal(false);
+  private formError$ = signal<string | null>(null);
+  private inviteLink$ = signal<string | null>(null);
+  private showInviteLink$ = signal(false);
+  private showAddedToOrg$ = signal(false);
+  private addingRoleForAccountId$ = signal<string | null>(null);
+  private roleFormData$ = signal({ clientId: '', role: '' });
+  private roleFormSubmitting$ = signal(false);
+  private roleFormError$ = signal<string | null>(null);
+  private allowedRoles$ = signal<AllowedRole[]>([]);
+  private loadingAllowedRoles$ = signal(false);
+  private rolesInfoHidden$ = signal(false);
+
+  get ownerIds(): string[] { return this.ownerIds$(); }
+  set ownerIds(v: string[]) { this.ownerIds$.set(v); }
+  get showAddAccountForm(): boolean { return this.showAddAccountForm$(); }
+  set showAddAccountForm(v: boolean) { this.showAddAccountForm$.set(v); }
+  get accountFormData(): { email: string; name: string; authProvider: string } { return this.accountFormData$(); }
+  set accountFormData(v: { email: string; name: string; authProvider: string }) { this.accountFormData$.set(v); }
+  get formSubmitting(): boolean { return this.formSubmitting$(); }
+  set formSubmitting(v: boolean) { this.formSubmitting$.set(v); }
+  get formError(): string | null { return this.formError$(); }
+  set formError(v: string | null) { this.formError$.set(v); }
+  get inviteLink(): string | null { return this.inviteLink$(); }
+  set inviteLink(v: string | null) { this.inviteLink$.set(v); }
+  get showInviteLink(): boolean { return this.showInviteLink$(); }
+  set showInviteLink(v: boolean) { this.showInviteLink$.set(v); }
+  get showAddedToOrg(): boolean { return this.showAddedToOrg$(); }
+  set showAddedToOrg(v: boolean) { this.showAddedToOrg$.set(v); }
+  get addingRoleForAccountId(): string | null { return this.addingRoleForAccountId$(); }
+  set addingRoleForAccountId(v: string | null) { this.addingRoleForAccountId$.set(v); }
+  get roleFormData(): { clientId: string; role: string } { return this.roleFormData$(); }
+  set roleFormData(v: { clientId: string; role: string }) { this.roleFormData$.set(v); }
+  get roleFormSubmitting(): boolean { return this.roleFormSubmitting$(); }
+  set roleFormSubmitting(v: boolean) { this.roleFormSubmitting$.set(v); }
+  get roleFormError(): string | null { return this.roleFormError$(); }
+  set roleFormError(v: string | null) { this.roleFormError$.set(v); }
+  get allowedRoles(): AllowedRole[] { return this.allowedRoles$(); }
+  set allowedRoles(v: AllowedRole[]) { this.allowedRoles$.set(v); }
+  get loadingAllowedRoles(): boolean { return this.loadingAllowedRoles$(); }
+  set loadingAllowedRoles(v: boolean) { this.loadingAllowedRoles$.set(v); }
+  get rolesInfoHidden(): boolean { return this.rolesInfoHidden$(); }
+  set rolesInfoHidden(v: boolean) { this.rolesInfoHidden$.set(v); }
 
   get accounts(): Account[] {
     return this.modelService.accounts$();
@@ -50,32 +94,6 @@ export class AccountsComponent implements OnInit {
     return this.errorSignal();
   }
 
-  // Add Account Form state
-  showAddAccountForm = false;
-  accountFormData = {
-    email: '',
-    name: '',
-    authProvider: ''
-  };
-  formSubmitting = false;
-  formError: string | null = null;
-  inviteLink: string | null = null;
-  showInviteLink = false;
-  showAddedToOrg = false;
-
-  // Role Form state
-  addingRoleForAccountId: string | null = null;
-  roleFormData = {
-    clientId: '',
-    role: ''
-  };
-  roleFormSubmitting = false;
-  roleFormError: string | null = null;
-  allowedRoles: AllowedRole[] = [];
-  loadingAllowedRoles = false;
-
-  // Roles info note visibility (stored in localStorage)
-  rolesInfoHidden = false;
   private readonly ROLES_INFO_HIDDEN_KEY = 'abstrauth_roles_info_hidden';
 
   ngOnInit(): void {
@@ -84,24 +102,22 @@ export class AccountsComponent implements OnInit {
     this.controller.loadClients();
 
     // Check if user has previously hidden the roles info note
-    this.rolesInfoHidden = localStorage.getItem(this.ROLES_INFO_HIDDEN_KEY) === 'true';
+    this.rolesInfoHidden$.set(localStorage.getItem(this.ROLES_INFO_HIDDEN_KEY) === 'true');
   }
 
   async loadOwners(): Promise<void> {
     const orgId = this.authService.getOrgId();
     if (!orgId) return;
     try {
-      this.ownerIds = await this.controller.getOrganisationOwners(orgId);
+      this.ownerIds$.set(await this.controller.getOrganisationOwners(orgId));
     } catch (err) {
       console.error('Failed to load owners:', err);
-      this.ownerIds = [];
-    } finally {
-      this.cdr.markForCheck();
+      this.ownerIds$.set([]);
     }
   }
 
   hideRolesInfo(): void {
-    this.rolesInfoHidden = true;
+    this.rolesInfoHidden$.set(true);
     localStorage.setItem(this.ROLES_INFO_HIDDEN_KEY, 'true');
   }
 
@@ -237,8 +253,6 @@ export class AccountsComponent implements OnInit {
       } else {
         this.toastService.error('Failed to make owner. Please try again.');
       }
-    } finally {
-      this.cdr.markForCheck();
     }
   }
 
@@ -275,8 +289,6 @@ export class AccountsComponent implements OnInit {
       } else {
         this.toastService.error('Failed to remove owner. Please try again.');
       }
-    } finally {
-      this.cdr.markForCheck();
     }
   }
 
@@ -297,7 +309,6 @@ export class AccountsComponent implements OnInit {
 
   async onSubmitAddAccount(): Promise<void> {
     this.formSubmitting = true;
-    this.cdr.markForCheck();
     this.formError = null;
 
     try {
@@ -334,7 +345,6 @@ export class AccountsComponent implements OnInit {
       }
     } finally {
       this.formSubmitting = false;
-      this.cdr.markForCheck();
     }
   }
 
@@ -399,7 +409,6 @@ export class AccountsComponent implements OnInit {
       this.allowedRoles = [];
     } finally {
       this.loadingAllowedRoles = false;
-      this.cdr.markForCheck();
     }
   }
 
@@ -441,7 +450,6 @@ export class AccountsComponent implements OnInit {
       }
     } finally {
       this.roleFormSubmitting = false;
-      this.cdr.markForCheck();
     }
   }
 

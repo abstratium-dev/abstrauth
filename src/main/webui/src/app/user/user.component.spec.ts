@@ -1,7 +1,6 @@
 import type { MockedObject } from "vitest";
 import { createMock } from '../../testing/vitest-mocks';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { signal } from '@angular/core';
 import { UserComponent } from './user.component';
 import { AuthService, Token, ANONYMOUS, ISSUER } from '../auth.service';
@@ -116,7 +115,6 @@ describe('UserComponent', () => {
         await TestBed.configureTestingModule({
             imports: [UserComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 { provide: AuthService, useValue: authService },
                 { provide: Controller, useValue: controllerSpy },
                 { provide: ModelService, useValue: modelService },

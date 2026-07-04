@@ -641,7 +641,8 @@ def main():
     # The actual failed test blocks are written to stderr by Vitest/Angular.
     # Parse them separately and merge them into the stdout-based results.
     stderr_results = parse_lines(stderr_lines)
-    if not stderr_results["overall_success"]:
+    # Only override success if stderr actually found failures (not just defaulting to False)
+    if stderr_results["failed_tests"] or stderr_results["failed_count"] > 0:
         results["overall_success"] = False
     if stderr_results["failed_count"] > results["failed_count"]:
         results["failed_count"] = stderr_results["failed_count"]

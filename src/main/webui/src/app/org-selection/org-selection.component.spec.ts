@@ -1,7 +1,6 @@
 import type { Mock, MockedObject } from "vitest";
 import { createMock } from '../../testing/vitest-mocks';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { OrgSelectionComponent } from './org-selection.component';
@@ -57,7 +56,6 @@ describe('OrgSelectionComponent', () => {
                 ReactiveFormsModule
             ],
             providers: [
-                provideZonelessChangeDetection(),
                 provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 FormBuilder,

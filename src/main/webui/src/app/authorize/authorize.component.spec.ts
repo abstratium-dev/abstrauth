@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { AuthorizeComponent } from './authorize.component';
 import { WINDOW } from '../window.token';
 
@@ -27,7 +26,6 @@ describe('AuthorizeComponent (BFF Pattern)', () => {
         await TestBed.configureTestingModule({
             imports: [AuthorizeComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 { provide: WINDOW, useValue: mockWindow }
             ]
         })

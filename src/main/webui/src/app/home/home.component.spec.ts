@@ -1,7 +1,6 @@
 import type { MockedObject } from "vitest";
 import { createMock } from '../../testing/vitest-mocks';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { Router } from '@angular/router';
 import { HomeComponent } from './home.component';
 import { AuthService } from '../auth.service';
@@ -27,7 +26,6 @@ describe('HomeComponent', () => {
         await TestBed.configureTestingModule({
             imports: [HomeComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 { provide: Router, useValue: mockRouter },
                 { provide: AuthService, useValue: mockAuthService }
             ]

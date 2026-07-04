@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { provideRouter, Router } from '@angular/router';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -19,7 +18,6 @@ describe('ChangePasswordComponent', () => {
         await TestBed.configureTestingModule({
             imports: [ChangePasswordComponent, ReactiveFormsModule],
             providers: [
-                provideZonelessChangeDetection(),
                 Controller,
                 ToastService,
                 provideHttpClient(withXhr()),

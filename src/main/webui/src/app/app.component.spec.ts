@@ -1,7 +1,6 @@
 import type { MockedObject } from "vitest";
 import { createMock } from '../testing/vitest-mocks';
 import { TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
 import { AppComponent } from './app.component';
 import { ModelService } from './model.service';
 import { DomainService } from './domain.service';
@@ -32,7 +31,6 @@ describe('AppComponent', () => {
         await TestBed.configureTestingModule({
             imports: [AppComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 provideRouter([]),
                 { provide: ModelService, useValue: mockModelService },
                 { provide: DomainService, useValue: { isAbstratiumDomain: true } },

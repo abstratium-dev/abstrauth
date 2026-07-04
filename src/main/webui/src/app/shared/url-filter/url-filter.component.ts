@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -32,7 +32,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 export class UrlFilterComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  private cdr = inject(ChangeDetectorRef);
 
   /** Placeholder text for the filter input */
   @Input() placeholder: string = 'Filter...';
@@ -49,7 +48,9 @@ export class UrlFilterComponent implements OnInit {
   /** Emits the current filter text whenever it changes */
   @Output() filterChange = new EventEmitter<string>();
 
-  filterText: string = '';
+  private filterText$ = signal('');
+  get filterText(): string { return this.filterText$(); }
+  set filterText(v: string) { this.filterText$.set(v); }
 
   ngOnInit(): void {
     // Subscribe to URL query parameters with XSS protection
@@ -66,7 +67,6 @@ export class UrlFilterComponent implements OnInit {
         this.filterText = '';
       }
       this.emitFilterChange();
-      this.cdr.markForCheck();
     });
   }
 
