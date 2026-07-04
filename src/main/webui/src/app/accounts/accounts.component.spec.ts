@@ -2473,4 +2473,185 @@ describe('AccountsComponent', () => {
             expect(deleteButtons.length).toBeGreaterThan(0);
         });
     });
+
+    describe('Template Branch Coverage', () => {
+        const mockClients = [
+            {
+                id: '1',
+                orgId: 'test-org',
+                clientId: 'client-1',
+                clientName: 'Client 1',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost',
+                allowedScopes: 'openid profile',
+                requirePkce: false,
+                autoSubscribe: true,
+                publik: false,
+                createdAt: '2024-01-01T00:00:00Z'
+            }
+        ];
+
+        beforeEach(async () => {
+            fixture.detectChanges();
+
+            const accountsReq = httpMock.expectOne('/api/accounts');
+            accountsReq.flush(mockAccounts);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            flushOwnersRequest(['1']);
+            await Promise.resolve(); TestBed.flushEffects();
+
+            const clientsReq = httpMock.expectOne('/api/clients');
+            clientsReq.flush(mockClients);
+            await Promise.resolve(); TestBed.flushEffects();
+            await Promise.resolve();
+            fixture.detectChanges();
+        });
+
+        it('should render add account form error message', () => {
+            component.toggleAddAccountForm();
+            component.formError = 'Invalid input. Please check your entries.';
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            const errorBox = compiled.querySelector('.form-container .error-box');
+            expect(errorBox).toBeTruthy();
+            expect(errorBox?.textContent).toContain('Invalid input. Please check your entries.');
+        });
+
+        it('should render Done button in invite link display', () => {
+            component.toggleAddAccountForm();
+            component.showInviteLink = true;
+            component.inviteLink = 'http://localhost/invite?token=abc';
+            component.accountFormData = { email: 'new@example.com', name: '', authProvider: 'google' };
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            const doneButton = compiled.querySelector('.invite-link-container .form-actions .btn-primary');
+            expect(doneButton).toBeTruthy();
+            expect(doneButton?.textContent).toContain('Done');
+        });
+
+        it('should render password-change hint for native invite link', () => {
+            component.toggleAddAccountForm();
+            component.showInviteLink = true;
+            component.inviteLink = 'http://localhost/invite?token=abc';
+            component.accountFormData = { email: 'new@example.com', name: '', authProvider: 'native' };
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('change their password on first sign-in');
+        });
+
+        it('should render make owner button for non-owner accounts', () => {
+            const modelService = TestBed.inject(ModelService);
+            modelService.setCurrentOrganisation({
+                id: 'test-org',
+                name: 'Test Org',
+                createdAt: '2024-01-01T00:00:00Z',
+                roles: ['owner']
+            });
+            component.ownerIds = ['1']; // only current user is owner
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            const makeOwnerButtons = compiled.querySelectorAll('button[title="Make owner"]');
+            expect(makeOwnerButtons.length).toBe(2);
+        });
+
+        it('should render remove owner button for co-owner accounts', () => {
+            const modelService = TestBed.inject(ModelService);
+            modelService.setCurrentOrganisation({
+                id: 'test-org',
+                name: 'Test Org',
+                createdAt: '2024-01-01T00:00:00Z',
+                roles: ['owner']
+            });
+            component.ownerIds = ['1', '2'];
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            const removeOwnerButtons = compiled.querySelectorAll('[data-testid="remove-owner-button"]');
+            expect(removeOwnerButtons.length).toBe(1);
+        });
+
+        it('should render add role button for each account', () => {
+            const compiled = fixture.nativeElement;
+            const addRoleButtons = compiled.querySelectorAll('.btn-add-small');
+            expect(addRoleButtons.length).toBe(3);
+            expect(addRoleButtons[0].textContent).toContain('Add Role');
+        });
+
+        it('should render role form error message', () => {
+            component.startAddRole('1');
+            component.roleFormError = 'Role already exists';
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            const errorBox = compiled.querySelector('.form-container .error-box');
+            expect(errorBox).toBeTruthy();
+            expect(errorBox?.textContent).toContain('Role already exists');
+        });
+
+        it('should render loading allowed roles indicator', () => {
+            component.startAddRole('1');
+            component.roleFormData = { clientId: 'client-1', role: '' };
+            component.loadingAllowedRoles = true;
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Loading allowed roles');
+        });
+
+        it('should render role selection dropdown', () => {
+            component.startAddRole('1');
+            component.roleFormData = { clientId: 'client-1', role: '' };
+            component.allowedRoles = [{ clientId: 'client-1', role: 'admin', isDefault: false, availableToForeignOrgs: false }];
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            const roleSelect = compiled.querySelector('#role-1');
+            expect(roleSelect).toBeTruthy();
+            expect(compiled.textContent).toContain('Select a role');
+        });
+
+        it('should render role options including default badge', () => {
+            component.startAddRole('1');
+            component.roleFormData = { clientId: 'client-1', role: '' };
+            component.allowedRoles = [
+                { clientId: 'client-1', role: 'admin', isDefault: false, availableToForeignOrgs: false },
+                { clientId: 'client-1', role: 'user', isDefault: true, availableToForeignOrgs: false }
+            ];
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('admin');
+            expect(compiled.textContent).toContain('user');
+            expect(compiled.textContent).toContain('(default)');
+        });
+
+        it('should render empty allowed roles message', () => {
+            component.startAddRole('1');
+            component.roleFormData = { clientId: 'client-1', role: '' };
+            component.allowedRoles = [];
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement;
+            const roleSelect = compiled.querySelector('#role-1') as HTMLSelectElement;
+            expect(roleSelect).toBeTruthy();
+            expect(roleSelect?.textContent).toContain('No allowed roles defined');
+        });
+
+        it('should render delete account button for other accounts', () => {
+            const compiled = fixture.nativeElement;
+            const deleteOtherButtons = compiled.querySelectorAll('button[title="Delete account"]');
+            expect(deleteOtherButtons.length).toBe(2);
+        });
+
+        it('should render delete my account button for current user', () => {
+            const compiled = fixture.nativeElement;
+            const deleteOwnButtons = compiled.querySelectorAll('button[title="Delete my account"]');
+            expect(deleteOwnButtons.length).toBe(1);
+        });
+    });
 });

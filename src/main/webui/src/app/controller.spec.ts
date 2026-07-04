@@ -10,6 +10,7 @@ describe('Controller', () => {
     let httpMock: HttpTestingController;
 
     beforeEach(() => {
+        TestBed.resetTestingModule();
         TestBed.configureTestingModule({
             providers: [
                 provideHttpClient(withXhr()),
@@ -22,7 +23,8 @@ describe('Controller', () => {
     });
 
     afterEach(() => {
-        httpMock.verify();
+        httpMock?.verify();
+        TestBed.resetTestingModule();
     });
 
     it('should be created', () => {

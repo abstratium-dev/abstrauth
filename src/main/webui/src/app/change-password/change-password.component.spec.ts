@@ -191,4 +191,80 @@ describe('ChangePasswordComponent', () => {
         expect(component.passwordForm.get('newPassword')?.touched).toBe(true);
         expect(component.passwordForm.get('confirmPassword')?.touched).toBe(true);
     });
+
+    describe('Template Error Messages', () => {
+        beforeEach(() => {
+            sessionStorage.setItem('requirePasswordChange', 'true');
+            component.ngOnInit();
+            fixture.detectChanges();
+        });
+
+        it('should display current password required error', () => {
+            const oldPasswordControl = component.passwordForm.get('oldPassword')!;
+            oldPasswordControl.setValue('');
+            oldPasswordControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#oldPassword + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('Current password is required');
+        });
+
+        it('should display new password required error', () => {
+            const newPasswordControl = component.passwordForm.get('newPassword')!;
+            newPasswordControl.setValue('');
+            newPasswordControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#newPassword + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('New password is required');
+        });
+
+        it('should display new password minlength error', () => {
+            const newPasswordControl = component.passwordForm.get('newPassword')!;
+            newPasswordControl.setValue('short');
+            newPasswordControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#newPassword + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('at least 8 characters');
+        });
+
+        it('should display confirm password required error', () => {
+            component.passwordForm.patchValue({ newPassword: 'somePassword123' });
+            const confirmPasswordControl = component.passwordForm.get('confirmPassword')!;
+            confirmPasswordControl.setValue('');
+            confirmPasswordControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#confirmPassword + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('Please confirm your password');
+        });
+
+        it('should display passwords do not match error', () => {
+            component.passwordForm.patchValue({
+                newPassword: 'newSecurePass123',
+                confirmPassword: 'differentPass123'
+            });
+            const confirmPasswordControl = component.passwordForm.get('confirmPassword')!;
+            confirmPasswordControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#confirmPassword + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('Passwords do not match');
+        });
+    });
+
+    afterEach(() => {
+        TestBed.resetTestingModule();
+    });
 });

@@ -2434,6 +2434,321 @@ describe('ClientsComponent', () => {
             });
             expect(autoSubscribeText).toContain('Yes');
         });
+
+        it('should render create client form error', () => {
+            component.showForm = true;
+            component.formError = 'Failed to create client';
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Failed to create client');
+        });
+
+        it('should render edit client form error', () => {
+            component.editingClientId = '1';
+            component.formData = {
+                clientId: 'test_client_1',
+                clientName: 'Test',
+                clientType: 'confidential',
+                redirectUris: 'http://localhost:3000/callback',
+                allowedScopes: 'openid',
+                requirePkce: true,
+                autoSubscribe: false,
+                publik: false
+            };
+            component.formError = 'Failed to update client';
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Failed to update client');
+        });
+
+        it('should render no-scope message', () => {
+            const noScopeClient = { ...mockClients[0], allowedScopes: '[]' };
+            TestBed.inject(ModelService).setClients([noScopeClient]);
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('None (role-based authorization only)');
+        });
+
+        it('should render no filter results message', () => {
+            component.onFilterChange('nonexistent');
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('No clients match your filter criteria');
+        });
+
+        it('should render manage secrets button', () => {
+            const compiled = fixture.nativeElement;
+            const buttons = compiled.querySelectorAll('.secret-management button');
+            expect(buttons.length).toBe(2);
+            expect(compiled.textContent).toContain('Manage Secrets');
+        });
+
+        it('should render revoke secret button for active secret', () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.clientSecrets = [
+                { id: 1, description: 'Active', createdAt: '2024-01-01T00:00:00Z', expiresAt: null, active: true }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Revoke');
+        });
+
+        it('should render expired secret warning', () => {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            component.viewingSecretsFor = 'test_client_1';
+            component.clientSecrets = [
+                { id: 1, description: 'Expired', createdAt: '2024-01-01T00:00:00Z', expiresAt: yesterday.toISOString(), active: true }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('has expired');
+        });
+
+        it('should render manage client roles button', () => {
+            const compiled = fixture.nativeElement;
+            const button = compiled.querySelector('[data-testid="manage-client-roles-btn"]');
+            expect(button).toBeTruthy();
+            expect(button?.textContent).toContain('Manage Client To Client Roles');
+        });
+
+        it('should render add client role form with target options', () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.showAddClientRoleForm = true;
+            component.availableTargetClients = [
+                { ...mockClients[0], clientId: 'target_1', clientName: 'Target Client' }
+            ];
+            component.loadingTargetClients.set(false);
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const options = compiled.querySelectorAll('#target-client-select option');
+            expect(options.length).toBe(2);
+            expect(compiled.textContent).toContain('Target Client');
+        });
+
+        it('should render no client roles available message', () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.showAddClientRoleForm = true;
+            component.addClientRoleData.targetClientId = 'target_1';
+            component.availableClientRoleRoles = [];
+            component.loadingClientRoleRoles.set(false);
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.querySelector('[data-testid="no-roles-available"]')).toBeTruthy();
+        });
+
+        it('should render add client role button', () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.showAddClientRoleForm = true;
+            component.addClientRoleData = { targetClientId: 'target_1', role: 'reader' };
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const button = compiled.querySelector('[data-testid="submit-add-client-role-btn"]');
+            expect(button).toBeTruthy();
+            expect(button?.textContent).toContain('Add Role');
+        });
+
+        it('should render manage allowed roles button', () => {
+            const compiled = fixture.nativeElement;
+            const buttons = Array.from(compiled.querySelectorAll('.role-management button')) as HTMLElement[];
+            const allowedRolesButton = buttons.find(b => b.textContent?.includes('Manage Allowed Roles'));
+            expect(allowedRolesButton).toBeTruthy();
+        });
+
+        it('should render add allowed role form', () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.showAddAllowedRoleForm = true;
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.querySelector('#allowed-role-name')).toBeTruthy();
+            expect(compiled.textContent).toContain('Add Allowed Role');
+        });
+
+        it('should render remove allowed role button', () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.allowedRoles = [
+                { clientId: 'test_client_1', role: 'viewer', isDefault: false, availableToForeignOrgs: false }
+            ];
+            component.editingAllowedRole = null;
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const button = compiled.querySelector('[title="Remove role"]');
+            expect(button).toBeTruthy();
+        });
+    });
+
+    describe('Management UI branches', () => {
+        beforeEach(async () => {
+            TestBed.resetTestingModule();
+
+            const routerSpy = createMock<Router>({
+                navigate: vi.fn().mockName("Router.navigate"),
+                createUrlTree: vi.fn().mockName("Router.createUrlTree"),
+                serializeUrl: vi.fn().mockName("Router.serializeUrl"),
+                events: EMPTY
+            });
+            routerSpy.createUrlTree.mockReturnValue({} as any);
+            routerSpy.serializeUrl.mockReturnValue('');
+
+            const confirmServiceSpy = createMock<ConfirmDialogService>({
+                confirm: vi.fn().mockName("ConfirmDialogService.confirm")
+            });
+            confirmServiceSpy.confirm.mockResolvedValue(true);
+
+            const authServiceMock = {
+                token$: vi.fn().mockReturnValue({ orgId: 'test-org', groups: [ROLE_MANAGE_CLIENTS] }),
+                hasRole: vi.fn().mockReturnValue(true),
+                signout: vi.fn()
+            };
+
+            await TestBed.configureTestingModule({
+                imports: [ClientsComponent],
+                providers: [
+                    provideHttpClient(withXhr()),
+                    provideHttpClientTesting(),
+                    { provide: Router, useValue: routerSpy },
+                    { provide: ConfirmDialogService, useValue: confirmServiceSpy },
+                    { provide: AuthService, useValue: authServiceMock },
+                    {
+                        provide: ActivatedRoute,
+                        useValue: {
+                            queryParams: queryParamsSubject.asObservable()
+                        }
+                    }
+                ]
+            }).compileComponents();
+
+            fixture = TestBed.createComponent(ClientsComponent);
+            component = fixture.componentInstance;
+            httpMock = TestBed.inject(HttpTestingController);
+            TestBed.inject(ModelService).reset();
+            confirmService = TestBed.inject(ConfirmDialogService) as MockedObject<ConfirmDialogService>;
+
+            fixture.detectChanges();
+            const req = httpMock.expectOne('/api/clients');
+            req.flush(mockClients);
+            fixture.detectChanges();
+        });
+
+        it('should render secret management buttons', () => {
+            const compiled = fixture.nativeElement;
+            const buttons = compiled.querySelectorAll('.secret-management button');
+            expect(buttons.length).toBe(2);
+            expect(compiled.textContent).toContain('Manage Secrets');
+        });
+
+        it('should render generate secret button', () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.showCreateSecretForm = false;
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const button = compiled.querySelector('.secrets-header button');
+            expect(button).toBeTruthy();
+            expect(button?.textContent).toContain('Generate New Secret');
+        });
+
+        it('should render revoke secret button', () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.clientSecrets = [
+                { id: 1, description: 'Active', createdAt: '2024-01-01T00:00:00Z', expiresAt: null, active: true }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Revoke');
+        });
+
+        it('should render delete secret button', () => {
+            component.viewingSecretsFor = 'test_client_1';
+            component.clientSecrets = [
+                { id: 1, description: 'Inactive', createdAt: '2024-01-01T00:00:00Z', expiresAt: null, active: false }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.textContent).toContain('Delete');
+        });
+
+        it('should render manage client roles button', () => {
+            const compiled = fixture.nativeElement;
+            const button = compiled.querySelector('[data-testid="manage-client-roles-btn"]');
+            expect(button).toBeTruthy();
+        });
+
+        it('should render target client options', () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.showAddClientRoleForm = true;
+            component.availableTargetClients = [
+                { ...mockClients[0], clientId: 'target_1', clientName: 'Target Client' }
+            ];
+            component.loadingTargetClients.set(false);
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const options = compiled.querySelectorAll('#target-client-select option');
+            expect(options.length).toBe(2);
+        });
+
+        it('should render no roles available message', () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.showAddClientRoleForm = true;
+            component.addClientRoleData.targetClientId = 'target_1';
+            component.availableClientRoleRoles = [];
+            component.loadingClientRoleRoles.set(false);
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.querySelector('[data-testid="no-roles-available"]')).toBeTruthy();
+        });
+
+        it('should render add client role button', () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.showAddClientRoleForm = true;
+            component.addClientRoleData = { targetClientId: 'target_1', role: 'reader' };
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const button = compiled.querySelector('[data-testid="submit-add-client-role-btn"]');
+            expect(button).toBeTruthy();
+            expect(button?.textContent).toContain('Add Role');
+        });
+
+        it('should render remove client role button', () => {
+            component.viewingClientRolesFor = 'test_client_1';
+            component.clientRoles = [
+                { targetClientId: 'target_1', role: 'reader', createdAt: '2024-01-01T00:00:00Z' }
+            ];
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const button = compiled.querySelector('[data-testid="remove-client-role-btn"]');
+            expect(button).toBeTruthy();
+        });
+
+        it('should render manage allowed roles button', () => {
+            const compiled = fixture.nativeElement;
+            const buttons = Array.from(compiled.querySelectorAll('.role-management button')) as HTMLElement[];
+            const allowedRolesButton = buttons.find(b => b.textContent?.includes('Manage Allowed Roles'));
+            expect(allowedRolesButton).toBeTruthy();
+        });
+
+        it('should render remove allowed role button', () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.allowedRoles = [
+                { clientId: 'test_client_1', role: 'viewer', isDefault: false, availableToForeignOrgs: false }
+            ];
+            component.editingAllowedRole = null;
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            const button = compiled.querySelector('[title="Remove role"]');
+            expect(button).toBeTruthy();
+        });
+
+        it('should render edit allowed role panel', () => {
+            component.viewingAllowedRolesFor = 'test_client_1';
+            component.allowedRoles = [
+                { clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: false }
+            ];
+            component.editingAllowedRole = 'viewer';
+            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement;
+            expect(compiled.querySelector('.role-edit-panel')).toBeTruthy();
+        });
     });
 
     describe('Deep-link query params', () => {

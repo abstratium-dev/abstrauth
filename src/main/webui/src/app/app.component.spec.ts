@@ -99,4 +99,78 @@ describe('AppComponent', () => {
         expect(banner).toBeTruthy();
         expect(banner?.querySelector('.btn-dismiss')).toBeFalsy();
     });
+
+    it('should display security warning banner when insecureClientSecret is true', () => {
+        const insecureSignal = signal(true);
+        Object.defineProperty(mockModelService, 'insecureClientSecret$', {
+            value: insecureSignal.asReadonly()
+        });
+
+        const fixture = TestBed.createComponent(AppComponent);
+        fixture.detectChanges();
+        const compiled = fixture.nativeElement as HTMLElement;
+        const banner = compiled.querySelector('.security-warning');
+
+        expect(banner).toBeTruthy();
+        expect(banner?.textContent).toContain('SECURITY WARNING');
+        expect(banner?.textContent).toContain('ABSTRAUTH_CLIENT_SECRET');
+    });
+
+    it('should hide security warning banner when dismiss button is clicked', () => {
+        const insecureSignal = signal(true);
+        Object.defineProperty(mockModelService, 'insecureClientSecret$', {
+            value: insecureSignal.asReadonly()
+        });
+
+        const fixture = TestBed.createComponent(AppComponent);
+        fixture.detectChanges();
+        const compiled = fixture.nativeElement as HTMLElement;
+        const banner = compiled.querySelector('.security-warning');
+        expect(banner).toBeTruthy();
+
+        const dismissButton = compiled.querySelector('.security-warning button') as HTMLButtonElement;
+        expect(dismissButton).toBeTruthy();
+        dismissButton.click();
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.showSecurityWarning).toBe(false);
+        expect(compiled.querySelector('.security-warning')).toBeFalsy();
+    });
+
+    it('should display host disclaimer when not on abstratium domain and no legal content', () => {
+        TestBed.overrideProvider(DomainService, { useValue: { isAbstratiumDomain: false } });
+
+        const fixture = TestBed.createComponent(AppComponent);
+        fixture.detectChanges();
+        const compiled = fixture.nativeElement as HTMLElement;
+        const disclaimer = compiled.querySelector('.host-disclaimer');
+
+        expect(disclaimer).toBeTruthy();
+        expect(disclaimer?.textContent).toContain('not hosted by');
+        expect(disclaimer?.textContent).toContain('abstratium informatique');
+    });
+
+    it('should not display host disclaimer when on abstratium domain', () => {
+        const fixture = TestBed.createComponent(AppComponent);
+        fixture.detectChanges();
+        const compiled = fixture.nativeElement as HTMLElement;
+
+        expect(compiled.querySelector('.host-disclaimer')).toBeFalsy();
+    });
+
+    it('should render footer with copyright and brand link', () => {
+        const fixture = TestBed.createComponent(AppComponent);
+        fixture.detectChanges();
+        const compiled = fixture.nativeElement as HTMLElement;
+        const footer = compiled.querySelector('.footer');
+
+        expect(footer).toBeTruthy();
+        expect(footer?.textContent).toContain('Abstrauth');
+        expect(footer?.textContent).toContain('abstratium informatique');
+        expect(footer?.textContent).toContain(`${fixture.componentInstance.copyrightYear}`);
+    });
+
+    afterEach(() => {
+        TestBed.resetTestingModule();
+    });
 });

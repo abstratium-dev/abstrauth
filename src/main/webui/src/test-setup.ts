@@ -1,4 +1,5 @@
-import { beforeEach, vi } from 'vitest';
+import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 const createMockStorage = () => {
     const store: Record<string, string> = {};
@@ -49,4 +50,8 @@ beforeEach(() => {
     sessionStorageMock.setItem.mockClear();
     sessionStorageMock.removeItem.mockClear();
     sessionStorageMock.key.mockClear();
+});
+
+afterEach(() => {
+    TestBed.resetTestingModule();
 });

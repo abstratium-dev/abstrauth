@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { SignupComponent } from './signup.component';
+import { ModelService } from '../model.service';
 
 describe('SignupComponent', () => {
     let component: SignupComponent;
@@ -30,11 +31,13 @@ describe('SignupComponent', () => {
         fixture = TestBed.createComponent(SignupComponent);
         component = fixture.componentInstance;
         httpMock = TestBed.inject(HttpTestingController);
+        TestBed.inject(ModelService).reset();
         fixture.detectChanges();
     });
 
     afterEach(() => {
         httpMock.verify();
+        TestBed.resetTestingModule();
     });
 
     it('should create', () => {
@@ -379,6 +382,135 @@ describe('SignupComponent', () => {
             fixture.destroy();
             // After destroy, setting name should not throw or cause side effects
             expect(() => component.signupForm.get('name')?.setValue('Post-destroy')).not.toThrow();
+        });
+    });
+
+    describe('Template Rendering', () => {
+        it('should render success message', () => {
+            component.message = 'Account created successfully!';
+            component.messageType = 'success';
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const message = compiled.querySelector('#message');
+            expect(message).toBeTruthy();
+            expect(message?.textContent).toContain('Account created successfully!');
+            expect(message?.classList.contains('success-box')).toBe(true);
+        });
+
+        it('should render error message', () => {
+            component.message = 'Signup failed';
+            component.messageType = 'error';
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const message = compiled.querySelector('#message');
+            expect(message).toBeTruthy();
+            expect(message?.textContent).toContain('Signup failed');
+            expect(message?.classList.contains('error-box')).toBe(true);
+        });
+
+        it('should display email required error', () => {
+            const emailControl = component.signupForm.get('email')!;
+            emailControl.setValue('');
+            emailControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#email + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('Email is required');
+        });
+
+        it('should display invalid email error', () => {
+            const emailControl = component.signupForm.get('email')!;
+            emailControl.setValue('invalid-email');
+            emailControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#email + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('Please enter a valid email');
+        });
+
+        it('should display organisation name required error', () => {
+            const orgControl = component.signupForm.get('organisationName')!;
+            orgControl.setValue('');
+            orgControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#organisationName + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('Organisation name is required');
+        });
+
+        it('should display password required error', () => {
+            const passwordControl = component.signupForm.get('password')!;
+            passwordControl.setValue('');
+            passwordControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#password + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('Password is required');
+        });
+
+        it('should display password minlength error', () => {
+            const passwordControl = component.signupForm.get('password')!;
+            passwordControl.setValue('short');
+            passwordControl.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#password + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('at least 8 characters');
+        });
+
+        it('should display confirm password required error', () => {
+            const password2Control = component.signupForm.get('password2')!;
+            password2Control.setValue('');
+            password2Control.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#password2 + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('Password is required');
+        });
+
+        it('should display confirm password minlength error', () => {
+            const password2Control = component.signupForm.get('password2')!;
+            password2Control.setValue('short');
+            password2Control.markAsTouched();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const error = compiled.querySelector('#password2 + .error');
+            expect(error).toBeTruthy();
+            expect(error?.textContent).toContain('at least 8 characters');
+        });
+
+        it('should mark organisationName as manually edited on input', () => {
+            const compiled = fixture.nativeElement as HTMLElement;
+            const orgInput = compiled.querySelector('#organisationName') as HTMLInputElement;
+            orgInput.value = 'Custom Org';
+            orgInput.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            expect(component.organisationNameManuallyEdited).toBe(true);
+        });
+
+        it('should render Creating button text while submitting', () => {
+            component.isSubmitting = true;
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const button = compiled.querySelector('#create-account-button') as HTMLButtonElement;
+            expect(button?.textContent).toContain('Creating...');
         });
     });
 });

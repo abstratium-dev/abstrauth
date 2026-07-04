@@ -37,6 +37,8 @@ describe('OrgSelectionComponent', () => {
     let formSubmitSpy: Mock;
 
     beforeEach(async () => {
+        TestBed.resetTestingModule();
+
         formSubmitSpy = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => { });
         mockWindow = { location: { href: '' } };
         authServiceSpy = createMock<AuthService>({
@@ -89,6 +91,7 @@ describe('OrgSelectionComponent', () => {
 
     afterEach(() => {
         httpMock.verify();
+        TestBed.resetTestingModule();
     });
 
     it('should create', () => {
@@ -253,6 +256,114 @@ describe('OrgSelectionComponent', () => {
 
             component.orgSelectionForm.patchValue({ orgId: 'org-1' });
             expect(component.orgSelectionForm.valid).toBe(true);
+        });
+    });
+
+    describe('Template Rendering', () => {
+        it('should render loading message', () => {
+            fixture.detectChanges();
+            const compiled = fixture.nativeElement as HTMLElement;
+            expect(compiled.textContent).toContain('Loading organisations');
+
+            const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
+            orgReq.flush(mockOrganisations);
+        });
+
+        it('should render organisation radio buttons', () => {
+            fixture.detectChanges();
+            const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
+            orgReq.flush(mockOrganisations);
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const radioButtons = compiled.querySelectorAll('input[type="radio"]');
+            expect(radioButtons.length).toBe(2);
+            expect(compiled.textContent).toContain('Test Organisation 1');
+            expect(compiled.textContent).toContain('Test Organisation 2');
+        });
+
+        it('should render Continue button', () => {
+            fixture.detectChanges();
+            const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
+            orgReq.flush(mockOrganisations);
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const button = compiled.querySelector('#select-org-button') as HTMLButtonElement;
+            expect(button).toBeTruthy();
+            expect(button?.textContent).toContain('Continue');
+        });
+
+        it('should disable Continue button until an organisation is selected', () => {
+            fixture.detectChanges();
+            const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
+            orgReq.flush(mockOrganisations);
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const button = compiled.querySelector('#select-org-button') as HTMLButtonElement;
+            expect(button?.disabled).toBe(true);
+
+            const radioButton = compiled.querySelector('#org-selection-rb-org-1') as HTMLInputElement;
+            radioButton.checked = true;
+            radioButton.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+
+            expect(button?.disabled).toBe(false);
+        });
+
+        it('should update selected organisation when radio button changes', () => {
+            fixture.detectChanges();
+            const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
+            orgReq.flush(mockOrganisations);
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const radioButton = compiled.querySelector('#org-selection-rb-org-2') as HTMLInputElement;
+            radioButton.checked = true;
+            radioButton.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+
+            expect(component.selectedOrgId).toBe('org-2');
+            expect(component.orgSelectionForm.get('orgId')?.value).toBe('org-2');
+        });
+
+        it('should render empty state when no organisations are available', () => {
+            fixture.detectChanges();
+            const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
+            orgReq.flush([]);
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            expect(compiled.textContent).toContain('not a member of any organisation');
+            expect(compiled.querySelector('a')).toBeTruthy();
+            expect(compiled.querySelector('a')?.textContent).toContain('Go back');
+        });
+
+        it('should render error message on load failure', () => {
+            fixture.detectChanges();
+            const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
+            orgReq.flush({ error: 'Failed to load organisations' }, { status: 500, statusText: 'Server Error' });
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            expect(compiled.querySelector('.error-box')).toBeTruthy();
+            expect(compiled.textContent).toContain('Failed to load organisations');
+        });
+
+        it('should show Selecting button text while submitting', () => {
+            fixture.detectChanges();
+            const orgReq = httpMock.expectOne(`/api/org-selection/${mockRequestId}`);
+            orgReq.flush(mockOrganisations);
+            fixture.detectChanges();
+
+            component.orgSelectionForm.patchValue({ orgId: 'org-1' });
+            component.isSubmitting = true;
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const button = compiled.querySelector('#select-org-button') as HTMLButtonElement;
+            expect(button?.textContent).toContain('Selecting...');
         });
     });
 });

@@ -36,6 +36,8 @@ describe('AuditHistoryComponent', () => {
     ];
 
     function createComponent(entityType: string, primaryKey: string) {
+        TestBed.resetTestingModule();
+
         const controllerSpy = {
             getAuditHistory: vi.fn().mockName("Controller.getAuditHistory"),
             getAuditTypes: vi.fn().mockName("Controller.getAuditTypes"),
