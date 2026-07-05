@@ -7,13 +7,13 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.jboss.logging.Logger;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.util.PasswordEncoder;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -27,6 +27,9 @@ public class OAuthClientService {
 
     @Inject
     SecureRandomProvider secureRandomProvider;
+
+    @Inject
+    PasswordEncoder passwordEncoder;
 
     @Inject
     EntityManager em;
@@ -140,15 +143,13 @@ public class OAuthClientService {
      * Hashes a client secret using BCrypt.
      */
     public String hashClientSecret(String plainSecret) {
-        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-        return passwordEncoder.encode(plainSecret);
+        return passwordEncoder.hashClientSecret(plainSecret);
     }
 
     /**
      * Verifies if a plain secret matches a hashed secret.
      */
     public boolean verifyClientSecret(String plainSecret, String hashedSecret) {
-        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
         return passwordEncoder.matches(plainSecret, hashedSecret);
     }
 

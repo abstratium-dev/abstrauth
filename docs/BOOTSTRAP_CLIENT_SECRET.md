@@ -52,6 +52,9 @@ public class BootstrapService {
     
     @Inject
     EntityManager em;
+
+    @Inject
+    PasswordEncoder passwordEncoder;
     
     @ConfigProperty(name = "quarkus.oidc.bff.credentials.secret")
     String clientSecret;
@@ -79,8 +82,7 @@ public class BootstrapService {
         }
         
         // Hash and update
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        String newHash = encoder.encode(clientSecret);
+        String newHash = passwordEncoder.hashClientSecret(clientSecret);
         client.setClientSecretHash(newHash);
         em.merge(client);
         
@@ -91,6 +93,9 @@ public class BootstrapService {
 
 **ConfigResource.java** (enhanced):
 ```java
+@Inject
+PasswordEncoder passwordEncoder;
+
 @GET
 @Produces(MediaType.APPLICATION_JSON)
 public Response getConfig() {
@@ -119,8 +124,7 @@ private boolean isClientSecretInsecure() {
     }
     
     // Check if hash matches default secret
-    BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-    return encoder.matches("dev-secret-CHANGE-IN-PROD", client.getClientSecretHash());
+    return passwordEncoder.matches("dev-secret-CHANGE-IN-PROD", client.getClientSecretHash());
 }
 ```
 

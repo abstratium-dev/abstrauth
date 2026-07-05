@@ -16,7 +16,6 @@ import java.util.Base64;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
@@ -25,6 +24,7 @@ import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancySubscription;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
+import dev.abstratium.abstrauth.util.PasswordEncoder;
 import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
@@ -62,6 +62,9 @@ public class NonMultitenancyTokenExchangeResourceTest {
 
     @Inject
     UserTransaction userTransaction;
+
+    @Inject
+    PasswordEncoder passwordEncoder;
 
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
@@ -709,7 +712,7 @@ public class NonMultitenancyTokenExchangeResourceTest {
 
         ClientSecret secret = new ClientSecret();
         secret.setClientId(clientId);
-        secret.setSecretHash(new BCryptPasswordEncoder().encode(plainSecret));
+        secret.setSecretHash(passwordEncoder.hashClientSecret(plainSecret));
         secret.setDescription("test");
         secret.setActive(true);
         em.persist(secret);

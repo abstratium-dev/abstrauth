@@ -20,7 +20,6 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
@@ -31,6 +30,7 @@ import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.MetricsService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import dev.abstratium.abstrauth.util.JwtSignatureVerifier;
+import dev.abstratium.abstrauth.util.PasswordEncoder;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
@@ -85,6 +85,9 @@ public class NonMultitenancyTokenExchangeResource {
 
     @Inject
     MetricsService metricsService;
+
+    @Inject
+    PasswordEncoder passwordEncoder;
 
     @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
@@ -418,13 +421,8 @@ public class NonMultitenancyTokenExchangeResource {
         if (activeSecrets.isEmpty()) {
             return false;
         }
-        try {
-            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-            return activeSecrets.stream()
-                    .anyMatch(secret -> encoder.matches(clientSecretParam, secret.getSecretHash()));
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
+        return activeSecrets.stream()
+                .anyMatch(secret -> passwordEncoder.matches(clientSecretParam, secret.getSecretHash()));
     }
 
     private String[] extractBasicAuth(String authHeader) {

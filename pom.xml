@@ -21,9 +21,7 @@
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <resources-plugin.version>3.5.0</resources-plugin.version>
-        <spring-security-crypto.version>7.1.0</spring-security-crypto.version>
-        <spring-core.version>7.0.8</spring-core.version>
-        <commons-logging.version>1.4.0</commons-logging.version>
+        <bcrypt.version>0.10.2</bcrypt.version>
         <org-eclipse-jdt-annotation.version>2.4.100</org-eclipse-jdt-annotation.version>
         <wiremock-standalone.version>3.13.2</wiremock-standalone.version>
         <!-- quarkiverse versions - compare to https://quarkus.io/extensions/ -->
@@ -121,21 +119,10 @@
             <artifactId>quarkus-hibernate-validator</artifactId>
         </dependency>
 
-        <!-- Required by spring-security-crypto -->
         <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-crypto</artifactId>
-            <version>${spring-security-crypto.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-core</artifactId>
-            <version>${spring-core.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-            <version>${commons-logging.version}</version>
+            <groupId>at.favre.lib</groupId>
+            <artifactId>bcrypt</artifactId>
+            <version>${bcrypt.version}</version>
         </dependency>
 
         <dependency>
@@ -297,7 +284,7 @@
                             <workingDirectory>${project.basedir}/src/main/webui</workingDirectory>
                             <arguments>
                                 <argument>-c</argument>
-                                <argument>source ~/.nvm/nvm.sh &amp;&amp; nvm use v26.4.0 &amp;&amp; npm test -- --browsers=ChromeHeadless --watch=false</argument>
+                                <argument>source ~/.nvm/nvm.sh &amp;&amp; nvm use v26.4.0 &amp;&amp; npm test -- --watch=false</argument>
                             </arguments>
                         </configuration>
                     </execution>

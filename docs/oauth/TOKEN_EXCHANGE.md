@@ -146,7 +146,7 @@ Use the same `authenticateClient` logic as `TokenResource`:
 
 1. Accept `client_id` and `client_secret` from form params or HTTP Basic Auth.
 2. Look up the client via `OAuthClientService.findByClientId`.
-3. If the client is `confidential`, verify `client_secret` against hashes stored in `ClientSecretService` / `NonMultitenancyClientSecretService` using `BCryptPasswordEncoder`.
+3. If the client is `confidential`, verify `client_secret` against hashes stored in `ClientSecretService` / `NonMultitenancyClientSecretService` using the `PasswordEncoder` bean.
 4. On failure, return `401` with `invalid_client`.
 
 ### 4. Authorise the Exchange

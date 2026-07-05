@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import dev.abstratium.abstrauth.util.PasswordEncoder;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.Credential;
@@ -44,14 +44,14 @@ public class AccountService {
     @Inject
     MetricsService metricsService;
 
+    @Inject
+    PasswordEncoder passwordEncoder;
+
     @ConfigProperty(name = "password.pepper")
     String pepper;
 
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
-
-    // BCrypt with strength 12 (2^12 rounds, OWASP recommendation)
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
 
     public Optional<@NonNull Account> findByEmail(String email) {
         var query = em.createQuery("SELECT a FROM Account a WHERE a.email = :email", Account.class);
@@ -265,17 +265,12 @@ public class AccountService {
 
     private String hashPassword(String password) {
         // Apply pepper (application-wide secret) before hashing for defense-in-depth
-        return passwordEncoder.encode(pepper + password);
+        return passwordEncoder.hashPassword(pepper + password);
     }
 
     private boolean verifyPassword(String plainPassword, String hashedPassword) {
-        try {
-            // Apply pepper before verification
-            return passwordEncoder.matches(pepper + plainPassword, hashedPassword);
-        } catch (IllegalArgumentException e) {
-            // Invalid hash format
-            return false;
-        }
+        // Apply pepper before verification
+        return passwordEncoder.matches(pepper + plainPassword, hashedPassword);
     }
 
     /**

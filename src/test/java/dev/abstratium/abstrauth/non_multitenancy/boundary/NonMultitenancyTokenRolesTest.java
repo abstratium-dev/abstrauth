@@ -5,6 +5,7 @@ import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountR
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.PasswordEncoder;
 import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
@@ -50,6 +51,9 @@ public class NonMultitenancyTokenRolesTest {
 
     @Inject
     TestDatabaseResetHelper dbResetHelper;
+
+    @Inject
+    PasswordEncoder passwordEncoder;
 
     private static final String CLIENT_ID = "abstratium-abstrauth";
     private static final String CLIENT_SECRET = "dev-secret-CHANGE-IN-PROD"; // From V01.010 migration
@@ -203,7 +207,7 @@ public class NonMultitenancyTokenRolesTest {
         
         dev.abstratium.abstrauth.entity.ClientSecret secret = new dev.abstratium.abstrauth.entity.ClientSecret();
         secret.setClientId(prefixedClientId);
-        secret.setSecretHash(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(testSecret));
+        secret.setSecretHash(passwordEncoder.hashClientSecret(testSecret));
         secret.setDescription("Test secret");
         secret.setActive(true);
         em.persist(secret);

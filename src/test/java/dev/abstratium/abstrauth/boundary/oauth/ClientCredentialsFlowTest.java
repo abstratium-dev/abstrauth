@@ -8,11 +8,11 @@ import java.util.Base64;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import dev.abstratium.abstrauth.entity.ClientRole;
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.util.PasswordEncoder;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
@@ -31,6 +31,9 @@ public class ClientCredentialsFlowTest {
 
     @Inject
     EntityManager em;
+
+    @Inject
+    PasswordEncoder passwordEncoder;
 
     @BeforeEach
     @Transactional
@@ -61,7 +64,7 @@ public class ClientCredentialsFlowTest {
         // Create client secret
         ClientSecret secret = new ClientSecret();
         secret.setClientId(clientId);
-        secret.setSecretHash(new BCryptPasswordEncoder().encode(plainSecret));
+        secret.setSecretHash(passwordEncoder.hashClientSecret(plainSecret));
         secret.setDescription("Test secret");
         secret.setActive(true);
         em.persist(secret);
@@ -399,7 +402,7 @@ public class ClientCredentialsFlowTest {
         // Create client secret
         ClientSecret secret = new ClientSecret();
         secret.setClientId(clientId);
-        secret.setSecretHash(new BCryptPasswordEncoder().encode(plainSecret));
+        secret.setSecretHash(passwordEncoder.hashClientSecret(plainSecret));
         secret.setDescription("Test secret");
         secret.setActive(true);
         em.persist(secret);

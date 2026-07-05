@@ -2,7 +2,7 @@
 
 | "Simple Yet Powerful Authentication That Scales With Your Business"
 
-**Abstrauth™** is a lightweight OAuth 2.0 Authorization Server and OpenID Connect Provider with multi-tenant organisation support and federated identity, designed for confidential clients using the Backend For Frontend (BFF) pattern.
+**Abstrauth™** is a lightweight OAuth 2.0 Authorization Server, Token Issuer, and Identity Provider with multi-tenant organisation support, cryptographic tenant isolation, and federated identity. Designed for both Customer Identity and Access Management (CIAM) and Employee Identity and Access Management (EIAM) scenarios, supporting confidential clients using the Backend For Frontend (BFF) pattern with zero trust architecture.
 
 ## Why Abstrauth™?
 
@@ -18,18 +18,20 @@ Abstrauth™ is **self-hosted authentication and identity management** built aro
 - **Security by default.** Tokens are stored in HTTP-only cookies, never touched by JavaScript. PKCE is mandatory. Rate limiting and CSRF protection are built in, not bolted on.
 - **Tiny footprint, production ready.** A GraalVM native image means near-instant startup, minimal memory, and a single deployable binary. No JVM warm-up, no bloat.
 
-If you are building a software application and need authentication that scales from one customer to thousands Abstrauth™ is for you.
+If you are building a software application and need authentication for your customers, or if you need an identity provider for your employees, Abstrauth™ scales from one user to thousands across both CIAM and EIAM scenarios.
 
 ## A more technical overview 
 
 Abstrauth™ functions as:
 
 - **OAuth 2.0 Authorization Server** - Authorization Code Flow with PKCE (RFC 6749, RFC 7636); confidential clients only
+- **Token Issuer** - Issues PS256-signed access tokens and ID tokens via authorization, token, and UserInfo endpoints
 - **OpenID Connect Provider** - Issues JWT tokens with `openid`, `profile`, `email`, and `orgId` claims
-- **Identity Provider (IdP)** - Native username/password authentication
+- **Identity Provider (IdP)** - Native username/password authentication with enterprise SSO capabilities for both customers and employees
 - **Identity Broker** - Federated authentication with external IdPs (Google, Microsoft)
-- **Identity and Access Management (IAM)** - Manages user accounts, organisations, roles, subscriptions, and client applications
-- **Multi-tenant Platform** - Organisations subscribe to applications; each JWT carries an `orgId` claim used as a tenant discriminator by downstream services
+- **Identity and Access Management (IAM)** - Manages user accounts, organisations, roles, subscriptions, and client applications for both customer (CIAM) and employee (EIAM) scenarios
+- **Multi-tenant Platform** - Cryptographic tenant isolation; each JWT carries an `orgId` claim used as a tenant discriminator by downstream services
+- **Zero Trust Architecture** - Stateless authentication with cryptographic tenant boundaries and enterprise-grade security
 
 ## Key Features
 

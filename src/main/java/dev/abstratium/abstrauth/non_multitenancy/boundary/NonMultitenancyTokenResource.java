@@ -18,8 +18,6 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
@@ -39,6 +37,7 @@ import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import dev.abstratium.abstrauth.util.ClientIdUtil;
+import dev.abstratium.abstrauth.util.PasswordEncoder;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
@@ -102,6 +101,9 @@ public class NonMultitenancyTokenResource {
 
     @Inject
     MetricsService metricsService;
+
+    @Inject
+    PasswordEncoder passwordEncoder;
 
     @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
@@ -711,14 +713,8 @@ public class NonMultitenancyTokenResource {
         }
 
         // Verify secret against all active secrets using BCrypt
-        try {
-            BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-            return activeSecrets.stream()
-                .anyMatch(secret -> passwordEncoder.matches(clientSecret, secret.getSecretHash()));
-        } catch (IllegalArgumentException e) {
-            // Invalid hash format
-            return false;
-        }
+        return activeSecrets.stream()
+            .anyMatch(secret -> passwordEncoder.matches(clientSecret, secret.getSecretHash()));
     }
 
     /**
@@ -743,14 +739,8 @@ public class NonMultitenancyTokenResource {
         }
 
         // Verify secret against all active secrets using BCrypt
-        try {
-            BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-            return activeSecrets.stream()
-                .anyMatch(secret -> passwordEncoder.matches(clientSecret, secret.getSecretHash()));
-        } catch (IllegalArgumentException e) {
-            // Invalid hash format
-            return false;
-        }
+        return activeSecrets.stream()
+            .anyMatch(secret -> passwordEncoder.matches(clientSecret, secret.getSecretHash()));
     }
 
     /**

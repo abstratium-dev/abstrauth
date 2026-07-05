@@ -200,7 +200,7 @@ Ensure everything is up to date (see upgrading above).
 
 Ensure docs and especially USER_GUIDE.md is up to date.
 
-Ensure that `mvn verify` is successful.
+Ensure that `mvn clean && mvn verify` is successful.
 
 Start `quarkus dev`
 

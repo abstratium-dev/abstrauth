@@ -2,7 +2,7 @@
 
 ## Concepts
 
-Abstrauth™ is a multi-tenant OAuth 2.0 Authorization Server. The key concepts are:
+Abstrauth™ is a multi-tenant OAuth 2.0 Authorization Server and Token Issuer implementing Identity and Access Management (IAM) for both Customer Identity (CIAM) and Employee Identity (EIAM) scenarios with zero trust architecture. The key concepts are:
 
 - **Account** - a user's login identity (email + auth provider). Global, not scoped to any organisation.
 - **Organisation** - the tenant boundary. Every user belongs to one or more organisations. The `orgId` in the JWT is what downstream applications use as `tenantId`.
@@ -16,6 +16,27 @@ graph LR
     Organisation -->|subscribes to| Client
     Account -->|has roles for| Client
 ```
+
+## CIAM vs EIAM Use Cases
+
+Abstrauth™ supports both Customer Identity and Access Management (CIAM) and Employee Identity and Access Management (EIAM) scenarios:
+
+### **Customer Identity (CIAM)**
+- **Use Case**: Authenticate your SaaS application's customers
+- **Organisation Structure**: Each customer is an organisation with their own users
+- **Example**: A project management SaaS where Company A, Company B, and Company C each have their own isolated user base
+
+### **Employee Identity (EIAM)**
+- **Use Case**: Authenticate your own employees for internal applications
+- **Organisation Structure**: Your company is the organisation, employees are the users
+- **Example**: Internal HR system, intranet, or internal tools where only your employees need access
+
+### **Hybrid Scenarios**
+- **Use Case**: Platform that serves both customers and internal staff
+- **Organisation Structure**: Multiple customer organisations plus your internal employee organisation
+- **Example**: Marketplace platform where external customers and internal employees both need authentication
+
+The same Abstrauth™ instance can handle all these scenarios simultaneously with complete cryptographic isolation between organisations.
 
 ## Initial Onboarding (Signup)
 
@@ -112,9 +133,7 @@ Each account has roles assigned per client. To add a role:
 
 1. Click **+ Add Role** on the account tile
 2. Select a **client** (dropdown shows all clients your org owns or subscribes to)
-3. Select or type a **role**:
-   - For **public clients** (subscribed from another org): choose from the client's allowed-roles dropdown
-   - For **private clients** (your org owns it): type any role name (alphanumeric + hyphens)
+3. Select a **role** from the dropdown (populated from the client's allowed-roles catalog)
 4. Click **Add Role**
 
 To remove a role, click the delete button next to it and confirm.
@@ -281,44 +300,44 @@ When the source client authenticates via the client credentials grant, `TokenRes
 
 ```mermaid
 sequenceDiagram
-    participant Src as Source Client<br/>(my-service)
+    participant Job as Scheduled Job<br/>(invoice-generator)
     participant Auth as Abstrauth<br/>(TokenResource)
-    participant Tgt as Target API<br/>(accounting-service)
+    participant Tgt as Billing API<br/>(billing-service)
 
-    Src->>Auth: POST /oauth2/token<br/>grant_type=client_credentials
+    Job->>Auth: POST /oauth2/token<br/>grant_type=client_credentials
     Auth->>Auth: Look up ClientRole records<br/>for src_client_id, filtered by orgId
-    Auth->>Src: JWT with groups:<br/>["accounting-service_writer"]
-    Src->>Tgt: GET /api/transactions<br/>Authorization: Bearer JWT
-    Tgt->>Tgt: @RolesAllowed("accounting-service_writer")
-    Tgt->>Src: 200 OK
+    Auth->>Job: JWT with groups:<br/>["billing-service_writer"]
+    Job->>Tgt: POST /api/invoices<br/>Authorization: Bearer JWT
+    Tgt->>Tgt: @RolesAllowed("billing-service_writer")
+    Tgt->>Job: 201 Created
 ```
 
 #### Setting Up M2M
 
 Note that clients exist in order to model applications that use Abstrauth™ for authentication. It is highly likely that you will already have clients stored for those applications. When one needs to call a second one, you just need to configure the caller so that it has the roles that are required to call the target client (the second application).
 
-Note that it might be better to use the token exchange API to change a users token for one that allows a call to a downstream service to be made in their name. For that to work, the user needs all the required roles in the downstream client also, otherwise the call won't succeed.
+If the downstream call must be made in the user's context (preserving their identity and audit trail), use [Token Exchange](#token-exchange-delegated-downstream-calls) instead of the client credentials grant.
 
 VERY IMPORTANT: the JWT that is created contains the organisation ID of the client that signed in. Calls made with that JWT will affect downstream data belonging to that organisation (if multitenancy is properly implemented downstream. See MULTITENANCY_DESIGN.md). If your organisation doesn't own the client, your organisation cannot know the client secret, and so cannot write software that will sign in as that client. This means you cannot re-use clients that dispayed just because your organisation subscribes to them. You will have to create your own clients in order to use them for M2M authentication.
 
 **Step 1 — Create the target API client** (if it doesn't exist) and add allowed roles:
 1. Navigate to **Clients** → find or create the target API client
-2. Click **Allowed Roles** and add the roles the client exposes (e.g., `writer`, `reader`)
+2. Click **📋 Manage Allowed Roles** and add the roles the client exposes (e.g., `writer`, `reader`)
 
 **Step 2 — Create the calling service client:**
 1. Navigate to **Clients** → **+ Add Client**
 2. Fill in:
-   - **Client ID**: `my-service`
-   - **Client Name**: `My Backend Service`
+   - **Client ID**: `invoice-generator`
+   - **Client Name**: `Invoice Generator Job`
    - **Redirect URIs**: leave empty
    - **Allowed Scopes**: leave empty (role-based authorization only)
 3. Click **Create Client** and **copy the generated client secret** — shown only once
 
 **Step 3 — Assign client roles:**
-1. On the source client card, click **Client Roles**
+1. On the source client card, click **🔌 Manage Client To Client Roles**
 2. Click **+ Add Client Role**
 3. Select the **target client** and the **role** from the dropdown
-4. Click **Add**
+4. Click **Add Role**
 
 **Important:** Scopes and redirect URIs should be left empty for M2M clients. If scopes are configured, the client is treated as a user-facing application.
 
@@ -327,10 +346,10 @@ VERY IMPORTANT: the JWT that is created contains the organisation ID of the clie
 Use the client credentials grant to get an access token:
 
 ```bash
-curl -X POST http://localhost:8080/oauth2/token \
+curl -X POST https://auth.yourdomain.com/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=client_credentials" \
-  -d "client_id=my-service" \
+  -d "client_id=invoice-generator" \
   -d "client_secret=YOUR_CLIENT_SECRET"
 ```
 
@@ -360,8 +379,8 @@ curl -v -X GET http://localhost:8080/api/auth/check \
 ```json
 {
   "authenticated": true,
-  "clientId": "my-service",
-  "groups": ["accounting-service_writer"]
+  "clientId": "invoice-generator",
+  "groups": ["billing-service_writer"]
 }
 ```
 
@@ -378,24 +397,24 @@ M2M clients use the `groups` claim for `@RolesAllowed` authorization. The format
 ```json
 {
   "iss": "https://<stage>.abstrauth.abstratium.dev",
-  "sub": "my-service",
-  "aud": "my-service",
+  "sub": "invoice-generator",
+  "aud": "invoice-generator",
   "exp": 1234567890,
   "iat": 1234564290,
   "jti": "unique-token-id",
-  "client_id": "my-service",
+  "client_id": "invoice-generator",
   "orgId": "<owning-org-uuid>",
-  "groups": ["accounting-service_writer"]
+  "groups": ["billing-service_writer"]
 }
 ```
 
 **Backend Code (target API):**
 ```java
 @POST
-@Path("/transactions")
-@RolesAllowed("accounting-service_writer")
-public Response createTransaction(TransactionRequest req) {
-    String caller = jwt.getSubject();  // "my-service" — useful for audit logs
+@Path("/invoices")
+@RolesAllowed("billing-service_writer")
+public Response generateInvoices(InvoiceRequest req) {
+    String caller = jwt.getSubject();  // "invoice-generator" — useful for audit logs
     return Response.ok().build();
 }
 ```
@@ -425,19 +444,20 @@ public Response createTransaction(TransactionRequest req) {
 5. **Monitor token usage** via logs and metrics
 6. **Set up alerts** for failed authentication attempts
 
-#### Example: Python Service
+#### Example: Python Scheduled Job
+
+A nightly invoice generation job authenticates as itself and calls the billing API:
 
 ```python
 import requests
 import os
 
-# Configuration
-TOKEN_URL = "http://localhost:8080/oauth2/token"
-API_URL = "http://localhost:8080/api/data"
-CLIENT_ID = "my-service"
+TOKEN_URL = "https://auth.yourdomain.com/oauth2/token"
+BILLING_API_URL = "https://billing.yourdomain.com/api/invoices"
+CLIENT_ID = "invoice-generator"
 CLIENT_SECRET = os.environ["CLIENT_SECRET"]
 
-# Get access token
+# Obtain a service token (no user involved)
 token_response = requests.post(TOKEN_URL, data={
     "grant_type": "client_credentials",
     "client_id": CLIENT_ID,
@@ -446,46 +466,152 @@ token_response = requests.post(TOKEN_URL, data={
 token_response.raise_for_status()
 access_token = token_response.json()["access_token"]
 
-# Use token to access API
-api_response = requests.get(API_URL, headers={
-    "Authorization": f"Bearer {access_token}"
-})
-api_response.raise_for_status()
-print(api_response.json())
+# Call the billing API
+response = requests.post(BILLING_API_URL, json={"period": "2026-06"},
+    headers={"Authorization": f"Bearer {access_token}"})
+response.raise_for_status()
+print(response.json())
 ```
 
-#### Example: Java Service
+#### Example: Java Scheduled Job
+
+A nightly invoice generation job authenticates as itself and calls the billing API:
 
 ```java
 import java.net.http.*;
 import java.net.URI;
 
-public class ServiceClient {
-    private static final String TOKEN_URL = "http://localhost:8080/oauth2/token";
-    private static final String CLIENT_ID = "my-service";
+public class InvoiceGeneratorJob {
+    private static final String TOKEN_URL = "https://auth.yourdomain.com/oauth2/token";
+    private static final String BILLING_API_URL = "https://billing.yourdomain.com/api/invoices";
+    private static final String CLIENT_ID = "invoice-generator";
     private static final String CLIENT_SECRET = System.getenv("CLIENT_SECRET");
-    
-    public String getAccessToken() throws Exception {
-        HttpClient client = HttpClient.newHttpClient();
-        String body = String.format(
-            "grant_type=client_credentials&client_id=%s&client_secret=%s",
-            CLIENT_ID, CLIENT_SECRET
-        );
-        
+
+    public void run(String period) throws Exception {
+        String accessToken = obtainServiceToken();
+
+        HttpRequest invoiceRequest = HttpRequest.newBuilder()
+            .uri(URI.create(BILLING_API_URL))
+            .header("Authorization", "Bearer " + accessToken)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString("{\"period\":\"" + period + "\"}"))
+            .build();
+        HttpClient.newHttpClient().send(invoiceRequest, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private String obtainServiceToken() throws Exception {
+        String body = "grant_type=client_credentials&client_id=" + CLIENT_ID
+            + "&client_secret=" + CLIENT_SECRET;
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(TOKEN_URL))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
-            
-        HttpResponse<String> response = client.send(request, 
-            HttpResponse.BodyHandlers.ofString());
-        
-        // Parse JSON and extract access_token
+        HttpResponse<String> response = HttpClient.newHttpClient()
+            .send(request, HttpResponse.BodyHandlers.ofString());
         return parseAccessToken(response.body());
     }
 }
 ```
+
+### Token Exchange (Delegated Downstream Calls)
+
+When a backend service (e.g. a BFF) already holds a user's access token and needs to call a further downstream service **on behalf of that user**, it should exchange the token rather than use the client credentials grant. Token exchange (RFC 8693) produces a new token that:
+
+- Retains the original user identity (`sub`, `orgId`)
+- Carries the user's roles for the **target** (downstream) client
+- Records which service performed the exchange (`act` claim — useful for audit)
+
+This is preferable to M2M client credentials when the downstream call must be made in the user's context (e.g. for per-user authorisation or audit trails in the downstream service).
+
+#### When to Use Token Exchange vs M2M
+
+| Scenario | Use |
+|---|---|
+| Service calls another service with **no user context** | M2M client credentials |
+| Service calls another service **on behalf of the signed-in user** | Token exchange |
+
+#### Prerequisites
+
+1. Both the calling client and the target client must exist.
+2. The user's organisation must subscribe to both clients.
+3. The target client must have the required roles listed in its **Allowed Roles**.
+4. The user must have those roles assigned (or the target client must have default roles configured).
+
+#### Endpoint
+
+```
+POST /oauth2/token/exchange
+Content-Type: application/x-www-form-urlencoded
+```
+
+| Parameter | Required | Value |
+|-----------|----------|-------|
+| `grant_type` | Yes | `urn:ietf:params:oauth:grant-type:token-exchange` |
+| `subject_token` | Yes | The user's current access token |
+| `subject_token_type` | Yes | `urn:ietf:params:oauth:token-type:access_token` |
+| `audience` | Yes | `client_id` of the downstream service |
+| `client_id` | Yes | `client_id` of the calling service |
+| `client_secret` | Yes | Secret of the calling service |
+| `scope` | No | Subset of the original token's scopes |
+| `context` | No | JSON object with request context (e.g. `{"orderId":"abc123"}`) |
+
+#### Example
+
+A BFF has a user token scoped to `webshop-bff` and needs to call `contract-fulfilment`:
+
+```bash
+curl -X POST https://auth.yourdomain.com/oauth2/token/exchange \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
+  -d "subject_token=<USER_ACCESS_TOKEN>" \
+  -d "subject_token_type=urn:ietf:params:oauth:token-type:access_token" \
+  -d "audience=contract-fulfilment" \
+  -d "client_id=webshop-bff" \
+  -d "client_secret=<BFF_SECRET>"
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token"
+}
+```
+
+The issued token's `sub` is still the original user. Its `groups` reflect the user's roles in `contract-fulfilment`. The `act.sub` claim identifies `webshop-bff` as the service that performed the exchange.
+
+#### Chaining
+
+A once-exchanged token can itself be exchanged by the downstream service to call a further service. The maximum chain depth is controlled by `ABSTRAUTH_TOKEN_EXCHANGE_MAX_DEPTH` (default: `3`).
+
+```mermaid
+sequenceDiagram
+    participant BFF as BFF<br/>(webshop-bff)
+    participant Auth as Abstrauth<br/>(/oauth2/token/exchange)
+    participant Svc as Downstream Service<br/>(contract-fulfilment)
+
+    BFF->>Auth: POST /oauth2/token/exchange<br/>subject_token=USER_TOKEN<br/>audience=contract-fulfilment
+    Auth->>Auth: Verify token, check subscriptions,<br/>resolve user roles for audience
+    Auth->>BFF: New JWT (sub=user, act.sub=webshop-bff,<br/>groups=[contract-fulfilment_reader])
+    BFF->>Svc: GET /api/contracts<br/>Authorization: Bearer NEW_JWT
+    Svc->>Svc: @RolesAllowed("contract-fulfilment_reader")
+    Svc->>BFF: 200 OK
+```
+
+#### Error Responses
+
+| Error | Cause |
+|-------|-------|
+| `invalid_grant` | Subject token is expired or revoked |
+| `invalid_request` | Missing parameter, invalid token, or max chain depth exceeded |
+| `invalid_scope` | Requested scope exceeds original token's scope |
+| `unauthorized_client` | Org is not subscribed to the caller or audience client |
+| `invalid_client` | Caller client authentication failed |
+
+See [docs/oauth/TOKEN_EXCHANGE.md](docs/oauth/TOKEN_EXCHANGE.md) for the full technical design.
 
 ## Subscriptions
 
@@ -821,6 +947,8 @@ See [client-example](client-example/README.md).
 
 - [OAuth 2.0 Flows Documentation](docs/oauth/FLOWS.md)
 - [Federated Login Guide](docs/oauth/FEDERATED_LOGIN.md)
+- [Token Exchange Design](docs/oauth/TOKEN_EXCHANGE.md)
 - [Security Best Practices](docs/security/SECURITY_DESIGN.md)
 - [RFC 6749 - OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc6749)
 - [RFC 7636 - PKCE](https://datatracker.ietf.org/doc/html/rfc7636)
+- [RFC 8693 - Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693)
