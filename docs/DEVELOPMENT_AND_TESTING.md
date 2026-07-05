@@ -128,6 +128,10 @@ jbang jdk default 25
 Ensure `maven.compiler.release` in `pom.xml` matches JDK version above.
 Update all the version properties in `pom.xml`.
 
+Generate a new Quarkus project and replace the existing docker build files with the new ones, but watch out for the labels and "code-with-quarkus" names that need to be adjusted.
+
+Search for `-25` and update all locations, e.g. NATIVE_IMAGE_BUILD.md, etc.
+
 2. Install/Update Maven:
 
 ```bash
