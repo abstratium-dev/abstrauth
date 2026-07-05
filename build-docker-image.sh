@@ -8,6 +8,9 @@
 
 set -e
 
+echo "Cleaning..."
+./mvnw clean
+
 echo "Building native executable..."
 # Build with compatibility mode for broader CPU support across different hardware
 # -march=compatibility ensures the binary works on older CPUs without AVX/AVX2 instructions
