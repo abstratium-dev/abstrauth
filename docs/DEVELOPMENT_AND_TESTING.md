@@ -148,12 +148,16 @@ quarkus update
 4. Update the quarkus extensions too, if the above doesn't do it - this is done by using the internet to find the latest version of the extension and updating the version in `pom.xml`.
 
 5. Update node/npm using nvm.
-See https://angular.dev/reference/versions
-Needs you to reinstall the ng cli. 
+See https://github.com/nvm-sh/nvm#installing-and-updating for updating nvm itself.
+See https://nodejs.org/en/download/current for latest version number.
+See https://angular.dev/reference/versions for compatibility.
+Changing the version of node needs you to reinstall the ng cli as shown below.
 Give `nvm use` the version that was just installed.
 
 ```bash
-nvm install node
+# change the version numbers as required, see the "see" notes above
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
+nvm install 26
 nvm use v26.4.0
 npm i -g @angular/cli
 ```
