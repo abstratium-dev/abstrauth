@@ -37,6 +37,7 @@ docker run -it --rm \
   -e ALLOW_SIGNUP=false \
   -e ALLOW_NATIVE_SIGNIN=true \
   -e OAUTH_GOOGLE_REDIRECT_URI="http://localhost:8080/oauth2/callback/google" \
+  -e OAUTH_MICROSOFT_REDIRECT_URI="http://localhost:8080/oauth2/callback/microsoft" \
   -e PASSWORD_PEPPER="${PASSWORD_PEPPER}" \
   -e QUARKUS_MANAGEMENT_HOST=0.0.0.0 \
   -e ABSTRAUTH_CLIENT_SECRET=qzzRSarGgFFRCz3omjvxdkTHfnlibAjG \

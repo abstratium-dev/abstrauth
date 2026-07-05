@@ -801,6 +801,11 @@ _Replace all `TODO_...` values with the values generated above.
      -e ABSTRA_BRAND_LOGO_ALT="Your Company Logo" \
      -e ABSTRA_BRAND_NAME="YOUR COMPANY" \
      -e ABSTRAUTH_AUDIT_RETENTION_DAYS="90"
+     -e SMTP_HOST="TODO your email host" \
+     -e SMTP_PORT="TODO your email port" \
+     -e SMTP_USERNAME="TODO your email username" \
+     -e SMTP_PASSWORD="TODO your email password" \
+     -e SMTP_PASSWORD="TODO the email address from which to send" \
      ghcr.io/abstratium-dev/abstrauth:latest
    ```
 
@@ -816,6 +821,11 @@ _Replace all `TODO_...` values with the values generated above.
    - `STAGE`: Deployment stage identifier exposed to the frontend (e.g., "dev", "test", "prod", defaults to "dev")
    - `DEFAULT_ORG_UUID`: UUID for the default organisation that existing data is migrated into (generate with `uuidgen`)
    - `ABSTRAUTH_BASE_URL`: Public base URL of the Abstrauth™ deployment (e.g., `https://auth.yourdomain.com`). Used for links in emails such as secret expiration notifications. Must be set per stage; production has no default.
+   - `SMTP_HOST`: SMTP server hostname
+   - `SMTP_PORT`: SMTP server port (default: `587`)
+   - `SMTP_USERNAME`: SMTP authentication username
+   - `SMTP_PASSWORD`: SMTP authentication password
+   - `EMAIL_FROM`: Sender email address (default: `noreply@abstratium.dev`)
 
    **Optional Environment Variables:**
    - `OAUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID (required only for "Sign in with Google")
@@ -832,11 +842,6 @@ _Replace all `TODO_...` values with the values generated above.
    - `ALLOW_NATIVE_SIGNIN`: if true, users can sign in with email & password, otherwise they can only sign in  (default: `true`)
    - `ABSTRAUTH_EMAIL_ENABLED`: Enable/disable email notifications (default: `false` in dev, `true` in prod)
    - `SECRET_EXPIRATION_NOTIFICATION_CRON`: Cron expression for the secret expiration notification job (default: `0 0 6 * * ?`, i.e., 06:00 UTC daily). Use standard Quartz cron syntax.
-   - `SMTP_HOST`: SMTP server hostname
-   - `SMTP_PORT`: SMTP server port (default: `587`)
-   - `SMTP_USERNAME`: SMTP authentication username
-   - `SMTP_PASSWORD`: SMTP authentication password
-   - `EMAIL_FROM`: Sender email address (default: `noreply@abstratium.dev`)
    - `ABSTRAUTH_WARNING_MESSAGE`: Custom warning message displayed in a yellow banner at the top of the UI. Useful for indicating non-production environments (e.g., "You are in a development environment"). Leave empty for production (default: empty in prod, environment-specific in dev/test).
    - `ABSTRA_BRAND_LOGO_URL`: URL of the logo image shown in the header. Defaults to `https://abstratium.dev/abstratium-logo-small.png`.
    - `ABSTRA_BRAND_LOGO_ALT`: Alt text for the header logo image. Defaults to `Abstratium Logo`.
