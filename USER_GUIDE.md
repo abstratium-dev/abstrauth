@@ -806,6 +806,7 @@ _Replace all `TODO_...` values with the values generated above.
      -e SMTP_USERNAME="TODO your email username" \
      -e SMTP_PASSWORD="TODO your email password" \
      -e SMTP_PASSWORD="TODO the email address from which to send" \
+     -e STAGE="yourStage" \
      ghcr.io/abstratium-dev/abstrauth:latest
    ```
 
