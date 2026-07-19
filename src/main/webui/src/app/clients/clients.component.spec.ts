@@ -440,7 +440,7 @@ describe('ClientsComponent', () => {
 
         it('should create client successfully', async () => {
             component.formData = {
-                clientId: 'new_client',
+                clientId: 'new-client',
                 clientName: 'New Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -454,14 +454,14 @@ describe('ClientsComponent', () => {
 
             const createReq = httpMock.expectOne('/api/clients');
             expect(createReq.request.method).toBe('POST');
-            expect(createReq.request.body.clientId).toBe('new_client');
+            expect(createReq.request.body.clientId).toBe('new-client');
             expect(createReq.request.body.redirectUris).toBe('["http://localhost:3000/callback"]');
             expect(createReq.request.body.allowedScopes).toBe('["openid","profile"]');
 
             createReq.flush({
                 id: '3',
                 orgId: 'test-org',
-                clientId: 'new_client',
+                clientId: 'new-client',
                 clientName: 'New Client',
                 clientType: 'confidential',
                 redirectUris: '["http://localhost:3000/callback"]',
@@ -487,7 +487,7 @@ describe('ClientsComponent', () => {
 
         it('should handle multiple redirect URIs', async () => {
             component.formData = {
-                clientId: 'multi_uri_client',
+                clientId: 'multi-uri-client',
                 clientName: 'Multi URI Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback\nhttp://localhost:4000/callback',
@@ -513,7 +513,7 @@ describe('ClientsComponent', () => {
 
         it('should handle comma-separated scopes', async () => {
             component.formData = {
-                clientId: 'comma_scopes_client',
+                clientId: 'comma-scopes-client',
                 clientName: 'Comma Scopes Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -539,7 +539,7 @@ describe('ClientsComponent', () => {
 
         it('should validate redirect URIs are required when scopes are set', async () => {
             component.formData = {
-                clientId: 'test_client',
+                clientId: 'test-client',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: '',
@@ -557,7 +557,7 @@ describe('ClientsComponent', () => {
 
         it('should validate scopes are required when redirect URIs are set', async () => {
             component.formData = {
-                clientId: 'test_client',
+                clientId: 'test-client',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -573,9 +573,9 @@ describe('ClientsComponent', () => {
             expect(component.formSubmitting).toBe(false);
         });
 
-        it('should validate client ID contains only letters, numbers, and underscores', async () => {
+        it('should validate client ID contains only letters, numbers, and hyphens', async () => {
             component.formData = {
-                clientId: 'invalid-client-id',
+                clientId: 'invalid_client_id',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -587,7 +587,7 @@ describe('ClientsComponent', () => {
 
             await component.onSubmit();
 
-            expect(component.formError).toBe('Client ID must contain only letters, numbers, and underscores');
+            expect(component.formError).toBe('Client ID must contain only letters, numbers, and hyphens');
             expect(component.formSubmitting).toBe(false);
         });
 
@@ -605,13 +605,13 @@ describe('ClientsComponent', () => {
 
             await component.onSubmit();
 
-            expect(component.formError).toBe('Client ID must contain only letters, numbers, and underscores');
+            expect(component.formError).toBe('Client ID must contain only letters, numbers, and hyphens');
             expect(component.formSubmitting).toBe(false);
         });
 
-        it('should accept client ID with underscores', async () => {
+        it('should accept client ID with hyphens', async () => {
             component.formData = {
-                clientId: 'my_client_id',
+                clientId: 'my-client-id',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -625,12 +625,12 @@ describe('ClientsComponent', () => {
 
             const createReq = httpMock.expectOne('/api/clients');
             expect(createReq.request.method).toBe('POST');
-            expect(createReq.request.body.clientId).toBe('my_client_id');
+            expect(createReq.request.body.clientId).toBe('my-client-id');
 
             createReq.flush({
                 id: '3',
                 orgId: 'test-org',
-                clientId: 'my_client_id',
+                clientId: 'my-client-id',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: '["http://localhost:3000/callback"]',
@@ -653,7 +653,7 @@ describe('ClientsComponent', () => {
 
         it('should accept client ID with numbers', async () => {
             component.formData = {
-                clientId: 'client123_test456',
+                clientId: 'client123-test456',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -667,12 +667,12 @@ describe('ClientsComponent', () => {
 
             const createReq = httpMock.expectOne('/api/clients');
             expect(createReq.request.method).toBe('POST');
-            expect(createReq.request.body.clientId).toBe('client123_test456');
+            expect(createReq.request.body.clientId).toBe('client123-test456');
 
             createReq.flush({
                 id: '3',
                 orgId: 'test-org',
-                clientId: 'client123_test456',
+                clientId: 'client123-test456',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: '["http://localhost:3000/callback"]',
@@ -694,7 +694,7 @@ describe('ClientsComponent', () => {
 
         it('should allow M2M client with no scopes and no redirect URIs', async () => {
             component.formData = {
-                clientId: 'm2m_client',
+                clientId: 'm2m-client',
                 clientName: 'M2M Client',
                 clientType: 'confidential',
                 redirectUris: '',
@@ -708,7 +708,7 @@ describe('ClientsComponent', () => {
 
             const createReq = httpMock.expectOne('/api/clients');
             expect(createReq.request.method).toBe('POST');
-            expect(createReq.request.body.clientId).toBe('m2m_client');
+            expect(createReq.request.body.clientId).toBe('m2m-client');
             expect(createReq.request.body.redirectUris).toBe('[]');
             expect(createReq.request.body.allowedScopes).toBe('[]');
 
@@ -739,7 +739,7 @@ describe('ClientsComponent', () => {
         it('should handle duplicate client ID error', async () => {
             component.showForm = true;
             component.formData = {
-                clientId: 'existing_client',
+                clientId: 'existing-client',
                 clientName: 'Existing Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -762,7 +762,7 @@ describe('ClientsComponent', () => {
 
         it('should handle permission error', async () => {
             component.formData = {
-                clientId: 'test_client',
+                clientId: 'test-client',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -784,7 +784,7 @@ describe('ClientsComponent', () => {
 
         it('should handle generic error', async () => {
             component.formData = {
-                clientId: 'test_client',
+                clientId: 'test-client',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -806,7 +806,7 @@ describe('ClientsComponent', () => {
 
         it('should set formSubmitting during submission', async () => {
             component.formData = {
-                clientId: 'test_client',
+                clientId: 'test-client',
                 clientName: 'Test Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -1815,7 +1815,7 @@ describe('ClientsComponent', () => {
 
         it('should show secret dialog when clientSecret is returned', async () => {
             component.formData = {
-                clientId: 'secret_client',
+                clientId: 'secret-client',
                 clientName: 'Secret Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -1831,7 +1831,7 @@ describe('ClientsComponent', () => {
             createReq.flush({
                 id: '3',
                 orgId: 'test-org',
-                clientId: 'secret_client',
+                clientId: 'secret-client',
                 clientName: 'Secret Client',
                 clientType: 'confidential',
                 redirectUris: '["http://localhost:3000/callback"]',
@@ -1850,13 +1850,13 @@ describe('ClientsComponent', () => {
             await submitPromise;
 
             expect(component.newClientSecret).toBe('generated-secret');
-            expect(component.newClientId).toBe('secret_client');
+            expect(component.newClientId).toBe('secret-client');
             expect(component.newClientName).toBe('Secret Client');
         });
 
         it('should handle 400 with validation violations', async () => {
             component.formData = {
-                clientId: 'new_client',
+                clientId: 'new-client',
                 clientName: 'New Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -1881,7 +1881,7 @@ describe('ClientsComponent', () => {
 
         it('should handle 400 with error object', async () => {
             component.formData = {
-                clientId: 'new_client',
+                clientId: 'new-client',
                 clientName: 'New Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',
@@ -1903,7 +1903,7 @@ describe('ClientsComponent', () => {
 
         it('should handle 400 with generic error', async () => {
             component.formData = {
-                clientId: 'new_client',
+                clientId: 'new-client',
                 clientName: 'New Client',
                 clientType: 'confidential',
                 redirectUris: 'http://localhost:3000/callback',

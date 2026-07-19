@@ -372,10 +372,10 @@ public class NonMultitenancyTokenResourceTest {
         String manageToken = createRealManageTokenForOrg(orgId);
 
         // Create source client (the one that will sign in)
-        String srcClientId = createClient(manageToken, "src_own_org", "[]", "[]");
+        String srcClientId = createClient(manageToken, "src-own-org", "[]", "[]");
 
         // Create target client in the same org
-        String targetClientId = createClientWithAllowedRole(manageToken, "target_own_org", "api-reader", true);
+        String targetClientId = createClientWithAllowedRole(manageToken, "target-own-org", "api-reader", true);
 
         // Create a client role assignment: src -> target with role 'api-reader'
         given()
@@ -448,8 +448,8 @@ public class NonMultitenancyTokenResourceTest {
             .sign();
 
         // In Org A: Create source client and assign it a role for a target
-        String srcClientIdA = createClient(manageTokenA, "src_cross_org", "[]", "[]");
-        String targetClientIdA = createClientWithAllowedRole(manageTokenA, "target_a", "api-reader", true);
+        String srcClientIdA = createClient(manageTokenA, "src-cross-org", "[]", "[]");
+        String targetClientIdA = createClientWithAllowedRole(manageTokenA, "target-a", "api-reader", true);
 
         given()
             .header("Authorization", "Bearer " + manageTokenA)
@@ -461,8 +461,8 @@ public class NonMultitenancyTokenResourceTest {
             .statusCode(201);
 
         // In Org B: Create a source and target client with different IDs
-        String srcClientIdB = createClient(manageTokenB, "src_cross_org_b", "[]", "[]");
-        String targetClientIdB = createClientWithAllowedRole(manageTokenB, "target_b", "api-writer", true);
+        String srcClientIdB = createClient(manageTokenB, "src-cross-org-b", "[]", "[]");
+        String targetClientIdB = createClientWithAllowedRole(manageTokenB, "target-b", "api-writer", true);
         given()
             .header("Authorization", "Bearer " + manageTokenB)
             .contentType("application/json")
@@ -514,7 +514,7 @@ public class NonMultitenancyTokenResourceTest {
         String manageToken = createRealManageTokenForOrg(defaultOrgId);
 
         // Create a client but don't assign any client roles
-        String clientId = createClient(manageToken, "no_roles_client", "[]", "[]");
+        String clientId = createClient(manageToken, "no-roles-client", "[]", "[]");
         String clientSecret = createClientSecret(manageToken, clientId);
 
         String accessToken = given()
@@ -549,8 +549,8 @@ public class NonMultitenancyTokenResourceTest {
         String manageToken = createRealManageTokenForOrg(defaultOrgId);
 
         // Create source client and target with role assignment
-        String srcClientId = createClient(manageToken, "isolated_client", "[]", "[]");
-        String targetClientId = createClientWithAllowedRole(manageToken, "isolated_target", "secure-role", true);
+        String srcClientId = createClient(manageToken, "isolated-client", "[]", "[]");
+        String targetClientId = createClientWithAllowedRole(manageToken, "isolated-target", "secure-role", true);
 
         given()
             .header("Authorization", "Bearer " + manageToken)
@@ -592,7 +592,7 @@ public class NonMultitenancyTokenResourceTest {
     // Helper methods for new tests
 
     private String createClient(String manageToken, String clientName, String allowedScopes, String redirectUris) {
-        String uniqueClientId = clientName + "_" + System.currentTimeMillis();
+        String uniqueClientId = clientName + "-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",

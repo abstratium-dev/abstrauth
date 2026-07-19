@@ -21,6 +21,8 @@
 
   : java.util.concurrent.CompletionException: io.vertx.ext.mail.SMTPException: recipient address not accepted: 550 5.1.1 <makeowner_promo_1783263807019@abstratium.dev>: Recipient address rejected: User unknown in virtual mailbox table
 
+- migrate existing clientId to have orgId
+
 
 - bug when signing out of abstrapact
 

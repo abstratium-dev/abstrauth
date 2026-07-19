@@ -362,10 +362,10 @@ export class ClientsComponent implements OnInit {
     this.formError = null;
     this.formSubmitting = true;
 
-    // Validate client ID format: only letters, numbers, and underscores allowed
-    const clientIdPattern = /^[a-zA-Z0-9_]+$/;
+    // Validate client ID format: only letters, numbers, and hyphens allowed
+    const clientIdPattern = /^[a-zA-Z0-9-]+$/;
     if (!this.editingClientId && !clientIdPattern.test(this.formData.clientId)) {
-      this.formError = 'Client ID must contain only letters, numbers, and underscores';
+      this.formError = 'Client ID must contain only letters, numbers, and hyphens';
       this.formSubmitting = false;
       return;
     }

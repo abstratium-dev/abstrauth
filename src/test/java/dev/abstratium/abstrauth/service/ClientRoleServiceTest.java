@@ -63,7 +63,7 @@ public class ClientRoleServiceTest {
     }
 
     private String createClientWithAllowedRole(String token, String clientIdPrefix, String role, boolean availableToForeignOrgs) {
-        String uniqueClientId = clientIdPrefix + "_" + System.currentTimeMillis();
+        String uniqueClientId = clientIdPrefix + "-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -103,10 +103,10 @@ public class ClientRoleServiceTest {
         String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source client
-        String srcClientId = createClientWithAllowedRole(token, "src_client", "caller-role", true);
+        String srcClientId = createClientWithAllowedRole(token, "src-client", "caller-role", true);
 
         // Create target client with an allowed role
-        String targetClientId = createClientWithAllowedRole(token, "target_client", "api-reader", true);
+        String targetClientId = createClientWithAllowedRole(token, "target-client", "api-reader", true);
 
         // Add a client role assignment (src can call target with api-reader role)
         given()
@@ -138,10 +138,10 @@ public class ClientRoleServiceTest {
         String wrongToken = generateManageTokenForOrg(OTHER_ORG);
 
         // Create source client in default org
-        String srcClientId = createClientWithAllowedRole(defaultToken, "src_wrong", "caller-role", true);
+        String srcClientId = createClientWithAllowedRole(defaultToken, "src-wrong", "caller-role", true);
 
         // Create target client in default org
-        String targetClientId = createClientWithAllowedRole(defaultToken, "target_wrong", "api-reader", true);
+        String targetClientId = createClientWithAllowedRole(defaultToken, "target-wrong", "api-reader", true);
 
         // Attempt to add a client role using token for different org
         given()
@@ -160,10 +160,10 @@ public class ClientRoleServiceTest {
         String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source client
-        String srcClientId = createClientWithAllowedRole(token, "src_not_in_catalog", "caller-role", true);
+        String srcClientId = createClientWithAllowedRole(token, "src-not-in-catalog", "caller-role", true);
 
         // Create target client WITHOUT the role in its catalog
-        String uniqueTargetId = "target_no_role_" + System.currentTimeMillis();
+        String uniqueTargetId = "target-no-role-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -201,8 +201,8 @@ public class ClientRoleServiceTest {
         String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source and target clients
-        String srcClientId = createClientWithAllowedRole(token, "src_dup", "caller-role", true);
-        String targetClientId = createClientWithAllowedRole(token, "target_dup", "api-writer", true);
+        String srcClientId = createClientWithAllowedRole(token, "src-dup", "caller-role", true);
+        String targetClientId = createClientWithAllowedRole(token, "target-dup", "api-writer", true);
 
         // Add first role assignment
         given()
@@ -231,8 +231,8 @@ public class ClientRoleServiceTest {
         String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source and target clients
-        String srcClientId = createClientWithAllowedRole(token, "src_remove", "caller-role", true);
-        String targetClientId = createClientWithAllowedRole(token, "target_remove", "api-reader", true);
+        String srcClientId = createClientWithAllowedRole(token, "src-remove", "caller-role", true);
+        String targetClientId = createClientWithAllowedRole(token, "target-remove", "api-reader", true);
 
         // Add role assignment
         given()
@@ -277,8 +277,8 @@ public class ClientRoleServiceTest {
         String wrongToken = generateManageTokenForOrg(OTHER_ORG);
 
         // Create source and target clients
-        String srcClientId = createClientWithAllowedRole(defaultToken, "src_rem_wrong", "caller-role", true);
-        String targetClientId = createClientWithAllowedRole(defaultToken, "target_rem_wrong", "api-reader", true);
+        String srcClientId = createClientWithAllowedRole(defaultToken, "src-rem-wrong", "caller-role", true);
+        String targetClientId = createClientWithAllowedRole(defaultToken, "target-rem-wrong", "api-reader", true);
 
         // Add role assignment
         given()
@@ -305,8 +305,8 @@ public class ClientRoleServiceTest {
         String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source and target clients
-        String srcClientId = createClientWithAllowedRole(token, "src_rem_missing", "caller-role", true);
-        String targetClientId = createClientWithAllowedRole(token, "target_rem_missing", "api-reader", true);
+        String srcClientId = createClientWithAllowedRole(token, "src-rem-missing", "caller-role", true);
+        String targetClientId = createClientWithAllowedRole(token, "target-rem-missing", "api-reader", true);
 
         // Try to remove non-existent role
         given()
@@ -324,7 +324,7 @@ public class ClientRoleServiceTest {
         String userToken = generateUserTokenForOrg(defaultOrgId);
 
         // Create clients
-        String srcClientId = createClientWithAllowedRole(manageToken, "src_list", "caller-role", true);
+        String srcClientId = createClientWithAllowedRole(manageToken, "src-list", "caller-role", true);
 
         // User can list (read-only access)
         given()
@@ -345,7 +345,7 @@ public class ClientRoleServiceTest {
         String token = generateManageTokenForOrg(defaultOrgId);
 
         // Create source client
-        String srcClientId = createClientWithAllowedRole(token, "src_abstrauth", "caller-role", true);
+        String srcClientId = createClientWithAllowedRole(token, "src-abstrauth", "caller-role", true);
 
         // Assign role to abstratium-abstrauth (target client)
         // The default org has a subscription to abstratium-abstrauth seeded by migration

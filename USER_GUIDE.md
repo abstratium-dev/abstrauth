@@ -165,7 +165,7 @@ Use the filter to search by name, client ID, type, URI, or scope.
 
 1. Click **+ Add Client**
 2. Fill in:
-   - **Client ID** - unique identifier (letters, numbers, underscores). The actual client ID used in your application will be prepended with your organisation's unique prefix.
+   - **Client ID** - unique identifier (letters, numbers, hyphens). The actual client ID used in your application will be prepended with your organisation's unique prefix.
    - **Client Name** - human-readable name
    - **Client Type** - always `confidential` (BFF pattern)
    - **Public** - check if other organisations should be able to subscribe

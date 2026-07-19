@@ -1,18 +1,22 @@
 package dev.abstratium.abstrauth.boundary;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.service.SubscriptionService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Tests for ClientsResource
@@ -264,7 +268,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientSuccessfully() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -364,7 +368,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithMissingRedirectUrisReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_no_redirect_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-no-redirect-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -388,7 +392,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithEmptyScopesAndRedirectsReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_empty_scopes_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-empty-scopes-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -418,7 +422,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithNeitherScopesNorRedirectsSucceeds() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_m2m_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-m2m-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -446,7 +450,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithMissingAllowedScopesReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_missing_scopes_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-missing-scopes-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -470,7 +474,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithDuplicateClientIdReturns409() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_dup_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-dup-" + System.currentTimeMillis();
 
         // First create a client successfully
         String requestBody = String.format("""
@@ -642,7 +646,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientDefaultsRequirePkceToTrue() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_pkce_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-pkce-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -667,7 +671,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithPublicTypeReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_public_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-public-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -693,10 +697,10 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientWithInvalidClientIdCharactersReturns400() {
         String token = generateValidToken();
-        // Client ID with invalid characters (dash is not allowed)
+        // Client ID with invalid characters (underscore is not allowed)
         String requestBody = """
             {
-                "clientId": "my-client-id",
+                "clientId": "my_client_id",
                 "clientName": "Test Client",
                 "clientType": "confidential",
                 "redirectUris": "[\\"http://localhost:3000/callback\\"]",
@@ -713,7 +717,7 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(400)
-            .body("error", equalTo("Client ID must contain only letters, numbers, and underscores"));
+            .body("error", equalTo("Client ID must contain only letters, numbers, and hyphens"));
     }
 
     @Test
@@ -739,17 +743,17 @@ public class ClientsResourceTest {
             .post("/api/clients")
             .then()
             .statusCode(400)
-            .body("error", equalTo("Client ID must contain only letters, numbers, and underscores"));
+            .body("error", equalTo("Client ID must contain only letters, numbers, and hyphens"));
     }
 
     @Test
-    public void testCreateClientWithValidClientIdUnderscoresSucceeds() {
+    public void testCreateClientWithValidClientIdHyphensSucceeds() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
-                "clientName": "Test Client With Underscores",
+                "clientName": "Test Client With Hyphens",
                 "clientType": "confidential",
                 "redirectUris": "[\\"http://localhost:3000/callback\\"]",
                 "allowedScopes": "[\\"openid\\"]",
@@ -766,13 +770,13 @@ public class ClientsResourceTest {
             .then()
             .statusCode(201)
             .body("clientId", equalTo(defaultOrgId + "__" + uniqueClientId))
-            .body("clientName", equalTo("Test Client With Underscores"));
+            .body("clientName", equalTo("Test Client With Hyphens"));
     }
 
     @Test
     public void testCreateClientWithRequirePkceFalseReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_no_pkce_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-no-pkce-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -866,7 +870,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientGeneratesValidSecret() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_secret_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-secret-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -901,7 +905,7 @@ public class ClientsResourceTest {
     @Test
     public void testCreateClientCreatesSubscriptionForOwningOrg() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_sub_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-sub-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -929,7 +933,7 @@ public class ClientsResourceTest {
     @Test
     public void testUserWithoutManageClientsCanSeeOwnOrgClients() {
         String managerToken = generateValidToken();
-        String uniqueClientId = "test_client_visibility_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-visibility-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -964,7 +968,7 @@ public class ClientsResourceTest {
         String token = generateValidToken();
         
         // Create a client first
-        String uniqueClientId = "test_client_no_secret_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-no-secret-" + System.currentTimeMillis();
         String requestBody = String.format("""
             {
                 "clientId": "%s",
@@ -1002,7 +1006,7 @@ public class ClientsResourceTest {
     @Test
     public void testAddAllowedRoleSuccessfully() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_add_role_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-add-role-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -1056,7 +1060,7 @@ public class ClientsResourceTest {
     @Test
     public void testAddAllowedRoleDuplicateReturns409() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_dup_role_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-dup-role-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -1166,7 +1170,7 @@ public class ClientsResourceTest {
     @Test
     public void testAddAllowedRoleWithInvalidCharactersReturns400() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_invalid_role_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-invalid-role-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -1208,7 +1212,7 @@ public class ClientsResourceTest {
     @Test
     public void testUpdateAllowedRoleSuccessfully() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_update_role_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-update-role-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -1272,7 +1276,7 @@ public class ClientsResourceTest {
     @Test
     public void testUpdateAllowedRoleNonExistentRoleReturns404() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_update_missing_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-update-missing-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -1369,7 +1373,7 @@ public class ClientsResourceTest {
     @Test
     public void testRemoveAllowedRoleSuccessfully() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_remove_role_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-remove-role-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -1421,7 +1425,7 @@ public class ClientsResourceTest {
     @Test
     public void testRemoveAllowedRoleNonExistentRoleReturns404() {
         String token = generateValidToken();
-        String uniqueClientId = "test_client_remove_missing_" + System.currentTimeMillis();
+        String uniqueClientId = "test-client-remove-missing-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",

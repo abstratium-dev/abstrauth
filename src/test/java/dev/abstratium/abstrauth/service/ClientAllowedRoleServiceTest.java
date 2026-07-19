@@ -76,7 +76,7 @@ public class ClientAllowedRoleServiceTest {
     @Test
     public void testAddAllowedRoleWithCorrectOrg() {
         String token = generateTokenForOrg(defaultOrgId);
-        String uniqueClientId = "test_svc_add_role_" + System.currentTimeMillis();
+        String uniqueClientId = "test-svc-add-role-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -126,7 +126,7 @@ public class ClientAllowedRoleServiceTest {
     public void testAddAllowedRoleWithWrongOrgReturns404() {
         String defaultToken = generateTokenForOrg(defaultOrgId);
         String wrongToken = generateTokenForOrg(OTHER_ORG);
-        String uniqueClientId = "test_svc_wrong_add_" + System.currentTimeMillis();
+        String uniqueClientId = "test-svc-wrong-add-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -162,7 +162,7 @@ public class ClientAllowedRoleServiceTest {
     @Test
     public void testAddAllowedRoleDuplicateReturns409() {
         String token = generateTokenForOrg(defaultOrgId);
-        String uniqueClientId = "test_svc_dup_" + System.currentTimeMillis();
+        String uniqueClientId = "test-svc-dup-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -207,7 +207,7 @@ public class ClientAllowedRoleServiceTest {
     public void testUpdateAllowedRoleWithWrongOrgReturns404() {
         String defaultToken = generateTokenForOrg(defaultOrgId);
         String wrongToken = generateTokenForOrg(OTHER_ORG);
-        String uniqueClientId = "test_svc_wrong_upd_" + System.currentTimeMillis();
+        String uniqueClientId = "test-svc-wrong-upd-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -252,7 +252,7 @@ public class ClientAllowedRoleServiceTest {
     @Test
     public void testUpdateNonExistentRoleReturns404() {
         String token = generateTokenForOrg(defaultOrgId);
-        String uniqueClientId = "test_svc_upd_missing_" + System.currentTimeMillis();
+        String uniqueClientId = "test-svc-upd-missing-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -288,7 +288,7 @@ public class ClientAllowedRoleServiceTest {
     public void testRemoveAllowedRoleWithWrongOrgReturns404() {
         String defaultToken = generateTokenForOrg(defaultOrgId);
         String wrongToken = generateTokenForOrg(OTHER_ORG);
-        String uniqueClientId = "test_svc_wrong_rem_" + System.currentTimeMillis();
+        String uniqueClientId = "test-svc-wrong-rem-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -331,7 +331,7 @@ public class ClientAllowedRoleServiceTest {
     @Test
     public void testRemoveNonExistentRoleReturns404() {
         String token = generateTokenForOrg(defaultOrgId);
-        String uniqueClientId = "test_svc_rem_missing_" + System.currentTimeMillis();
+        String uniqueClientId = "test-svc-rem-missing-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -369,7 +369,7 @@ public class ClientAllowedRoleServiceTest {
     @Test
     public void testForeignOrgCanOnlySeeAvailableRoles() throws Exception {
         String ownerToken = generateTokenForOrg(defaultOrgId);
-        String uniqueClientId = "test_svc_foreign_roles_" + System.currentTimeMillis();
+        String uniqueClientId = "test-svc-foreign-roles-" + System.currentTimeMillis();
 
         // Create a public client in defaultOrgId
         String createBody = String.format("""
@@ -499,10 +499,10 @@ public class ClientAllowedRoleServiceTest {
         String token = generateTokenForOrg(defaultOrgId);
 
         // Create a target client with an allowed role
-        String targetClientId = createClientWithAllowedRole(token, "target_cascade", "api-reader", true);
+        String targetClientId = createClientWithAllowedRole(token, "target-cascade", "api-reader", true);
 
         // Create a source client (will be assigned the role to call the target)
-        String srcClientId = createClientWithAllowedRole(token, "src_cascade", "caller-role", true);
+        String srcClientId = createClientWithAllowedRole(token, "src-cascade", "caller-role", true);
 
         // Assign a client role: src can call target with api-reader role
         given()
@@ -553,7 +553,7 @@ public class ClientAllowedRoleServiceTest {
         String ownerToken = generateTokenForOrg(defaultOrgId);
 
         // Create a public target client with an allowed role available to foreign orgs
-        String uniqueClientId = "target_foreign_cascade_" + System.currentTimeMillis();
+        String uniqueClientId = "target-foreign-cascade-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",
@@ -634,7 +634,7 @@ public class ClientAllowedRoleServiceTest {
             .contentType("application/json")
             .body(String.format("""
                 {
-                    "clientId": "foreign_src_%s",
+                    "clientId": "foreign-src-%s",
                     "clientName": "Foreign Source Client",
                     "clientType": "confidential"
                 }
@@ -668,7 +668,7 @@ public class ClientAllowedRoleServiceTest {
             .body("roles.targetClientId", hasItem(targetClientId));
 
         // Owner org also creates a source client and assigns the role
-        String ownerSrcClientId = createClientWithAllowedRole(ownerToken, "owner_src_cascade", "caller-role", true);
+        String ownerSrcClientId = createClientWithAllowedRole(ownerToken, "owner-src-cascade", "caller-role", true);
         given()
             .header("Authorization", "Bearer " + ownerToken)
             .contentType("application/json")
@@ -719,7 +719,7 @@ public class ClientAllowedRoleServiceTest {
     }
 
     private String createClientWithAllowedRole(String token, String clientIdPrefix, String role, boolean availableToForeignOrgs) {
-        String uniqueClientId = clientIdPrefix + "_" + System.currentTimeMillis();
+        String uniqueClientId = clientIdPrefix + "-" + System.currentTimeMillis();
         String createBody = String.format("""
             {
                 "clientId": "%s",

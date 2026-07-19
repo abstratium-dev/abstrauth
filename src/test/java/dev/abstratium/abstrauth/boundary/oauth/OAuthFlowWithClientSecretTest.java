@@ -98,7 +98,7 @@ public class OAuthFlowWithClientSecretTest {
      */
     @Test
     public void testCompleteOAuthFlowWithNewClientAndSecret() throws Exception {
-        String clientId = "test_oauth_flow_" + System.currentTimeMillis();
+        String clientId = "test-oauth-flow-" + System.currentTimeMillis();
         String actualClientId = defaultOrgId + "__" + clientId;
 
         // Step 1: Create a new OAuth client via REST API
@@ -195,7 +195,7 @@ public class OAuthFlowWithClientSecretTest {
      */
     @Test
     public void testRevokedSecretRejected() throws Exception {
-        String clientId = "test_oauth_flow_revoked_" + System.currentTimeMillis();
+        String clientId = "test-oauth-flow-revoked-" + System.currentTimeMillis();
         String actualClientId = defaultOrgId + "__" + clientId;
 
         // Create client via REST API
@@ -266,7 +266,7 @@ public class OAuthFlowWithClientSecretTest {
      */
     @Test
     public void testWrongSecretRejected() throws Exception {
-        String clientId = "test_oauth_flow_wrong_" + System.currentTimeMillis();
+        String clientId = "test-oauth-flow-wrong-" + System.currentTimeMillis();
         String actualClientId = defaultOrgId + "__" + clientId;
 
         // Create client via REST API
@@ -324,7 +324,7 @@ public class OAuthFlowWithClientSecretTest {
      */
     @Test
     public void testMultipleActiveSecretsWork() throws Exception {
-        String clientId = "test_oauth_flow_multi_" + System.currentTimeMillis();
+        String clientId = "test-oauth-flow-multi-" + System.currentTimeMillis();
         String actualClientId = defaultOrgId + "__" + clientId;
 
         // Create client via REST API

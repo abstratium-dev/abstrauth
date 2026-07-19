@@ -78,10 +78,10 @@ public class ClientsResource {
     @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response createClient(@Valid CreateClientRequest request) {
 
-        // Validate client ID format: only letters, numbers, and underscores allowed
-        if (!request.clientId.matches("^[a-zA-Z0-9_]+$")) {
+        // Validate client ID format: only letters, numbers, and hyphens allowed
+        if (!request.clientId.matches("^[a-zA-Z0-9-]+$")) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse("Client ID must contain only letters, numbers, and underscores"))
+                    .entity(new ErrorResponse("Client ID must contain only letters, numbers, and hyphens"))
                     .build();
         }
 
