@@ -85,4 +85,44 @@ public class LogoutResourceTest {
                 .statusCode(303)
                 .header("Location", endsWith("/home?state=xyz789"));
     }
+
+    @Test
+    public void testLogoutGet_withConfiguredOrigin_includesCorsHeaders() {
+        given()
+                .header("Origin", "http://localhost:8080")
+                .redirects().follow(false)
+                .when()
+                .get(LOGOUT_PATH)
+                .then()
+                .statusCode(303)
+                .header("Access-Control-Allow-Origin", "http://localhost:8080")
+                .header("Access-Control-Allow-Credentials", "true");
+    }
+
+    @Test
+    public void testLogoutGet_withLocalhostPortOrigin_includesCorsHeaders() {
+        given()
+                .header("Origin", "http://localhost:8088")
+                .queryParam("post_logout_redirect_uri", "http://localhost:8088/")
+                .redirects().follow(false)
+                .when()
+                .get(LOGOUT_PATH)
+                .then()
+                .statusCode(303)
+                .header("Access-Control-Allow-Origin", "http://localhost:8088")
+                .header("Access-Control-Allow-Credentials", "true")
+                .header("Location", equalTo("http://localhost:8088/"));
+    }
+
+    @Test
+    public void testLogoutGet_withDisallowedOrigin_returnsForbidden() {
+        given()
+                .header("Origin", "http://evil.example.com")
+                .queryParam("post_logout_redirect_uri", "http://localhost:8088/")
+                .redirects().follow(false)
+                .when()
+                .get(LOGOUT_PATH)
+                .then()
+                .statusCode(403);
+    }
 }

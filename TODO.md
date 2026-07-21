@@ -21,17 +21,6 @@
 
   : java.util.concurrent.CompletionException: io.vertx.ext.mail.SMTPException: recipient address not accepted: 550 5.1.1 <makeowner_promo_1783263807019@abstratium.dev>: Recipient address rejected: User unknown in virtual mailbox table
 
-- migrate existing clientId to have orgId
-
-
-- bug when signing out of abstrapact
-
-    [Header] Signing out
-    [LoginPage] Asserting on signed-out page
-    [Browser Error] Access to XMLHttpRequest at 'https://auth-t.abstratium.dev/api/auth/logout?id_token_hint=eyJra...Jwg&post_logout_redirect_uri=http%3A%2F%2Flocalhost%3A8088%2F&state=9eba8fab-676e-4e75-b4e2-88f42b18ec08' (redirected from 'http://localhost:8088/api/auth/logout') from origin 'http://localhost:8088' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-    [Browser Error] [AUTH] Error calling logout endpoint: HttpErrorResponse
-    [Browser Error] Failed to load resource: net::ERR_FAILED
-
 
 
 
