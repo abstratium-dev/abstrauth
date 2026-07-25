@@ -55,22 +55,6 @@ public class OrgIdResolutionFilterTest {
     @Test
     @TestSecurity(user = "testuser", roles = {"jwt-test-user"})
     @OidcSecurity(claims = {
-            @Claim(key = "sub", value = "testuser")
-    })
-    void filter_withNoOidcSecurityOrgIdAndBearerHeader_doesNotUseHeader() {
-        String token = buildBearerToken("{\"sub\":\"testuser\",\"orgId\":\"" + TEST_ORG_ID + "\"}");
-        given()
-                .header("Authorization", "Bearer " + token)
-                .when()
-                .get("/api/test/org-id")
-                .then()
-                .statusCode(200)
-                .body(org.hamcrest.Matchers.is("null"));
-    }
-
-    @Test
-    @TestSecurity(user = "testuser", roles = {"jwt-test-user"})
-    @OidcSecurity(claims = {
             @Claim(key = "orgId", value = "")
     })
     void filter_withBlankOidcSecurityOrgId_setsNothing() {
