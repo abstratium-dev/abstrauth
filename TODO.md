@@ -11,6 +11,14 @@
 
 ## Today
 
+- if i have one client secret that is expired and another that is valid, i can revoke the valid one. that shouldn't be possible.
+
+- i cannot delete expired client secrets.
+
+- when falling back to default orgId, i want to log what the context is, why is the default orgId being used?
+  - 2026-07-25 23:38:02,000 WARN  [dev.abs.abs.ser.JwtOrgResolver] (vert.x-worker-thread-1) [skey:] Falling back to defaultOrgId (request tenant not resolved)
+
+
 - all done :-)
 
 
