@@ -176,6 +176,7 @@
       <!-- Filter Section -->
       <url-filter id="clients-filter" [placeholder]="'Filter by name, client ID, type, URI, or scope...'"
         [itemCount]="filteredClients.length" [totalCount]="clients.length" [itemLabel]="'clients'"
+        [filterText]="filterText"
         (filterChange)="onFilterChange($event)">
       </url-filter>
 

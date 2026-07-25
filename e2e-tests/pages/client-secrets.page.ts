@@ -14,18 +14,20 @@ export async function toggleSecretsView(page: Page, clientId: string) {
     // Click the "Manage Secrets" button
     const manageSecretsButton = clientCard.getByRole('button', { name: /Manage Secrets|Hide Secrets/i });
     await expect(manageSecretsButton).toBeVisible({ timeout: 5000 });
+    const isOpening = await manageSecretsButton.textContent().then(t => /Manage Secrets/i.test(t ?? ''));
     await manageSecretsButton.click();
     
-    // Wait for the secrets section to appear (if opening) or check if it's visible
     const secretsSection = page.locator('.secrets-section');
-    const isVisible = await secretsSection.isVisible().catch(() => false);
-    
-    if (isVisible) {
-        // If opening, wait for loading to complete
+    if (isOpening) {
+        // Wait for the secrets section to open, then for its contents to render
+        await expect(secretsSection).toBeVisible({ timeout: 5000 });
         const loadingIndicator = page.locator('.secrets-section .loading');
-        if (await loadingIndicator.isVisible().catch(() => false)) {
-            await expect(loadingIndicator).not.toBeVisible({ timeout: 5000 });
-        }
+        await expect(loadingIndicator).not.toBeVisible({ timeout: 5000 });
+        const listContent = page.locator('.secrets-section .secret-card, .secrets-section .info-box');
+        await expect(listContent.first()).toBeVisible({ timeout: 5000 });
+    } else {
+        // Wait for the secrets section to close
+        await expect(secretsSection).not.toBeVisible({ timeout: 5000 });
     }
     
     console.log(`✓ Toggled secrets view for client '${clientId}'`);

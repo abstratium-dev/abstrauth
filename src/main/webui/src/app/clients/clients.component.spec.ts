@@ -2798,6 +2798,8 @@ describe('ClientsComponent', () => {
             req.flush(mockClients);
             fixture.detectChanges();
 
+            expect(component.filteredClients).toEqual([mockClients[0]]);
+
             vi.advanceTimersByTime(0);
             await Promise.resolve();
 

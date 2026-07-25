@@ -4,6 +4,7 @@ import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.Mailer;
 import io.quarkus.scheduler.Scheduled;
+import io.vertx.ext.mail.SMTPException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -137,7 +138,12 @@ public class NonMultitenancySecretExpirationNotificationService {
                 anySent = true;
                 log.info("Sent " + notificationType + " email for secret " + secret.id() + " to owner " + email);
             } catch (Exception e) {
-                log.error("Failed to send " + notificationType + " email for secret " + secret.id() + " to owner " + email, e);
+                if (isPermanentRecipientFailure(e)) {
+                    log.info("Failed to send " + notificationType + " email for secret " + secret.id() + " to owner " + email
+                            + " because the recipient address was rejected by the mail server: " + e.getMessage());
+                } else {
+                    log.error("Failed to send " + notificationType + " email for secret " + secret.id() + " to owner " + email, e);
+                }
             }
         }
 
@@ -146,6 +152,23 @@ public class NonMultitenancySecretExpirationNotificationService {
         } else {
             log.warn("No owner emails were sent for secret " + secret.id() + "; notification timestamp not updated");
         }
+    }
+
+    /**
+     * Checks whether the given exception represents a permanent SMTP recipient rejection
+     * (e.g. 5.1.1 user unknown). These are outside abstratium's control and should not be
+     * logged as application errors.
+     */
+    private boolean isPermanentRecipientFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof SMTPException smtpException) {
+                String message = smtpException.getMessage();
+                return message != null && message.contains("recipient address not accepted");
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private String buildEmailBody(NonMultitenancyClientSecretNotificationInfo secret, String notificationType) {

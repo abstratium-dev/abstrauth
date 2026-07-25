@@ -47,8 +47,8 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
 test.describe('Client-to-Client (M2M) Role Management', () => {
     test.setTimeout(60000);
 
-    const SRC_CLIENT_BASE = 'test_m2m_src';
-    const TARGET_CLIENT_BASE = 'test_m2m_tgt';
+    const SRC_CLIENT_BASE = 'test-m2m-src';
+    const TARGET_CLIENT_BASE = 'test-m2m-tgt';
     const TARGET_ROLE = 'api-reader';
 
     let srcClientId: string;       // full prefixed id returned by addClient
@@ -68,13 +68,13 @@ test.describe('Client-to-Client (M2M) Role Management', () => {
         await navigateToClients(page);
 
         // Clean up any leftover clients from a previous run
-        await deleteClientIfExists(page, `${SRC_CLIENT_BASE}_${ts}`);
-        await deleteClientIfExists(page, `${TARGET_CLIENT_BASE}_${ts}`);
+        await deleteClientIfExists(page, `${SRC_CLIENT_BASE}-${ts}`);
+        await deleteClientIfExists(page, `${TARGET_CLIENT_BASE}-${ts}`);
 
         // Create target client (owns the role catalog)
         const target = await addClient(
             page,
-            `${TARGET_CLIENT_BASE}_${ts}`,
+            `${TARGET_CLIENT_BASE}-${ts}`,
             'Test M2M Target',
             '',   // no redirect URI — M2M
             ''    // no scopes — M2M
@@ -89,7 +89,7 @@ test.describe('Client-to-Client (M2M) Role Management', () => {
         // Create source client (the caller)
         const src = await addClient(
             page,
-            `${SRC_CLIENT_BASE}_${ts}`,
+            `${SRC_CLIENT_BASE}-${ts}`,
             'Test M2M Source',
             '',
             ''

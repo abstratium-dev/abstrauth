@@ -129,21 +129,9 @@ quarkus.hibernate-orm.multitenant=DISCRIMINATOR
 
 ### Org Resolver
 
-```java
-@RequestScoped
-public class JwtOrgResolver implements TenantResolver {
-    @Override
-    public String getDefaultTenantId() {
-        return "default";
-    }
+`OrgIdResolutionFilter` runs after OIDC or bearer-token authentication and reads the `orgId` claim only from Quarkus-provided authenticated token instances. It stores the non-blank value in the request-scoped `CurrentOrgContext`. `JwtOrgResolver` reads that context for Hibernate's discriminator value.
 
-    @Override
-    public String resolveTenantId() {
-        // Extract JWT from Authorization header or OIDC cookie
-        // Parse and return orgId claim
-    }
-}
-```
+The filter never parses an `Authorization` header itself, so an unverified JWT payload cannot select a tenant. In production, an `/api/` request without a valid resolved `orgId` is rejected with `403 Forbidden`. The resolver also fails rather than silently using the default tenant when no valid request context is available in production. Development and test modes may use the configured default organisation for public or pre-authentication flows.
 
 ### Entity Annotation
 

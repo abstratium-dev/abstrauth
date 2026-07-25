@@ -34,7 +34,7 @@ const MULTITENANT_EMAIL = 'multitenant@abstratium.dev';
 const MULTITENANT_NAME = 'Multitenant';
 const MULTITENANT_PASSWORD = 'secretLongTenant';
 
-const NEW_CLIENT_ID = 'test_multitenant_client';
+const NEW_CLIENT_ID = 'test-multitenant-client';
 const NEW_CLIENT_NAME = 'Test Multitenant Client';
 const REDIRECT_URI = 'http://localhost:3333/callback';
 const SCOPES = 'openid profile email';

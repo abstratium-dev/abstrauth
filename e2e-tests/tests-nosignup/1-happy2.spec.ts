@@ -182,10 +182,10 @@ test('admin creates manager account and manager signs in via invite link', async
     // Step 23: Navigate to clients page and add a new client
     // Note: the admin cleanup can only delete clients in their own org, so the manager's
     // clients from a previous run may still exist - delete them first if they do.
-    console.log("Step 23: Adding new client 'anapp_acomp'...");
+    console.log("Step 23: Adding new client 'anapp-acomp'...");
     await navigateToClients(page);
-    await deleteClientIfExists(page, 'anapp_acomp');
-    const newClient = await addClient(page, 'anapp_acomp', 'anapp_acomp', 'http://localhost:3333/callback', 'openid profile email');
+    await deleteClientIfExists(page, 'anapp-acomp');
+    const newClient = await addClient(page, 'anapp-acomp', 'anapp-acomp', 'http://localhost:3333/callback', 'openid profile email');
     const anappClientId = newClient.clientId;
 
     // Add 'viewer' to the client's allowlist before it can be assigned to an account

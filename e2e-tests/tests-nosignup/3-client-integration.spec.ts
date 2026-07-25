@@ -38,7 +38,7 @@ async function signInOnOAuthPage(page: Page, email: string, password: string) {
  * - The example client server must be running on http://localhost:3333
  */
 
-const CLIENT_ID = 'test_oauth_client';
+const CLIENT_ID = 'test-oauth-client';
 const CLIENT_NAME = 'Test OAuth Client';
 const REDIRECT_URI = 'http://localhost:3333/oauth/callback';
 const SCOPES = 'openid profile email';

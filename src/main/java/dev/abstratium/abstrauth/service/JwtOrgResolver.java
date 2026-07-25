@@ -55,7 +55,7 @@ public class JwtOrgResolver implements TenantResolver {
         } catch (Exception e) {
             return fallbackToDefault("exception: " + e.getMessage());
         }
-        return defaultOrgId;
+        return fallbackToDefault("request tenant not resolved");
     }
 
     /**

@@ -11,19 +11,7 @@
 
 ## Today
 
-- bug: the following url doesn't show only that client nor open the secrets
-  - http://localhost:8080/clients?viewSecrets=e67984f8-393b-447c-b917-746f9a8f3c36__test_secrets_1783263669014&highlightSecret=47
-
-- bug: don't log errors like these as errors since abstratium cannot deal with it if the cert belongs to a third party
-  - 2026-07-05 17:49:01,342 ERROR [dev.abs.abs.non.ser.NonMultitenancySecretExpirationNotificationService] Failed to send final warning email for secret 47 to owner makeowner_promo_1783263807019@abstratium.dev
-
-  Exception in NonMultitenancySecretExpirationNotificationService.java:136
-
-  : java.util.concurrent.CompletionException: io.vertx.ext.mail.SMTPException: recipient address not accepted: 550 5.1.1 <makeowner_promo_1783263807019@abstratium.dev>: Recipient address rejected: User unknown in virtual mailbox table
-
-
-
-
+- all done :-)
 
 
 ## Tomorrow

@@ -50,11 +50,15 @@ export class UrlFilterComponent implements OnInit {
 
   private filterText$ = signal('');
   get filterText(): string { return this.filterText$(); }
-  set filterText(v: string) { this.filterText$.set(v); }
+  @Input() set filterText(v: string) {
+    console.debug('[url-filter.set filterText] setting to', v);
+    this.filterText$.set(v);
+  }
 
   ngOnInit(): void {
     // Subscribe to URL query parameters with XSS protection
     this.route.queryParams.subscribe(params => {
+      console.debug('[url-filter.ngOnInit] queryParams=', params);
       const filterParam = params['filter'];
       // The filter implementation protects against XSS (Cross-Site Scripting) attacks by:
       // - Validating that URL filter parameters are strings only
@@ -71,17 +75,20 @@ export class UrlFilterComponent implements OnInit {
   }
 
   onFilterChange(): void {
+    console.debug('[url-filter.onFilterChange] filterText=', this.filterText);
     this.emitFilterChange();
     this.updateUrlParam();
   }
 
   clearFilter(): void {
+    console.debug('[url-filter.clearFilter]');
     this.filterText = '';
     this.emitFilterChange();
     this.updateUrlParam();
   }
 
   private emitFilterChange(): void {
+    console.debug('[url-filter.emitFilterChange] emitting filterText=', this.filterText);
     this.filterChange.emit(this.filterText);
   }
 

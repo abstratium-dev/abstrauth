@@ -36,11 +36,13 @@ export class Controller {
   }
 
   loadClients() {
+    console.debug('[controller.loadClients] fetching /api/clients');
     this.modelService.setClientsLoading(true);
     this.modelService.setClientsError(null);
-    
+
     this.http.get<OAuthClient[]>('/api/clients').subscribe({
       next: (clients) => {
+        console.debug('[controller.loadClients] received', clients.length, 'clients');
         this.modelService.setClients(clients);
         this.modelService.setClientsLoading(false);
       },
@@ -268,10 +270,13 @@ export class Controller {
   // Client Secret Management
 
   async listClientSecrets(clientId: string): Promise<ClientSecret[]> {
+    console.debug('[controller.listClientSecrets] fetching /api/clients/' + clientId + '/secrets');
     try {
-      return await firstValueFrom(
+      const secrets = await firstValueFrom(
         this.http.get<ClientSecret[]>(`/api/clients/${clientId}/secrets`)
       );
+      console.debug('[controller.listClientSecrets] received', secrets.length, 'secrets for', clientId);
+      return secrets;
     } catch (error) {
       console.error('Error listing client secrets:', error);
       throw error;

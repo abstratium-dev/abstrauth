@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, effect, inject, OnInit, signal, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService, ROLE_MANAGE_CLIENTS } from '../auth.service';
@@ -23,7 +23,9 @@ export class ClientsComponent implements OnInit {
   private toastService = inject(ToastService);
   private confirmService = inject(ConfirmDialogService);
   private route = inject(ActivatedRoute);
+  private cdr = inject(ChangeDetectorRef);
   private currentFilter = signal('');
+  private deepLinkClientId: string | null = null;
   private viewAllowedRolesClientId: string | null = null;
 
   get clients(): OAuthClient[] {
@@ -32,6 +34,10 @@ export class ClientsComponent implements OnInit {
 
   get filteredClients(): OAuthClient[] {
     return this.applyFilter();
+  }
+
+  get filterText(): string {
+    return this.currentFilter();
   }
 
   get loading(): boolean {
@@ -118,8 +124,8 @@ export class ClientsComponent implements OnInit {
 
   constructor() {
     effect(() => {
-      // Track the clients signal so deep-link checks run after clients load.
-      this.modelService.clients$();
+      const clients = this.modelService.clients$();
+      console.debug('[clients.effect] clients.length=', clients.length, 'currentFilter=', this.currentFilter(), 'viewSecretsClientId=', this.viewSecretsClientId, 'viewAllowedRolesClientId=', this.viewAllowedRolesClientId);
       this.checkViewAllowedRoles();
       this.checkViewSecrets();
     });
@@ -127,9 +133,17 @@ export class ClientsComponent implements OnInit {
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
+      console.debug('[clients.ngOnInit] queryParams=', params);
       this.viewAllowedRolesClientId = params['viewAllowedRoles'] || null;
       this.viewSecretsClientId = params['viewSecrets'] || null;
       this.highlightedSecretId = params['highlightSecret'] ? Number(params['highlightSecret']) : null;
+      this.deepLinkClientId = this.viewSecretsClientId;
+      if (this.deepLinkClientId) {
+        this.currentFilter.set(this.deepLinkClientId.toLowerCase());
+      }
+      console.debug('[clients.ngOnInit] viewAllowedRolesClientId=', this.viewAllowedRolesClientId, 'viewSecretsClientId=', this.viewSecretsClientId, 'highlightedSecretId=', this.highlightedSecretId, 'deepLinkClientId=', this.deepLinkClientId, 'currentFilter=', this.currentFilter());
+      this.checkViewAllowedRoles();
+      this.checkViewSecrets();
     });
     this.loadClients();
   }
@@ -147,7 +161,14 @@ export class ClientsComponent implements OnInit {
   }
 
   onFilterChange(filterText: string): void {
-    this.currentFilter.set(filterText.toLowerCase().trim());
+    const normalizedFilter = filterText.toLowerCase().trim();
+    console.debug('[clients.onFilterChange] filterText=', filterText, 'normalizedFilter=', normalizedFilter, 'deepLinkClientId=', this.deepLinkClientId, 'currentFilter=', this.currentFilter());
+    if (this.deepLinkClientId && !normalizedFilter) {
+      console.debug('[clients.onFilterChange] ignoring empty filter change while deep link active');
+      return;
+    }
+    this.deepLinkClientId = null;
+    this.currentFilter.set(normalizedFilter);
     this.checkViewAllowedRoles();
     this.checkViewSecrets();
   }
@@ -156,11 +177,14 @@ export class ClientsComponent implements OnInit {
     if (!this.viewAllowedRolesClientId) {
       return;
     }
-    const client = this.filteredClients.find(c => c.clientId === this.viewAllowedRolesClientId);
+    console.debug('[clients.checkViewAllowedRoles] viewAllowedRolesClientId=', this.viewAllowedRolesClientId, 'filteredClients=', this.filteredClients.length, 'ids=', this.filteredClients.map(c => c.clientId));
+    const client = this.filteredClients.find(c => this.clientIdMatches(c.clientId, this.viewAllowedRolesClientId));
     if (!client) {
+      console.debug('[clients.checkViewAllowedRoles] no matching client');
       return;
     }
-    const clientId = this.viewAllowedRolesClientId;
+    console.debug('[clients.checkViewAllowedRoles] matched client=', client.clientId);
+    const clientId = client.clientId;
     this.viewAllowedRolesClientId = null;
     setTimeout(async () => {
       await this.toggleAllowedRolesView(client);
@@ -177,14 +201,16 @@ export class ClientsComponent implements OnInit {
     if (!this.viewSecretsClientId) {
       return;
     }
-    const client = this.filteredClients.find(c => c.clientId === this.viewSecretsClientId);
+    console.debug('[clients.checkViewSecrets] viewSecretsClientId=', this.viewSecretsClientId, 'highlightedSecretId=', this.highlightedSecretId, 'filteredClients=', this.filteredClients.length, 'ids=', this.filteredClients.map(c => c.clientId));
+    const client = this.filteredClients.find(c => this.clientIdMatches(c.clientId, this.viewSecretsClientId));
     if (!client) {
+      console.debug('[clients.checkViewSecrets] no matching client');
       return;
     }
-    const clientId = this.viewSecretsClientId;
+    console.debug('[clients.checkViewSecrets] matched client=', client.clientId);
+    const clientId = client.clientId;
     const highlightedSecretId = this.highlightedSecretId;
     this.viewSecretsClientId = null;
-    this.highlightedSecretId = null;
     setTimeout(async () => {
       await this.toggleSecretsView(client);
       if (highlightedSecretId) {
@@ -193,6 +219,7 @@ export class ClientsComponent implements OnInit {
           if (secretCard) {
             secretCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
+          this.highlightedSecretId = null;
         }, 100);
       } else {
         setTimeout(() => {
@@ -207,10 +234,11 @@ export class ClientsComponent implements OnInit {
 
   private applyFilter(): OAuthClient[] {
     const searchTerm = this.currentFilter();
+    console.debug('[clients.applyFilter] searchTerm=', searchTerm, 'clients=', this.clients.length);
     if (!searchTerm) {
       return this.clients;
     }
-    return this.clients.filter(client => {
+    const result = this.clients.filter(client => {
       // Search in client name
       if (client.clientName.toLowerCase().includes(searchTerm)) {
         return true;
@@ -235,6 +263,8 @@ export class ClientsComponent implements OnInit {
       }
       return false;
     });
+    console.debug('[clients.applyFilter] filtered count=', result.length);
+    return result;
   }
 
   hasManageClientsRole(): boolean {
@@ -472,23 +502,28 @@ export class ClientsComponent implements OnInit {
   // Secret Management Methods
 
   async toggleSecretsView(client: OAuthClient): Promise<void> {
+    console.debug('[clients.toggleSecretsView] client=', client.clientId, 'viewingSecretsFor=', this.viewingSecretsFor);
     if (this.viewingSecretsFor === client.clientId) {
       this.viewingSecretsFor = null;
       this.clientSecrets = [];
       this.showCreateSecretForm = false;
+      this.cdr.detectChanges();
     } else {
       this.viewingSecretsFor = client.clientId;
       this.showCreateSecretForm = false;
+      this.cdr.detectChanges();
       await this.loadClientSecrets(client.clientId);
     }
   }
 
   async loadClientSecrets(clientId: string): Promise<void> {
+    console.debug('[clients.loadClientSecrets] clientId=', clientId);
     this.secretsLoading.set(true);
     this.secretsError = null;
-    
+
     try {
       this.clientSecrets = await this.controller.listClientSecrets(clientId);
+      console.debug('[clients.loadClientSecrets] loaded', this.clientSecrets.length, 'secrets for', clientId);
     } catch (err: any) {
       console.error('Error loading secrets:', err);
       this.secretsError = 'Failed to load secrets';
@@ -671,6 +706,13 @@ export class ClientsComponent implements OnInit {
     return pattern.test(s);
   }
 
+  private clientIdMatches(a: string | null, b: string | null): boolean {
+    if (!a || !b) {
+      return false;
+    }
+    return this.stripOrgPrefix(a).toLowerCase() === this.stripOrgPrefix(b).toLowerCase();
+  }
+
   // Client-to-Client (M2M) Role Management Methods
 
   async toggleClientRolesView(client: OAuthClient): Promise<void> {
@@ -680,6 +722,7 @@ export class ClientsComponent implements OnInit {
       this.showAddClientRoleForm = false;
     } else {
       this.viewingClientRolesFor = client.clientId;
+      this.cdr.detectChanges();
       await this.loadClientRoles(client.clientId);
     }
   }
@@ -816,6 +859,7 @@ export class ClientsComponent implements OnInit {
       this.viewingAllowedRolesFor = client.clientId;
       this.showAddAllowedRoleForm = false;
       this.editingAllowedRole = null;
+      this.cdr.detectChanges();
       await this.loadAllowedRoles(client.clientId);
     }
   }
