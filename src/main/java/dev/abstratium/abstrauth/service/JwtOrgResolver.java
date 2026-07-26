@@ -3,7 +3,6 @@ package dev.abstratium.abstrauth.service;
 import io.quarkus.arc.Arc;
 import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
-import io.quarkus.runtime.LaunchMode;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -15,7 +14,9 @@ import org.jboss.logging.Logger;
  * Reads the {@code orgId} from the request-scoped {@link CurrentOrgContext}
  * populated by {@link dev.abstratium.abstrauth.filter.OrgIdResolutionFilter}.
  * Falls back to the default org when no valid context is present (e.g. public endpoints,
- * OAuth2 token exchange, sign-in flow).
+ * OAuth2 token exchange, sign-in flow, startup, scheduled tasks). The fallback logs at INFO
+ * unless the caller has set {@link CurrentOrgContext#setIgnore(boolean)} to suppress expected
+ * fallbacks (e.g. non-multitenancy entity access).
  */
 @PersistenceUnitExtension
 @RequestScoped
@@ -68,15 +69,7 @@ public class JwtOrgResolver implements TenantResolver {
         return fallbackToDefault("request tenant not resolved", requestPath, requestMethod, description, ignore);
     }
 
-    /**
-     * Falls back to defaultOrgId in dev/test mode only.
-     * In production, this is a hard error — no request should resolve to default silently.
-     */
     private String fallbackToDefault(String reason, String requestPath, String requestMethod, String contextDescription, boolean ignore) {
-        if (LaunchMode.current() == LaunchMode.NORMAL) {
-            throw new IllegalStateException(
-                    "Cannot resolve tenant in production without a valid request context. Reason: " + reason);
-        }
         if(!ignore) {
             log.infov("Falling back to defaultOrgId (reason={0}, method={1}, path={2}, context={3})",
                     reason, requestMethod, requestPath, contextDescription);

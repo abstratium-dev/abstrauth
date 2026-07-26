@@ -6,10 +6,7 @@ import io.quarkus.test.security.oidc.Claim;
 import io.quarkus.test.security.oidc.OidcSecurity;
 import jakarta.enterprise.inject.Instance;
 import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
-import org.mockito.ArgumentCaptor;
-
 import dev.abstratium.abstrauth.service.CurrentOrgContext;
 
 import org.eclipse.microprofile.jwt.JsonWebToken;
@@ -22,10 +19,8 @@ import java.util.Base64;
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -478,42 +473,6 @@ public class OrgIdResolutionFilterTest {
     }
 
     @Test
-    void filter_withMissingTokenClaims_rejectsProductionApiRequest() throws IOException {
-        CurrentOrgContext ctx = new CurrentOrgContext();
-        OrgIdResolutionFilter filter = spy(new OrgIdResolutionFilter());
-        filter.currentOrgContext = ctx;
-        doReturn(true).when(filter).isProduction();
-
-        @SuppressWarnings("unchecked")
-        Instance<JsonWebToken> idToken = mock(Instance.class);
-        JsonWebToken idJwt = mock(JsonWebToken.class);
-        when(idToken.isResolvable()).thenReturn(true);
-        when(idToken.get()).thenReturn(idJwt);
-        when(idJwt.getClaim("orgId")).thenReturn(null);
-        filter.idTokenInstance = idToken;
-
-        @SuppressWarnings("unchecked")
-        Instance<JsonWebToken> accessToken = mock(Instance.class);
-        JsonWebToken accessJwt = mock(JsonWebToken.class);
-        when(accessToken.isResolvable()).thenReturn(true);
-        when(accessToken.get()).thenReturn(accessJwt);
-        when(accessJwt.getClaim("orgId")).thenReturn(null);
-        filter.accessTokenInstance = accessToken;
-
-        ContainerRequestContext requestContext = mock(ContainerRequestContext.class);
-        UriInfo uriInfo = mock(UriInfo.class);
-        when(requestContext.getUriInfo()).thenReturn(uriInfo);
-        when(uriInfo.getPath()).thenReturn("api/journals");
-
-        filter.filter(requestContext);
-
-        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-        verify(requestContext).abortWith(responseCaptor.capture());
-        assertEquals(Response.Status.FORBIDDEN.getStatusCode(), responseCaptor.getValue().getStatus());
-        assertNull(ctx.getOrgId());
-    }
-
-    @Test
     void filter_withBlankAccessTokenClaim_setsNothing() throws IOException {
         CurrentOrgContext ctx = new CurrentOrgContext();
         OrgIdResolutionFilter filter = new OrgIdResolutionFilter();
@@ -573,26 +532,6 @@ public class OrgIdResolutionFilterTest {
 
         assertEquals(TEST_ORG_ID, ctx.getOrgId());
         verify(accessToken, never()).isResolvable();
-    }
-
-    @Test
-    void filter_withMissingOrgId_doesNotRejectProductionNonApiRequest() throws IOException {
-        CurrentOrgContext ctx = new CurrentOrgContext();
-        OrgIdResolutionFilter filter = spy(new OrgIdResolutionFilter());
-        filter.currentOrgContext = ctx;
-        doReturn(true).when(filter).isProduction();
-        filter.idTokenInstance = null;
-        filter.accessTokenInstance = null;
-
-        ContainerRequestContext requestContext = mock(ContainerRequestContext.class);
-        UriInfo uriInfo = mock(UriInfo.class);
-        when(requestContext.getUriInfo()).thenReturn(uriInfo);
-        when(uriInfo.getPath()).thenReturn("q/health");
-
-        filter.filter(requestContext);
-
-        verify(requestContext, never()).abortWith(org.mockito.ArgumentMatchers.any(Response.class));
-        assertNull(ctx.getOrgId());
     }
 
     private String buildBearerToken(String payloadJson) {

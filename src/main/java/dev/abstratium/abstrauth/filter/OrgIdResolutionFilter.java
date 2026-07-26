@@ -1,14 +1,12 @@
 package dev.abstratium.abstrauth.filter;
 
 import io.quarkus.oidc.IdToken;
-import io.quarkus.runtime.LaunchMode;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
-import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
@@ -56,13 +54,6 @@ public class OrgIdResolutionFilter implements ContainerRequestFilter {
             log.debugv("Resolved orgId={0} for request {1}", orgId, requestContext.getUriInfo().getPath());
             return;
         }
-        if (isProduction() && requestContext.getUriInfo().getPath().startsWith("api/")) {
-            requestContext.abortWith(Response.status(Response.Status.FORBIDDEN).build());
-        }
-    }
-
-    boolean isProduction() {
-        return LaunchMode.current() == LaunchMode.NORMAL;
     }
 
     private String extractOrgIdFromIdToken() {
