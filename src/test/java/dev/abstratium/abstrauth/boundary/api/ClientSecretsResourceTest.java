@@ -223,6 +223,30 @@ public class ClientSecretsResourceTest {
     }
 
     @Test
+    public void testCannotRevokeLastValidSecretWhenExpiredSecretExists() {
+        // Expire the initial secret and create a second valid secret
+        expireInitialSecretAndCreateValidSecret();
+
+        // Get the valid secret's ID (the second one)
+        Long validSecretId = em.createQuery(
+            "SELECT cs.id FROM ClientSecret cs WHERE cs.clientId = :clientId ORDER BY cs.id DESC",
+            Long.class)
+            .setParameter("clientId", testClientId)
+            .setMaxResults(1)
+            .getSingleResult();
+
+        // Try to revoke the valid secret — should fail because the only other
+        // active secret is expired and thus not usable
+        given()
+            .header("Authorization", "Bearer " + adminToken)
+            .when()
+            .delete("/api/clients/" + testClientId + "/secrets/" + validSecretId)
+            .then()
+            .statusCode(400)
+            .body("error", equalTo("Bad request"));
+    }
+
+    @Test
     public void testRevokeSecretNotFound() {
         given()
             .header("Authorization", "Bearer " + adminToken)
@@ -293,6 +317,26 @@ public class ClientSecretsResourceTest {
     }
 
     @Test
+    public void testDeleteExpiredSecretPermanently() {
+        // Expire the initial secret and create a second valid secret
+        expireInitialSecretAndCreateValidSecret();
+
+        Long expiredSecretId = getFirstSecretId();
+
+        // Permanently delete the expired (but still active) secret
+        given()
+            .header("Authorization", "Bearer " + adminToken)
+            .when()
+            .delete("/api/clients/" + testClientId + "/secrets/" + expiredSecretId + "/permanent")
+            .then()
+            .statusCode(204);
+
+        // Verify it's gone
+        em.clear();
+        assertNull(em.find(ClientSecret.class, expiredSecretId));
+    }
+
+    @Test
     public void testDeleteSecretNotFound() {
         given()
             .header("Authorization", "Bearer " + adminToken)
@@ -310,6 +354,25 @@ public class ClientSecretsResourceTest {
         secret2.setDescription("Second secret");
         secret2.setActive(true);
         em.persist(secret2);
+    }
+
+    @Transactional
+    void expireInitialSecretAndCreateValidSecret() {
+        // Expire the initial secret
+        Long initialSecretId = getFirstSecretId();
+        ClientSecret initial = em.find(ClientSecret.class, initialSecretId);
+        initial.setExpiresAt(java.time.Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS));
+        em.merge(initial);
+
+        // Create a second, valid (non-expired) secret
+        ClientSecret validSecret = new ClientSecret();
+        validSecret.setClientId(testClientId);
+        validSecret.setSecretHash("$2a$10$validhash");
+        validSecret.setDescription("Valid secret");
+        validSecret.setActive(true);
+        validSecret.setExpiresAt(java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS));
+        em.persist(validSecret);
+        em.flush();
     }
 
     Long getFirstSecretId() {

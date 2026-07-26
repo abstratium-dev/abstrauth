@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary.publik;
+package dev.abstratium.abstrauth.non_multitenancy.boundary.publik;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.containsString;

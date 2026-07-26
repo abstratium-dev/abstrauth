@@ -1,5 +1,9 @@
 package dev.abstratium.abstrauth.service;
 
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.Optional;
+
 import dev.abstratium.abstrauth.boundary.TimedOutException;
 import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
@@ -9,11 +13,6 @@ import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.Optional;
 
 @ApplicationScoped
 public class AuthorizationService {
@@ -25,26 +24,10 @@ public class AuthorizationService {
     EntityManager em;
 
     @Inject
-    AccountService accountService;
-
-    @Inject
     MetricsService metricsService;
 
     @Inject
     OAuthClientService oAuthClientService;
-
-
-    @ConfigProperty(name = "allow.signup", defaultValue = "false")
-    boolean allowSignup;
-
-    @ConfigProperty(name = "allow.native.signin", defaultValue = "true")
-    boolean allowNativeSignin;
-
-    @ConfigProperty(name = "allow.google.signin", defaultValue = "false")
-    boolean allowGoogleSignin;
-
-    @ConfigProperty(name = "allow.microsoft.signin", defaultValue = "false")
-    boolean allowMicrosoftSignin;
 
     @Transactional
     public AuthorizationRequest createAuthorizationRequest(
@@ -204,34 +187,5 @@ public class AuthorizationService {
         byte[] randomBytes = new byte[32];
         secureRandomProvider.getSecureRandom().nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-    }
-
-    /**
-     * Check if signup is allowed.
-     * Signup is allowed if:
-     * 1. The allow.signup config property is true, OR
-     * 2. There are no accounts in the database (first user setup)
-     * 
-     * @return true if signup is allowed, false otherwise
-     */
-    public boolean isSignupAllowed() {
-        // Always allow signup if there are no accounts (first user)
-        if (accountService.noAccountsExist()) {
-            return true;
-        }
-        // Otherwise, check the config property
-        return allowSignup;
-    }
-
-    public boolean isNativeSigninAllowed() {
-        return allowNativeSignin;
-    }
-
-    public boolean isGoogleSigninAllowed() {
-        return allowGoogleSignin;
-    }
-
-    public boolean isMicrosoftSigninAllowed() {
-        return allowMicrosoftSignin;
     }
 }

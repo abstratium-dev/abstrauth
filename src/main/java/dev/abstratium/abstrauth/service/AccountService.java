@@ -3,17 +3,17 @@ package dev.abstratium.abstrauth.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
-import dev.abstratium.abstrauth.util.PasswordEncoder;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.Credential;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountService;
+import dev.abstratium.abstrauth.util.PasswordEncoder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -27,7 +27,6 @@ public class AccountService {
     public static final String NATIVE = "native";
     public static final String GOOGLE = "google";
     public static final String MICROSOFT = "microsoft";
-    private static final AtomicBoolean ONE_OR_MORE_ACCOUNTS_FOUND = new AtomicBoolean(false);
 
     @Inject
     EntityManager em;
@@ -37,6 +36,9 @@ public class AccountService {
 
     @Inject
     NonMultitenancyAccountRoleService nonMultitenancyAccountRoleService;
+
+    @Inject
+    NonMultitenancyAccountService nonMultitenancyAccountService;
 
     @Inject
     OrganisationService organisationService;
@@ -71,7 +73,7 @@ public class AccountService {
         }
 
         // Determine if this is the first account before creating it
-        boolean isFirstAccount = noAccountsExist();
+        boolean isFirstAccount = nonMultitenancyAccountService.noAccountsExist();
 
         // Create account
         Account account = new Account();
@@ -116,7 +118,7 @@ public class AccountService {
         }
 
         // Determine if this is the first account before creating it
-        boolean isFirstAccount = noAccountsExist();
+        boolean isFirstAccount = nonMultitenancyAccountService.noAccountsExist();
 
         // Create account
         Account account = new Account();
@@ -350,36 +352,6 @@ public class AccountService {
     public long countAccounts() {
         var query = em.createQuery("SELECT COUNT(a) FROM Account a", Long.class);
         return query.getSingleResult();
-    }
-
-    public boolean oneOrMoreAccountsExist() {
-        if(ONE_OR_MORE_ACCOUNTS_FOUND.get()) {
-            return true;
-        } else {
-            // count, as it may have changed
-            if(countAccounts() >= 1) {
-                // once this node has confirmed that at least one exists, it can cache the value.
-                // TODO support special case where all accounts are deleted? or just restart server?
-                ONE_OR_MORE_ACCOUNTS_FOUND.set(true);
-                return true;
-            } else {
-                // leave ONE_OR_MORE_ACCOUNTS_FOUND as false
-                return false;
-            }
-        }
-    }
-
-    public boolean noAccountsExist() {
-        return !oneOrMoreAccountsExist();
-    }
-
-    /**
-     * Test-only hook: resets the cached account-existence flag so that a
-     * freshly cleaned database is correctly detected as having no accounts.
-     * Called by TestDatabaseResetHelper.
-     */
-    public void resetAccountExistenceCache() {
-        ONE_OR_MORE_ACCOUNTS_FOUND.set(false);
     }
 
     /**

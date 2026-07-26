@@ -183,15 +183,15 @@ public class ClientSecretsResource {
     }
 
     /**
-     * Permanently delete a revoked client secret.
-     * Can only delete secrets that are already inactive.
+     * Permanently delete a revoked or expired client secret.
+     * Can only delete secrets that are inactive or expired.
      */
     @DELETE
     @Path("/{secretId}/permanent")
     @Produces(MediaType.APPLICATION_JSON)
     @RolesAllowed(Roles.MANAGE_CLIENTS)
     @Transactional
-    @Operation(summary = "Delete revoked client secret", description = "Permanently deletes an inactive client secret")
+    @Operation(summary = "Delete revoked or expired client secret", description = "Permanently deletes an inactive or expired client secret")
     public Response deleteSecret(
             @PathParam("clientId") String clientId,
             @PathParam("secretId") Long secretId) {
@@ -212,10 +212,11 @@ public class ClientSecretsResource {
                     .build();
         }
 
-        // Can only delete inactive secrets
-        if (secret.isActive()) {
+        // Can only delete secrets that are inactive (revoked) or expired
+        boolean isExpired = secret.getExpiresAt() != null && secret.getExpiresAt().isBefore(Instant.now());
+        if (secret.isActive() && !isExpired) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse("Bad request", "Cannot delete an active secret. Revoke it first."))
+                    .entity(new ErrorResponse("Bad request", "Cannot delete an active, non-expired secret. Revoke it first."))
                     .build();
         }
 

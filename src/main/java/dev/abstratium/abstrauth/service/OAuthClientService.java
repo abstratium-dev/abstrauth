@@ -1,15 +1,11 @@
 package dev.abstratium.abstrauth.service;
 
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import org.jboss.logging.Logger;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
@@ -35,9 +31,6 @@ public class OAuthClientService {
     EntityManager em;
 
     @Inject
-    ObjectMapper objectMapper;
-    
-    @Inject
     ClientSecretService clientSecretService;
 
     public List<OAuthClient> findByClientIds(Set<String> clientIds) {
@@ -59,58 +52,6 @@ public class OAuthClientService {
     public List<OAuthClient> findAll() {
         var query = em.createQuery("SELECT c FROM OAuthClient c ORDER BY c.createdAt DESC", OAuthClient.class);
         return query.getResultList();
-    }
-
-    /**
-     * Count the total number of OAuth clients in the database
-     * @return The number of clients
-     */
-    public long countClients() {
-        var query = em.createQuery("SELECT COUNT(c) FROM OAuthClient c", Long.class);
-        return query.getSingleResult();
-    }
-
-    public boolean isRedirectUriAllowed(OAuthClient client, String redirectUri) {
-        try {
-            String[] allowedUris = objectMapper.readValue(client.getRedirectUris(), String[].class);
-            return Arrays.asList(allowedUris).contains(redirectUri);
-        } catch (JsonProcessingException e) {
-            return false;
-        }
-    }
-
-    public boolean isScopeAllowed(OAuthClient client, String requestedScope) {
-        // Empty/null requested scope is always allowed (role-based auth only)
-        if (requestedScope == null || requestedScope.isBlank()) {
-            return true;
-        }
-
-        // If no allowed scopes are configured, reject any scope request
-        // (client should use role-based authorization only)
-        if (client.getAllowedScopes() == null || client.getAllowedScopes().isBlank()) {
-            return false;
-        }
-
-        try {
-            String[] allowedScopes = objectMapper.readValue(client.getAllowedScopes(), String[].class);
-            
-            // Empty array means no scopes allowed (role-based auth only)
-            if (allowedScopes.length == 0) {
-                return false;
-            }
-            
-            List<String> allowedScopeList = Arrays.asList(allowedScopes);
-            
-            String[] requestedScopes = requestedScope.split(" ");
-            for (String scope : requestedScopes) {
-                if (!allowedScopeList.contains(scope)) {
-                    return false;
-                }
-            }
-            return true;
-        } catch (JsonProcessingException e) {
-            return false;
-        }
     }
 
     @Transactional
@@ -158,6 +99,8 @@ public class OAuthClientService {
      */
     @Transactional
     public void updateClientSecretHash(String plainSecret) {
+        log.infov("Checking if client secret hash for {0} needs updating", Roles.CLIENT_ID);
+
         Optional<OAuthClient> clientOpt = findByClientId(Roles.CLIENT_ID);
         if (clientOpt.isEmpty()) {
             throw new IllegalArgumentException("Client not found: " + Roles.CLIENT_ID 

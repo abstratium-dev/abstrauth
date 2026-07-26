@@ -49,13 +49,17 @@ public class ClientSecretService {
     }
     
     /**
-     * Count active secrets for a client.
+     * Count active AND non-expired secrets for a client.
+     * A secret counts as active if it is both active (not revoked) and not expired.
      */
     public long countActiveSecrets(String clientId) {
         var query = em.createQuery(
-            "SELECT COUNT(cs) FROM ClientSecret cs WHERE cs.clientId = :clientId AND cs.active = true", 
+            "SELECT COUNT(cs) FROM ClientSecret cs WHERE cs.clientId = :clientId " +
+            "AND cs.active = true " +
+            "AND (cs.expiresAt IS NULL OR cs.expiresAt > :now)", 
             Long.class);
         query.setParameter("clientId", clientId);
+        query.setParameter("now", java.time.Instant.now());
         return query.getSingleResult();
     }
     

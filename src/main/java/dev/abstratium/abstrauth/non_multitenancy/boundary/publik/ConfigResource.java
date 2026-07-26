@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary.publik;
+package dev.abstratium.abstrauth.non_multitenancy.boundary.publik;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.PermitAll;
@@ -14,9 +14,9 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import dev.abstratium.abstrauth.service.AuthorizationService;
-import dev.abstratium.abstrauth.service.OAuthClientService;
-import dev.abstratium.abstrauth.service.Roles;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthorizationService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthClientService;
+import dev.abstratium.abstrauth.service.CurrentOrgContext;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,10 +29,13 @@ import java.util.Optional;
 public class ConfigResource {
 
     @Inject
-    AuthorizationService authorizationService;
+    NonMultitenancyAuthorizationService nonMultitenancyAuthorizationService;
 
     @Inject
-    OAuthClientService clientService;
+    NonMultitenancyOAuthClientService clientService;
+
+    @Inject
+    CurrentOrgContext orgCtx;
 
     @ConfigProperty(name = "abstrauth.session.timeout.seconds", defaultValue = "900")
     int sessionTimeoutSeconds;
@@ -75,16 +78,18 @@ public class ConfigResource {
     }
 
     private static final int MIN_SECRET_LENGTH = 32;
-    private static final String DEFAULT_SECRET = "dev-secret-CHANGE-IN-PROD";
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Get application configuration", description = "Returns public application configuration including signup settings, session timeout, and client secret security status")
     public Response getConfig() {
-        boolean signupAllowed = authorizationService.isSignupAllowed();
-        boolean allowNativeSignin = authorizationService.isNativeSigninAllowed();
-        boolean allowGoogleSignin = authorizationService.isGoogleSigninAllowed();
-        boolean allowMicrosoftSignin = authorizationService.isMicrosoftSigninAllowed();
+        orgCtx.setContextDescription("ConfigResource#getConfig");
+        orgCtx.setIgnore(true);
+
+        boolean signupAllowed = nonMultitenancyAuthorizationService.isSignupAllowed();
+        boolean allowNativeSignin = nonMultitenancyAuthorizationService.isNativeSigninAllowed();
+        boolean allowGoogleSignin = nonMultitenancyAuthorizationService.isGoogleSigninAllowed();
+        boolean allowMicrosoftSignin = nonMultitenancyAuthorizationService.isMicrosoftSigninAllowed();
         boolean insecureClientSecret = isClientSecretInsecure();
         return Response.ok(new ConfigResponse(signupAllowed, allowNativeSignin, allowGoogleSignin, allowMicrosoftSignin, sessionTimeoutSeconds, insecureClientSecret, warningMessage, legalContent, brandLogoUrl, brandLogoAlt, brandName, stage, auditRetentionDays)).build();
     }
@@ -100,7 +105,9 @@ public class ConfigResource {
         }
         
         // Check if hash matches default secret using the service
-        return clientService.clientSecretMatches(Roles.CLIENT_ID, DEFAULT_SECRET);
+        orgCtx.setContextDescription("ConfigResource#isClientSecretInsecure");
+        orgCtx.setIgnore(true);
+        return clientService.abstrauthClientSecretMatches();
     }
 
     @RegisterForReflection

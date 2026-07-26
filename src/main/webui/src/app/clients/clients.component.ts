@@ -658,7 +658,7 @@ export class ClientsComponent implements OnInit {
     } catch (err: any) {
       console.error('Error deleting secret:', err);
       if (err.status === 400) {
-        this.toastService.error('Cannot delete an active secret. Revoke it first.');
+        this.toastService.error('Cannot delete an active, non-expired secret. Revoke it first.');
       } else if (err.status === 403) {
         this.toastService.error('You do not have permission to delete secrets');
       } else if (err.status === 404) {

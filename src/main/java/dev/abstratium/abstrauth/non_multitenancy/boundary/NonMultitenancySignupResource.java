@@ -1,12 +1,13 @@
-package dev.abstratium.abstrauth.boundary.api;
+package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
 import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthorizationService;
 import dev.abstratium.abstrauth.service.AccountService;
-import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.MetricsService;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.PermitAll;
@@ -22,13 +23,16 @@ import jakarta.ws.rs.core.Response;
 @Path("/api/signup")
 @Tag(name = "Signup", description = "User signup endpoints")
 @PermitAll
-public class SignupResource {
+public class NonMultitenancySignupResource {
 
     @Inject
     AccountService accountService;
 
     @Inject
-    AuthorizationService authorizationService;
+    NonMultitenancyAccountService nonMultitenancyAccountService;
+
+    @Inject
+    NonMultitenancyAuthorizationService nonMultitenancyAuthorizationService;
 
     @Inject
     MetricsService metricsService;
@@ -44,7 +48,7 @@ public class SignupResource {
             @FormParam("password") String password,
             @FormParam("organisationName") String organisationName) {
 
-        if (!authorizationService.isSignupAllowed()) {
+        if (!nonMultitenancyAuthorizationService.isSignupAllowed()) {
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(new ErrorResponse("forbidden", "Signup is disabled"))
                     .build();
@@ -70,7 +74,7 @@ public class SignupResource {
 
         // Organisation name is only required when other accounts already exist.
         // The first account is automatically linked to the default organisation from migration.
-        if (accountService.oneOrMoreAccountsExist() && (organisationName == null || organisationName.isBlank())) {
+        if (nonMultitenancyAccountService.oneOrMoreAccountsExist() && (organisationName == null || organisationName.isBlank())) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(new ErrorResponse("invalid_request", "Organisation name is required"))
                     .build();

@@ -1,17 +1,12 @@
 package dev.abstratium.abstrauth.service;
 
-import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.entity.FederatedIdentity;
 import dev.abstratium.abstrauth.service.oauth.GoogleOAuthClient;
 import dev.abstratium.abstrauth.service.oauth.GoogleTokenResponse;
 import dev.abstratium.abstrauth.service.oauth.GoogleUserInfo;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
-
-import java.util.Optional;
 
 @ApplicationScoped
 public class GoogleOAuthService {
@@ -20,14 +15,7 @@ public class GoogleOAuthService {
     @RestClient
     GoogleOAuthClient googleClient;
 
-    @Inject
-    AccountService accountService;
 
-    @Inject
-    FederatedIdentityService federatedIdentityService;
-
-    @Inject
-    AuthorizationService authorizationService;
 
     @ConfigProperty(name = "oauth.google.client-id")
     String clientId;
@@ -39,14 +27,18 @@ public class GoogleOAuthService {
     String redirectUri;
 
     /**
-     * Exchange Google authorization code for tokens and user info
-     * Creates or links account based on Google user info
-     * 
-     * @param code Authorization code from Google
-     * @return The account linked to this Google identity
+     * Result of exchanging a Google authorization code for user information.
      */
-    @Transactional
-    public Account handleGoogleCallback(String code) {
+    public record GoogleAuthenticationResult(GoogleUserInfo userInfo, Boolean emailVerifiedFromToken) {
+    }
+
+    /**
+     * Exchange Google authorization code for tokens and user info.
+     *
+     * @param code Authorization code from Google
+     * @return The user info and email_verified flag parsed from the ID token
+     */
+    public GoogleAuthenticationResult getUserInfo(String code) {
         // Exchange code for tokens
         GoogleTokenResponse tokenResponse = googleClient.exchangeCodeForToken(
                 code,
@@ -70,65 +62,13 @@ public class GoogleOAuthService {
             throw new IllegalStateException("Email is missing from Google userinfo response");
         }
 
-        // Check if an account with this email already exists
-        Optional<Account> existingAccount = accountService.findByEmail(userInfo.getEmail());
-
-        Account account;
-        if (existingAccount.isPresent()) {
-            // Link the Google identity to the existing account
-            account = existingAccount.get();
-            
-            // Update account info from Google, but never overwrite a non-blank name with a blank one
-            if (userInfo.getName() != null && !userInfo.getName().isBlank()) {
-                account.setName(userInfo.getName());
-            }
-            account.setPicture(convertToProxyUrl(userInfo.getPicture()));
-            // Use email_verified from ID token if available, otherwise fall back to userinfo
-            Boolean emailVerified = emailVerifiedFromToken != null ? emailVerifiedFromToken : userInfo.getEmailVerified();
-            if (Boolean.FALSE.equals(account.getEmailVerified()) && Boolean.TRUE.equals(emailVerified)) {
-                account.setEmailVerified(true);
-            }
-            accountService.updateAccount(account);
-        } else {
-            // Check if signup is allowed before creating a new account
-            if (!authorizationService.isSignupAllowed()) {
-                throw new IllegalStateException("Signup is disabled");
-            }
-            
-            // Use email_verified from ID token if available, otherwise fall back to userinfo
-            Boolean emailVerified = emailVerifiedFromToken != null ? emailVerifiedFromToken : userInfo.getEmailVerified();
-            
-            // Create a new account for this Google user
-            account = accountService.createAccountFromFederatedProvider(
-                    userInfo.getEmail(),
-                    userInfo.getName(),
-                    convertToProxyUrl(userInfo.getPicture()),
-                    emailVerified != null ? emailVerified : false,
-                    AccountService.GOOGLE
-            );
-        }
-
-        // Check if this Google account is already linked
-        Optional<FederatedIdentity> existingIdentity = 
-                federatedIdentityService.findByProviderAndUserId(AccountService.GOOGLE, userInfo.getSub());
-
-        if (!existingIdentity.isPresent()) {
-            // Create the federated identity link
-            federatedIdentityService.createFederatedIdentity(
-                    account.getId(),
-                    AccountService.GOOGLE,
-                    userInfo.getSub(),
-                    userInfo.getEmail()
-            );
-        }
-
-        return account;
+        return new GoogleAuthenticationResult(userInfo, emailVerifiedFromToken);
     }
 
     /**
      * Convert Google profile picture URL to use our proxy to avoid rate limiting
      */
-    private String convertToProxyUrl(String googlePictureUrl) {
+    public String convertToProxyUrl(String googlePictureUrl) {
         if (googlePictureUrl == null || googlePictureUrl.isBlank()) {
             return null;
         }

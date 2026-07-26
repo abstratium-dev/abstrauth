@@ -7,9 +7,9 @@ import static dev.abstratium.abstrauth.entity.AuthorizationRequest.AUTHORIZATION
 import static dev.abstratium.abstrauth.entity.AuthorizationRequest.SESSION_COOKIE_NAME;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthorizationService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyMicrosoftOAuthService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.AuthorizationService;
-import dev.abstratium.abstrauth.service.MicrosoftOAuthService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
@@ -46,7 +46,7 @@ public class MicrosoftCallbackResource {
     SecurityProblemLogger securityProblemLogger;
 
     @Inject
-    MicrosoftOAuthService microsoftOAuthService;
+    NonMultitenancyMicrosoftOAuthService nonMultitenancyMicrosoftOAuthService;
 
     @Inject
     AuthorizationService authorizationService;
@@ -133,7 +133,7 @@ public class MicrosoftCallbackResource {
 
         try {
             // Exchange Microsoft code for user info and create/link account
-            Account account = microsoftOAuthService.handleMicrosoftCallback(code);
+            Account account = nonMultitenancyMicrosoftOAuthService.handleMicrosoftCallback(code);
 
             String clientIp = ClientIpUtil.getClientIp(requestContext);
 

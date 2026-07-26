@@ -1,5 +1,7 @@
 package dev.abstratium.abstrauth.non_multitenancy.service;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.service.NoSubscriptionException;
@@ -28,16 +30,31 @@ public class NonMultitenancyAuthorizationService {
     EntityManager em;
 
     @Inject
-    OAuthClientService oAuthClientService;
+    OAuthClientService nonMultitenancyOAuthClientService;
 
     @Inject
     NonMultitenancySubscriptionService nonMultitenancySubscriptionService;
+
+    @Inject
+    NonMultitenancyAccountService nonMultitenancyAccountService;
 
     @Inject
     dev.abstratium.abstrauth.service.MetricsService metricsService;
 
     @Inject
     dev.abstratium.abstrauth.service.AuthorizationService authorizationService;
+
+    @ConfigProperty(name = "allow.signup", defaultValue = "false")
+    boolean allowSignup;
+
+    @ConfigProperty(name = "allow.native.signin", defaultValue = "true")
+    boolean allowNativeSignin;
+
+    @ConfigProperty(name = "allow.google.signin", defaultValue = "false")
+    boolean allowGoogleSignin;
+
+    @ConfigProperty(name = "allow.microsoft.signin", defaultValue = "false")
+    boolean allowMicrosoftSignin;
 
     /**
      * Checks the subscription gate for the given org and client.
@@ -55,7 +72,7 @@ public class NonMultitenancyAuthorizationService {
      */
     @Transactional
     public void checkSubscription(String orgId, String clientId) {
-        OAuthClient client = oAuthClientService.findByClientId(clientId).orElse(null);
+        OAuthClient client = nonMultitenancyOAuthClientService.findByClientId(clientId).orElse(null);
         boolean isPublik = client == null || Boolean.TRUE.equals(client.getPublik());
         boolean autoSubscribe = isPublik && (client == null || Boolean.TRUE.equals(client.getAutoSubscribe()));
         nonMultitenancySubscriptionService.ensureSubscribed(orgId, clientId, autoSubscribe);
@@ -86,4 +103,34 @@ public class NonMultitenancyAuthorizationService {
         authorizationService.approveAuthorizationRequest(requestId, accountId, authMethod);
         authorizationService.setOrgId(requestId, orgId);
     }
+
+    /**
+     * Check if signup is allowed.
+     * Signup is allowed if:
+     * 1. The allow.signup config property is true, OR
+     * 2. There are no accounts in the database (first user setup)
+     * 
+     * @return true if signup is allowed, false otherwise
+     */
+    public boolean isSignupAllowed() {
+        // Always allow signup if there are no accounts (first user)
+        if (nonMultitenancyAccountService.noAccountsExist()) {
+            return true;
+        }
+        // Otherwise, check the config property
+        return allowSignup;
+    }
+
+    public boolean isNativeSigninAllowed() {
+        return allowNativeSignin;
+    }
+
+    public boolean isGoogleSigninAllowed() {
+        return allowGoogleSignin;
+    }
+
+    public boolean isMicrosoftSigninAllowed() {
+        return allowMicrosoftSignin;
+    }
+
 }

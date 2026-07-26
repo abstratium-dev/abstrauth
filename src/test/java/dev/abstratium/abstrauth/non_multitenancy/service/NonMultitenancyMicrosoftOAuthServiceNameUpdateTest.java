@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.service;
+package dev.abstratium.abstrauth.non_multitenancy.service;
 
 import dev.abstratium.abstrauth.entity.Account;
 import org.junit.jupiter.api.Test;
@@ -6,10 +6,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Plain unit tests for the name-preservation logic applied during Google OAuth callback.
- * The rule: never overwrite an existing non-blank account name with a blank value from Google.
+ * Plain unit tests for the name-preservation logic applied during Microsoft OAuth callback.
+ * The rule: never overwrite an existing non-blank account name with a blank value from Microsoft.
  */
-public class GoogleOAuthServiceNameUpdateTest {
+public class NonMultitenancyMicrosoftOAuthServiceNameUpdateTest {
 
     private void applyNameUpdate(Account account, String incomingName) {
         if (incomingName != null && !incomingName.isBlank()) {

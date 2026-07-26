@@ -423,7 +423,7 @@
                               title="Revoke secret">
                         🔒 Revoke
                       </button>
-                      <button *ngIf="!secret.active" 
+                      <button *ngIf="!secret.active || isSecretExpired(secret)" 
                               class="btn-icon btn-icon-danger" 
                               (click)="deleteSecret(client.clientId, secret)"
                               title="Permanently delete secret">

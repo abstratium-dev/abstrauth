@@ -9,6 +9,9 @@ import jakarta.inject.Inject;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthClientService;
+
 /**
  * Service for tracking application metrics using Micrometer.
  * Provides counters, gauges, and timers for key OAuth operations.
@@ -20,10 +23,14 @@ public class MetricsService {
     MeterRegistry registry;
 
     @Inject
-    AccountService accountService;
+    NonMultitenancyAccountService accountService;
 
     @Inject
-    OAuthClientService clientService;
+    NonMultitenancyOAuthClientService clientService;
+
+    @Inject
+    CurrentOrgContext orgCtx;
+
 
     // Counters for authentication events
     private Counter successfulLogins;
@@ -321,6 +328,8 @@ public class MetricsService {
      */
     @Scheduled(every = "15m")
     void updateEntityCounts() {
+        orgCtx.setContextDescription("MetricsService#updateEntityCounts");
+        orgCtx.setIgnore(true);
         totalAccounts.set(accountService.countAccounts());
         totalClients.set(clientService.countClients());
     }

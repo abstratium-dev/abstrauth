@@ -8,7 +8,7 @@ import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountService;
 import dev.abstratium.abstrauth.service.BootstrapService;
 import dev.abstratium.abstrauth.service.CurrentOrgContext;
 
@@ -43,7 +43,7 @@ public class TestDatabaseResetHelper {
     EntityManager em;
 
     @Inject
-    AccountService accountService;
+    NonMultitenancyAccountService nonMultitenancyAccountService;
 
     @Inject
     BootstrapService bootstrapService;
@@ -63,7 +63,7 @@ public class TestDatabaseResetHelper {
     @Transactional
     public void resetDatabase() {
         currentOrgContext.setOrgId(configuredDefaultOrgId);
-        accountService.resetAccountExistenceCache();
+        nonMultitenancyAccountService.resetAccountExistenceCache();
 
         final String defaultOrg = "'" + configuredDefaultOrgId + "'";
         final String seededClients = buildInClause(SEEDED_CLIENT_IDS);

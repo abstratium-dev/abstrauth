@@ -34,10 +34,10 @@ The following classes outside this package are permitted to reference `non_multi
 | `service/AccountService` | `NonMultitenancyAccountRoleService` | Must assign initial roles during account creation before the orgId is known to Hibernate |
 | `service/ClientAllowedRoleService` | `NonMultitenancyOAuthClientService`, `NonMultitenancyAccountRoleService` | Must look up client owner org cross-tenant and remove AccountRole rows across all orgs when a catalog role is deleted or un-shared |
 | `boundary/api/ClientRolesResource` | `NonMultitenancyOAuthClientService`, `NonMultitenancySubscriptionService` | Must look up target public clients across all orgs and verify caller's org has a subscription before assigning client-to-client roles |
-| `boundary/oauth/AuthorizationResource` | `NonMultitenancyAuthorizationService` | OAuth authorization flow requires cross-tenant client lookup before a tenant session exists |
+| `boundary/oauth/AuthorizationResource` | `NonMultitenancyAuthorizationService`, `NonMultitenancyOAuthClientService` | OAuth authorization flow requires cross-tenant client lookup and redirect_uri/scope validation before a tenant session exists |
 | `boundary/oauth/OrgSelectionResource` | `NonMultitenancyAuthorizationService` | Org selection step of the auth flow — tenant context not yet established |
-| `boundary/oauth/GoogleCallbackResource` | `NonMultitenancyAuthorizationService` | Federated login callback — orgId resolved from external identity, not Hibernate session |
-| `boundary/oauth/MicrosoftCallbackResource` | `NonMultitenancyAuthorizationService` | Federated login callback — orgId resolved from external identity, not Hibernate session |
+| `boundary/oauth/GoogleCallbackResource` | `NonMultitenancyAuthorizationService`, `NonMultitenancyGoogleOAuthService` | Federated login callback — orgId resolved from external identity, not Hibernate session |
+| `boundary/oauth/MicrosoftCallbackResource` | `NonMultitenancyAuthorizationService`, `NonMultitenancyMicrosoftOAuthService` | Federated login callback — orgId resolved from external identity, not Hibernate session |
 | `boundary/api/AccountsResource` | `NonMultitenancyAccountRoleService` | Seed default roles for all subscribed clients when adding an existing account to an organization (orgId from JWT, not yet known to Hibernate session) |
 
 Any new usage outside this package must be added to the above table with a justification, and approved by the chief architect.

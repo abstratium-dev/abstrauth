@@ -1,41 +1,51 @@
 package dev.abstratium.abstrauth.boundary.oauth;
 
-import dev.abstratium.abstrauth.entity.Account;
-import dev.abstratium.abstrauth.entity.AuthorizationCode;
-import dev.abstratium.abstrauth.entity.AuthorizationRequest;
-import dev.abstratium.abstrauth.entity.OAuthClient;
-import dev.abstratium.abstrauth.entity.Organisation;
-import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthorizationService;
-import dev.abstratium.abstrauth.service.AccountService;
-import dev.abstratium.abstrauth.service.AuthorizationService;
-import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
-import dev.abstratium.abstrauth.service.OAuthClientService;
-import dev.abstratium.abstrauth.service.OrganisationService;
-import dev.abstratium.abstrauth.util.ClientIpUtil;
-import io.quarkus.runtime.annotations.RegisterForReflection;
-import io.quarkus.security.identity.SecurityIdentity;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
-import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.NewCookie;
-import jakarta.ws.rs.core.Response;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
+
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
-import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
 
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Optional;
+import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.AuthorizationCode;
+import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.entity.Organisation;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAuthorizationService;
+import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthClientService;
+import dev.abstratium.abstrauth.service.AccountService;
+import dev.abstratium.abstrauth.service.AuthorizationService;
+import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
+import dev.abstratium.abstrauth.service.CurrentOrgContext;
+import dev.abstratium.abstrauth.service.OAuthClientService;
+import dev.abstratium.abstrauth.service.OrganisationService;
+import dev.abstratium.abstrauth.util.ClientIpUtil;
+import io.quarkus.runtime.annotations.RegisterForReflection;
+import io.quarkus.security.identity.SecurityIdentity;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.NewCookie;
+import jakarta.ws.rs.core.Response;
 
 /**
  * OAuth 2.0 Authorization Endpoint
@@ -47,6 +57,9 @@ import java.util.Optional;
 public class AuthorizationResource {
 
     private static final Logger log = Logger.getLogger(AuthorizationResource.class); 
+
+    @Inject
+    NonMultitenancyOAuthClientService nonMultitenancyClientService;
 
     @Inject
     OAuthClientService clientService;
@@ -65,6 +78,9 @@ public class AuthorizationResource {
 
     @Inject
     ClientAllowedRoleService clientAllowedRoleService;
+
+    @Inject
+    CurrentOrgContext orgCtx;
 
     @Inject
     SecurityIdentity securityIdentity;
@@ -147,6 +163,9 @@ public class AuthorizationResource {
         )
         @QueryParam("code_challenge_method") String codeChallengeMethod
     ) {
+        orgCtx.setContextDescription("AuthorizationResource#authorize");
+        orgCtx.setIgnore(true);
+
         // Validate client_id
         if (clientId == null || clientId.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -154,14 +173,14 @@ public class AuthorizationResource {
                     .build();
         }
 
-        Optional<OAuthClient> clientOpt = clientService.findByClientId(clientId);
+        Optional<NonMultitenancyOAuthClient> clientOpt = nonMultitenancyClientService.findByClientId(clientId);
         if (clientOpt.isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("<html><body><h1>Error</h1><p>Invalid client_id</p></body></html>")
                     .build();
         }
 
-        OAuthClient client = clientOpt.get();
+        NonMultitenancyOAuthClient client = clientOpt.get();
 
         // Enforce BFF pattern: Only confidential clients are supported
         if (!"confidential".equals(client.getClientType())) {
@@ -181,7 +200,7 @@ public class AuthorizationResource {
                     .build();
         }
 
-        if (!clientService.isRedirectUriAllowed(client, redirectUri)) {
+        if (!nonMultitenancyClientService.isRedirectUriAllowed(client, redirectUri)) {
             log.warnv("Invalid redirect_uri for client {0}: requested={1}, allowed={2}",
                     clientId, redirectUri, client.getRedirectUris());
             return Response.status(Response.Status.BAD_REQUEST)
@@ -202,7 +221,7 @@ public class AuthorizationResource {
         }
 
         // Validate scope
-        if (!clientService.isScopeAllowed(client, scope)) {
+        if (!nonMultitenancyClientService.isScopeAllowed(client, scope)) {
             return buildErrorRedirect(redirectUri, "invalid_scope", 
                     "Requested scope is not allowed", state);
         }
@@ -277,7 +296,7 @@ public class AuthorizationResource {
         }
 
         AuthorizationRequest authRequest = requestOpt.get();
-        OAuthClient client = clientService.findByClientId(authRequest.getClientId()).get();
+        NonMultitenancyOAuthClient client = nonMultitenancyClientService.findByClientId(authRequest.getClientId()).get();
 
         return Response.ok(new AuthRequestDetails(authRequest.getClientId(), client.getClientName(), authRequest.getScope())).build();
     }

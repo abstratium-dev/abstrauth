@@ -112,4 +112,74 @@ public class NonMultitenancyOAuthClientServiceTest {
         Optional<NonMultitenancyOAuthClient> deleted = nonMultitenancyOAuthClientService.findByClientId(clientId);
         assertFalse(deleted.isPresent(), "Client should be deleted");
     }
+
+    @Test
+    public void testIsRedirectUriAllowed() {
+        Optional<NonMultitenancyOAuthClient> clientOpt = nonMultitenancyOAuthClientService.findByClientId("abstratium-abstrauth");
+        assertTrue(clientOpt.isPresent());
+
+        NonMultitenancyOAuthClient client = clientOpt.get();
+        assertTrue(nonMultitenancyOAuthClientService.isRedirectUriAllowed(client, "http://localhost:8080/api/auth/callback"));
+        assertFalse(nonMultitenancyOAuthClientService.isRedirectUriAllowed(client, "http://evil.com/callback"));
+    }
+
+    @Test
+    public void testIsRedirectUriAllowedWithInvalidJson() {
+        NonMultitenancyOAuthClient client = new NonMultitenancyOAuthClient();
+        client.setRedirectUris("invalid-json");
+
+        assertFalse(nonMultitenancyOAuthClientService.isRedirectUriAllowed(client, "http://localhost:3000/callback"));
+    }
+
+    @Test
+    public void testIsScopeAllowed() {
+        Optional<NonMultitenancyOAuthClient> clientOpt = nonMultitenancyOAuthClientService.findByClientId("abstratium-abstrauth");
+        assertTrue(clientOpt.isPresent());
+
+        NonMultitenancyOAuthClient client = clientOpt.get();
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(client, "openid"));
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(client, "openid profile"));
+        assertFalse(nonMultitenancyOAuthClientService.isScopeAllowed(client, "invalid-scope"));
+    }
+
+    @Test
+    public void testIsScopeAllowedWithNullOrBlank() {
+        Optional<NonMultitenancyOAuthClient> clientOpt = nonMultitenancyOAuthClientService.findByClientId("abstratium-abstrauth");
+        assertTrue(clientOpt.isPresent());
+
+        NonMultitenancyOAuthClient client = clientOpt.get();
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(client, null));
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(client, ""));
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(client, "   "));
+    }
+
+    @Test
+    public void testIsScopeAllowedWithInvalidJson() {
+        NonMultitenancyOAuthClient client = new NonMultitenancyOAuthClient();
+        client.setAllowedScopes("invalid-json");
+
+        assertFalse(nonMultitenancyOAuthClientService.isScopeAllowed(client, "openid"));
+    }
+
+    @Test
+    public void testIsScopeAllowedWithNoScopes() {
+        // Test with null allowedScopes
+        NonMultitenancyOAuthClient clientNull = new NonMultitenancyOAuthClient();
+        clientNull.setAllowedScopes(null);
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(clientNull, null), "Null scope should be allowed");
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(clientNull, ""), "Empty scope should be allowed");
+        assertFalse(nonMultitenancyOAuthClientService.isScopeAllowed(clientNull, "openid"), "Any scope should be rejected when no scopes configured");
+
+        // Test with empty string allowedScopes
+        NonMultitenancyOAuthClient clientEmpty = new NonMultitenancyOAuthClient();
+        clientEmpty.setAllowedScopes("");
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(clientEmpty, null), "Null scope should be allowed");
+        assertFalse(nonMultitenancyOAuthClientService.isScopeAllowed(clientEmpty, "openid"), "Any scope should be rejected when no scopes configured");
+
+        // Test with empty array allowedScopes
+        NonMultitenancyOAuthClient clientEmptyArray = new NonMultitenancyOAuthClient();
+        clientEmptyArray.setAllowedScopes("[]");
+        assertTrue(nonMultitenancyOAuthClientService.isScopeAllowed(clientEmptyArray, null), "Null scope should be allowed");
+        assertFalse(nonMultitenancyOAuthClientService.isScopeAllowed(clientEmptyArray, "openid"), "Any scope should be rejected when no scopes configured");
+    }
 }

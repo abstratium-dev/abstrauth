@@ -1,6 +1,7 @@
 package dev.abstratium.abstrauth.non_multitenancy.service;
 
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccount;
+import dev.abstratium.abstrauth.service.CurrentOrgContext;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.Mailer;
 import io.quarkus.scheduler.Scheduled;
@@ -45,6 +46,9 @@ public class NonMultitenancySecretExpirationNotificationService {
     NonMultitenancyAccountService accountService;
 
     @Inject
+    CurrentOrgContext orgCtx;
+
+    @Inject
     Mailer mailer;
 
     @ConfigProperty(name = "abstrauth.email.enabled", defaultValue = "false")
@@ -66,6 +70,8 @@ public class NonMultitenancySecretExpirationNotificationService {
      */
     @Scheduled(cron = "${abstrauth.secret-expiration.notification-cron}")
     public void checkAndNotify() {
+        orgCtx.setContextDescription("NonMultitenancySecretExpirationNotificationService#checkAndNotify");
+        orgCtx.setIgnore(true);
         if (!emailEnabled) {
             log.debug("Email notifications are disabled; skipping secret expiration checks");
             return;

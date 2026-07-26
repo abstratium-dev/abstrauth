@@ -44,6 +44,9 @@ public class OrgIdResolutionFilter implements ContainerRequestFilter {
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
+        currentOrgContext.setRequestPath(requestContext.getUriInfo().getPath());
+        currentOrgContext.setRequestMethod(requestContext.getMethod());
+
         String orgId = extractOrgIdFromIdToken();
         if (orgId == null) {
             orgId = extractOrgIdFromAccessToken();

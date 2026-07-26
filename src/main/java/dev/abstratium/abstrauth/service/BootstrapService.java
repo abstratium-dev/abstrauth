@@ -22,6 +22,9 @@ public class BootstrapService {
     SecurityProblemLogger securityProblemLogger;
 
     @Inject
+    CurrentOrgContext orgCtx;
+
+    @Inject
     OAuthClientService clientService;
     
     @ConfigProperty(name = "quarkus.oidc.bff.credentials.secret")
@@ -53,6 +56,8 @@ public class BootstrapService {
             }
             
             // Update the client secret hash using the service
+            orgCtx.setContextDescription("BootstrapService#syncClientSecretHash");
+            orgCtx.setIgnore(true);
             clientService.updateClientSecretHash(clientSecret);
             
             Log.info("Client secret hash synchronized for '" + Roles.CLIENT_ID + "'");

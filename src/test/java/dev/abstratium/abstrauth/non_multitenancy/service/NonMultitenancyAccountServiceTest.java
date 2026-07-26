@@ -281,4 +281,17 @@ public class NonMultitenancyAccountServiceTest {
         Optional<Account> deleted = accountService.findById(account.getId());
         assertFalse(deleted.isPresent());
     }
+
+    @Test
+    public void testCountAccounts() {
+        long initialCount = accountService.countAccounts();
+        
+        String email = "count_" + System.currentTimeMillis() + "@example.com";
+        String username = "countuser_" + System.currentTimeMillis();
+        accountService.createAccount(email, "Count Test", username, "Password123", AccountService.NATIVE, "Test Org");
+        
+        long newCount = accountService.countAccounts();
+        assertEquals(initialCount + 1, newCount);
+    }
+
 }

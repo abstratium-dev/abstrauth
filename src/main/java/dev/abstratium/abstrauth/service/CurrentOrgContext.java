@@ -13,6 +13,10 @@ import jakarta.enterprise.context.RequestScoped;
 public class CurrentOrgContext {
 
     private String orgId;
+    private String requestPath;
+    private String requestMethod;
+    private String contextDescription;
+    private boolean ignore;
 
     public String getOrgId() {
         return orgId;
@@ -21,4 +25,37 @@ public class CurrentOrgContext {
     public void setOrgId(String orgId) {
         this.orgId = orgId;
     }
+
+    public String getRequestPath() {
+        return requestPath;
+    }
+
+    public void setRequestPath(String requestPath) {
+        this.requestPath = requestPath;
+    }
+
+    public String getRequestMethod() {
+        return requestMethod;
+    }
+
+    public void setRequestMethod(String requestMethod) {
+        this.requestMethod = requestMethod;
+    }
+
+    public String getContextDescription() {
+        return contextDescription;
+    }
+
+    public void setContextDescription(String contextDescription) {
+        this.contextDescription = contextDescription;
+    }
+
+    public boolean isIgnore() {
+        return ignore;
+    }
+
+    public void setIgnore(boolean ignore) {
+        this.ignore = ignore;
+    }
+
 }

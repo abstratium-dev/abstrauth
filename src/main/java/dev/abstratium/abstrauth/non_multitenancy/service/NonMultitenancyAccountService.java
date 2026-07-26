@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
@@ -25,6 +26,8 @@ import jakarta.transaction.Transactional;
  */
 @ApplicationScoped
 public class NonMultitenancyAccountService {
+
+    private static final AtomicBoolean ONE_OR_MORE_ACCOUNTS_FOUND = new AtomicBoolean(false);
 
     @Inject
     EntityManager em;
@@ -297,4 +300,44 @@ public class NonMultitenancyAccountService {
 
         return totalAdminRoles <= 1; // This is the only admin
     }
+
+    /**
+     * Count the total number of accounts in the database
+     * @return The number of accounts
+     */
+    public long countAccounts() {
+        var query = em.createQuery("SELECT COUNT(a) FROM NonMultitenancyAccount a", Long.class);
+        return query.getSingleResult();
+    }
+
+    public boolean noAccountsExist() {
+        return !oneOrMoreAccountsExist();
+    }
+
+    public boolean oneOrMoreAccountsExist() {
+        if(ONE_OR_MORE_ACCOUNTS_FOUND.get()) {
+            return true;
+        } else {
+            // count, as it may have changed
+            if(countAccounts() >= 1) {
+                // once this node has confirmed that at least one exists, it can cache the value.
+                // TODO support special case where all accounts are deleted? or just restart server?
+                ONE_OR_MORE_ACCOUNTS_FOUND.set(true);
+                return true;
+            } else {
+                // leave ONE_OR_MORE_ACCOUNTS_FOUND as false
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Test-only hook: resets the cached account-existence flag so that a
+     * freshly cleaned database is correctly detected as having no accounts.
+     * Called by TestDatabaseResetHelper.
+     */
+    public void resetAccountExistenceCache() {
+        ONE_OR_MORE_ACCOUNTS_FOUND.set(false);
+    }
+
 }

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancySubscription;
+import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.NoSubscriptionException;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
@@ -23,6 +24,9 @@ public class NonMultitenancyAuthorizationServiceTest {
 
     @Inject
     NonMultitenancyAuthorizationService nonMultitenancyAuthorizationService;
+
+    @Inject
+    AccountService accountService;
 
     @Inject
     NonMultitenancySubscriptionService subscriptionService;
@@ -134,6 +138,29 @@ public class NonMultitenancyAuthorizationServiceTest {
                 () -> nonMultitenancyAuthorizationService.approveWithSubscriptionCheck(nonExistentRequestId, accountId, "native", orgId),
                 "Should throw NotFoundException when request doesn't exist");
         assertEquals("Authorization request not found", thrown.getMessage());
+    }
+
+    @Test
+    public void testIsSignupAllowedWhenNoAccounts() {
+        // With the database reset and allow.signup=true in test profile, signup is allowed
+        boolean signupAllowed = nonMultitenancyAuthorizationService.isSignupAllowed();
+        assertTrue(signupAllowed);
+    }
+
+    @Test
+    public void testIsSignupAllowedWithExistingAccounts() {
+        // Create an account to ensure at least one exists
+        accountService.createAccount(
+                "signup_" + System.currentTimeMillis() + "@example.com",
+                "Signup Test",
+                "signupuser_" + System.currentTimeMillis(),
+                "Password123",
+                AccountService.NATIVE,
+                "Test Org");
+
+        // In test profile, allow.signup=true
+        boolean signupAllowed = nonMultitenancyAuthorizationService.isSignupAllowed();
+        assertTrue(signupAllowed);
     }
 
 }

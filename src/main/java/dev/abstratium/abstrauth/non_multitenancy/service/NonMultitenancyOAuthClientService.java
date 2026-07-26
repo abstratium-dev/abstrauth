@@ -1,10 +1,17 @@
 package dev.abstratium.abstrauth.non_multitenancy.service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import dev.abstratium.abstrauth.entity.OAuthClient;
+import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyClientSecret;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
+import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.Roles;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -14,8 +21,19 @@ import jakarta.transaction.Transactional;
 @ApplicationScoped
 public class NonMultitenancyOAuthClientService {
 
+    private static final String DEFAULT_SECRET = "dev-secret-CHANGE-IN-PROD";
+
     @Inject
     EntityManager em;
+
+    @Inject
+    OAuthClientService multitenantClientService;
+
+    @Inject
+    NonMultitenancyClientSecretService clientSecretService;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     /**
      * Returns clients matching the given clientIds, across all organisations.
@@ -73,5 +91,80 @@ public class NonMultitenancyOAuthClientService {
         em.remove(client);
         return true;
     }
+
+    /**
+     * Count the total number of OAuth clients in the database
+     * @return The number of clients
+     */
+    public long countClients() {
+        var query = em.createQuery("SELECT COUNT(c) FROM NonMultitenancyOAuthClient c", Long.class);
+        return query.getSingleResult();
+    }
+
+    /**
+     * Checks if a client's secret hash matches the given plain secret.
+     * Returns false if client not found or hash doesn't match.
+     * Checks against all active secrets.
+     */
+    public boolean abstrauthClientSecretMatches() {
+        Optional<NonMultitenancyOAuthClient> clientOpt = findByClientId(Roles.CLIENT_ID);
+        if (clientOpt.isEmpty()) {
+            return false;
+        }
+        
+        // Check against all active secrets
+        List<NonMultitenancyClientSecret> activeSecrets = clientSecretService.findActiveSecrets(Roles.CLIENT_ID);
+        if (activeSecrets.isEmpty()) {
+            return false;
+        }
+        
+        // Return true if any active secret matches
+        return activeSecrets.stream()
+            .anyMatch(secret -> multitenantClientService.verifyClientSecret(DEFAULT_SECRET, secret.getSecretHash()));
+    }
+
+    public boolean isRedirectUriAllowed(NonMultitenancyOAuthClient client, String redirectUri) {
+        try {
+            String[] allowedUris = objectMapper.readValue(client.getRedirectUris(), String[].class);
+            return Arrays.asList(allowedUris).contains(redirectUri);
+        } catch (JsonProcessingException e) {
+            return false;
+        }
+    }
+
+    public boolean isScopeAllowed(NonMultitenancyOAuthClient client, String requestedScope) {
+        // Empty/null requested scope is always allowed (role-based auth only)
+        if (requestedScope == null || requestedScope.isBlank()) {
+            return true;
+        }
+
+        // If no allowed scopes are configured, reject any scope request
+        // (client should use role-based authorization only)
+        if (client.getAllowedScopes() == null || client.getAllowedScopes().isBlank()) {
+            return false;
+        }
+
+        try {
+            String[] allowedScopes = objectMapper.readValue(client.getAllowedScopes(), String[].class);
+            
+            // Empty array means no scopes allowed (role-based auth only)
+            if (allowedScopes.length == 0) {
+                return false;
+            }
+            
+            List<String> allowedScopeList = Arrays.asList(allowedScopes);
+            
+            String[] requestedScopes = requestedScope.split(" ");
+            for (String scope : requestedScopes) {
+                if (!allowedScopeList.contains(scope)) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (JsonProcessingException e) {
+            return false;
+        }
+    }
+
 
 }

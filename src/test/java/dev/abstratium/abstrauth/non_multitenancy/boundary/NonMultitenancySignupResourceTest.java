@@ -1,4 +1,4 @@
-package dev.abstratium.abstrauth.boundary;
+package dev.abstratium.abstrauth.non_multitenancy.boundary;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
@@ -10,7 +10,7 @@ import static org.hamcrest.CoreMatchers.*;
  * Tests for SignupResource
  */
 @QuarkusTest
-public class SignupResourceTest {
+public class NonMultitenancySignupResourceTest {
 
     @Test
     public void testSignupWithValidData() {
