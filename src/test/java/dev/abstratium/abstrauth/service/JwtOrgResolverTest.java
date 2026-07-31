@@ -21,7 +21,7 @@ import static org.hamcrest.Matchers.is;
  * parseable by JwtOrgResolver.
  */
 @QuarkusTest
-class JwtOrgResolverIntegrationTest {
+class JwtOrgResolverTest {
 
     public static final String DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000000";
 
