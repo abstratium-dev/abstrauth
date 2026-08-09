@@ -434,7 +434,7 @@ non_multitenancy/
 | GET | `/api/organisations/{orgId}` | Get organisation by ID | `user` |
 | POST | `/api/organisations` | Create a new organisation | `user` |
 | PUT | `/api/organisations/{orgId}` | Update organisation name | `user` (org `owner`) |
-| DELETE | `/api/organisations/{orgId}` | Delete organisation | `admin` |
+| DELETE | `/api/organisations/{orgId}` | Delete organisation | `user` (org `owner`, not current org) |
 | DELETE | `/api/organisations/{orgId}/members/{accountId}` | Remove a member | `user` (org `owner`) |
 | POST | `/api/organisations/{orgId}/subscriptions` | Subscribe org to a client | `user` (org `owner`) |
 | DELETE | `/api/organisations/{orgId}/subscriptions/{clientId}` | Unsubscribe | `user` (org `owner`) |
@@ -499,10 +499,13 @@ non_multitenancy/
 `DELETE /api/organisations/{orgId}` removes an organisation and all of its associated data (account roles, subscriptions, memberships, clients) using a cross-tenant cascade. To prevent accidental data loss and preserve the default landing organisation, the endpoint enforces the following rules:
 
 1. **The default organisation cannot be deleted.** This protects the shared migration organisation (`rename-me`) and the accounts that were originally linked to it.
-2. **A user cannot delete the last organisation they are a member of.** If the caller only belongs to one organisation, deleting it would leave them with no organisation context.
-3. **An organisation with other member accounts cannot be deleted.** Deletion is only allowed when the caller is the only remaining member of the target organisation.
+2. **The organisation the caller is currently signed into cannot be deleted.** The caller must be signed into a different organisation when deleting.
+3. **The caller must be an owner of the organisation.** Non-owners receive 403 Forbidden.
+4. **The caller must be the sole owner.** If there are other owners, they must be removed first.
+5. **The organisation must have no other member accounts.** If other members exist, they must be removed first.
+6. **A user cannot delete the last organisation they are a member of.** If the caller only belongs to one organisation, deleting it would leave them with no organisation context. (This is subsumed by rule 2 in practice but kept as defense-in-depth.)
 
-These rules are checked before the cascade delete is executed. The endpoint remains admin-only because the cascade touches data across all organisations.
+These rules are checked before the cascade delete is executed. The endpoint is available to any organisation owner, not just platform admins, because the cascade only touches data belonging to the organisation being deleted.
 
 ## Membership Removal
 

@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.non_multitenancy.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -161,6 +162,24 @@ public class NonMultitenancyAuthorizationServiceTest {
         // In test profile, allow.signup=true
         boolean signupAllowed = nonMultitenancyAuthorizationService.isSignupAllowed();
         assertTrue(signupAllowed);
+    }
+
+    @Test
+    public void testCheckSubscription_nonexistentClient_throwsNoSubscription() {
+        // A nonexistent clientId must NOT auto-create a dangling subscription row.
+        // Previously, client==null defaulted isPublik=true, which caused a subscription
+        // to be auto-created for a client that does not exist.
+        String clientId = "nonexistent-client-" + System.nanoTime();
+        // No subscription will be created (throws before insert), so any string orgId is fine
+        String orgId = java.util.UUID.randomUUID().toString();
+
+        assertThrows(NoSubscriptionException.class,
+                () -> nonMultitenancyAuthorizationService.checkSubscription(orgId, clientId),
+                "checkSubscription for a nonexistent client must throw NoSubscriptionException, not auto-create a subscription");
+
+        // Verify no dangling subscription was created
+        assertFalse(subscriptionService.findNonMultitenancySubscription(orgId, clientId).isPresent(),
+                "No subscription should have been created for a nonexistent client");
     }
 
 }

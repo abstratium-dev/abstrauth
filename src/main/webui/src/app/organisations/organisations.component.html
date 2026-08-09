@@ -69,7 +69,7 @@
              title="View audit history">
             🕒
           </a>
-          <button *ngIf="isAdmin()"
+          <button *ngIf="canDeleteOrg(org)"
                   class="btn-delete-small"
                   [attr.data-testid]="'delete-org-' + org.id"
                   [disabled]="deletingOrgId() === org.id"

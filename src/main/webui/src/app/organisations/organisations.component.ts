@@ -55,8 +55,8 @@ export class OrganisationsComponent implements OnInit {
     return this.authService.getOrgId() === orgId;
   }
 
-  isAdmin(): boolean {
-    return this.authService.isAdmin();
+  canDeleteOrg(org: Organisation): boolean {
+    return org.roles.includes('owner') && !this.isCurrentOrg(org.id);
   }
 
   async onDeleteOrg(orgId: string, orgName: string): Promise<void> {

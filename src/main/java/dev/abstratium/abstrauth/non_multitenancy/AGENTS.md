@@ -21,7 +21,7 @@ The `boundary` sub-package contains REST endpoints that perform cross-tenant (cr
 |----------|---------|
 | `NonMultitenancyClientsResource` | Access public OAuth clients owned by other organisations that the caller's org subscribes to. **DELETE endpoint**: Deletes clients with cross-tenant cascade (all roles, secrets, subscriptions across all orgs) |
 | `NonMultitenancyAccountsResource` | **DELETE endpoints**: `DELETE /api/accounts/me` deletes the caller's own account, and `DELETE /api/accounts/{accountId}` deletes an account in the caller's org. Both delete with cross-tenant cascade (all roles, credentials, federated identities, and single-member organisations across all orgs). **GET endpoints**: `GET /api/accounts/me/data` returns the caller's personal data, and `GET /api/accounts/me/data/export` downloads it as a JSON attachment; both read across all organisations because roles, credentials, federated identities, and memberships may span multiple tenants. |
-| `NonMultitenancyOrganisationsResource` | Create new organisations with initial role assignment (bypasses tenant discriminator before orgId is established in Hibernate session). **DELETE endpoint**: Deletes organisations with cross-tenant cascade (account_roles, organisation_accounts, subscriptions across all orgs) |
+| `NonMultitenancyOrganisationsResource` | Create new organisations with initial role assignment (bypasses tenant discriminator before orgId is established in Hibernate session). **DELETE endpoint**: Deletes organisations with cross-tenant cascade (account_roles, organisation_accounts, subscriptions across all orgs). Available to any org owner who is the sole owner and sole member, signed into a different org |
 | `TokenResource` | OAuth 2.0 token endpoint — retrieves and seeds roles using non-multitenancy services (orgId from request, not Hibernate session) |
 | `TokenExchangeResource` | RFC 8693 token exchange — validates subject token, checks subscriptions cross-tenant, and seeds/reads roles using non-multitenancy services (orgId from subject token claims, not Hibernate session) |
 
@@ -39,6 +39,7 @@ The following classes outside this package are permitted to reference `non_multi
 | `boundary/oauth/GoogleCallbackResource` | `NonMultitenancyAuthorizationService`, `NonMultitenancyGoogleOAuthService` | Federated login callback — orgId resolved from external identity, not Hibernate session |
 | `boundary/oauth/MicrosoftCallbackResource` | `NonMultitenancyAuthorizationService`, `NonMultitenancyMicrosoftOAuthService` | Federated login callback — orgId resolved from external identity, not Hibernate session |
 | `boundary/api/AccountsResource` | `NonMultitenancyAccountRoleService` | Seed default roles for all subscribed clients when adding an existing account to an organization (orgId from JWT, not yet known to Hibernate session) |
+| `service/SubscriptionService` | `NonMultitenancyOAuthClientService` | Must look up the client cross-tenant to enforce publik isolation: a private client (publik=false) can only be subscribed by its owning organisation |
 
 Any new usage outside this package must be added to the above table with a justification, and approved by the chief architect.
 

@@ -30,16 +30,20 @@ describe('OrganisationsComponent', () => {
             name: 'Globex Inc',
             createdAt: '2024-02-01T00:00:00',
             roles: ['member']
+        },
+        {
+            id: 'org-3',
+            name: 'Third Org',
+            createdAt: '2024-03-01T00:00:00',
+            roles: ['owner', 'member']
         }
     ];
 
     beforeEach(async () => {
         const authSpy = {
-            getOrgId: vi.fn().mockName("AuthService.getOrgId"),
-            isAdmin: vi.fn().mockName("AuthService.isAdmin")
+            getOrgId: vi.fn().mockName("AuthService.getOrgId")
         };
         authSpy.getOrgId.mockReturnValue('org-1');
-        authSpy.isAdmin.mockReturnValue(false);
 
         const toastSpy = {
             success: vi.fn().mockName("ToastService.success"),
@@ -130,7 +134,7 @@ describe('OrganisationsComponent', () => {
             fixture.detectChanges();
 
             const tiles = fixture.nativeElement.querySelectorAll('.tile');
-            expect(tiles.length).toBe(2);
+            expect(tiles.length).toBe(3);
         });
 
         it('should display organisation name in tile', () => {
@@ -422,15 +426,27 @@ describe('OrganisationsComponent', () => {
         });
     });
 
-    describe('isAdmin', () => {
-        it('should return false when user is not admin', () => {
-            authService.isAdmin.mockReturnValue(false);
-            expect(component.isAdmin()).toBe(false);
+    describe('canDeleteOrg', () => {
+        it('should return false for the current org even if owner', () => {
+            // org-1 is the current org and user is owner
+            expect(component.canDeleteOrg(mockOrgs[0])).toBe(false);
         });
 
-        it('should return true when user is admin', () => {
-            authService.isAdmin.mockReturnValue(true);
-            expect(component.isAdmin()).toBe(true);
+        it('should return false for a non-owner org', () => {
+            // org-2: user is member only, not current org
+            expect(component.canDeleteOrg(mockOrgs[1])).toBe(false);
+        });
+
+        it('should return true for a non-current org where user is owner', () => {
+            // org-3: user is owner, not current org
+            expect(component.canDeleteOrg(mockOrgs[2])).toBe(true);
+        });
+
+        it('should return false when org has no roles', () => {
+            const noRoleOrg: Organisation = {
+                id: 'org-4', name: 'No Role', createdAt: '2024-04-01', roles: []
+            };
+            expect(component.canDeleteOrg(noRoleOrg)).toBe(false);
         });
     });
 });

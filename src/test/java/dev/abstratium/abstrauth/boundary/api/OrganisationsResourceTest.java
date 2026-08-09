@@ -717,6 +717,94 @@ public class OrganisationsResourceTest {
                 .statusCode(403);
     }
 
+    @Test
+    public void testAddSubscription_privateClientNonOwnerOrg_returns400() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_privowner");
+        Account nonOwner = createAccount(ts + "_privnon");
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+        Organisation nonOwnerOrg = organisationService.listOrganisationsForAccount(nonOwner.getId()).get(0);
+
+        // create a PRIVATE client (publik=false) owned by ownerOrg
+        String clientId = "private-client-" + ts;
+        transactionHelper.beginTransaction();
+        createTestClient(clientId, ownerOrg.getId(), false);
+        transactionHelper.commitTransaction();
+
+        // nonOwnerOrg tries to subscribe to the private client — must be rejected
+        String token = userToken(nonOwner.getId(), nonOwnerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body("{\"clientId\":\"" + clientId + "\"}")
+                .when()
+                .post("/api/organisations/" + nonOwnerOrg.getId() + "/subscriptions")
+                .then()
+                .statusCode(400);
+
+        // verify no subscription was created
+        assertFalse(subscriptionService.findNonMultitenancySubscription(nonOwnerOrg.getId(), clientId).isPresent());
+    }
+
+    @Test
+    public void testAddSubscription_publicClientNonOwnerOrg_success() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_pubowner");
+        Account nonOwner = createAccount(ts + "_pubnon");
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+        Organisation nonOwnerOrg = organisationService.listOrganisationsForAccount(nonOwner.getId()).get(0);
+
+        // create a PUBLIC client (publik=true) owned by ownerOrg
+        String clientId = "public-client-" + ts;
+        transactionHelper.beginTransaction();
+        createTestClient(clientId, ownerOrg.getId(), true);
+        transactionHelper.commitTransaction();
+
+        // nonOwnerOrg subscribes to the public client — must succeed
+        String token = userToken(nonOwner.getId(), nonOwnerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body("{\"clientId\":\"" + clientId + "\"}")
+                .when()
+                .post("/api/organisations/" + nonOwnerOrg.getId() + "/subscriptions")
+                .then()
+                .statusCode(201)
+                .contentType(ContentType.JSON)
+                .body("orgId", equalTo(nonOwnerOrg.getId()))
+                .body("clientId", equalTo(clientId));
+    }
+
+    @Test
+    public void testAddSubscription_privateClientOwningOrg_success() throws Exception {
+        long ts = System.currentTimeMillis();
+        Account owner = createAccount(ts + "_privownself");
+        Organisation ownerOrg = organisationService.listOrganisationsForAccount(owner.getId()).get(0);
+
+        // create a PRIVATE client (publik=false) owned by ownerOrg
+        String clientId = "private-self-client-" + ts;
+        transactionHelper.beginTransaction();
+        createTestClient(clientId, ownerOrg.getId(), false);
+        transactionHelper.commitTransaction();
+
+        // owning org subscribes to its own private client — must succeed
+        String token = userToken(owner.getId(), ownerOrg.getId());
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body("{\"clientId\":\"" + clientId + "\"}")
+                .when()
+                .post("/api/organisations/" + ownerOrg.getId() + "/subscriptions")
+                .then()
+                .statusCode(201)
+                .contentType(ContentType.JSON)
+                .body("orgId", equalTo(ownerOrg.getId()))
+                .body("clientId", equalTo(clientId));
+    }
+
     // ─────────────────────────────────────────────────────────
     // DELETE /api/organisations/{orgId}/subscriptions/{clientId}
     // ─────────────────────────────────────────────────────────
@@ -813,14 +901,19 @@ public class OrganisationsResourceTest {
     }
 
     private void createTestClient(String clientId, String orgId) {
+        createTestClient(clientId, orgId, false);
+    }
+
+    private void createTestClient(String clientId, String orgId, boolean publik) {
         em.createNativeQuery(
-            "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, org_id) " +
-            "VALUES (:id, :clientId, :name, 'confidential', :redirectUris, :allowedScopes, true, true, :orgId)")
+            "INSERT INTO T_oauth_clients (id, client_id, client_name, client_type, redirect_uris, allowed_scopes, require_pkce, auto_subscribe, publik, org_id) " +
+            "VALUES (:id, :clientId, :name, 'confidential', :redirectUris, :allowedScopes, true, true, :publik, :orgId)")
             .setParameter("id", UUID.randomUUID().toString())
             .setParameter("clientId", clientId)
             .setParameter("name", "Test " + clientId)
             .setParameter("redirectUris", "[\"http://localhost:8080/callback\"]")
             .setParameter("allowedScopes", "[\"openid\"]")
+            .setParameter("publik", publik)
             .setParameter("orgId", orgId)
             .executeUpdate();
     }

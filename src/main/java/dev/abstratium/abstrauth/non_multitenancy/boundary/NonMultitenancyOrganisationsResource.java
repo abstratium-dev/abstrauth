@@ -86,10 +86,11 @@ public class NonMultitenancyOrganisationsResource {
     @DELETE
     @Path("/{orgId}")
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Delete organisation", description = "Deletes an organisation and all its associated data (account roles, subscriptions, memberships) via JPA cascade. Only admin users can delete organisations. The default organisation, the caller's last organisation, and organisations that still have other member accounts cannot be deleted.")
-    @RolesAllowed(Roles.ADMIN)
+    @Operation(summary = "Delete organisation", description = "Deletes an organisation and all its associated data (account roles, subscriptions, memberships) via JPA cascade. The caller must be an owner and the sole owner and sole member of the organisation, and must be signed into a different organisation. The default organisation and the organisation the caller is currently signed into cannot be deleted.")
+    @RolesAllowed(Roles.USER)
     public Response deleteOrganisation(@PathParam("orgId") String orgId) {
         String accountId = token.getSubject();
+        String currentOrgId = token.getClaim("orgId");
 
         if (nonMultitenancyOrganisationService.findById(orgId).isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)
@@ -100,6 +101,24 @@ public class NonMultitenancyOrganisationsResource {
         if (defaultOrgId.equals(orgId)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(new ErrorResponse("Cannot delete the default organisation"))
+                    .build();
+        }
+
+        if (orgId.equals(currentOrgId)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Cannot delete the organisation you are currently signed into"))
+                    .build();
+        }
+
+        if (!organisationService.isOwner(orgId, accountId)) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(new ErrorResponse("You must be an owner of this organisation to delete it"))
+                    .build();
+        }
+
+        if (organisationService.countOwners(orgId) > 1) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Cannot delete an organisation that has other owners, remove them first"))
                     .build();
         }
 

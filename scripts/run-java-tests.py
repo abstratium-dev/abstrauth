@@ -3,6 +3,11 @@
 Run Java tests via Maven (./mvnw verify) and extract key information for LLM consumption.
 This script ONLY runs Java backend tests (surefire + failsafe). Angular frontend tests
 are handled by run-ng-tests.py.
+
+Usage:
+    ./scripts/run-java-tests.py
+    ./scripts/run-java-tests.py MyTestClass
+    ./scripts/run-java-tests.py MyTestClass#testMethod
 """
 
 import subprocess
@@ -18,6 +23,13 @@ TMP_DIR = PROJECT_ROOT / "tmp"
 MAX_TMP_FILES = 10
 
 ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+# Valid test selectors:
+#   MyTestClass
+#   MyTestClass#testMethod
+#   my.package.MyTestClass
+#   my.package.MyTestClass#testMethod
+TEST_SELECTOR_PATTERN = re.compile(r'^[\w\.]+(#\w+)?$')
 
 # Maven compiler error pattern (standard javac):
 # [ERROR] /path/to/File.java:[line,col] error message
@@ -108,7 +120,7 @@ def cleanup_old_tmp_files():
                 print(f"[cleanup] Error removing {old_file}: {e}")
 
 
-def run_mvn_test():
+def run_mvn_test(test_selector=None):
     """Run mvn test and capture all output."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file = TMP_DIR / f"java-test-{timestamp}.txt"
@@ -119,6 +131,8 @@ def run_mvn_test():
     # so we skip it to keep this script Java-backend only.
     # exec.skip skips the exec-maven-plugin, used to add angular tests to the build
     cmd = ["./mvnw", "verify", "-B", "-Dexec.skip=true"]
+    if test_selector:
+        cmd.append(f"-Dtest={test_selector}")
 
     print(f"[run] Executing: {' '.join(cmd)}")
     print(f"[run] Working directory: {PROJECT_ROOT}")
@@ -461,7 +475,21 @@ def print_summary(results, output_file):
 
 def main():
     cleanup_old_tmp_files()
-    output_file, return_code = run_mvn_test()
+
+    test_selector = None
+    if len(sys.argv) > 2:
+        print("[error] Too many arguments.")
+        print("Usage: ./scripts/run-java-tests.py [MyTestClass|MyTestClass#testMethod]")
+        sys.exit(1)
+    if len(sys.argv) == 2:
+        selector = sys.argv[1]
+        if not TEST_SELECTOR_PATTERN.match(selector):
+            print(f"[error] Invalid test selector: {selector}")
+            print("Usage: ./scripts/run-java-tests.py [MyTestClass|MyTestClass#testMethod]")
+            sys.exit(1)
+        test_selector = selector
+
+    output_file, return_code = run_mvn_test(test_selector)
     results = parse_output(output_file)
     print_summary(results, output_file)
     sys.exit(return_code)

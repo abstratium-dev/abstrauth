@@ -190,7 +190,15 @@ npm i
 npm audit fix
 ```
 
-8. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
+8. Ensure playwright is up to date
+
+```bash
+cd e2e-tests
+nvm use v26.4.0
+npm install -D playwright@latest @playwright/test@latest
+```
+
+9. Check Github for security problems by signing in and viewing the problems here: https://github.com/abstratium-dev/abstrauth/security/dependabot and https://github.com/abstratium-dev/abstrauth/security/code-scanning
 
 # Issues with Webkit
 

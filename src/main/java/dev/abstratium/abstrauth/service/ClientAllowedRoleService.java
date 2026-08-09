@@ -147,6 +147,13 @@ public class ClientAllowedRoleService {
             return false;
         }
 
+        // null assigningOrgId means "skip foreign-org validation" (e.g. the 3-arg
+        // ClientRoleService.addRole overload where ownership is already verified).
+        // Treat null as the owner: any catalog role is allowed.
+        if (assigningOrgId == null) {
+            return true;
+        }
+
         // Client owner may assign any role in its own catalog
         var clientOpt = nonMultitenancyOAuthClientService.findByClientId(clientId);
         if (clientOpt.isPresent() && assigningOrgId.equals(clientOpt.get().getOrgId())) {

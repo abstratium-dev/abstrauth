@@ -24,7 +24,7 @@ test('sign up and in', async ({ page }) => {
   await expect(page.locator('h1')).toContainText('User Profile');
   // Token claims are now collapsed by default; expand them to inspect the table
   await page.locator('.token-claims-header .btn-toggle').click();
-  await expect(page.locator('h2')).toContainText('Token Claims');
+  await expect(page.getByRole('heading', { name: 'Token Claims' })).toContainText('Token Claims');
   
   // Verify key token claims are displayed
   await expect(page.locator('[data-claim="email"] .table-cell-value')).toContainText(email);

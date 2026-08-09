@@ -54,15 +54,6 @@ public class NonMultitenancyOrganisationsResourceTest {
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
 
-    private String adminToken(String accountId, String orgId) {
-        return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
-                .subject(accountId)
-                .upn("admin@example.com")
-                .groups(Set.of(Roles.USER, Roles.ADMIN))
-                .claim("orgId", orgId)
-                .sign();
-    }
-
     private String userToken(String accountId, String orgId) {
         return Jwt.issuer("https://dev.abstrauth.abstratium.dev").audience("abstratium-abstrauth")
                 .subject(accountId)
@@ -183,16 +174,17 @@ public class NonMultitenancyOrganisationsResourceTest {
 
     @Test
     public void testDeleteOrganisation_success() throws Exception {
-        Account admin = createAccount(System.currentTimeMillis() + "_deladmin");
-        String firstOrgId = accountOrgId(admin);
-        Organisation secondOrg = createAdditionalOrganisationForAccount(admin.getId(),
+        Account owner = createAccount(System.currentTimeMillis() + "_delowner");
+        String firstOrgId = accountOrgId(owner);
+        Organisation secondOrg = createAdditionalOrganisationForAccount(owner.getId(),
                 "Second Org " + System.currentTimeMillis());
         String orgId = secondOrg.getId();
-        String token = adminToken(admin.getId(), orgId);
+        // Sign into the first org so we can delete the second one
+        String token = userToken(owner.getId(), firstOrgId);
 
-        // Seed a role for the admin in this org so the cascade delete has something to remove
+        // Seed a role for the owner in this org so the cascade delete has something to remove
         transactionHelper.beginTransaction();
-        nonMultitenancyAccountRoleService.addRole(orgId, admin.getId(), Roles.CLIENT_ID, Roles._USER_PLAIN);
+        nonMultitenancyAccountRoleService.addRole(orgId, owner.getId(), Roles.CLIENT_ID, Roles._USER_PLAIN);
         transactionHelper.commitTransaction();
 
         // Create a client owned by this org
@@ -257,7 +249,7 @@ public class NonMultitenancyOrganisationsResourceTest {
         transactionHelper.commitTransaction();
 
         // Account itself must remain because the DB cascade on account_id was removed
-        assertTrue(accountService.findById(admin.getId()).isPresent(),
+        assertTrue(accountService.findById(owner.getId()).isPresent(),
                 "Account should not be deleted when organisation is deleted");
 
         // The first organisation must remain since only the second was deleted
@@ -266,26 +258,44 @@ public class NonMultitenancyOrganisationsResourceTest {
     }
 
     @Test
-    public void testDeleteOrganisation_nonAdmin_returns403() throws Exception {
-        Account user = createAccount(System.currentTimeMillis() + "_delnoadmin");
-        String orgId = accountOrgId(user);
-        String token = userToken(user.getId(), orgId);
+    public void testDeleteOrganisation_nonOwner_returns403() throws Exception {
+        Account owner = createAccount(System.currentTimeMillis() + "_delowner2");
+        String firstOrgId = accountOrgId(owner);
+        Organisation secondOrg = createAdditionalOrganisationForAccount(owner.getId(),
+                "Second Org " + System.currentTimeMillis());
+        String targetOrgId = secondOrg.getId();
+
+        // Create a second account that is a member (not owner) of the target org
+        Account member = createAccount(System.currentTimeMillis() + "_delmember");
+        transactionHelper.beginTransaction();
+        organisationService.addMember(targetOrgId, member.getId());
+        transactionHelper.commitTransaction();
+
+        // The member signs into their own first org (NOT the target org) and tries
+        // to delete the target org. Since they are not an owner, they get 403.
+        String memberFirstOrg = organisationService.listOrganisationsForAccount(member.getId()).stream()
+                .map(Organisation::getId)
+                .filter(id -> !id.equals(targetOrgId))
+                .findFirst()
+                .orElseThrow();
+        String token = userToken(member.getId(), memberFirstOrg);
 
         given()
                 .auth().oauth2(token)
                 .when()
-                .delete("/api/organisations/" + orgId)
+                .delete("/api/organisations/" + targetOrgId)
                 .then()
-                .statusCode(403);
+                .statusCode(403)
+                .body("error", containsString("owner"));
 
-        assertTrue(nonMultitenancyOrganisationService.findById(orgId).isPresent(),
+        assertTrue(nonMultitenancyOrganisationService.findById(targetOrgId).isPresent(),
                 "Organisation should not be deleted");
     }
 
     @Test
     public void testDeleteOrganisation_notFound_returns404() throws Exception {
-        Account admin = createAccount(System.currentTimeMillis() + "_del404");
-        String token = adminToken(admin.getId(), accountOrgId(admin));
+        Account owner = createAccount(System.currentTimeMillis() + "_del404");
+        String token = userToken(owner.getId(), accountOrgId(owner));
 
         given()
                 .auth().oauth2(token)
@@ -307,8 +317,13 @@ public class NonMultitenancyOrganisationsResourceTest {
 
     @Test
     public void testDeleteOrganisation_defaultOrg_returns400() throws Exception {
+        // Create an account in the default org, then create a second org so the
+        // account has somewhere else to be signed into.
         Account account = createAccountForOrg(defaultOrgId);
-        String token = adminToken(account.getId(), defaultOrgId);
+        Organisation secondOrg = createAdditionalOrganisationForAccount(account.getId(),
+                "Second Org " + System.currentTimeMillis());
+        // Sign into the second org so we can try to delete the default org
+        String token = userToken(account.getId(), secondOrg.getId());
 
         given()
                 .auth().oauth2(token)
@@ -323,38 +338,71 @@ public class NonMultitenancyOrganisationsResourceTest {
     }
 
     @Test
-    public void testDeleteOrganisation_lastOrg_returns400() throws Exception {
-        transactionHelper.beginTransaction();
-        Organisation soleOrg = organisationService.createOrganisation("Sole Org " + System.currentTimeMillis());
-        String orgId = soleOrg.getId();
-        transactionHelper.commitTransaction();
+    public void testDeleteOrganisation_currentOrg_returns400() throws Exception {
+        Account owner = createAccount(System.currentTimeMillis() + "_delcurrent");
+        String firstOrgId = accountOrgId(owner);
+        Organisation secondOrg = createAdditionalOrganisationForAccount(owner.getId(),
+                "Second Org " + System.currentTimeMillis());
+        String targetOrgId = secondOrg.getId();
 
-        Account account = createAccountForOrg(orgId);
-        String token = adminToken(account.getId(), orgId);
+        // Sign into the target org itself — should be rejected
+        String token = userToken(owner.getId(), targetOrgId);
 
         given()
                 .auth().oauth2(token)
                 .when()
-                .delete("/api/organisations/" + orgId)
+                .delete("/api/organisations/" + targetOrgId)
                 .then()
                 .statusCode(400)
-                .body("error", containsString("last organisation"));
+                .body("error", containsString("currently signed into"));
 
-        assertTrue(nonMultitenancyOrganisationService.findById(orgId).isPresent(),
-                "Last organisation should not be deleted");
+        assertTrue(nonMultitenancyOrganisationService.findById(targetOrgId).isPresent(),
+                "Current organisation should not be deleted");
+    }
+
+    @Test
+    public void testDeleteOrganisation_multipleOwners_returns400() throws Exception {
+        Account owner = createAccount(System.currentTimeMillis() + "_delmultiowner");
+        String firstOrgId = accountOrgId(owner);
+        Organisation secondOrg = createAdditionalOrganisationForAccount(owner.getId(),
+                "Second Org " + System.currentTimeMillis());
+        String targetOrgId = secondOrg.getId();
+
+        // Add a second owner to the target org
+        Account secondOwner = createAccount(System.currentTimeMillis() + "_delsecondowner");
+        transactionHelper.beginTransaction();
+        organisationService.addMember(targetOrgId, secondOwner.getId());
+        organisationService.addOwner(targetOrgId, secondOwner.getId());
+        transactionHelper.commitTransaction();
+
+        // Owner signs into the first org and tries to delete the second org
+        String token = userToken(owner.getId(), firstOrgId);
+
+        given()
+                .auth().oauth2(token)
+                .when()
+                .delete("/api/organisations/" + targetOrgId)
+                .then()
+                .statusCode(400)
+                .body("error", containsString("other owners"));
+
+        assertTrue(nonMultitenancyOrganisationService.findById(targetOrgId).isPresent(),
+                "Organisation with multiple owners should not be deleted");
     }
 
     @Test
     public void testDeleteOrganisation_otherMembers_returns400() throws Exception {
-        Account admin = createAccount(System.currentTimeMillis() + "_othermembers");
-        Organisation targetOrg = createAdditionalOrganisationForAccount(admin.getId(),
+        Account owner = createAccount(System.currentTimeMillis() + "_othermembers");
+        String firstOrgId = accountOrgId(owner);
+        Organisation targetOrg = createAdditionalOrganisationForAccount(owner.getId(),
                 "Target Org " + System.currentTimeMillis());
         String targetOrgId = targetOrg.getId();
 
-        // Add another member to the target organisation
+        // Add another member (not owner) to the target organisation
         createAccountForOrg(targetOrgId);
 
-        String token = adminToken(admin.getId(), targetOrgId);
+        // Owner signs into the first org and tries to delete the target org
+        String token = userToken(owner.getId(), firstOrgId);
 
         given()
                 .auth().oauth2(token)

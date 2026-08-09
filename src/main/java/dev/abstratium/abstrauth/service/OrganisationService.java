@@ -163,7 +163,7 @@ public class OrganisationService {
                 .findFirst();
     }
 
-    private long countOwners(String orgId) {
+    public long countOwners(String orgId) {
         return em.createQuery(
                 "SELECT COUNT(oa) FROM OrganisationAccount oa WHERE oa.id.orgId = :orgId AND oa.id.role = :role",
                 Long.class)

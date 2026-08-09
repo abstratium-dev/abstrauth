@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { navigateWithRetry } from '../pages/signin.page';
+import { navigateToSigninPage } from '../pages/signin.page';
 
 test.afterEach(async ({ page }, testInfo) => {
   if (testInfo.status !== testInfo.expectedStatus) {
@@ -9,7 +9,7 @@ test.afterEach(async ({ page }, testInfo) => {
 });
 
 test('sign up and email already exists', async ({ page }) => {
-  await navigateWithRetry(page, '/');
+  await navigateToSigninPage(page);
 
   await page.locator("#signup-link").click();
 
@@ -39,7 +39,7 @@ test('sign up and email already exists', async ({ page }) => {
   }
   
   // now go back to the home page and sign up again
-  await navigateWithRetry(page, '/');
+  await navigateToSigninPage(page);
   await expect(page.locator("#signup-link")).toBeVisible({ timeout: 5000 });
 
   await page.locator("#signup-link").click();
@@ -58,7 +58,7 @@ test('sign up and email already exists', async ({ page }) => {
 });
 
 test('sign up with mismatched passwords', async ({ page }) => {
-  await navigateWithRetry(page, '/');
+  await navigateToSigninPage(page);
 
   await page.locator("#signup-link").click();
 

@@ -127,14 +127,28 @@ export async function getOrgSelectionNames(page: Page): Promise<string[]> {
 
 /**
  * Delete an organisation by name on the organisations page.
- * Clicks the Delete button on the tile matching orgName, then confirms the browser dialog.
- * Assumes we're on the organisations page and the user has the admin role.
+ * Clicks the Delete button on the tile matching orgName, then confirms the dialog.
+ * Assumes we're on the organisations page and the user is an owner of the org
+ * who is not currently signed into it.
+ * Returns true if the org was found and deleted, false if the org was not found
+ * or the user does not have permission to delete it (no Delete button visible).
  */
-export async function deleteOrganisation(page: Page, orgName: string): Promise<void> {
+export async function deleteOrganisation(page: Page, orgName: string): Promise<boolean> {
     console.log(`Deleting organisation '${orgName}'...`);
 
     const tile = page.locator('.tile').filter({ hasText: orgName });
-    await expect(tile).toBeVisible({ timeout: 5000 });
+    const tileVisible = await tile.isVisible().catch(() => false);
+    if (!tileVisible) {
+        console.log(`Organisation '${orgName}' not found, skipping`);
+        return false;
+    }
+
+    const deleteButton = tile.locator('.btn-delete-small');
+    const deleteVisible = await deleteButton.isVisible().catch(() => false);
+    if (!deleteVisible) {
+        console.log(`No delete button for '${orgName}' (not owner or is current org), skipping`);
+        return false;
+    }
 
     // Accept the confirm dialog triggered by the Delete button
     page.once('dialog', dialog => {
@@ -142,19 +156,19 @@ export async function deleteOrganisation(page: Page, orgName: string): Promise<v
         dialog.accept();
     });
 
-    const deleteButton = tile.locator('.btn-delete-small');
-    await expect(deleteButton).toBeVisible({ timeout: 5000 });
     await deleteButton.click();
 
     // Wait for the tile to disappear
     await expect(tile).not.toBeVisible({ timeout: 10000 });
 
     console.log(`✓ Deleted organisation '${orgName}'`);
+    return true;
 }
 
 /**
  * Delete all organisations on the organisations page except the one with the given name.
- * Assumes we're on the organisations page and the user has the admin role.
+ * Assumes we're on the organisations page. Orgs the user does not own or is currently
+ * signed into will be skipped (no Delete button visible for those).
  */
 export async function deleteOrganisationsExcept(page: Page, keepName: string): Promise<void> {
     console.log(`Deleting all organisations except '${keepName}'...`);

@@ -4,6 +4,8 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.not;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Set;
 
@@ -11,9 +13,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
+import dev.abstratium.abstrauth.util.TestTransactionHelper;
 import io.quarkus.test.junit.QuarkusTest;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -27,6 +31,18 @@ public class ClientRoleServiceTest {
 
     @Inject
     TestDatabaseResetHelper dbResetHelper;
+
+    @Inject
+    TestTransactionHelper transactionHelper;
+
+    @Inject
+    ClientRoleService clientRoleService;
+
+    @Inject
+    ClientAllowedRoleService clientAllowedRoleService;
+
+    @Inject
+    EntityManager em;
 
     @ConfigProperty(name = "default.org.uuid")
     String defaultOrgId;
@@ -369,6 +385,71 @@ public class ClientRoleServiceTest {
             .statusCode(200)
             .body("roles.targetClientId", hasItem("abstratium-abstrauth"))
             .body("roles.role", hasItem("manage-accounts"));
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Service-level tests for the 3-arg addRole overload (assigningOrgId=null)
+    // ─────────────────────────────────────────────────────────
+
+    private String createClientDirectly(String clientId, String orgId) throws Exception {
+        transactionHelper.beginTransaction();
+        dev.abstratium.abstrauth.entity.OAuthClient client = new dev.abstratium.abstrauth.entity.OAuthClient();
+        client.setClientId(clientId);
+        client.setClientName("Direct " + clientId);
+        client.setClientType("confidential");
+        client.setRedirectUris("[]");
+        client.setAllowedScopes("[]");
+        client.setRequirePkce(false);
+        client.setOrgId(orgId);
+        em.persist(client);
+        transactionHelper.commitTransaction();
+        return clientId;
+    }
+
+    private void addAllowedRoleDirectly(String clientId, String role, boolean availableToForeignOrgs) throws Exception {
+        transactionHelper.beginTransaction();
+        dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole =
+                new dev.abstratium.abstrauth.entity.ClientAllowedRole();
+        allowedRole.setClientId(clientId);
+        allowedRole.setRole(role);
+        allowedRole.setIsDefault(false);
+        allowedRole.setAvailableToForeignOrgs(availableToForeignOrgs);
+        em.persist(allowedRole);
+        transactionHelper.commitTransaction();
+    }
+
+    /**
+     * isRoleAllowed with null assigningOrgId must return true for a catalog role
+     * that is NOT available to foreign orgs, because null means "owner" (skip
+     * foreign-org validation). The 3-arg ClientRoleService.addRole overload
+     * passes null, so this must not NPE.
+     */
+    @Test
+    public void testIsRoleAllowed_nullAssigningOrgId_treatsAsOwner() throws Exception {
+        long ts = System.currentTimeMillis();
+        String clientId = "isroleallowed-null-" + ts;
+        String role = "private-role";
+
+        createClientDirectly(clientId, defaultOrgId);
+        addAllowedRoleDirectly(clientId, role, false); // NOT available to foreign orgs
+
+        assertTrue(clientAllowedRoleService.isRoleAllowed(clientId, role, null),
+                "null assigningOrgId should be treated as owner — any catalog role is allowed");
+    }
+
+    /**
+     * isRoleAllowed with null assigningOrgId must still return false for a role
+     * that does not exist in the catalog at all.
+     */
+    @Test
+    public void testIsRoleAllowed_nullAssigningOrgId_roleNotInCatalog_returnsFalse() throws Exception {
+        long ts = System.currentTimeMillis();
+        String clientId = "isroleallowed-nocat-" + ts;
+
+        createClientDirectly(clientId, defaultOrgId);
+
+        assertFalse(clientAllowedRoleService.isRoleAllowed(clientId, "nonexistent-role", null),
+                "null assigningOrgId should still return false for a role not in the catalog");
     }
 
 }

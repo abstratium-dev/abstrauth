@@ -641,7 +641,7 @@ public class NonMultitenancyTokenResource {
             // Format: targetClientId_role (e.g., "target-service_api-reader")
             String displayTargetId = ClientIdUtil.stripOrgPrefix(clientRole.getTargetClientId());
             groups.add(displayTargetId + "_" + clientRole.getRole());
-            targetClientIds.add(displayTargetId);
+            targetClientIds.add(clientRole.getTargetClientId());
         }
 
         // 6. Generate service token with BOTH scopes AND groups

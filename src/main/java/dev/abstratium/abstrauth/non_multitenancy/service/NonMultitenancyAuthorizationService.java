@@ -72,9 +72,10 @@ public class NonMultitenancyAuthorizationService {
      */
     @Transactional
     public void checkSubscription(String orgId, String clientId) {
-        OAuthClient client = nonMultitenancyOAuthClientService.findByClientId(clientId).orElse(null);
-        boolean isPublik = client == null || Boolean.TRUE.equals(client.getPublik());
-        boolean autoSubscribe = isPublik && (client == null || Boolean.TRUE.equals(client.getAutoSubscribe()));
+        OAuthClient client = nonMultitenancyOAuthClientService.findByClientId(clientId)
+                .orElseThrow(() -> new NoSubscriptionException(orgId, clientId));
+        boolean isPublik = Boolean.TRUE.equals(client.getPublik());
+        boolean autoSubscribe = isPublik && Boolean.TRUE.equals(client.getAutoSubscribe());
         nonMultitenancySubscriptionService.ensureSubscribed(orgId, clientId, autoSubscribe);
     }
 
