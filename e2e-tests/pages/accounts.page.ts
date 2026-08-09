@@ -485,12 +485,12 @@ export async function tryMakeOwner(page: Page, accountEmail: string): Promise<st
     const confirmButton = page.locator('button.btn-primary').filter({ hasText: 'Make Owner' });
     await expect(confirmButton).toBeVisible({ timeout: 2000 });
 
-    // Click the confirm button in the dialog
-    await confirmButton.click();
-
-    // Count existing ERROR toasts before the operation
+    // Capture toast counts BEFORE clicking confirm, so we can detect new toasts
     const initialErrorToastCount = await page.locator('.toast-error').count();
     const initialSuccessToastCount = await page.locator('.toast-success').count();
+
+    // Click the confirm button in the dialog
+    await confirmButton.click();
 
     console.log(`Checking for result after making owner...`);
 
@@ -536,9 +536,17 @@ export async function tryMakeOwner(page: Page, accountEmail: string): Promise<st
             throw new Error('Still waiting for toast');
         }).toPass({ timeout: 5000, intervals: [250] });
     } catch (e) {
-        // Timeout - no toast appeared
-        console.log(`Timeout after ${iterationCount} iterations: No toast appeared`);
-        result = null;
+        // Timeout - no toast appeared. Verify the operation succeeded by checking
+        // that the make owner button is no longer visible (account is now an owner).
+        console.log(`Timeout after ${iterationCount} iterations: No toast appeared, checking UI state...`);
+        const makeOwnerGone = !(await makeOwnerButton.isVisible().catch(() => false));
+        if (makeOwnerGone) {
+            console.log(`✓ Make owner button disappeared — account was promoted to owner`);
+            result = null;
+        } else {
+            console.log(`✗ Make owner button still visible — promotion may have failed`);
+            result = 'Make owner operation did not produce a toast and button still visible';
+        }
     }
 
     return result;
@@ -582,10 +590,12 @@ export async function tryRemoveOwner(page: Page, accountEmail: string): Promise<
     // Wait for confirmation dialog
     const confirmButton = page.locator('button.btn-danger').filter({ hasText: 'Remove Owner' });
     await expect(confirmButton).toBeVisible({ timeout: 2000 });
-    await confirmButton.click();
 
+    // Capture toast counts BEFORE clicking confirm
     const initialErrorToastCount = await page.locator('.toast-error').count();
     const initialSuccessToastCount = await page.locator('.toast-success').count();
+
+    await confirmButton.click();
 
     console.log(`Checking for result after removing owner...`);
 
@@ -623,8 +633,17 @@ export async function tryRemoveOwner(page: Page, accountEmail: string): Promise<
             throw new Error('Still waiting for toast');
         }).toPass({ timeout: 5000, intervals: [250] });
     } catch (e) {
-        console.log(`Timeout after ${iterationCount} iterations: No toast appeared`);
-        result = null;
+        // Timeout - no toast appeared. Verify the operation succeeded by checking
+        // that the remove owner button is no longer visible (account is no longer an owner).
+        console.log(`Timeout after ${iterationCount} iterations: No toast appeared, checking UI state...`);
+        const removeOwnerGone = !(await removeOwnerButton.isVisible().catch(() => false));
+        if (removeOwnerGone) {
+            console.log(`✓ Remove owner button disappeared — owner was demoted to member`);
+            result = null;
+        } else {
+            console.log(`✗ Remove owner button still visible — demotion may have failed`);
+            result = 'Remove owner operation did not produce a toast and button still visible';
+        }
     }
 
     return result;

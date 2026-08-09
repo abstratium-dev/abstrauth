@@ -64,15 +64,21 @@ async function cleanupTestAccounts(page: Page) {
 
                 if (isTestAccount(email)) {
                     console.log(`Found test account to clean up: ${email}`);
+                    const trimmedEmail = email?.trim() ?? '';
+                    // Use an email-filtered locator so we track the correct tile even
+                    // if Angular re-renders the list after the confirm dialog closes.
+                    const tileByEmail = page.locator('.tile').filter({ hasText: trimmedEmail });
                     const deleteButton = tile.locator('.btn-icon-danger').first();
                     if (await deleteButton.isVisible().catch(() => false)) {
+                        console.log(`Cleanup: clicking delete button for ${trimmedEmail}`);
                         await deleteButton.click();
                         const confirmButton = page.locator('button.btn-danger').filter({ hasText: /Delete (My )?Account/i });
                         await expect(confirmButton).toBeVisible({ timeout: 2000 });
                         // Type the email as the required phrase (if the input is visible)
                         const phraseInput = page.locator('[data-testid="confirm-phrase-input"]');
-                        if (await phraseInput.isVisible({ timeout: 500 }).catch(() => false)) {
-                            await phraseInput.fill(email?.trim() ?? '');
+                        const phraseInputVisible = await phraseInput.isVisible({ timeout: 500 }).catch(() => false);
+                        if (phraseInputVisible) {
+                            await phraseInput.fill(trimmedEmail);
                         }
                         await confirmButton.click();
 
@@ -81,7 +87,7 @@ async function cleanupTestAccounts(page: Page) {
                             if (await page.locator('#signin-button').isVisible().catch(() => false)) {
                                 return;
                             }
-                            const stillVisible = await tile.isVisible().catch(() => false);
+                            const stillVisible = await tileByEmail.isVisible().catch(() => false);
                             if (stillVisible) {
                                 throw new Error('Tile still visible after deletion');
                             }
@@ -89,6 +95,8 @@ async function cleanupTestAccounts(page: Page) {
 
                         await dismissToasts(page);
                         deletedAny = true;
+                    } else {
+                        console.log(`Cleanup: delete button not visible for ${trimmedEmail}`);
                     }
                     break; // restart the outer loop with a fresh tile list
                 }
