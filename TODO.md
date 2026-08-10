@@ -11,6 +11,8 @@
 
 ## Today
 
+- abstracore has something so that javascripts are reloaded when they change. but abstrauth doesnt since i have to hit ctrl+f5 to force them to reload after installing a new version
+
 - all done :-)
 
 
