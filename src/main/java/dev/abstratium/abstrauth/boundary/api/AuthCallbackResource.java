@@ -1,14 +1,16 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import dev.abstratium.abstrauth.util.RedirectUtil;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
-
-import java.net.URI;
 
 /**
  * OIDC Authentication Callback Handler
@@ -32,8 +34,11 @@ public class AuthCallbackResource {
         responseCode = "302",
         description = "Redirect to home page after successful authentication"
     )
-    public Response handleCallback() {
+    public Response handleCallback(
+        @Context ContainerRequestContext requestContext,
+        @Context UriInfo uriInfo
+    ) {
         log.info("OIDC authentication completed, redirecting to home page");
-        return Response.seeOther(URI.create("/")).build();
+        return Response.seeOther(RedirectUtil.absoluteFromRequest(requestContext, uriInfo, "/")).build();
     }
 }

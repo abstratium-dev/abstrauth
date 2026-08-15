@@ -1,26 +1,32 @@
 package dev.abstratium.abstrauth.filter;
 
-import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.container.ContainerResponseContext;
-import jakarta.ws.rs.container.ContainerResponseFilter;
-import jakarta.ws.rs.ext.Provider;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import java.io.IOException;
-
 /**
- * HTTP Response Filter that adds security headers to all responses.
- * 
- * This filter implements defense-in-depth security by adding multiple
- * security-related HTTP headers to protect against common web vulnerabilities.
+ * Vert.x route filter that adds security headers to all responses.
+ *
+ * <p>This filter implements defense-in-depth security by adding multiple
+ * security-related HTTP headers to protect against common web vulnerabilities
+ * (XSS, clickjacking, MIME sniffing, referrer leakage).</p>
+ *
+ * <p>This is implemented as a Vert.x route handler (registered via observing the
+ * {@link Router} CDI event) rather than a JAX-RS {@code ContainerResponseFilter}
+ * because Quinoa serves static resources (including {@code index.html}, which
+ * hosts the OAuth login and consent screens) at the Vert.x layer, bypassing the
+ * JAX-RS pipeline entirely. A JAX-RS filter would never fire for those
+ * resources, leaving the most security-sensitive pages undefended.</p>
  */
-@Provider
-public class SecurityHeadersFilter implements ContainerResponseFilter {
+@ApplicationScoped
+public class SecurityHeadersFilter {
 
     @ConfigProperty(name = "security.csp.enabled", defaultValue = "true")
     boolean cspEnabled;
 
-    @ConfigProperty(name = "security.csp.policy", defaultValue = 
+    @ConfigProperty(name = "security.csp.policy", defaultValue =
         "default-src 'self'; " +
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
@@ -45,29 +51,32 @@ public class SecurityHeadersFilter implements ContainerResponseFilter {
     @ConfigProperty(name = "security.hsts.preload", defaultValue = "true")
     boolean hstsPreload;
 
-    @Override
-    public void filter(ContainerRequestContext requestContext, 
-                      ContainerResponseContext responseContext) throws IOException {
-        
+    void registerRoute(@Observes Router router) {
+        router.route().order(Integer.MIN_VALUE).handler(this::applySecurityHeaders);
+    }
+
+    private void applySecurityHeaders(RoutingContext rc) {
+        var headers = rc.response().headers();
+
         // Content Security Policy - Prevents XSS, clickjacking, and other code injection attacks
         if (cspEnabled) {
-            responseContext.getHeaders().add("Content-Security-Policy", cspPolicy);
+            headers.set("Content-Security-Policy", cspPolicy);
         }
 
         // X-Content-Type-Options - Prevents MIME type sniffing
-        responseContext.getHeaders().add("X-Content-Type-Options", "nosniff");
+        headers.set("X-Content-Type-Options", "nosniff");
 
         // X-Frame-Options - Prevents clickjacking (backup for CSP frame-ancestors)
-        responseContext.getHeaders().add("X-Frame-Options", "DENY");
+        headers.set("X-Frame-Options", "DENY");
 
         // X-XSS-Protection - Legacy XSS protection for older browsers
-        responseContext.getHeaders().add("X-XSS-Protection", "1; mode=block");
+        headers.set("X-XSS-Protection", "1; mode=block");
 
         // Referrer-Policy - Controls how much referrer information is sent
-        responseContext.getHeaders().add("Referrer-Policy", "strict-origin-when-cross-origin");
+        headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
         // Permissions-Policy - Controls which browser features can be used
-        responseContext.getHeaders().add("Permissions-Policy", 
+        headers.set("Permissions-Policy",
             "geolocation=(), microphone=(), camera=(), payment=()");
 
         // Strict-Transport-Security - Forces HTTPS (enabled via configuration)
@@ -80,7 +89,9 @@ public class SecurityHeadersFilter implements ContainerResponseFilter {
             if (hstsPreload) {
                 hsts.append("; preload");
             }
-            responseContext.getHeaders().add("Strict-Transport-Security", hsts.toString());
+            headers.set("Strict-Transport-Security", hsts.toString());
         }
+
+        rc.next();
     }
 }

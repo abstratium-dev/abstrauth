@@ -51,6 +51,15 @@ describe('ToastService', () => {
         expect(toasts[0].type).toBe('info');
     });
 
+    it('should add a warning toast', () => {
+        service.warning('Warning message');
+        const toasts = service.toasts$();
+
+        expect(toasts.length).toBe(1);
+        expect(toasts[0].message).toBe('Warning message');
+        expect(toasts[0].type).toBe('warning');
+    });
+
     it('should add multiple toasts', () => {
         service.success('First');
         service.error('Second');
@@ -157,6 +166,18 @@ describe('ToastService', () => {
         expect(service.toasts$().length).toBe(1);
 
         vi.advanceTimersByTime(4999);
+        expect(service.toasts$().length).toBe(1);
+
+        vi.advanceTimersByTime(1);
+        expect(service.toasts$().length).toBe(0);
+    });
+
+    it('should use default duration of 7000ms for warning', () => {
+        service.warning('Message');
+
+        expect(service.toasts$().length).toBe(1);
+
+        vi.advanceTimersByTime(6999);
         expect(service.toasts$().length).toBe(1);
 
         vi.advanceTimersByTime(1);

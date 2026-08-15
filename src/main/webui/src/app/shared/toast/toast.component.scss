@@ -64,6 +64,11 @@
   background-color: #d1ecf1;
 }
 
+.toast-warning {
+  border-left-color: #ffc107;
+  background-color: #fff3cd;
+}
+
 .toast-content {
   display: flex;
   align-items: center;
@@ -93,6 +98,10 @@
   color: #0c5460;
 }
 
+.toast-warning .toast-icon {
+  color: #856404;
+}
+
 .toast-message {
   flex: 1;
   font-size: 0.95rem;
@@ -109,6 +118,10 @@
 
 .toast-info .toast-message {
   color: #0c5460;
+}
+
+.toast-warning .toast-message {
+  color: #856404;
 }
 
 .toast-close {
@@ -138,6 +151,10 @@
 
 .toast-info .toast-close {
   color: #0c5460;
+}
+
+.toast-warning .toast-close {
+  color: #856404;
 }
 
 .toast-close:hover {

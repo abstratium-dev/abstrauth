@@ -4,6 +4,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { CLIENT_ID } from './authorize/authorize.component';
 import { RouteRestorationService } from './route-restoration.service';
+import { ToastService } from './shared/toast/toast.service';
 import { WINDOW } from './window.token';
 
 export const ISSUER = 'https://abstrauth.abstratium.dev';
@@ -50,11 +51,13 @@ export const ANONYMOUS: Token = {
 export class AuthService {
     private http = inject(HttpClient);
     private routeRestoration = inject(RouteRestorationService);
+    private toastService = inject(ToastService);
     private window = inject(WINDOW);
 
     token$ = signal<Token>(ANONYMOUS);
     private token = ANONYMOUS;
     private initialized = false;
+    private signoutWarningTimer: ReturnType<typeof setTimeout> | null = null;
 
 
     /**
@@ -110,19 +113,35 @@ export class AuthService {
     /**
      * Setup timer to redirect to sign-in when session expires.
      * Redirects 1 minute before actual expiry to ensure smooth UX.
+     *
+     * A warning toast is shown 2 minutes before signout() fires, i.e. at
+     * exp - 3min. If there isn't a full 2-minute warning window before
+     * sign-out, the warning is skipped entirely (a setTimeout with a 0/negative
+     * delay would fire immediately, which is misleading for short-lived
+     * sessions where sign-out is imminent anyway).
      */
     private setupTokenExpiryTimer(exp: number): void {
         const now = Date.now();
         const expiry = new Date(exp * 1000);
         const millisUntilExpiry = expiry.getTime() - now;
         const oneMinLessThanMillisUntilExpiry = Math.max(0, millisUntilExpiry - (1 * 60 * 1000));
-        
+
         console.debug("Token expires in", millisUntilExpiry, "ms, redirecting to sign-in in", oneMinLessThanMillisUntilExpiry, "ms");
-        
+
         setTimeout(() => {
             console.info("Session expired, redirecting to sign-in");
             this.signout();
         }, oneMinLessThanMillisUntilExpiry);
+
+        // Show a warning toast 2 minutes before signout() fires.
+        // signout() fires at exp - 1min, so the warning fires at exp - 3min.
+        const signoutWarningDelay = millisUntilExpiry - (3 * 60 * 1000);
+        if (signoutWarningDelay > 0) {
+            this.signoutWarningTimer = setTimeout(() => {
+                this.toastService.warning('You will be signed out in 2 minutes.');
+                this.signoutWarningTimer = null;
+            }, signoutWarningDelay);
+        }
     }
 
     getAccessToken() {
@@ -156,6 +175,12 @@ export class AuthService {
     }
 
     resetToken() {
+        // Cancel any pending sign-out warning toast so a user who signs out
+        // manually doesn't get a stale warning popping up later.
+        if (this.signoutWarningTimer) {
+            clearTimeout(this.signoutWarningTimer);
+            this.signoutWarningTimer = null;
+        }
         this.token = ANONYMOUS;
         this.token.isAuthenticated = false;
         this.token$.set(this.token);

@@ -1,21 +1,23 @@
 package dev.abstratium.abstrauth.boundary.oauth;
 
 import dev.abstratium.abstrauth.service.MetricsService;
+import dev.abstratium.abstrauth.util.RedirectUtil;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
-
-import java.net.URI;
 
 /**
  * OpenID Connect RP-Initiated Logout Endpoint
@@ -45,14 +47,17 @@ public class LogoutResource {
     public Response logoutGet(
         @Parameter(description = "ID Token hint for the session to terminate")
         @QueryParam("id_token_hint") String idTokenHint,
-        
+
         @Parameter(description = "URI to redirect to after logout")
         @QueryParam("post_logout_redirect_uri") String postLogoutRedirectUri,
-        
+
         @Parameter(description = "State to maintain between logout request and callback")
-        @QueryParam("state") String state
+        @QueryParam("state") String state,
+
+        @Context ContainerRequestContext requestContext,
+        @Context UriInfo uriInfo
     ) {
-        return performLogout(idTokenHint, postLogoutRedirectUri, state);
+        return performLogout(idTokenHint, postLogoutRedirectUri, state, requestContext, uriInfo);
     }
 
     @POST
@@ -70,17 +75,21 @@ public class LogoutResource {
     public Response logoutPost(
         @Parameter(description = "ID Token hint for the session to terminate")
         @QueryParam("id_token_hint") String idTokenHint,
-        
+
         @Parameter(description = "URI to redirect to after logout")
         @QueryParam("post_logout_redirect_uri") String postLogoutRedirectUri,
-        
+
         @Parameter(description = "State to maintain between logout request and callback")
-        @QueryParam("state") String state
+        @QueryParam("state") String state,
+
+        @Context ContainerRequestContext requestContext,
+        @Context UriInfo uriInfo
     ) {
-        return performLogout(idTokenHint, postLogoutRedirectUri, state);
+        return performLogout(idTokenHint, postLogoutRedirectUri, state, requestContext, uriInfo);
     }
 
-    private Response performLogout(String idTokenHint, String postLogoutRedirectUri, String state) {
+    private Response performLogout(String idTokenHint, String postLogoutRedirectUri, String state,
+                                   ContainerRequestContext requestContext, UriInfo uriInfo) {
         log.infof("Logout request received - id_token_hint: %s, post_logout_redirect_uri: %s, state: %s",
                   idTokenHint != null ? "present" : "null",
                   postLogoutRedirectUri,
@@ -114,7 +123,7 @@ public class LogoutResource {
             .sameSite(NewCookie.SameSite.STRICT)
             .build();
 
-        return Response.seeOther(URI.create(redirectUri))
+        return Response.seeOther(RedirectUtil.absoluteFromRequest(requestContext, uriInfo, redirectUri))
             .cookie(clearedXsrfCookie)
             .build();
     }

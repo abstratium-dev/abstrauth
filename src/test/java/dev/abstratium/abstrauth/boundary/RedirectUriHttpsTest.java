@@ -58,13 +58,53 @@ public class RedirectUriHttpsTest {
         // Then: Should NOT return "Invalid redirect_uri" error
         // The response should be 303 (redirect to signin page) since we're not authenticated
         int statusCode = response.statusCode();
-        
+
         // Should redirect to signin page
-        assertEquals(303, statusCode, 
+        assertEquals(303, statusCode,
             "Should redirect to signin page when not authenticated");
         String location = response.header("Location");
         assertTrue(location != null && location.contains("/signin/"),
             "Should redirect to signin page. Location: " + location);
+    }
+
+    /**
+     * When behind a TLS-terminating reverse proxy, the internal redirect to the
+     * signin page (a relative URI resolved by JAX-RS) must use the scheme from
+     * X-Forwarded-Proto, not the raw http scheme of the proxy-to-backend connection.
+     *
+     * This prevents mixed-content errors in the browser when the signin page
+     * (loaded over HTTPS) tries to follow the redirect via XHR.
+     */
+    @Test
+    public void testSigninRedirectUsesHttpsSchemeWhenBehindProxy() {
+        // Use the redirect_uri that is registered for the abstratium-abstrauth client.
+        // The X-Forwarded-Host is set to a different host to verify that the
+        // internal signin redirect Location header picks up the forwarded scheme.
+        Response response = given()
+            .header("X-Forwarded-Proto", "https")
+            .header("X-Forwarded-Host", "auth-t.abstratium.dev")
+            .queryParam("response_type", "code")
+            .queryParam("client_id", "abstratium-abstrauth")
+            .queryParam("redirect_uri", "https://auth.abstratium.dev/api/auth/callback")
+            .queryParam("scope", "openid profile email")
+            .queryParam("state", "test-state-mixed-content")
+            .queryParam("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+            .queryParam("code_challenge_method", "S256")
+            .redirects().follow(false)
+            .when()
+            .get("/oauth2/authorize");
+
+        assertEquals(303, response.statusCode(),
+            "Should redirect to signin page. Status: " + response.statusCode() +
+            ", body: " + response.body().asString());
+
+        String location = response.header("Location");
+        assertNotNull(location, "Location header must be present");
+        assertTrue(location.startsWith("https://"),
+            "Location header must use https:// scheme when X-Forwarded-Proto is https. " +
+            "Actual Location: " + location);
+        assertTrue(location.contains("/signin/"),
+            "Location should redirect to signin page. Location: " + location);
     }
 
     @Test

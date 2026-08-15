@@ -1,16 +1,18 @@
 package dev.abstratium.abstrauth.boundary.api;
 
+import dev.abstratium.abstrauth.util.RedirectUtil;
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
-
-import java.net.URI;
 
 /**
  * Backend For Frontend (BFF) Authentication Endpoints
@@ -44,11 +46,14 @@ public class AuthBffResource {
             description = "Redirect to authorization endpoint (if not authenticated) or back to app (if authenticated)"
         )
     })
-    public Response login() {
+    public Response login(
+        @Context ContainerRequestContext requestContext,
+        @Context UriInfo uriInfo
+    ) {
         LOG.debug("Login endpoint accessed - user is authenticated, redirecting to app");
         // If we reach here, the user is already authenticated (Quarkus OIDC handled it)
         // Redirect to the main app
-        return Response.seeOther(URI.create("/")).build();
+        return Response.seeOther(RedirectUtil.absoluteFromRequest(requestContext, uriInfo, "/")).build();
     }
 
     @GET

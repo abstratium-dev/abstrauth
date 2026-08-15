@@ -7,6 +7,7 @@ import { vi, type MockedObject } from "vitest";
 import { createMock } from '../testing/vitest-mocks';
 import { ANONYMOUS, AuthService, Token } from './auth.service';
 import { RouteRestorationService } from './route-restoration.service';
+import { ToastService } from './shared/toast/toast.service';
 import { WINDOW } from './window.token';
 
 describe('AuthService (BFF Pattern)', () => {
@@ -15,6 +16,7 @@ describe('AuthService (BFF Pattern)', () => {
     let routeRestoration: RouteRestorationService;
     let httpMock: HttpTestingController;
     let routerSpy: MockedObject<Router>;
+    let toastSpy: MockedObject<ToastService>;
     let mockWindow: {
         location: {
             pathname: string;
@@ -67,6 +69,17 @@ describe('AuthService (BFF Pattern)', () => {
             url: '/'
         });
 
+        toastSpy = createMock<ToastService>({
+            success: vi.fn().mockName("ToastService.success"),
+            error: vi.fn().mockName("ToastService.error"),
+            info: vi.fn().mockName("ToastService.info"),
+            warning: vi.fn().mockName("ToastService.warning"),
+            show: vi.fn().mockName("ToastService.show"),
+            remove: vi.fn().mockName("ToastService.remove"),
+            clear: vi.fn().mockName("ToastService.clear"),
+            toasts$: vi.fn().mockName("ToastService.toasts$"),
+        });
+
         TestBed.configureTestingModule({
             providers: [
                 provideHttpClient(withXhr()),
@@ -74,7 +87,8 @@ describe('AuthService (BFF Pattern)', () => {
                 AuthService,
                 RouteRestorationService,
                 { provide: Router, useValue: routerSpy },
-                { provide: WINDOW, useValue: mockWindow }
+                { provide: WINDOW, useValue: mockWindow },
+                { provide: ToastService, useValue: toastSpy }
             ]
         });
 
@@ -82,6 +96,7 @@ describe('AuthService (BFF Pattern)', () => {
         routeRestoration = TestBed.inject(RouteRestorationService);
         httpMock = TestBed.inject(HttpTestingController);
         routerSpy = TestBed.inject(Router) as MockedObject<Router>;
+        toastSpy = TestBed.inject(ToastService) as MockedObject<ToastService>;
     });
 
     afterEach(() => {
@@ -377,6 +392,68 @@ describe('AuthService (BFF Pattern)', () => {
 
             const req = httpMock.expectOne('/api/userinfo');
             req.flush(mockUserInfo);
+        });
+    });
+
+    describe('Sign-out warning toast', () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+            // Freeze Date at epoch so exp/iat truncation to whole seconds has no
+            // sub-second remainder — keeps timer delays deterministic in tests.
+            vi.setSystemTime(new Date(0));
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        // Helper: authenticate via initialize() with a token expiring `expSeconds`
+        // seconds after the (frozen) current time, and flush the userinfo request.
+        const authenticateWithExpiry = (expSeconds: number) => {
+            const token: Token = {
+                ...mockUserInfo,
+                iat: Math.floor(Date.now() / 1000),
+                exp: Math.floor(Date.now() / 1000) + expSeconds,
+            };
+            service.initialize().subscribe();
+            const req = httpMock.expectOne('/api/userinfo');
+            req.flush(token);
+        };
+
+        it('should fire the warning toast 2 minutes before signout (at exp - 3min)', () => {
+            // 10-minute token: signout() fires at exp-1min = 9min,
+            // warning fires at exp-3min = 7min.
+            authenticateWithExpiry(10 * 60);
+
+            // One ms before the 7-minute mark: warning must NOT have fired yet.
+            vi.advanceTimersByTime(7 * 60 * 1000 - 1);
+            expect(toastSpy.warning).not.toHaveBeenCalled();
+
+            // Cross the 7-minute boundary.
+            vi.advanceTimersByTime(1);
+            expect(toastSpy.warning).toHaveBeenCalledTimes(1);
+            expect(toastSpy.warning).toHaveBeenCalledWith('You will be signed out in 2 minutes.');
+        });
+
+        it('should not fire the warning toast for a short-lived token inside the 3-min window', () => {
+            // 2-minute token: well inside the 3-min warning window, so the
+            // warning is skipped entirely. signout() fires at exp-1min = 1min.
+            authenticateWithExpiry(2 * 60);
+
+            // Tick well past the session lifetime.
+            vi.advanceTimersByTime(10 * 60 * 1000);
+            expect(toastSpy.warning).not.toHaveBeenCalled();
+        });
+
+        it('should cancel the pending warning toast on manual signout', () => {
+            authenticateWithExpiry(10 * 60);
+
+            // Sign out manually before the warning has a chance to fire.
+            service.signout();
+
+            // Tick past the 7-minute mark where the warning would have fired.
+            vi.advanceTimersByTime(10 * 60 * 1000);
+            expect(toastSpy.warning).not.toHaveBeenCalled();
         });
     });
 

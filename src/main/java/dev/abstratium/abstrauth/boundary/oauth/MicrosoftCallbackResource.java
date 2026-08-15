@@ -13,6 +13,7 @@ import dev.abstratium.abstrauth.service.AuthorizationService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.SecurityProblemLogger;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
+import dev.abstratium.abstrauth.util.RedirectUtil;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ContainerRequestContext;
@@ -20,13 +21,13 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -93,7 +94,8 @@ public class MicrosoftCallbackResource {
         )
         @QueryParam("error") String error,
 
-        @Context ContainerRequestContext requestContext
+        @Context ContainerRequestContext requestContext,
+        @Context UriInfo uriInfo
     ) {
         // Handle error from Microsoft
         if (error != null) {
@@ -159,7 +161,7 @@ public class MicrosoftCallbackResource {
                     redirectUrl += "&state=" + URLEncoder.encode(authRequest.getState(), StandardCharsets.UTF_8);
                 }
                 log.info("User " + account.getEmail() + " has been approved by Microsoft for authorization request " + authRequest.getId() + " for client " + authRequest.getClientId() + " from IP " + clientIp);
-                return Response.seeOther(URI.create(redirectUrl)).build();
+                return Response.seeOther(RedirectUtil.absoluteFromRequest(requestContext, uriInfo, redirectUrl)).build();
             } else {
                 // Multiple orgs: redirect to org selection page
                 authorizationService.markAuthenticatedPendingOrgSelection(authRequest.getId(), account.getId(), AccountService.MICROSOFT);
@@ -173,7 +175,7 @@ public class MicrosoftCallbackResource {
                     .secure(true)
                     .sameSite(NewCookie.SameSite.STRICT)
                     .build();
-                return Response.seeOther(URI.create("/org-selection/" + authRequest.getId()))
+                return Response.seeOther(RedirectUtil.absoluteFromRequest(requestContext, uriInfo, "/org-selection/" + authRequest.getId()))
                     .cookie(sessionCookie)
                     .build();
             }

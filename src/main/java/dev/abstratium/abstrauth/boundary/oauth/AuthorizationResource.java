@@ -30,6 +30,7 @@ import dev.abstratium.abstrauth.service.CurrentOrgContext;
 import dev.abstratium.abstrauth.service.OAuthClientService;
 import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.util.ClientIpUtil;
+import dev.abstratium.abstrauth.util.RedirectUtil;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
@@ -46,6 +47,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 
 /**
  * OAuth 2.0 Authorization Endpoint
@@ -84,6 +86,12 @@ public class AuthorizationResource {
 
     @Inject
     SecurityIdentity securityIdentity;
+
+    @Context
+    UriInfo uriInfo;
+
+    @Context
+    ContainerRequestContext requestContext;
 
     @GET
     @Produces(MediaType.TEXT_HTML)
@@ -246,7 +254,7 @@ public class AuthorizationResource {
         AuthorizationRequest authRequest = authorizationService.createAuthorizationRequest(
                 clientId, redirectUri, scope, state, codeChallenge, codeChallengeMethod);
 
-        return Response.seeOther(URI.create("/signin/" + authRequest.getId())).build();
+        return Response.seeOther(RedirectUtil.absoluteFromRequest(requestContext, uriInfo, "/signin/" + authRequest.getId())).build();
     }
 
     @GET
@@ -369,7 +377,7 @@ public class AuthorizationResource {
         String clientIp = ClientIpUtil.getClientIp(requestContext);
         log.info("User " + account.getEmail() + " has been approved by Native for authorization request " + authRequest.getId() + " for client " + authRequest.getClientId() + " from IP " + clientIp);
 
-        return Response.seeOther(URI.create(redirectUrl)).build();
+        return Response.seeOther(RedirectUtil.absoluteFromRequest(requestContext, uriInfo, redirectUrl)).build();
     }
 
     @POST

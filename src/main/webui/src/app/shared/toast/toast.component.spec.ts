@@ -70,6 +70,17 @@ describe('ToastComponent', () => {
         expect(toast.textContent).toContain('Information message');
     });
 
+    it('should display a warning toast', () => {
+        toastService.warning('Warning message');
+        fixture.detectChanges();
+
+        const compiled = fixture.nativeElement;
+        const toast = compiled.querySelector('.toast-warning');
+
+        expect(toast).toBeTruthy();
+        expect(toast.textContent).toContain('Warning message');
+    });
+
     it('should display multiple toasts', () => {
         toastService.success('First message');
         toastService.error('Second message');
@@ -113,6 +124,17 @@ describe('ToastComponent', () => {
 
         expect(icon).toBeTruthy();
         expect(icon.textContent).toContain('ℹ');
+    });
+
+    it('should show warning icon for warning toast', () => {
+        toastService.warning('Warning');
+        fixture.detectChanges();
+
+        const compiled = fixture.nativeElement;
+        const icon = compiled.querySelector('.toast-warning .toast-icon');
+
+        expect(icon).toBeTruthy();
+        expect(icon.textContent).toContain('⚠');
     });
 
     it('should have a close button', () => {
