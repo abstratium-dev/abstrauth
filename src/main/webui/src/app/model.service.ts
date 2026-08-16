@@ -77,7 +77,7 @@ export interface AddClientRoleRequest {
 export interface AllowedRole {
   clientId: string;
   role: string;
-  isDefault: boolean;
+  defaultAssignment: string;
   availableToForeignOrgs: boolean;
 }
 

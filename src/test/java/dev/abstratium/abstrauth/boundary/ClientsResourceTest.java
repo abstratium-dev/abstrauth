@@ -1030,7 +1030,7 @@ public class ClientsResourceTest {
         String requestBody = """
             {
                 "role": "viewer",
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1044,7 +1044,7 @@ public class ClientsResourceTest {
             .statusCode(201)
             .body("clientId", equalTo(actualClientId))
             .body("role", equalTo("viewer"))
-            .body("isDefault", equalTo(true));
+            .body("defaultAssignment", equalTo("all_users"));
 
         // Verify via GET
         given()
@@ -1054,7 +1054,7 @@ public class ClientsResourceTest {
             .then()
             .statusCode(200)
             .body("role", hasItem("viewer"))
-            .body("isDefault", hasItem(true));
+            .body("defaultAssignment", hasItem("all_users"));
     }
 
     @Test
@@ -1084,7 +1084,7 @@ public class ClientsResourceTest {
         String requestBody = """
             {
                 "role": "editor",
-                "isDefault": false
+                "defaultAssignment": "not_default"
             }
             """;
 
@@ -1113,7 +1113,7 @@ public class ClientsResourceTest {
         String requestBody = """
             {
                 "role": "viewer",
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1132,7 +1132,7 @@ public class ClientsResourceTest {
         String requestBody = """
             {
                 "role": "viewer",
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1152,7 +1152,7 @@ public class ClientsResourceTest {
         String requestBody = """
             {
                 "role": "viewer",
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1195,7 +1195,7 @@ public class ClientsResourceTest {
         String requestBody = """
             {
                 "role": "invalid role!",
-                "isDefault": false
+                "defaultAssignment": "not_default"
             }
             """;
 
@@ -1237,7 +1237,7 @@ public class ClientsResourceTest {
         given()
             .header("Authorization", "Bearer " + token)
             .contentType("application/json")
-            .body("{\"role\": \"manager\", \"isDefault\": false}")
+            .body("{\"role\": \"manager\", \"defaultAssignment\": \"not_default\"}")
             .when()
             .post("/api/clients/" + actualClientId + "/allowed-roles")
             .then()
@@ -1246,7 +1246,7 @@ public class ClientsResourceTest {
         // Update to default
         String updateBody = """
             {
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1260,7 +1260,7 @@ public class ClientsResourceTest {
             .statusCode(200)
             .body("clientId", equalTo(actualClientId))
             .body("role", equalTo("manager"))
-            .body("isDefault", equalTo(true));
+            .body("defaultAssignment", equalTo("all_users"));
 
         // Verify via GET
         given()
@@ -1270,7 +1270,7 @@ public class ClientsResourceTest {
             .then()
             .statusCode(200)
             .body("role", hasItem("manager"))
-            .body("isDefault", hasItem(true));
+            .body("defaultAssignment", hasItem("all_users"));
     }
 
     @Test
@@ -1299,7 +1299,7 @@ public class ClientsResourceTest {
 
         String updateBody = """
             {
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1318,7 +1318,7 @@ public class ClientsResourceTest {
     public void testUpdateAllowedRoleWithoutTokenReturns401() {
         String updateBody = """
             {
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1336,7 +1336,7 @@ public class ClientsResourceTest {
         String token = generateTokenWithoutRole();
         String updateBody = """
             {
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1355,7 +1355,7 @@ public class ClientsResourceTest {
         String token = generateValidToken();
         String updateBody = """
             {
-                "isDefault": true
+                "defaultAssignment": "all_users"
             }
             """;
 
@@ -1398,7 +1398,7 @@ public class ClientsResourceTest {
         given()
             .header("Authorization", "Bearer " + token)
             .contentType("application/json")
-            .body("{\"role\": \"admin\", \"isDefault\": false}")
+            .body("{\"role\": \"admin\", \"defaultAssignment\": \"not_default\"}")
             .when()
             .post("/api/clients/" + actualClientId + "/allowed-roles")
             .then()

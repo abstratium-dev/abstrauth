@@ -123,10 +123,15 @@ public class AccountsResource {
             organisationService.addMember(orgId, account.getId());
 
             // Seed default roles for all clients the org is subscribed to
+            boolean isOwner = organisationService.isOwner(orgId, account.getId());
             for (String clientId : subscriptionService.findClientIdsByOrgId(orgId)) {
                 var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientIdForOrg(clientId, orgId);
-                if (!defaultRoles.isEmpty()) {
-                    nonMultitenancyAccountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, defaultRoles);
+                var rolesToSeed = defaultRoles.stream()
+                        .filter(r -> r.getDefaultAssignment() == dev.abstratium.abstrauth.entity.DefaultAssignment.ALL_USERS
+                                || (r.getDefaultAssignment() == dev.abstratium.abstrauth.entity.DefaultAssignment.ORG_OWNERS_ONLY && isOwner))
+                        .collect(Collectors.toList());
+                if (!rolesToSeed.isEmpty()) {
+                    nonMultitenancyAccountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, rolesToSeed);
                 }
             }
 

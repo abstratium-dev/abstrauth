@@ -2116,7 +2116,7 @@ describe('AccountsComponent', () => {
 
         it('should clear allowed roles when no client selected', async () => {
             component.roleFormData = { clientId: '', role: '' };
-            component.allowedRoles = [{ clientId: 'client-1', role: 'admin', isDefault: false, availableToForeignOrgs: false }];
+            component.allowedRoles = [{ clientId: 'client-1', role: 'admin', defaultAssignment: 'not_default', availableToForeignOrgs: false }];
             await component.onClientSelected();
             expect(component.allowedRoles).toEqual([]);
             expect(component.roleFormData.role).toBe('');
@@ -2128,7 +2128,7 @@ describe('AccountsComponent', () => {
             await Promise.resolve(); TestBed.flushEffects();
 
             const rolesReq = httpMock.expectOne('/api/clients/client-1/allowed-roles');
-            rolesReq.flush([{ clientId: 'client-1', role: 'admin', isDefault: false, availableToForeignOrgs: false }]);
+            rolesReq.flush([{ clientId: 'client-1', role: 'admin', defaultAssignment: 'not_default', availableToForeignOrgs: false }]);
             await Promise.resolve(); TestBed.flushEffects();
 
             await promise;
@@ -2606,7 +2606,7 @@ describe('AccountsComponent', () => {
         it('should render role selection dropdown', () => {
             component.startAddRole('1');
             component.roleFormData = { clientId: 'client-1', role: '' };
-            component.allowedRoles = [{ clientId: 'client-1', role: 'admin', isDefault: false, availableToForeignOrgs: false }];
+            component.allowedRoles = [{ clientId: 'client-1', role: 'admin', defaultAssignment: 'not_default', availableToForeignOrgs: false }];
             fixture.detectChanges();
 
             const compiled = fixture.nativeElement;
@@ -2619,8 +2619,8 @@ describe('AccountsComponent', () => {
             component.startAddRole('1');
             component.roleFormData = { clientId: 'client-1', role: '' };
             component.allowedRoles = [
-                { clientId: 'client-1', role: 'admin', isDefault: false, availableToForeignOrgs: false },
-                { clientId: 'client-1', role: 'user', isDefault: true, availableToForeignOrgs: false }
+                { clientId: 'client-1', role: 'admin', defaultAssignment: 'not_default', availableToForeignOrgs: false },
+                { clientId: 'client-1', role: 'user', defaultAssignment: 'all_users', availableToForeignOrgs: false }
             ];
             fixture.detectChanges();
 

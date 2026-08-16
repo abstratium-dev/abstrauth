@@ -87,7 +87,7 @@ Defines the complete catalog of roles that users may hold for a given client. Th
 |--------|------|-------------|
 | `client_id` | VARCHAR(255) PK/FK | References `T_oauth_clients.client_id` |
 | `role` | VARCHAR(100) PK | Role name |
-| `is_default` | BOOLEAN | If true, this role is automatically assigned to new users on first sign-in |
+| `default_assignment` | VARCHAR(30) | Controls when this role is auto-seeded: `not_default` (never), `all_users` (every member on first sign-in), `org_owners_only` (only org owners on first sign-in) |
 | `available_to_foreign_orgs` | BOOLEAN | If true, subscribing organisations may assign this role to their users |
 
 ### Modified Tables
@@ -229,7 +229,7 @@ sequenceDiagram
     UI->>UI: Store lastOrgId in localStorage
 ```
 
-After authentication, if the account belongs to multiple organisations, the user selects one. The `lastOrgId` from `localStorage` is used to select the default in the UI. Roles in the JWT come from `AccountRole` rows for that account and clientId combination; on first access those rows are seeded from the client's default roles (roles marked `is_default` in `T_client_allowed_roles`). There is no token switching — to work under a different organisation the user signs out and back in.
+After authentication, if the account belongs to multiple organisations, the user selects one. The `lastOrgId` from `localStorage` is used to select the default in the UI. Roles in the JWT come from `AccountRole` rows for that account and clientId combination; on first access those rows are seeded from the client's default roles (roles marked `default_assignment != 'not_default'` in `T_client_allowed_roles`). Roles with `default_assignment = 'org_owners_only'` are seeded only when the signing-in user is an owner of their organisation. There is no token switching — to work under a different organisation the user signs out and back in.
 
 ### User Invited to an Organisation
 
@@ -262,7 +262,7 @@ Same as above, but the client is created with `publik = true` and the owner popu
 
 ### Automatic role seeding
 
-When a user signs in to an application for the first time (no `AccountRole` rows exist for that account and clientId combination), abstrauth copies the client's default roles (rows in `T_client_allowed_roles` where `is_default = true`) into new `AccountRole` rows. Subsequent sign-ins just read the existing rows, so roles can be adjusted per-user after initial assignment.
+When a user signs in to an application for the first time (no `AccountRole` rows exist for that account and clientId combination), abstrauth copies the client's default roles (rows in `T_client_allowed_roles` where `default_assignment != 'not_default'`) into new `AccountRole` rows. Roles with `default_assignment = 'org_owners_only'` are seeded only if the user is an owner of their organisation. Subsequent sign-ins just read the existing rows, so roles can be adjusted per-user after initial assignment.
 
 ### Role catalog enforcement
 
@@ -329,7 +329,7 @@ Roles are assigned to accounts in the following circumstances:
 |----------|---------------|-----------|
 | **New user registers** (signup) | `user` + `manage-accounts` + `manage-clients` (if org owner) + `admin` (if first account ever) | `AccountService.addAbstrauthRoles()` assigns all abstrauth roles based on ownership status |
 | **Account created by existing user** (via `/api/accounts`) | `user` for abstrauth only (at creation time) | `addAbstrauthRoles()` assigns `user` role immediately. Roles for other subscribed clients are assigned on first sign-in to each client. |
-| **User signs in to a non-abstrauth client** | Applicable default roles (`is_default = true` from `T_client_allowed_roles`, filtered by `available_to_foreign_orgs` for foreign orgs) | `TokenResource` seeds default roles on first access if no roles exist for account+client+org |
+| **User signs in to a non-abstrauth client** | Applicable default roles (`default_assignment != 'not_default'` from `T_client_allowed_roles`, filtered by `available_to_foreign_orgs` for foreign orgs, and by `org_owners_only` scope) | `TokenResource` seeds default roles on first access if no roles exist for account+client+org |
 | **User creates new organisation** | `manage-accounts` + `manage-clients` for abstrauth client | `OrganisationsResource.createOrganisation()` assigns management roles so owner can manage their org |
 
 Note: if an org owner adds another member as an owner, they do not automatically get the abstrauth management roles, those need to be added manually by the original org owner.
@@ -337,8 +337,8 @@ Note: if an org owner adds another member as an owner, they do not automatically
 #### Use Case: Application with User and Management Roles
 
 Consider a client (application) registered in abstrauth with these allowed roles:
-- `user` (marked as `is_default = true`) — allows basic application access
-- `manager` (marked as `is_default = false`) — allows managing data within the user's org
+- `user` (marked as `default_assignment = 'all_users'`) — allows basic application access
+- `manager` (marked as `default_assignment = 'not_default'`) — allows managing data within the user's org
 
 **When a user signs in to this application:**
 1. If they have no existing roles for this client in their org, they receive only the `user` role automatically
@@ -534,7 +534,7 @@ Every organisation must always have at least one owner. Removing an owner row is
 | 3 | Can an organisation have multiple owners? | Yes. `created_by_account_id` records who created it; ownership is tracked in `T_organisation_accounts`. |
 | 4 | What can an `owner` do? | Add/remove members; manage subscriptions; assign roles to users from the client's allowlist. Does not imply `MANAGE_ACCOUNTS` or `MANAGE_CLIENTS` — those are separate `AccountRole` assignments. |
 | 5 | What can a `member` do? | Sign in under that org and access org-scoped data. Cannot modify the organisation, its members, or subscriptions. |
-| 6 | How are roles in the JWT determined? | From `AccountRole` rows for the account and clientId combination. On first access those rows are seeded from the client's default roles (`T_client_allowed_roles` where `is_default = true`). |
+| 6 | How are roles in the JWT determined? | From `AccountRole` rows for the account and clientId combination. On first access those rows are seeded from the client's default roles (`T_client_allowed_roles` where `default_assignment != 'not_default'`; `org_owners_only` roles are seeded only for org owners). |
 | 7 | Can the last owner be removed? | No. The endpoint must reject a demotion that would leave an organisation with no owner. |
 | 8 | Can an org owner grant any role they like? | No. For public clients, role names must appear in `T_client_allowed_roles`. The client owner controls that list. |
 | 9 | Can an account be removed from all organisations? | No. Any operation that deletes an `OrganisationAccount` row must leave the account with at least one remaining organisation membership. |

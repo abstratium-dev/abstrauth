@@ -399,7 +399,7 @@ ALTER TABLE T_client_allowed_roles_AUD
     DROP COLUMN is_default;
 ```
 
-> **Note on H2 vs MySQL:** both support `ALTER TABLE ... ADD COLUMN`, `UPDATE`, `ALTER COLUMN ... SET NOT NULL`, `DROP COLUMN`, and `CHECK (column IN (...))` constraints. The migration is compatible with both the H2 test profile (`MODE=MySQL`) and the MySQL 9.3 production profile.
+> **Note on H2 vs MySQL:** both support `ALTER TABLE ... ADD COLUMN`, `UPDATE`, `MODIFY COLUMN ... NOT NULL`, `DROP COLUMN`, and `CHECK (column IN (...))` constraints. The migration uses `MODIFY COLUMN` (MySQL syntax, also supported by H2 in `MODE=MySQL`) rather than `ALTER COLUMN ... SET NOT NULL` (H2-only syntax that fails on MySQL). The migration is compatible with both the H2 test profile (`MODE=MySQL`) and the MySQL 9.3 production profile.
 >
 > **Why CHECK and not native `ENUM` type:** MySQL's native `ENUM('a','b','c')` type is also an option and is enforced on all MySQL versions. H2 in `MODE=MySQL` accepts the `ENUM(...)` syntax too, but maps it internally to a VARCHAR with an implicit check, and some JDBC drivers report `ENUM` columns with different type metadata — which can cause Hibernate parameter binding issues. Since the project uses `schema-management.strategy=none` (Hibernate neither generates nor validates DDL), this is a lower risk, but `CHECK` on a `VARCHAR` is the safer, more portable, and more standard-SQL choice. The JPA `@Enumerated(EnumType.STRING)` annotation provides application-level validation regardless of which DB-level approach is used.
 
@@ -439,7 +439,9 @@ public enum DefaultAssignment {
 }
 ```
 
-This enum is shared by both the multitenancy and non-multitenancy entities. It must be annotated for native-image reflection if JPA reflection registration doesn't cover it automatically — verify during the native build test.
+This enum is shared by both the multitenancy and non-multitenancy entities. A companion `DefaultAssignmentConverter` (in the same package) implements `AttributeConverter<DefaultAssignment, String>` to persist the lowercase `dbValue` rather than the uppercase Java enum constant name — this is necessary because `@Enumerated(EnumType.STRING)` would persist `NOT_DEFAULT` (uppercase), which would violate the CHECK constraint that expects `not_default` (lowercase).
+
+Both the enum and the converter must be annotated for native-image reflection if JPA reflection registration doesn't cover them automatically — verify during the native build test.
 
 #### 3. Entities
 
@@ -452,16 +454,18 @@ private Boolean isDefault = false;
 ```
 with:
 ```java
-@Enumerated(EnumType.STRING)
+@Convert(converter = DefaultAssignmentConverter.class)
 @Column(name = "default_assignment", nullable = false, length = 30)
 private DefaultAssignment defaultAssignment = DefaultAssignment.NOT_DEFAULT;
 ```
+
+A `DefaultAssignmentConverter` (implementing `AttributeConverter<DefaultAssignment, String>`) is used instead of `@Enumerated(EnumType.STRING)` because the latter persists the Java enum constant name in uppercase (`NOT_DEFAULT`), which would violate the CHECK constraint that expects lowercase values (`not_default`). The converter calls `DefaultAssignment.getDbValue()` to persist the lowercase string and `DefaultAssignment.fromDbValue()` to read it back.
 
 Replace the getter/setter pair `getIsDefault()` / `setIsDefault(Boolean)` with `getDefaultAssignment()` / `setDefaultAssignment(DefaultAssignment)`.
 
 **`src/main/java/dev/abstratium/abstrauth/non_multitenancy/entity/NonMultitenancyClientAllowedRole.java`** (lines 55-56, 70-71)
 
-Same change as above — replace the `isDefault` field and its getter/setter with `defaultAssignment` using the `DefaultAssignment` enum. This entity maps to the same table and must stay in sync.
+Same change as above — replace the `isDefault` field and its getter/setter with `defaultAssignment` using the `DefaultAssignment` enum and `DefaultAssignmentConverter`. This entity maps to the same table and must stay in sync.
 
 #### 4. Services
 

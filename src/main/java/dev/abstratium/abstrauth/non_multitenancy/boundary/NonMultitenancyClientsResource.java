@@ -188,7 +188,7 @@ public class NonMultitenancyClientsResource {
 
         List<ClientAllowedRole> roles = clientAllowedRoleService.findAllowedRolesByClientIdForOrg(clientId, callerOrgId);
         List<AllowedRoleResponse> response = roles.stream()
-                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault(), r.getAvailableToForeignOrgs()))
+                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getDefaultAssignment().getDbValue(), r.getAvailableToForeignOrgs()))
                 .collect(Collectors.toList());
         return Response.ok(response).build();
     }
@@ -275,13 +275,13 @@ public class NonMultitenancyClientsResource {
     public static class AllowedRoleResponse {
         public String clientId;
         public String role;
-        public Boolean isDefault;
+        public String defaultAssignment;
         public Boolean availableToForeignOrgs;
 
-        public AllowedRoleResponse(String clientId, String role, Boolean isDefault, Boolean availableToForeignOrgs) {
+        public AllowedRoleResponse(String clientId, String role, String defaultAssignment, Boolean availableToForeignOrgs) {
             this.clientId = clientId;
             this.role = role;
-            this.isDefault = isDefault;
+            this.defaultAssignment = defaultAssignment;
             this.availableToForeignOrgs = availableToForeignOrgs;
         }
     }

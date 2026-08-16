@@ -11,8 +11,6 @@
 
 ## Today
 
-- X how does a user set abstraccount up so that his employees cannot see the accounts? but so that anyone first signing up still automatically gets the right to use abstraccount?
-
 - all done :-)
 
 

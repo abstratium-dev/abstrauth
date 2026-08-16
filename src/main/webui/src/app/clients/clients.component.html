@@ -499,7 +499,7 @@
                     <option *ngFor="let allowedRole of availableClientRoleRoles" [value]="allowedRole.role"
                             [attr.data-role]="allowedRole.role">
                       {{ allowedRole.role }}
-                      <span *ngIf="allowedRole.isDefault"> (default)</span>
+                      <span *ngIf="allowedRole.defaultAssignment !== 'not_default'"> (default)</span>
                     </option>
                   </select>
                   <div *ngIf="loadingClientRoleRoles()" class="loading">Loading available roles...</div>
@@ -579,10 +579,12 @@
                   <small class="form-hint">Alphanumeric characters and hyphens only</small>
                 </div>
                 <div class="form-group">
-                  <label for="allowed-role-default">
-                    <input type="checkbox" id="allowed-role-default" [(ngModel)]="addAllowedRoleData.isDefault">
-                    Default role
-                  </label>
+                  <label for="allowed-role-default">Default assignment</label>
+                  <select id="allowed-role-default" [(ngModel)]="addAllowedRoleData.defaultAssignment">
+                    <option value="not_default">No</option>
+                    <option value="all_users">Yes — all users</option>
+                    <option value="org_owners_only">Yes — organisation owners only</option>
+                  </select>
                   <small class="form-hint">Automatically assign this role to new users when they sign in</small>
                 </div>
                 <div class="form-group">
@@ -614,7 +616,7 @@
                   <div class="role-header">
                     <div class="role-info">
                       <strong>{{ allowedRole.role }}</strong>
-                      <span *ngIf="allowedRole.isDefault" class="badge badge-success">Default</span>
+                      <span *ngIf="allowedRole.defaultAssignment !== 'not_default'" class="badge badge-success">{{ allowedRole.defaultAssignment === 'org_owners_only' ? 'Default (owners)' : 'Default' }}</span>
                       <span *ngIf="allowedRole.availableToForeignOrgs" class="badge badge-info">Public</span>
                     </div>
                     <div class="role-actions">
@@ -624,7 +626,7 @@
                         </button>
                       </ng-container>
                       <ng-container *ngIf="editingAllowedRole !== allowedRole.role">
-                        <button class="btn-icon" (click)="startEditAllowedRole(allowedRole.role, allowedRole.isDefault, allowedRole.availableToForeignOrgs)"
+                        <button class="btn-icon" (click)="startEditAllowedRole(allowedRole.role, allowedRole.defaultAssignment, allowedRole.availableToForeignOrgs)"
                                 title="Edit role">
                           ✏️
                         </button>
@@ -640,10 +642,12 @@
                   <!-- Edit panel for this role -->
                   <div *ngIf="editingAllowedRole === allowedRole.role" class="role-edit-panel">
                     <div class="form-group">
-                      <label class="role-edit-label">
-                        <input type="checkbox" [(ngModel)]="editAllowedRoleData.isDefault">
-                        Default role
-                      </label>
+                      <label class="role-edit-label" for="edit-allowed-role-default">Default assignment</label>
+                      <select id="edit-allowed-role-default" [(ngModel)]="editAllowedRoleData.defaultAssignment">
+                        <option value="not_default">No</option>
+                        <option value="all_users">Yes — all users</option>
+                        <option value="org_owners_only">Yes — organisation owners only</option>
+                      </select>
                     </div>
                     <div class="form-group">
                       <label class="role-edit-label">
@@ -653,7 +657,7 @@
                     </div>
                     <small class="form-hint">To change the role name, remove this role and add a new one with the desired name.</small>
                     <div class="form-actions">
-                      <button class="btn-primary btn-sm" (click)="updateAllowedRole(client.clientId, allowedRole.role, allowedRole.availableToForeignOrgs, allowedRole.isDefault)">
+                      <button class="btn-primary btn-sm" (click)="updateAllowedRole(client.clientId, allowedRole.role, allowedRole.availableToForeignOrgs, allowedRole.defaultAssignment)">
                         Save
                       </button>
                       <button class="btn-secondary btn-sm" (click)="cancelEditAllowedRole()">

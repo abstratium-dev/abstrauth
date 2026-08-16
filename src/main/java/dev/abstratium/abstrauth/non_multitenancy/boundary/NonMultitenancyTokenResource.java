@@ -367,8 +367,13 @@ public class NonMultitenancyTokenResource {
         // Seed default roles if no AccountRole rows exist for this account + clientId + orgId
         if (orgId != null && !nonMultitenancyAccountRoleService.hasAnyRoleForClient(account.getId(), clientId, orgId)) {
             var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientIdForOrg(clientId, orgId);
-            if (!defaultRoles.isEmpty()) {
-                nonMultitenancyAccountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, defaultRoles);
+            boolean isOwner = organisationService.isOwner(orgId, account.getId());
+            var rolesToSeed = defaultRoles.stream()
+                    .filter(r -> r.getDefaultAssignment() == dev.abstratium.abstrauth.entity.DefaultAssignment.ALL_USERS
+                            || (r.getDefaultAssignment() == dev.abstratium.abstrauth.entity.DefaultAssignment.ORG_OWNERS_ONLY && isOwner))
+                    .collect(java.util.stream.Collectors.toList());
+            if (!rolesToSeed.isEmpty()) {
+                nonMultitenancyAccountRoleService.seedDefaultRoles(account.getId(), clientId, orgId, rolesToSeed);
             }
         }
 

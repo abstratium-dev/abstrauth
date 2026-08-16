@@ -28,6 +28,7 @@ import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthCli
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import dev.abstratium.abstrauth.service.ClientAllowedRoleService;
 import dev.abstratium.abstrauth.service.MetricsService;
+import dev.abstratium.abstrauth.service.OrganisationService;
 import dev.abstratium.abstrauth.service.TokenRevocationService;
 import dev.abstratium.abstrauth.util.JwtSignatureVerifier;
 import dev.abstratium.abstrauth.util.PasswordEncoder;
@@ -79,6 +80,9 @@ public class NonMultitenancyTokenExchangeResource {
 
     @Inject
     ClientAllowedRoleService clientAllowedRoleService;
+
+    @Inject
+    OrganisationService organisationService;
 
     @Inject
     TokenRevocationService tokenRevocationService;
@@ -327,8 +331,13 @@ public class NonMultitenancyTokenExchangeResource {
         // --- Step 8: Resolve target roles (with default role seeding) ---
         if (!nonMultitenancyAccountRoleService.hasAnyRoleForClient(subjectAccountId, audience, subjectOrgId)) {
             var defaultRoles = clientAllowedRoleService.findDefaultRolesByClientIdForOrg(audience, subjectOrgId);
-            if (!defaultRoles.isEmpty()) {
-                nonMultitenancyAccountRoleService.seedDefaultRoles(subjectAccountId, audience, subjectOrgId, defaultRoles);
+            boolean isOwner = organisationService.isOwner(subjectOrgId, subjectAccountId);
+            var rolesToSeed = defaultRoles.stream()
+                    .filter(r -> r.getDefaultAssignment() == dev.abstratium.abstrauth.entity.DefaultAssignment.ALL_USERS
+                            || (r.getDefaultAssignment() == dev.abstratium.abstrauth.entity.DefaultAssignment.ORG_OWNERS_ONLY && isOwner))
+                    .collect(java.util.stream.Collectors.toList());
+            if (!rolesToSeed.isEmpty()) {
+                nonMultitenancyAccountRoleService.seedDefaultRoles(subjectAccountId, audience, subjectOrgId, rolesToSeed);
             }
         }
         Set<String> dbRoles = nonMultitenancyAccountRoleService.findRolesByAccountIdAndClientIdAndOrgId(

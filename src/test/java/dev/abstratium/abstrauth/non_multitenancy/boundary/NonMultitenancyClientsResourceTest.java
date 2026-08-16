@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.entity.Organisation;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancySubscriptionService;
 import dev.abstratium.abstrauth.service.AccountService;
@@ -111,7 +112,7 @@ public class NonMultitenancyClientsResourceTest {
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("role", hasItems("viewer", "editor"))
-                .body("isDefault", hasItems(false, true));
+                .body("defaultAssignment", hasItems("not_default", "all_users"));
     }
 
     @Test
@@ -151,7 +152,7 @@ public class NonMultitenancyClientsResourceTest {
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("role", hasItems("cross-viewer", "cross-editor"))
-                .body("isDefault", hasItems(false, true));
+                .body("defaultAssignment", hasItems("not_default", "all_users"));
     }
 
     @Test
@@ -323,7 +324,7 @@ public class NonMultitenancyClientsResourceTest {
     private void insertAllowedRole(String clientId, String role, boolean isDefault) {
         ClientAllowedRole r = new ClientAllowedRole();
         r.setId(new ClientAllowedRole.Id(clientId, role));
-        r.setIsDefault(isDefault);
+        r.setDefaultAssignment(isDefault ? DefaultAssignment.ALL_USERS : DefaultAssignment.NOT_DEFAULT);
         r.setAvailableToForeignOrgs(false);
         em.persist(r);
     }
@@ -331,7 +332,7 @@ public class NonMultitenancyClientsResourceTest {
     private void insertAllowedRole(String clientId, String role, boolean isDefault, boolean availableToForeignOrgs) {
         ClientAllowedRole r = new ClientAllowedRole();
         r.setId(new ClientAllowedRole.Id(clientId, role));
-        r.setIsDefault(isDefault);
+        r.setDefaultAssignment(isDefault ? DefaultAssignment.ALL_USERS : DefaultAssignment.NOT_DEFAULT);
         r.setAvailableToForeignOrgs(availableToForeignOrgs);
         em.persist(r);
     }

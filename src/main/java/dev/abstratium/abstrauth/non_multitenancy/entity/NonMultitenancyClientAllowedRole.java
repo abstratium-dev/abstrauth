@@ -1,5 +1,7 @@
 package dev.abstratium.abstrauth.non_multitenancy.entity;
 
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
+import dev.abstratium.abstrauth.entity.DefaultAssignmentConverter;
 import jakarta.persistence.*;
 import org.hibernate.envers.Audited;
 import java.io.Serializable;
@@ -52,8 +54,9 @@ public class NonMultitenancyClientAllowedRole {
     @EmbeddedId
     private Id id = new Id();
 
-    @Column(name = "is_default")
-    private Boolean isDefault = false;
+    @Convert(converter = DefaultAssignmentConverter.class)
+    @Column(name = "default_assignment", nullable = false, length = 30)
+    private DefaultAssignment defaultAssignment = DefaultAssignment.NOT_DEFAULT;
 
     @Column(name = "available_to_foreign_orgs")
     private Boolean availableToForeignOrgs = false;
@@ -67,8 +70,8 @@ public class NonMultitenancyClientAllowedRole {
     public String getRole() { return id.getRole(); }
     public void setRole(String role) { id.setRole(role); }
 
-    public Boolean getIsDefault() { return isDefault; }
-    public void setIsDefault(Boolean isDefault) { this.isDefault = isDefault; }
+    public DefaultAssignment getDefaultAssignment() { return defaultAssignment; }
+    public void setDefaultAssignment(DefaultAssignment defaultAssignment) { this.defaultAssignment = defaultAssignment; }
 
     public Boolean getAvailableToForeignOrgs() { return availableToForeignOrgs; }
     public void setAvailableToForeignOrgs(Boolean availableToForeignOrgs) { this.availableToForeignOrgs = availableToForeignOrgs; }

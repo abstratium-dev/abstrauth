@@ -1,6 +1,5 @@
 #!/bin/bash
 # Script to extract public key from private key for JWT verification
-# Usage: ./extract-public-key.sh
 
 # THIS KEY IS ONLY USED FOR TESTING!!!
 # The private key (base64 encoded PKCS#8 format)

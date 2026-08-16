@@ -1,10 +1,15 @@
 package dev.abstratium.abstrauth.filter;
 
+import dev.abstratium.abstrauth.entity.AuthorizationRequest;
+import dev.abstratium.abstrauth.service.AuthorizationService;
 import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -12,6 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @QuarkusTest
 class SecurityHeadersFilterTest {
+
+    @Inject
+    AuthorizationService authorizationService;
 
     @Test
     void shouldAddContentSecurityPolicyHeader() {
@@ -131,5 +139,84 @@ class SecurityHeadersFilterTest {
         assertTrue(cspHeader.contains("frame-ancestors 'none'"), "CSP should contain frame-ancestors");
         assertTrue(cspHeader.contains("base-uri 'self'"), "CSP should contain base-uri");
         assertTrue(cspHeader.contains("form-action 'self'"), "CSP should contain form-action");
+    }
+
+    @Test
+    void shouldAllowRedirectOriginInFormActionOnConsentPage() {
+        // Create an authorization request whose (already validated) redirect URI
+        // points at a cross-origin client callback, as in the e2e flow.
+        AuthorizationRequest authRequest = authorizationService.createAuthorizationRequest(
+                "test-client",
+                "http://localhost:3333/oauth/callback",
+                "openid profile email",
+                "test-state",
+                "test-challenge",
+                "S256");
+
+        given()
+            .when()
+            .get("/signin/" + authRequest.getId())
+            .then()
+            .statusCode(anyOf(is(200), is(404))) // Quinoa may or may not serve the SPA in tests
+            .header("Content-Security-Policy", containsString("form-action 'self' http://localhost:3333"));
+    }
+
+    @Test
+    void shouldKeepDefaultFormActionForUnknownConsentRequest() {
+        given()
+            .when()
+            .get("/signin/does-not-exist")
+            .then()
+            .statusCode(anyOf(is(200), is(404)))
+            .header("Content-Security-Policy", containsString("form-action 'self'"))
+            .header("Content-Security-Policy", not(containsString("form-action 'self' http://")));
+    }
+
+    @Test
+    void shouldKeepDefaultFormActionForNonConsentPaths() {
+        given()
+            .when()
+            .get("/api/clients")
+            .then()
+            .statusCode(anyOf(is(200), is(401), is(403)))
+            .header("Content-Security-Policy", containsString("form-action 'self'"))
+            .header("Content-Security-Policy", not(containsString("form-action 'self' http://")));
+    }
+
+    @Test
+    void shouldDeriveCspSourceFromHttpRedirectUri() {
+        assertEquals("http://localhost:3333",
+                SecurityHeadersFilter.cspSourceForUri("http://localhost:3333/oauth/callback"));
+    }
+
+    @Test
+    void shouldDeriveCspSourceFromHttpsRedirectUri() {
+        assertEquals("https://client.example.com",
+                SecurityHeadersFilter.cspSourceForUri("https://client.example.com/cb"));
+    }
+
+    @Test
+    void shouldKeepNonDefaultPortInCspSource() {
+        assertEquals("https://client.example.com:8443",
+                SecurityHeadersFilter.cspSourceForUri("https://client.example.com:8443/cb"));
+    }
+
+    @Test
+    void shouldDropDefaultPortFromCspSource() {
+        assertEquals("http://localhost",
+                SecurityHeadersFilter.cspSourceForUri("http://localhost:80/cb"));
+    }
+
+    @Test
+    void shouldDeriveSchemeSourceForCustomScheme() {
+        assertEquals("myapp:", SecurityHeadersFilter.cspSourceForUri("myapp://oauth/callback"));
+    }
+
+    @Test
+    void shouldReturnNullForInvalidOrMissingRedirectUri() {
+        assertNull(SecurityHeadersFilter.cspSourceForUri(null));
+        assertNull(SecurityHeadersFilter.cspSourceForUri(""));
+        assertNull(SecurityHeadersFilter.cspSourceForUri("not a uri"));
+        assertNull(SecurityHeadersFilter.cspSourceForUri("relative/path"));
     }
 }

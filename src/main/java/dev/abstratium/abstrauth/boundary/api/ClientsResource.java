@@ -8,6 +8,7 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.abstratium.abstrauth.boundary.ErrorResponse;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.interceptor.VerifyOrgMembership;
 import dev.abstratium.abstrauth.service.AccountRoleService;
@@ -227,7 +228,7 @@ public class ClientsResource {
 
         var roles = clientAllowedRoleService.findAllAllowedRolesByClientId(clientId);
         List<AllowedRoleResponse> response = roles.stream()
-                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getIsDefault(), r.getAvailableToForeignOrgs()))
+                .map(r -> new AllowedRoleResponse(r.getClientId(), r.getRole(), r.getDefaultAssignment().getDbValue(), r.getAvailableToForeignOrgs()))
                 .collect(Collectors.toList());
         return Response.ok(response).build();
     }
@@ -240,9 +241,10 @@ public class ClientsResource {
     @RolesAllowed(Roles.MANAGE_CLIENTS)
     public Response addAllowedRole(@PathParam("clientId") String clientId, @Valid AddAllowedRoleRequest request) {
         try {
-            clientAllowedRoleService.addAllowedRole(clientId, request.role, Boolean.TRUE.equals(request.isDefault), Boolean.TRUE.equals(request.availableToForeignOrgs));
+            DefaultAssignment defaultAssignment = DefaultAssignment.fromDbValue(request.defaultAssignment);
+            clientAllowedRoleService.addAllowedRole(clientId, request.role, defaultAssignment, Boolean.TRUE.equals(request.availableToForeignOrgs));
             return Response.status(Response.Status.CREATED)
-                    .entity(new AllowedRoleResponse(clientId, request.role, Boolean.TRUE.equals(request.isDefault), Boolean.TRUE.equals(request.availableToForeignOrgs)))
+                    .entity(new AllowedRoleResponse(clientId, request.role, defaultAssignment.getDbValue(), Boolean.TRUE.equals(request.availableToForeignOrgs)))
                     .build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
@@ -260,8 +262,9 @@ public class ClientsResource {
     public Response updateAllowedRole(@PathParam("clientId") String clientId, @PathParam("role") String role,
                                       @Valid UpdateAllowedRoleRequest request) {
         try {
-            clientAllowedRoleService.updateAllowedRole(clientId, role, Boolean.TRUE.equals(request.isDefault), Boolean.TRUE.equals(request.availableToForeignOrgs));
-            return Response.ok(new AllowedRoleResponse(clientId, role, Boolean.TRUE.equals(request.isDefault), Boolean.TRUE.equals(request.availableToForeignOrgs))).build();
+            DefaultAssignment defaultAssignment = DefaultAssignment.fromDbValue(request.defaultAssignment);
+            clientAllowedRoleService.updateAllowedRole(clientId, role, defaultAssignment, Boolean.TRUE.equals(request.availableToForeignOrgs));
+            return Response.ok(new AllowedRoleResponse(clientId, role, defaultAssignment.getDbValue(), Boolean.TRUE.equals(request.availableToForeignOrgs))).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(new ErrorResponse(e.getMessage()))
@@ -356,13 +359,13 @@ public class ClientsResource {
     public static class AllowedRoleResponse {
         public String clientId;
         public String role;
-        public Boolean isDefault;
+        public String defaultAssignment;
         public Boolean availableToForeignOrgs;
 
-        public AllowedRoleResponse(String clientId, String role, Boolean isDefault, Boolean availableToForeignOrgs) {
+        public AllowedRoleResponse(String clientId, String role, String defaultAssignment, Boolean availableToForeignOrgs) {
             this.clientId = clientId;
             this.role = role;
-            this.isDefault = isDefault;
+            this.defaultAssignment = defaultAssignment;
             this.availableToForeignOrgs = availableToForeignOrgs;
         }
     }
@@ -425,13 +428,13 @@ public class ClientsResource {
         @NotBlank(message = "Role is required")
         @Pattern(regexp = "[a-zA-Z0-9\\-]+", message = "Role must contain only alphanumeric characters and hyphens")
         public String role;
-        public Boolean isDefault;
+        public String defaultAssignment;
         public Boolean availableToForeignOrgs;
     }
 
     @RegisterForReflection
     public static class UpdateAllowedRoleRequest {
-        public Boolean isDefault;
+        public String defaultAssignment;
         public Boolean availableToForeignOrgs;
     }
 

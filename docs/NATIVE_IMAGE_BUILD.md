@@ -9,7 +9,7 @@ Commit everything to git.
 Then:
 
 ```bash
-./build-docker-image.sh
+./scripts/build-docker-image.sh
 ```
 
 This script will:
@@ -86,6 +86,6 @@ export CR_PAT=your_token_here
 
 IMPORTANT: to run the following script you must be signed into GitHub and have the env var exported.
 
-Run the script named `./push-docker-image.sh`, which also tags the source code and pushes it to GitHub.
+Run the script named `./scripts/push-docker-image.sh`, which also tags the source code and pushes it to GitHub.
 
 You are now finished. Re-install in test and production environments.

@@ -104,7 +104,7 @@ public class ClientRoleServiceTest {
         given()
             .header("Authorization", "Bearer " + token)
             .contentType("application/json")
-            .body(String.format("{\"role\": \"%s\", \"isDefault\": false, \"availableToForeignOrgs\": %b}",
+            .body(String.format("{\"role\": \"%s\", \"defaultAssignment\": \"not_default\", \"availableToForeignOrgs\": %b}",
                     role, availableToForeignOrgs))
             .when()
             .post("/api/clients/" + actualClientId + "/allowed-roles")
@@ -412,7 +412,7 @@ public class ClientRoleServiceTest {
                 new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         allowedRole.setClientId(clientId);
         allowedRole.setRole(role);
-        allowedRole.setIsDefault(false);
+        allowedRole.setDefaultAssignment(dev.abstratium.abstrauth.entity.DefaultAssignment.NOT_DEFAULT);
         allowedRole.setAvailableToForeignOrgs(availableToForeignOrgs);
         em.persist(allowedRole);
         transactionHelper.commitTransaction();

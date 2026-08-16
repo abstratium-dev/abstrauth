@@ -454,7 +454,7 @@ export class Controller {
     }
   }
 
-  async addAllowedRole(clientId: string, request: { role: string; isDefault: boolean; availableToForeignOrgs: boolean }): Promise<AllowedRole> {
+  async addAllowedRole(clientId: string, request: { role: string; defaultAssignment: string; availableToForeignOrgs: boolean }): Promise<AllowedRole> {
     try {
       const response = await firstValueFrom(
         this.http.post<AllowedRole>(`/api/clients/${clientId}/allowed-roles`, request)
@@ -466,7 +466,7 @@ export class Controller {
     }
   }
 
-  async updateAllowedRole(clientId: string, role: string, request: { isDefault: boolean; availableToForeignOrgs: boolean }): Promise<AllowedRole> {
+  async updateAllowedRole(clientId: string, role: string, request: { defaultAssignment: string; availableToForeignOrgs: boolean }): Promise<AllowedRole> {
     try {
       const response = await firstValueFrom(
         this.http.put<AllowedRole>(`/api/clients/${clientId}/allowed-roles/${role}`, request)

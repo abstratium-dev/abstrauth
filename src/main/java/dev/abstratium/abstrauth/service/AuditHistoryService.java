@@ -99,7 +99,7 @@ public class AuditHistoryService {
         client_allowed_role(
             "T_client_allowed_roles_AUD",
             null, // composite PK — handled specially
-            new String[]{"client_id", "role", "is_default", "available_to_foreign_orgs"},
+            new String[]{"client_id", "role", "default_assignment", "available_to_foreign_orgs"},
             OrgFilterStrategy.VIA_OAUTH_CLIENTS_BY_CLIENT_ID,
             Roles.MANAGE_CLIENTS
         ),

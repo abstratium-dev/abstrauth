@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import dev.abstratium.abstrauth.boundary.ConflictException;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccountRole;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.Roles;
@@ -230,12 +231,12 @@ public class NonMultitenancyAccountRoleServiceTest {
         ClientAllowedRole role1 = new ClientAllowedRole();
         role1.setClientId(TEST_CLIENT_ID);
         role1.setRole("viewer");
-        role1.setIsDefault(true);
+        role1.setDefaultAssignment(DefaultAssignment.ALL_USERS);
 
         ClientAllowedRole role2 = new ClientAllowedRole();
         role2.setClientId(TEST_CLIENT_ID);
         role2.setRole("admin");
-        role2.setIsDefault(true);
+        role2.setDefaultAssignment(DefaultAssignment.ALL_USERS);
 
         // Only pass the default roles (as the caller would do)
         List<ClientAllowedRole> defaultRoles = List.of(role1, role2);
@@ -268,12 +269,12 @@ public class NonMultitenancyAccountRoleServiceTest {
         ClientAllowedRole role1 = new ClientAllowedRole();
         role1.setClientId(TEST_CLIENT_ID);
         role1.setRole("viewer");
-        role1.setIsDefault(true);
+        role1.setDefaultAssignment(DefaultAssignment.ALL_USERS);
 
         ClientAllowedRole role2 = new ClientAllowedRole();
         role2.setClientId(TEST_CLIENT_ID);
         role2.setRole("admin");
-        role2.setIsDefault(true);
+        role2.setDefaultAssignment(DefaultAssignment.ALL_USERS);
 
         List<ClientAllowedRole> defaultRoles = List.of(role1, role2);
 
@@ -323,7 +324,7 @@ public class NonMultitenancyAccountRoleServiceTest {
         ClientAllowedRole role = new ClientAllowedRole();
         role.setClientId(TEST_CLIENT_ID);
         role.setRole("viewer");
-        role.setIsDefault(true);
+        role.setDefaultAssignment(DefaultAssignment.ALL_USERS);
 
         // Should not create duplicate
         nonMultitenancyAccountRoleService.seedDefaultRoles(

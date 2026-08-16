@@ -9,6 +9,7 @@ import dev.abstratium.abstrauth.entity.AuthorizationCode;
 import dev.abstratium.abstrauth.entity.AuthorizationRequest;
 import dev.abstratium.abstrauth.util.SecureRandomProvider;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.control.ActivateRequestContext;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -52,6 +53,15 @@ public class AuthorizationService {
         return request;
     }
 
+    /**
+     * Finds an authorization request by ID.
+     *
+     * <p>Uses {@link ActivateRequestContext} so that it also works when called
+     * from a worker thread without an active request context, e.g. the
+     * {@link dev.abstratium.abstrauth.filter.SecurityHeadersFilter} blocking
+     * handler that reads the redirect URI to build the consent page CSP.</p>
+     */
+    @ActivateRequestContext
     public Optional<AuthorizationRequest> findAuthorizationRequest(String requestId) {
         return Optional.ofNullable(em.find(AuthorizationRequest.class, requestId));
     }

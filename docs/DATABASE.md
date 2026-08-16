@@ -162,7 +162,7 @@ erDiagram
     T_client_allowed_roles {
         VARCHAR(255) client_id FK "T_oauth_clients"
         VARCHAR(100) role
-        BOOLEAN is_default "default false"
+        VARCHAR(30) default_assignment "NOT NULL, CHECK constraint: not_default | all_users | org_owners_only"
         BOOLEAN available_to_foreign_orgs "NOT NULL"
     }
 
@@ -377,7 +377,7 @@ Roles a client is permitted to assign or request.
 |--------|------|-------------|-------------|
 | client_id | VARCHAR(255) | NOT NULL, FK | T_oauth_clients |
 | role | VARCHAR(100) | NOT NULL | Role name |
-| is_default | BOOLEAN | DEFAULT FALSE | Auto-assign on subscription |
+| default_assignment | VARCHAR(30) | NOT NULL, CHECK | Auto-seed scope: `not_default`, `all_users`, or `org_owners_only` |
 | available_to_foreign_orgs | BOOLEAN | NOT NULL | Whether foreign orgs may assign this role |
 
 **PK:** (client_id, role)

@@ -1,26 +1,26 @@
-node:events:497
+node:events:487
       throw er; // Unhandled 'error' event
       ^
 
 Error: listen EADDRINUSE: address already in use :::3333
-[90m    at Server.setupListenHandle [as _listen2] (node:net:1904:16)[39m
-[90m    at listenInCluster (node:net:1961:12)[39m
-[90m    at Server.listen (node:net:2063:7)[39m
-    at Function.listen [90m(/shared2/abstratium/github.com/abstrauth/client-example/[39mnode_modules/[4mexpress[24m/lib/application.js:635:24[90m)[39m
-    at Object.<anonymous> [90m(/shared2/abstratium/github.com/abstrauth/client-example/[39mserver.js:337:5[90m)[39m
-[90m    at Module._compile (node:internal/modules/cjs/loader:1469:14)[39m
-[90m    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)[39m
-[90m    at Module.load (node:internal/modules/cjs/loader:1288:32)[39m
-[90m    at Module._load (node:internal/modules/cjs/loader:1104:12)[39m
-[90m    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)[39m
+    at Server.setupListenHandle [as _listen2] (node:net:2167:16)
+    at listenInCluster (node:net:2224:12)
+    at Server.listen (node:net:2344:7)
+    at app.listen (/shared2/abstratium/github.com/abstrauth/client-example/node_modules/express/lib/application.js:635:24)
+    at Object.<anonymous> (/shared2/abstratium/github.com/abstrauth/client-example/server.js:337:5)
+    at Module._compile (node:internal/modules/cjs/loader:1944:14)
+    at Object..js (node:internal/modules/cjs/loader:2084:10)
+    at Module.load (node:internal/modules/cjs/loader:1666:32)
+    at Module._load (node:internal/modules/cjs/loader:1447:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:260:19)
 Emitted 'error' event on Server instance at:
-[90m    at emitErrorNT (node:net:1940:8)[39m
-[90m    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)[39m {
-  code: [32m'EADDRINUSE'[39m,
-  errno: [33m-98[39m,
-  syscall: [32m'listen'[39m,
-  address: [32m'::'[39m,
-  port: [33m3333[39m
+    at emitErrorNT (node:net:2203:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3333
 }
 
-Node.js v20.18.0
+Node.js v26.4.0

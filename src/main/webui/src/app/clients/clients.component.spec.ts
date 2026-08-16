@@ -1183,8 +1183,8 @@ describe('ClientsComponent', () => {
 
     describe('Allowed Roles Management', () => {
         const mockAllowedRoles: AllowedRole[] = [
-            { clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: true },
-            { clientId: 'test_client_1', role: 'editor', isDefault: false, availableToForeignOrgs: false }
+            { clientId: 'test_client_1', role: 'viewer', defaultAssignment: 'all_users', availableToForeignOrgs: true },
+            { clientId: 'test_client_1', role: 'editor', defaultAssignment: 'not_default', availableToForeignOrgs: false }
         ];
 
         beforeEach(() => {
@@ -1238,7 +1238,7 @@ describe('ClientsComponent', () => {
             component.toggleAddAllowedRoleForm();
             expect(component.showAddAllowedRoleForm).toBe(true);
             expect(component.addAllowedRoleData.role).toBe('');
-            expect(component.addAllowedRoleData.isDefault).toBe(false);
+            expect(component.addAllowedRoleData.defaultAssignment).toBe('not_default');
 
             component.toggleAddAllowedRoleForm();
             expect(component.showAddAllowedRoleForm).toBe(false);
@@ -1247,21 +1247,21 @@ describe('ClientsComponent', () => {
         it('should add an allowed role successfully', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.allowedRoles = [];
-            component.addAllowedRoleData = { role: 'admin', isDefault: true, availableToForeignOrgs: true };
+            component.addAllowedRoleData = { role: 'admin', defaultAssignment: 'all_users', availableToForeignOrgs: true };
 
             component.addAllowedRole('test_client_1');
             await Promise.resolve(); TestBed.flushEffects();
 
             const addReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles');
             expect(addReq.request.method).toBe('POST');
-            expect(addReq.request.body).toEqual({ role: 'admin', isDefault: true, availableToForeignOrgs: true });
-            addReq.flush({ clientId: 'test_client_1', role: 'admin', isDefault: true, availableToForeignOrgs: true });
+            expect(addReq.request.body).toEqual({ role: 'admin', defaultAssignment: 'all_users', availableToForeignOrgs: true });
+            addReq.flush({ clientId: 'test_client_1', role: 'admin', defaultAssignment: 'all_users', availableToForeignOrgs: true });
             await Promise.resolve(); TestBed.flushEffects();
             await Promise.resolve(); TestBed.flushEffects();
 
             const reloadReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
             expect(reloadReq.request.method).toBe('GET');
-            reloadReq.flush([...mockAllowedRoles, { clientId: 'test_client_1', role: 'admin', isDefault: true, availableToForeignOrgs: true }]);
+            reloadReq.flush([...mockAllowedRoles, { clientId: 'test_client_1', role: 'admin', defaultAssignment: 'all_users', availableToForeignOrgs: true }]);
             await Promise.resolve(); TestBed.flushEffects();
 
             expect(component.showAddAllowedRoleForm).toBe(false);
@@ -1269,32 +1269,32 @@ describe('ClientsComponent', () => {
         });
 
         it('should reject empty allowed role name', async () => {
-            component.addAllowedRoleData = { role: '', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRoleData = { role: '', defaultAssignment: 'not_default', availableToForeignOrgs: false };
             await component.addAllowedRole('test_client_1');
             httpMock.expectNone('/api/clients/test_client_1/allowed-roles');
         });
 
         it('should reject allowed role with uppercase letters', async () => {
-            component.addAllowedRoleData = { role: 'Admin', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRoleData = { role: 'Admin', defaultAssignment: 'not_default', availableToForeignOrgs: false };
             await component.addAllowedRole('test_client_1');
             httpMock.expectNone('/api/clients/test_client_1/allowed-roles');
         });
 
         it('should reject allowed role with underscores', async () => {
-            component.addAllowedRoleData = { role: 'api_reader', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRoleData = { role: 'api_reader', defaultAssignment: 'not_default', availableToForeignOrgs: false };
             await component.addAllowedRole('test_client_1');
             httpMock.expectNone('/api/clients/test_client_1/allowed-roles');
         });
 
         it('should reject allowed role with spaces', async () => {
-            component.addAllowedRoleData = { role: 'api reader', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRoleData = { role: 'api reader', defaultAssignment: 'not_default', availableToForeignOrgs: false };
             await component.addAllowedRole('test_client_1');
             httpMock.expectNone('/api/clients/test_client_1/allowed-roles');
         });
 
         it('should handle 409 conflict when adding duplicate allowed role', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
-            component.addAllowedRoleData = { role: 'viewer', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRoleData = { role: 'viewer', defaultAssignment: 'not_default', availableToForeignOrgs: false };
 
             const addPromise = component.addAllowedRole('test_client_1');
 
@@ -1306,7 +1306,7 @@ describe('ClientsComponent', () => {
 
         it('should handle 403 permission error when adding allowed role', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
-            component.addAllowedRoleData = { role: 'new-role', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRoleData = { role: 'new-role', defaultAssignment: 'not_default', availableToForeignOrgs: false };
 
             const addPromise = component.addAllowedRole('test_client_1');
 
@@ -1318,7 +1318,7 @@ describe('ClientsComponent', () => {
 
         it('should handle 404 error when adding allowed role to non-existent client', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
-            component.addAllowedRoleData = { role: 'new-role', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRoleData = { role: 'new-role', defaultAssignment: 'not_default', availableToForeignOrgs: false };
 
             const addPromise = component.addAllowedRole('test_client_1');
 
@@ -1329,39 +1329,39 @@ describe('ClientsComponent', () => {
         });
 
         it('should start editing an allowed role', () => {
-            component.startEditAllowedRole('viewer', true, true);
+            component.startEditAllowedRole('viewer', 'all_users', true);
             expect(component.editingAllowedRole).toBe('viewer');
-            expect(component.editAllowedRoleData.isDefault).toBe(true);
+            expect(component.editAllowedRoleData.defaultAssignment).toBe('all_users');
             expect(component.showAddAllowedRoleForm).toBe(false);
         });
 
         it('should cancel editing an allowed role', () => {
-            component.startEditAllowedRole('viewer', true, true);
+            component.startEditAllowedRole('viewer', 'all_users', true);
             component.cancelEditAllowedRole();
             expect(component.editingAllowedRole).toBeNull();
-            expect(component.editAllowedRoleData.isDefault).toBe(false);
+            expect(component.editAllowedRoleData.defaultAssignment).toBe('not_default');
             expect(component.editAllowedRoleData.availableToForeignOrgs).toBe(false);
         });
 
         it('should update an allowed role successfully', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.editingAllowedRole = 'editor';
-            component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
+            component.editAllowedRoleData = { defaultAssignment: 'all_users', availableToForeignOrgs: false };
 
-            component.updateAllowedRole('test_client_1', 'editor', false, false);
+            component.updateAllowedRole('test_client_1', 'editor', false, 'not_default');
             await Promise.resolve(); TestBed.flushEffects();
 
             const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
             expect(updateReq.request.method).toBe('PUT');
-            expect(updateReq.request.body).toEqual({ isDefault: true, availableToForeignOrgs: false });
-            updateReq.flush({ clientId: 'test_client_1', role: 'editor', isDefault: true, availableToForeignOrgs: false });
+            expect(updateReq.request.body).toEqual({ defaultAssignment: 'all_users', availableToForeignOrgs: false });
+            updateReq.flush({ clientId: 'test_client_1', role: 'editor', defaultAssignment: 'all_users', availableToForeignOrgs: false });
             await Promise.resolve(); TestBed.flushEffects();
             await Promise.resolve(); TestBed.flushEffects();
 
             const reloadReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
             reloadReq.flush([
-                { clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: true },
-                { clientId: 'test_client_1', role: 'editor', isDefault: true, availableToForeignOrgs: false }
+                { clientId: 'test_client_1', role: 'viewer', defaultAssignment: 'all_users', availableToForeignOrgs: true },
+                { clientId: 'test_client_1', role: 'editor', defaultAssignment: 'all_users', availableToForeignOrgs: false }
             ]);
             await Promise.resolve(); TestBed.flushEffects();
 
@@ -1371,9 +1371,9 @@ describe('ClientsComponent', () => {
         it('should handle 403 permission error when updating allowed role', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.editingAllowedRole = 'editor';
-            component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
+            component.editAllowedRoleData = { defaultAssignment: 'all_users', availableToForeignOrgs: false };
 
-            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, false);
+            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, 'not_default');
 
             const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
             updateReq.flush({}, { status: 403, statusText: 'Forbidden' });
@@ -1384,9 +1384,9 @@ describe('ClientsComponent', () => {
         it('should handle 404 error when updating non-existent allowed role', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.editingAllowedRole = 'missing';
-            component.editAllowedRoleData = { isDefault: true, availableToForeignOrgs: false };
+            component.editAllowedRoleData = { defaultAssignment: 'all_users', availableToForeignOrgs: false };
 
-            const updatePromise = component.updateAllowedRole('test_client_1', 'missing', false, false);
+            const updatePromise = component.updateAllowedRole('test_client_1', 'missing', false, 'not_default');
 
             const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/missing');
             updateReq.flush({ error: 'Role not found in allowlist' }, { status: 404, statusText: 'Not Found' });
@@ -1408,7 +1408,7 @@ describe('ClientsComponent', () => {
             await Promise.resolve(); TestBed.flushEffects();
 
             const reloadReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles-for-users-in-clients-org');
-            reloadReq.flush([{ clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: true }]);
+            reloadReq.flush([{ clientId: 'test_client_1', role: 'viewer', defaultAssignment: 'all_users', availableToForeignOrgs: true }]);
             await Promise.resolve(); TestBed.flushEffects();
         });
 
@@ -2157,7 +2157,7 @@ describe('ClientsComponent', () => {
 
         it('should reset role selection when no target client selected', async () => {
             component.addClientRoleData.role = 'some-role';
-            component.availableClientRoleRoles = [{ clientId: 'x', role: 'reader', isDefault: false, availableToForeignOrgs: false }];
+            component.availableClientRoleRoles = [{ clientId: 'x', role: 'reader', defaultAssignment: 'not_default', availableToForeignOrgs: false }];
             await component.onTargetClientSelected('');
             expect(component.addClientRoleData.role).toBe('');
             expect(component.availableClientRoleRoles.length).toBe(0);
@@ -2167,7 +2167,7 @@ describe('ClientsComponent', () => {
             const targetPromise = component.onTargetClientSelected('test_client_2');
             await Promise.resolve(); TestBed.flushEffects();
             const rolesReq = httpMock.expectOne('/api/clients/test_client_2/allowed-roles');
-            rolesReq.flush([{ clientId: 'test_client_2', role: 'reader', isDefault: false, availableToForeignOrgs: false }]);
+            rolesReq.flush([{ clientId: 'test_client_2', role: 'reader', defaultAssignment: 'not_default', availableToForeignOrgs: false }]);
             await Promise.resolve(); TestBed.flushEffects();
             await targetPromise;
             expect(component.availableClientRoleRoles.length).toBe(1);
@@ -2226,7 +2226,7 @@ describe('ClientsComponent', () => {
 
         it('should handle generic error when adding allowed role', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
-            component.addAllowedRoleData = { role: 'new-role', isDefault: false, availableToForeignOrgs: false };
+            component.addAllowedRoleData = { role: 'new-role', defaultAssignment: 'not_default', availableToForeignOrgs: false };
             component.addAllowedRole('test_client_1');
             await Promise.resolve(); TestBed.flushEffects();
             const addReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles');
@@ -2237,8 +2237,8 @@ describe('ClientsComponent', () => {
         it('should confirm retraction before updating allowed role', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.editingAllowedRole = 'editor';
-            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
-            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', true, false);
+            component.editAllowedRoleData = { defaultAssignment: 'not_default', availableToForeignOrgs: false };
+            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', true, 'all_users');
             await Promise.resolve();
             expect(confirmService.confirm).toHaveBeenCalled();
             const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
@@ -2256,16 +2256,16 @@ describe('ClientsComponent', () => {
             confirmService.confirm.mockResolvedValue(false);
             component.viewingAllowedRolesFor = 'test_client_1';
             component.editingAllowedRole = 'editor';
-            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
-            await component.updateAllowedRole('test_client_1', 'editor', true, false);
+            component.editAllowedRoleData = { defaultAssignment: 'not_default', availableToForeignOrgs: false };
+            await component.updateAllowedRole('test_client_1', 'editor', true, 'all_users');
             httpMock.expectNone('/api/clients/test_client_1/allowed-roles/editor');
         });
 
         it('should show info toast when removing default status', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.editingAllowedRole = 'editor';
-            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
-            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, true);
+            component.editAllowedRoleData = { defaultAssignment: 'not_default', availableToForeignOrgs: false };
+            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, 'all_users');
             await Promise.resolve(); TestBed.flushEffects();
             const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
             updateReq.flush({});
@@ -2281,8 +2281,8 @@ describe('ClientsComponent', () => {
         it('should handle generic error when updating allowed role', async () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.editingAllowedRole = 'editor';
-            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
-            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, false);
+            component.editAllowedRoleData = { defaultAssignment: 'not_default', availableToForeignOrgs: false };
+            const updatePromise = component.updateAllowedRole('test_client_1', 'editor', false, 'not_default');
             await Promise.resolve(); TestBed.flushEffects();
             const updateReq = httpMock.expectOne('/api/clients/test_client_1/allowed-roles/editor');
             updateReq.flush({}, { status: 500, statusText: 'Server Error' });
@@ -2387,10 +2387,10 @@ describe('ClientsComponent', () => {
         it('should render allowed roles section with edit panel', () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.allowedRoles = [
-                { clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: true }
+                { clientId: 'test_client_1', role: 'viewer', defaultAssignment: 'all_users', availableToForeignOrgs: true }
             ];
             component.editingAllowedRole = 'viewer';
-            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+            component.editAllowedRoleData = { defaultAssignment: 'not_default', availableToForeignOrgs: false };
             fixture.detectChanges();
             const compiled = fixture.nativeElement;
             expect(compiled.textContent).toContain('Allowed Roles');
@@ -2567,7 +2567,7 @@ describe('ClientsComponent', () => {
         it('should render remove allowed role button', () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.allowedRoles = [
-                { clientId: 'test_client_1', role: 'viewer', isDefault: false, availableToForeignOrgs: false }
+                { clientId: 'test_client_1', role: 'viewer', defaultAssignment: 'not_default', availableToForeignOrgs: false }
             ];
             component.editingAllowedRole = null;
             fixture.detectChanges();
@@ -2729,7 +2729,7 @@ describe('ClientsComponent', () => {
         it('should render remove allowed role button', () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.allowedRoles = [
-                { clientId: 'test_client_1', role: 'viewer', isDefault: false, availableToForeignOrgs: false }
+                { clientId: 'test_client_1', role: 'viewer', defaultAssignment: 'not_default', availableToForeignOrgs: false }
             ];
             component.editingAllowedRole = null;
             fixture.detectChanges();
@@ -2741,10 +2741,10 @@ describe('ClientsComponent', () => {
         it('should render edit allowed role panel', () => {
             component.viewingAllowedRolesFor = 'test_client_1';
             component.allowedRoles = [
-                { clientId: 'test_client_1', role: 'viewer', isDefault: true, availableToForeignOrgs: false }
+                { clientId: 'test_client_1', role: 'viewer', defaultAssignment: 'all_users', availableToForeignOrgs: false }
             ];
             component.editingAllowedRole = 'viewer';
-            component.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+            component.editAllowedRoleData = { defaultAssignment: 'not_default', availableToForeignOrgs: false };
             fixture.detectChanges();
             const compiled = fixture.nativeElement;
             expect(compiled.querySelector('.role-edit-panel')).toBeTruthy();

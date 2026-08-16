@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
@@ -353,7 +354,7 @@ public class AuditHistoryResourceTest {
         dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         allowedRole.setClientId(auditClientId);
         allowedRole.setRole("test-role");
-        allowedRole.setIsDefault(false);
+        allowedRole.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         allowedRole.setAvailableToForeignOrgs(false);
         em.persist(allowedRole);
         transactionHelper.commitTransaction();

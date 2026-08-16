@@ -255,7 +255,7 @@ The application uses a single RSA key pair for signing and verification:
 To extract the public key from the private key, use the provided script:
 
 ```bash
-./extract-public-key.sh
+./scripts/extract-public-key.sh
 ```
 
 This will output the public key in base64 format for use in `application.properties`.
@@ -601,6 +601,14 @@ Content Security Policy is an HTTP header that helps prevent Cross-Site Scriptin
 
 ### Current CSP Configuration
 
+The policy is configured via `security.csp.policy` in `application.properties`.
+It is **domain-agnostic**: `'self'` resolves to whatever domain the server is
+deployed on, so no deployment-specific origin is hardcoded. `img-src` allows any
+HTTPS source so that operator-configured brand logos (set via `/public/config`)
+and OAuth provider profile pictures (e.g. Google's `lh3.googleusercontent.com`)
+are not blocked. Operators who want a stricter policy can override
+`security.csp.policy`.
+
 ```
 Content-Security-Policy: 
   default-src 'self'; 
@@ -614,6 +622,19 @@ Content-Security-Policy:
   form-action 'self'
 ```
 
+### Consent Page `form-action` Extension
+
+On the OAuth consent page (`/signin/{requestId}`) the `form-action` directive is
+dynamically extended with the origin of the OAuth client's registered redirect URI.
+Chrome and Safari enforce `form-action` against the redirect target of a form
+submission, so `form-action 'self'` alone would block the consent form's redirect
+back to the (cross-origin) client callback. The `SecurityHeadersFilter` looks up
+the authorization request for the `requestId` in the URL and adds the origin of
+its redirect URI (which was validated against the client's registered redirect
+URIs when the request was created) to `form-action`. Only origins the server may
+redirect to are ever allowlisted, and all other pages keep the strict
+`form-action 'self'` policy.
+
 ### CSP Directives Explained
 
 | Directive | Value | Purpose |
@@ -621,12 +642,12 @@ Content-Security-Policy:
 | `default-src` | `'self'` | Default policy: only load resources from same origin |
 | `script-src` | `'self'` | Allow scripts only from same origin (no inline scripts for better XSS protection) |
 | `style-src` | `'self' 'unsafe-inline'` | Allow styles from same origin and inline styles (required for component styles) |
-| `img-src` | `'self' data: https:` | Allow images from same origin, data URIs, and HTTPS sources |
-| `font-src` | `'self' data:` | Allow fonts from same origin and data URIs |
+| `img-src` | `'self' data: https:` | Allow images from same origin, `data:` URIs, and any HTTPS source (operator-configured brand logos and OAuth provider profile pictures) |
+| `font-src` | `'self' data:` | Allow fonts from same origin and `data:` URIs |
 | `connect-src` | `'self'` | Allow AJAX/fetch requests only to same origin |
 | `frame-ancestors` | `'none'` | Prevent page from being embedded in iframes (clickjacking protection) |
 | `base-uri` | `'self'` | Restrict `<base>` tag to same origin |
-| `form-action` | `'self'` | Forms can only submit to same origin |
+| `form-action` | `'self'` (consent page: `'self'` + client redirect URI origin) | Forms can only submit to same origin, plus the validated client callback origin on the consent page |
 
 ### Additional Security Headers
 

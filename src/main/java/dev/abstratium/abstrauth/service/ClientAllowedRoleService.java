@@ -2,6 +2,7 @@ package dev.abstratium.abstrauth.service;
 
 import dev.abstratium.abstrauth.boundary.ConflictException;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyOAuthClientService;
@@ -48,22 +49,22 @@ public class ClientAllowedRoleService {
     }
 
     /**
-     * Find ALL default roles for a client (where is_default = true).
+     * Find ALL default roles for a client (where default_assignment != NOT_DEFAULT).
      * These roles are seeded to new accounts during sign-in.
      * Does NOT filter by org — callers that need org-aware filtering should use.
-     * Note that 
+     * Note that
      * not all should be visible by other organisations!! This interface is
      * designed for use by users who are in the same org as the client.
-     * ClientAllowedRole is not paritioned by @TenantId annotations and 
+     * ClientAllowedRole is not paritioned by @TenantId annotations and
      * only implicitly belongs to the organisation of the clientId for which
      * the role exists. NEVER USE THIS METHOD FOR USERS OUTSIDE OF THE ORG
-     * THAT OWNS THE CLIENT. 
+     * THAT OWNS THE CLIENT.
 
      * {@link #findDefaultRolesByClientIdForOrg(String, String)}.
      */
     public List<ClientAllowedRole> findDefaultRolesByClientId(String clientId) {
         return em.createQuery(
-                "SELECT r FROM ClientAllowedRole r WHERE r.id.clientId = :clientId AND r.isDefault = true",
+                "SELECT r FROM ClientAllowedRole r WHERE r.id.clientId = :clientId AND r.defaultAssignment <> dev.abstratium.abstrauth.entity.DefaultAssignment.NOT_DEFAULT",
                 ClientAllowedRole.class)
                 .setParameter("clientId", clientId)
                 .getResultList();
@@ -84,13 +85,13 @@ public class ClientAllowedRoleService {
 
         if (isOwnOrg) {
             return em.createQuery(
-                    "SELECT r FROM ClientAllowedRole r WHERE r.id.clientId = :clientId AND r.isDefault = true",
+                    "SELECT r FROM ClientAllowedRole r WHERE r.id.clientId = :clientId AND r.defaultAssignment <> dev.abstratium.abstrauth.entity.DefaultAssignment.NOT_DEFAULT",
                     ClientAllowedRole.class)
                     .setParameter("clientId", clientId)
                     .getResultList();
         } else {
             return em.createQuery(
-                    "SELECT r FROM ClientAllowedRole r WHERE r.id.clientId = :clientId AND r.isDefault = true AND r.availableToForeignOrgs = true",
+                    "SELECT r FROM ClientAllowedRole r WHERE r.id.clientId = :clientId AND r.defaultAssignment <> dev.abstratium.abstrauth.entity.DefaultAssignment.NOT_DEFAULT AND r.availableToForeignOrgs = true",
                     ClientAllowedRole.class)
                     .setParameter("clientId", clientId)
                     .getResultList();
@@ -169,12 +170,12 @@ public class ClientAllowedRoleService {
      *
      * @param clientId The OAuth client ID
      * @param role The role name to add
-     * @param isDefault Whether this role is assigned by default to new users
+     * @param defaultAssignment When this role is auto-seeded to users on first sign-in
      * @param availableToForeignOrgs Whether foreign organisations may assign this role
      * @throws ConflictException if the role already exists in the allowlist
      */
     @Transactional
-    public void addAllowedRole(String clientId, String role, boolean isDefault, boolean availableToForeignOrgs) {
+    public void addAllowedRole(String clientId, String role, DefaultAssignment defaultAssignment, boolean availableToForeignOrgs) {
         ownershipVerifier.verifyClientOwnership(clientId);
 
         Long count = em.createQuery(
@@ -191,7 +192,7 @@ public class ClientAllowedRoleService {
         ClientAllowedRole allowedRole = new ClientAllowedRole();
         allowedRole.setClientId(clientId);
         allowedRole.setRole(role);
-        allowedRole.setIsDefault(isDefault);
+        allowedRole.setDefaultAssignment(defaultAssignment);
         allowedRole.setAvailableToForeignOrgs(availableToForeignOrgs);
         em.persist(allowedRole);
     }
@@ -239,12 +240,12 @@ public class ClientAllowedRoleService {
      *
      * @param clientId The OAuth client ID
      * @param role The role name to update
-     * @param isDefault The new default value
+     * @param defaultAssignment The new default assignment value
      * @param availableToForeignOrgs The new foreign-availability value
      * @throws IllegalArgumentException if the role is not found in the allowlist
      */
     @Transactional
-    public void updateAllowedRole(String clientId, String role, boolean isDefault, boolean availableToForeignOrgs) {
+    public void updateAllowedRole(String clientId, String role, DefaultAssignment defaultAssignment, boolean availableToForeignOrgs) {
         ownershipVerifier.verifyClientOwnership(clientId);
 
         List<ClientAllowedRole> roles = em.createQuery(
@@ -272,7 +273,7 @@ public class ClientAllowedRoleService {
             }
         }
 
-        allowedRole.setIsDefault(isDefault);
+        allowedRole.setDefaultAssignment(defaultAssignment);
         allowedRole.setAvailableToForeignOrgs(availableToForeignOrgs);
     }
 

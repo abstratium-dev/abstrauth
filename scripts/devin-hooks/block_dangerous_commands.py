@@ -40,6 +40,15 @@ DENIED_PREFIXES = [
     os.path.expanduser("~/.config"),
 ]
 
+# Exceptions to the rules above: these paths are safe to access even though
+# they are outside the allowed project directory or under a denied prefix.
+# - /tmp: writing temporary files (e.g. curl -o /tmp/...) is fine
+# - /dev/null: redirecting stdout/stderr to /dev/null is fine
+ALLOWED_PATH_EXCEPTIONS = [
+    "/tmp",
+    "/dev/null",
+]
+
 # Commands that commonly take file paths as arguments
 PATH_TAKING_COMMANDS = [
     "cat", "less", "more", "head", "tail", "grep", "find", "awk", "sed",
@@ -76,6 +85,11 @@ def is_path_allowed(normalized_path):
     """Check if a path is within allowed prefix and not in denied prefixes."""
     if not normalized_path:
         return True  # Can't determine, assume safe
+    
+    # Allow explicitly whitelisted exceptions first (e.g. /tmp, /dev/null)
+    for exception in ALLOWED_PATH_EXCEPTIONS:
+        if normalized_path == exception or normalized_path.startswith(exception + "/"):
+            return True, None
     
     # Check against denied prefixes
     for denied in DENIED_PREFIXES:

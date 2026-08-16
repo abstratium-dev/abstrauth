@@ -173,23 +173,23 @@ public class TestDatabaseResetHelper {
 
     private void reseedDefaultClientAllowedRoles(String clientIdLiteral) {
         em.createNativeQuery(
-                "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
-                "SELECT " + clientIdLiteral + ", 'manage-accounts', FALSE, TRUE " +
+                "INSERT INTO T_client_allowed_roles (client_id, role, default_assignment, available_to_foreign_orgs) " +
+                "SELECT " + clientIdLiteral + ", 'manage-accounts', 'not_default', TRUE " +
                 "WHERE NOT EXISTS (SELECT 1 FROM T_client_allowed_roles WHERE client_id = " + clientIdLiteral + " AND role = 'manage-accounts')")
             .executeUpdate();
         em.createNativeQuery(
-                "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
-                "SELECT " + clientIdLiteral + ", 'manage-clients', FALSE, TRUE " +
+                "INSERT INTO T_client_allowed_roles (client_id, role, default_assignment, available_to_foreign_orgs) " +
+                "SELECT " + clientIdLiteral + ", 'manage-clients', 'not_default', TRUE " +
                 "WHERE NOT EXISTS (SELECT 1 FROM T_client_allowed_roles WHERE client_id = " + clientIdLiteral + " AND role = 'manage-clients')")
             .executeUpdate();
         em.createNativeQuery(
-                "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
-                "SELECT " + clientIdLiteral + ", 'user', TRUE, TRUE " +
+                "INSERT INTO T_client_allowed_roles (client_id, role, default_assignment, available_to_foreign_orgs) " +
+                "SELECT " + clientIdLiteral + ", 'user', 'all_users', TRUE " +
                 "WHERE NOT EXISTS (SELECT 1 FROM T_client_allowed_roles WHERE client_id = " + clientIdLiteral + " AND role = 'user')")
             .executeUpdate();
         em.createNativeQuery(
-                "INSERT INTO T_client_allowed_roles (client_id, role, is_default, available_to_foreign_orgs) " +
-                "SELECT " + clientIdLiteral + ", 'admin', FALSE, FALSE " +
+                "INSERT INTO T_client_allowed_roles (client_id, role, default_assignment, available_to_foreign_orgs) " +
+                "SELECT " + clientIdLiteral + ", 'admin', 'not_default', FALSE " +
                 "WHERE NOT EXISTS (SELECT 1 FROM T_client_allowed_roles WHERE client_id = " + clientIdLiteral + " AND role = 'admin')")
             .executeUpdate();
     }

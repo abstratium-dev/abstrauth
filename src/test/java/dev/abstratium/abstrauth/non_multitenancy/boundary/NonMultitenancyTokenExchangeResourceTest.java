@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.entity.ClientSecret;
 import dev.abstratium.abstrauth.entity.OAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancySubscription;
@@ -744,7 +745,7 @@ public class NonMultitenancyTokenExchangeResourceTest {
         ClientAllowedRole allowedRole = new ClientAllowedRole();
         allowedRole.setClientId(clientId);
         allowedRole.setRole(roleName);
-        allowedRole.setIsDefault(true);
+        allowedRole.setDefaultAssignment(DefaultAssignment.ALL_USERS);
         allowedRole.setAvailableToForeignOrgs(true);
         em.persist(allowedRole);
 

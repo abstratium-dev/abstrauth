@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.service.AccountRoleService;
 import dev.abstratium.abstrauth.service.AccountService;
 import dev.abstratium.abstrauth.service.OrganisationService;
@@ -299,7 +300,7 @@ public class AccountsResourceTest {
         dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         allowedRole.setClientId("test-client");
         allowedRole.setRole("admin");
-        allowedRole.setIsDefault(false);
+        allowedRole.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         em.persist(allowedRole);
         transactionHelper.commitTransaction();
 
@@ -542,7 +543,7 @@ public class AccountsResourceTest {
         dev.abstratium.abstrauth.entity.ClientAllowedRole newClientRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         newClientRole.setClientId(newClientId);
         newClientRole.setRole("viewer");
-        newClientRole.setIsDefault(false);
+        newClientRole.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         em.persist(newClientRole);
 
         String managerEmail = "manager_" + System.currentTimeMillis() + "@example.com";
@@ -1011,7 +1012,7 @@ public class AccountsResourceTest {
         dev.abstratium.abstrauth.entity.ClientAllowedRole defaultRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         defaultRole.setClientId("test-client");
         defaultRole.setRole("viewer");
-        defaultRole.setIsDefault(true);
+        defaultRole.setDefaultAssignment(DefaultAssignment.ALL_USERS);
         em.persist(defaultRole);
         transactionHelper.commitTransaction();
 
@@ -1186,7 +1187,7 @@ public class AccountsResourceTest {
         dev.abstratium.abstrauth.entity.ClientAllowedRole foreignRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         foreignRole.setClientId(foreignClientId);
         foreignRole.setRole("editor");
-        foreignRole.setIsDefault(false);
+        foreignRole.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         foreignRole.setAvailableToForeignOrgs(true);
         em.persist(foreignRole);
 

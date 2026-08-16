@@ -113,12 +113,12 @@ export class ClientsComponent implements OnInit {
   showAddAllowedRoleForm = false;
   addAllowedRoleData = {
     role: '',
-    isDefault: false,
+    defaultAssignment: 'not_default',
     availableToForeignOrgs: false
   };
   editingAllowedRole: string | null = null;
   editAllowedRoleData = {
-    isDefault: false,
+    defaultAssignment: 'not_default',
     availableToForeignOrgs: false
   };
 
@@ -881,7 +881,7 @@ export class ClientsComponent implements OnInit {
   toggleAddAllowedRoleForm(): void {
     this.showAddAllowedRoleForm = !this.showAddAllowedRoleForm;
     if (this.showAddAllowedRoleForm) {
-      this.addAllowedRoleData = { role: '', isDefault: false, availableToForeignOrgs: false };
+      this.addAllowedRoleData = { role: '', defaultAssignment: 'not_default', availableToForeignOrgs: false };
       this.editingAllowedRole = null;
     }
   }
@@ -901,12 +901,12 @@ export class ClientsComponent implements OnInit {
     try {
       await this.controller.addAllowedRole(clientId, {
         role: this.addAllowedRoleData.role,
-        isDefault: this.addAllowedRoleData.isDefault,
+        defaultAssignment: this.addAllowedRoleData.defaultAssignment,
         availableToForeignOrgs: this.addAllowedRoleData.availableToForeignOrgs
       });
       this.toastService.success(`Role "${this.addAllowedRoleData.role}" added to allowlist`);
       this.showAddAllowedRoleForm = false;
-      this.addAllowedRoleData = { role: '', isDefault: false, availableToForeignOrgs: false };
+      this.addAllowedRoleData = { role: '', defaultAssignment: 'not_default', availableToForeignOrgs: false };
       await this.loadAllowedRoles(clientId);
     } catch (err: any) {
       console.error('Error adding allowed role:', err);
@@ -922,18 +922,18 @@ export class ClientsComponent implements OnInit {
     }
   }
 
-  startEditAllowedRole(role: string, isDefault: boolean, availableToForeignOrgs: boolean): void {
+  startEditAllowedRole(role: string, defaultAssignment: string, availableToForeignOrgs: boolean): void {
     this.editingAllowedRole = role;
-    this.editAllowedRoleData = { isDefault, availableToForeignOrgs };
+    this.editAllowedRoleData = { defaultAssignment, availableToForeignOrgs };
     this.showAddAllowedRoleForm = false;
   }
 
   cancelEditAllowedRole(): void {
     this.editingAllowedRole = null;
-    this.editAllowedRoleData = { isDefault: false, availableToForeignOrgs: false };
+    this.editAllowedRoleData = { defaultAssignment: 'not_default', availableToForeignOrgs: false };
   }
 
-  async updateAllowedRole(clientId: string, role: string, wasAvailableToForeignOrgs: boolean, wasIsDefault: boolean): Promise<void> {
+  async updateAllowedRole(clientId: string, role: string, wasAvailableToForeignOrgs: boolean, wasDefaultAssignment: string): Promise<void> {
     const isRetracting = wasAvailableToForeignOrgs && !this.editAllowedRoleData.availableToForeignOrgs;
     if (isRetracting) {
       const confirmed = await this.confirmService.confirm({
@@ -948,14 +948,14 @@ export class ClientsComponent implements OnInit {
       }
     }
 
-    const isRemovingDefault = wasIsDefault && !this.editAllowedRoleData.isDefault;
+    const isRemovingDefault = wasDefaultAssignment !== 'not_default' && this.editAllowedRoleData.defaultAssignment === 'not_default';
     if (isRemovingDefault) {
       this.toastService.info(`Role "${role}" is no longer default. Existing users and clients with this role will keep it. To remove the role from existing assignments, delete and recreate the role.`, 90000);
     }
 
     try {
       await this.controller.updateAllowedRole(clientId, role, {
-        isDefault: this.editAllowedRoleData.isDefault,
+        defaultAssignment: this.editAllowedRoleData.defaultAssignment,
         availableToForeignOrgs: this.editAllowedRoleData.availableToForeignOrgs
       });
       this.toastService.success(`Role "${role}" updated successfully`);

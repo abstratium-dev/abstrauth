@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import dev.abstratium.abstrauth.entity.Account;
 import dev.abstratium.abstrauth.entity.AccountRole;
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyAccountRole;
 import dev.abstratium.abstrauth.util.TestDatabaseResetHelper;
 import dev.abstratium.abstrauth.util.TestTransactionHelper;
@@ -359,14 +360,14 @@ public class AccountRoleServiceTest {
         dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole1 = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         allowedRole1.setClientId(publicClientId);
         allowedRole1.setRole("viewer");
-        allowedRole1.setIsDefault(false);
+        allowedRole1.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         allowedRole1.setAvailableToForeignOrgs(true);
         em.persist(allowedRole1);
         
         dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole2 = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         allowedRole2.setClientId(publicClientId);
         allowedRole2.setRole("editor");
-        allowedRole2.setIsDefault(true);
+        allowedRole2.setDefaultAssignment(DefaultAssignment.ALL_USERS);
         allowedRole2.setAvailableToForeignOrgs(true);
         em.persist(allowedRole2);
         
@@ -417,7 +418,7 @@ public class AccountRoleServiceTest {
         dev.abstratium.abstrauth.entity.ClientAllowedRole allowedRole = new dev.abstratium.abstrauth.entity.ClientAllowedRole();
         allowedRole.setClientId(publicClientId);
         allowedRole.setRole("viewer");
-        allowedRole.setIsDefault(false);
+        allowedRole.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         em.persist(allowedRole);
         
         transactionHelper.commitTransaction();
@@ -526,7 +527,7 @@ public class AccountRoleServiceTest {
         ClientAllowedRole role1 = new ClientAllowedRole();
         role1.setClientId(TEST_CLIENT_ID);
         role1.setRole("viewer");
-        role1.setIsDefault(true);
+        role1.setDefaultAssignment(DefaultAssignment.ALL_USERS);
 
         ClientAllowedRole role2 = new ClientAllowedRole();
         role2.setClientId(TEST_CLIENT_ID);

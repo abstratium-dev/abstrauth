@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import dev.abstratium.abstrauth.entity.ClientAllowedRole;
+import dev.abstratium.abstrauth.entity.DefaultAssignment;
 import dev.abstratium.abstrauth.non_multitenancy.entity.NonMultitenancyOAuthClient;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyAccountRoleService;
 import dev.abstratium.abstrauth.non_multitenancy.service.NonMultitenancyClientRoleService;
@@ -204,21 +205,21 @@ public class RoleSqlInjectionTest {
         ClientAllowedRole allowedRole1 = new ClientAllowedRole();
         allowedRole1.setClientId(clientId);
         allowedRole1.setRole(roleWithQuotes);
-        allowedRole1.setIsDefault(false);
+        allowedRole1.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         allowedRole1.setAvailableToForeignOrgs(true);
         em.persist(allowedRole1);
 
         ClientAllowedRole allowedRole2 = new ClientAllowedRole();
         allowedRole2.setClientId(clientId);
         allowedRole2.setRole(roleWithComments);
-        allowedRole2.setIsDefault(false);
+        allowedRole2.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         allowedRole2.setAvailableToForeignOrgs(true);
         em.persist(allowedRole2);
 
         ClientAllowedRole allowedRole3 = new ClientAllowedRole();
         allowedRole3.setClientId(clientId);
         allowedRole3.setRole(roleWithSemicolon);
-        allowedRole3.setIsDefault(false);
+        allowedRole3.setDefaultAssignment(DefaultAssignment.NOT_DEFAULT);
         allowedRole3.setAvailableToForeignOrgs(true);
         em.persist(allowedRole3);
 

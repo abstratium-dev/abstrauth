@@ -253,7 +253,7 @@
                   <option value="">{{ allowedRoles.length === 0 ? 'No allowed roles defined' : 'Select a role' }}</option>
                   <option *ngFor="let allowedRole of allowedRoles" [value]="allowedRole.role">
                     {{ allowedRole.role }}
-                    <span *ngIf="allowedRole.isDefault" class="role-default-badge">(default)</span>
+                    <span *ngIf="allowedRole.defaultAssignment !== 'not_default'" class="role-default-badge">(default)</span>
                   </option>
                 </select>
                 <small class="form-hint">Select from the roles defined for this client</small>
