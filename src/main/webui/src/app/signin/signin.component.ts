@@ -80,6 +80,31 @@ export class SigninComponent implements OnInit {
     get shouldShowApproval(): boolean { return this.shouldShowApproval$(); }
     set shouldShowApproval(v: boolean) { this.shouldShowApproval$.set(v); }
 
+    private static readonly SCOPE_DESCRIPTIONS: Record<string, string> = {
+        'profile': 'Your name',
+        'email': 'Your email address and whether it\'s verified',
+    };
+
+    /**
+     * Returns human-readable descriptions for scopes that release user data.
+     * 'openid' is excluded because it grants no personal data (it only
+     * requests an ID token). Unknown scopes fall back to the raw string.
+     */
+    get scopeDescriptions(): string[] {
+        return this.scopes$()
+            .filter((s: string) => s !== 'openid')
+            .map((s: string) => SigninComponent.SCOPE_DESCRIPTIONS[s] ?? s);
+    }
+
+    /**
+     * True if any scope other than 'openid' was requested.
+     * When false, the approval dialog shows a generic "grant access" prompt
+     * instead of a bullet list of data scopes.
+     */
+    get hasDataScopes(): boolean {
+        return this.scopeDescriptions.length > 0;
+    }
+
     get showSignup(): boolean {
         return this.modelService.signupAllowed$();
     }
@@ -135,7 +160,7 @@ export class SigninComponent implements OnInit {
                 next: (details) => {
                     this.clientId = details.clientId;
                     this.clientName = details.clientName;
-                    this.scopes = details.scope.split(" ");
+                    this.scopes = details.scope ? details.scope.trim().split(/\s+/) : [];
                     
                     // Check if user is already authenticated
                     // If yes, approve the request and skip to approval step (they're completing OAuth flow for a third-party app)

@@ -93,12 +93,16 @@
                     </div>
                 }
     
-                <p>Hi {{ name }}, <strong>{{ clientName }}</strong> wants to access:</p>
-                <ul class="bullet-list">
-                    @for(scope of scopes; track $index){
-                        <li>{{ scope }}</li>
-                    }
-                </ul>
+                @if(hasDataScopes) {
+                    <p>Hi {{ name }}, <strong>{{ clientName }}</strong> wants to access:</p>
+                    <ul class="bullet-list">
+                        @for(desc of scopeDescriptions; track $index){
+                            <li>{{ desc }}</li>
+                        }
+                    </ul>
+                } @else {
+                    <p>Hi {{ name }}, <strong>{{ clientName }}</strong> is requesting access to your account.</p>
+                }
     
                 <!-- use old skool form, so that browser will redirect to callback and we stay rfc compliant -->
                 @if (shouldShowApproval) {

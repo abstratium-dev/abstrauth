@@ -125,6 +125,8 @@ jbang jdk install 25
 jbang jdk default 25
 ```
 
+Update by using `uninstall` and then re-install as shown above.
+
 Ensure `maven.compiler.release` in `pom.xml` matches JDK version above.
 Update all the version properties in `pom.xml`.
 

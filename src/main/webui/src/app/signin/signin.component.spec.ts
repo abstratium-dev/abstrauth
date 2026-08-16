@@ -496,7 +496,54 @@ describe('SigninComponent', () => {
             const req = httpMock.expectOne('/oauth2/authorize/details/test-request-id');
             req.flush({ clientName: 'Test', scope: '' });
 
-            expect(component.scopes).toEqual(['']);
+            expect(component.scopes).toEqual([]);
+        });
+    });
+
+    describe('Scope Descriptions', () => {
+        it('should map profile to friendly description', () => {
+            component.scopes = ['openid', 'profile'];
+            expect(component.scopeDescriptions).toEqual(['Your name']);
+        });
+
+        it('should map email to friendly description', () => {
+            component.scopes = ['openid', 'email'];
+            expect(component.scopeDescriptions).toEqual(['Your email address and whether it\'s verified']);
+        });
+
+        it('should map both profile and email', () => {
+            component.scopes = ['openid', 'profile', 'email'];
+            expect(component.scopeDescriptions).toEqual(['Your name', 'Your email address and whether it\'s verified']);
+        });
+
+        it('should exclude openid from descriptions', () => {
+            component.scopes = ['openid'];
+            expect(component.scopeDescriptions).toEqual([]);
+        });
+
+        it('should fall back to raw string for unknown scopes', () => {
+            component.scopes = ['openid', 'admin', 'custom-scope'];
+            expect(component.scopeDescriptions).toEqual(['admin', 'custom-scope']);
+        });
+
+        it('should handle empty scopes', () => {
+            component.scopes = [];
+            expect(component.scopeDescriptions).toEqual([]);
+        });
+
+        it('should report hasDataScopes true when non-openid scopes exist', () => {
+            component.scopes = ['openid', 'profile'];
+            expect(component.hasDataScopes).toBe(true);
+        });
+
+        it('should report hasDataScopes false when only openid', () => {
+            component.scopes = ['openid'];
+            expect(component.hasDataScopes).toBe(false);
+        });
+
+        it('should report hasDataScopes false when no scopes', () => {
+            component.scopes = [];
+            expect(component.hasDataScopes).toBe(false);
         });
     });
 
@@ -820,8 +867,37 @@ describe('SigninComponent', () => {
             const compiled = fixture.nativeElement as HTMLElement;
             expect(compiled.textContent).toContain('Approve Application');
             expect(compiled.textContent).toContain('Test Client');
+            expect(compiled.textContent).toContain('Your name');
+            expect(compiled.textContent).not.toContain('openid');
+            expect(compiled.textContent).not.toContain('profile');
             expect(compiled.querySelector('#approve-button')).toBeTruthy();
             expect(compiled.querySelector('#deny-button')).toBeTruthy();
+        });
+
+        it('should render generic grant prompt when only openid scope', () => {
+            component.getApproval = true;
+            component.name = 'Test User';
+            component.clientName = 'Test Client';
+            component.scopes = ['openid'];
+            component.shouldShowApproval = true;
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            expect(compiled.textContent).toContain('requesting access to your account');
+            expect(compiled.querySelector('.bullet-list')).toBeNull();
+        });
+
+        it('should render generic grant prompt when no scopes', () => {
+            component.getApproval = true;
+            component.name = 'Test User';
+            component.clientName = 'Test Client';
+            component.scopes = [];
+            component.shouldShowApproval = true;
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            expect(compiled.textContent).toContain('requesting access to your account');
+            expect(compiled.querySelector('.bullet-list')).toBeNull();
         });
 
         it('should render approval error message', () => {
