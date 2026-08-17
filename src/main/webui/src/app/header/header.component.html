@@ -34,6 +34,13 @@
             &nbsp;|&nbsp;
             🥷 <a id="user-link" routerLink="/user" routerLinkActive="inactive-link">{{ token.name }}</a>@if(currentOrg()) { &nbsp;(<a [routerLink]="['/organisations', currentOrg()!.id]" class="client-link" id="current-org-link">{{ currentOrg()!.name }}</a>) }
             &nbsp;|&nbsp;
+            <svg class="session-clock" viewBox="0 0 18 18"
+                 [attr.aria-label]="sessionMinutesRemaining + ' minutes until sign-out (' + token.email + ')'">
+                <title>{{ sessionMinutesRemaining }} min until sign-out ({{ token.email }})</title>
+                <circle class="session-clock-bg" cx="9" cy="9" r="7" />
+                <circle class="session-clock-fill" cx="9" cy="9" r="7"
+                        [style.stroke-dashoffset]="sessionClockDashoffset" />
+            </svg>
             <a id="signout-link" class="alink" (click)="signout()">Sign out</a>
         } @else {
             &nbsp;|&nbsp;

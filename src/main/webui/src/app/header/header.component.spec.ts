@@ -22,6 +22,8 @@ describe('HeaderComponent', () => {
         toggleTheme: Mock;
     };
     let tokenSignal: WritableSignal<Token>;
+    let sessionFractionSignal: WritableSignal<number>;
+    let sessionMinutesRemainingSignal: WritableSignal<number>;
 
     const mockTokenWithOrg: Token = {
         ...ANONYMOUS,
@@ -35,12 +37,16 @@ describe('HeaderComponent', () => {
     beforeEach(async () => {
         // Create a writable signal that can be updated
         tokenSignal = signal<Token>(ANONYMOUS);
+        sessionFractionSignal = signal<number>(0);
+        sessionMinutesRemainingSignal = signal<number>(0);
 
         authServiceSpy = createMock<AuthService>({
             signout: vi.fn().mockName("AuthService.signout"),
             getLastOrgId: vi.fn().mockName("AuthService.getLastOrgId"),
             setLastOrgId: vi.fn().mockName("AuthService.setLastOrgId"),
-            token$: tokenSignal
+            token$: tokenSignal,
+            sessionFraction$: sessionFractionSignal,
+            sessionMinutesRemaining$: sessionMinutesRemainingSignal
         });
 
         themeServiceMock = {
@@ -189,18 +195,85 @@ describe('HeaderComponent', () => {
         TestBed.resetTestingModule();
     });
 
+    describe('Session-clock ring', () => {
+        it('should not render the session-clock SVG when signed out', () => {
+            const compiled = fixture.nativeElement as HTMLElement;
+            expect(compiled.querySelector('.session-clock')).toBeFalsy();
+        });
+
+        it('should render the session-clock SVG when signed in', async () => {
+            tokenSignal.set(mockTokenWithOrg);
+            sessionFractionSignal.set(1);
+            sessionMinutesRemainingSignal.set(10);
+            await Promise.resolve(); TestBed.flushEffects();
+            fixture.detectChanges();
+
+            const orgReq = httpMock.expectOne('/api/organisations/current');
+            orgReq.flush({ id: 'org-123', name: 'Test Org', createdAt: '2024-01-01T00:00:00Z' });
+            await Promise.resolve(); TestBed.flushEffects();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const svg = compiled.querySelector('.session-clock');
+            expect(svg).toBeTruthy();
+        });
+
+        it('should include the user email in the session-clock aria-label and title', async () => {
+            tokenSignal.set(mockTokenWithOrg);
+            sessionFractionSignal.set(1);
+            sessionMinutesRemainingSignal.set(10);
+            await Promise.resolve(); TestBed.flushEffects();
+            fixture.detectChanges();
+
+            const orgReq = httpMock.expectOne('/api/organisations/current');
+            orgReq.flush({ id: 'org-123', name: 'Test Org', createdAt: '2024-01-01T00:00:00Z' });
+            await Promise.resolve(); TestBed.flushEffects();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const svg = compiled.querySelector('.session-clock') as SVGSVGElement;
+            expect(svg?.getAttribute('aria-label')).toContain('test@example.com');
+            const title = svg?.querySelector('title');
+            expect(title?.textContent).toContain('test@example.com');
+            expect(title?.textContent).toContain('10');
+        });
+
+        it('should bind stroke-dashoffset based on sessionFraction', async () => {
+            tokenSignal.set(mockTokenWithOrg);
+            // Half the session remaining -> offset = circumference * (1 - 0.5) = circumference/2
+            sessionFractionSignal.set(0.5);
+            sessionMinutesRemainingSignal.set(5);
+            await Promise.resolve(); TestBed.flushEffects();
+            fixture.detectChanges();
+
+            const orgReq = httpMock.expectOne('/api/organisations/current');
+            orgReq.flush({ id: 'org-123', name: 'Test Org', createdAt: '2024-01-01T00:00:00Z' });
+            await Promise.resolve(); TestBed.flushEffects();
+            fixture.detectChanges();
+
+            const compiled = fixture.nativeElement as HTMLElement;
+            const fill = compiled.querySelector('.session-clock-fill') as SVGCircleElement;
+            const circumference = 2 * Math.PI * 7;
+            expect(parseFloat(fill.style.strokeDashoffset)).toBeCloseTo(circumference / 2, 1);
+        });
+    });
+
     describe('Email mismatch warning', () => {
         beforeEach(async () => {
             TestBed.resetTestingModule();
             sessionStorage.setItem('emailMismatchWarning', 'The invite email does not match');
 
             tokenSignal = signal<Token>(ANONYMOUS);
+            sessionFractionSignal = signal<number>(0);
+            sessionMinutesRemainingSignal = signal<number>(0);
 
             authServiceSpy = createMock<AuthService>({
                 signout: vi.fn().mockName("AuthService.signout"),
                 getLastOrgId: vi.fn().mockName("AuthService.getLastOrgId"),
                 setLastOrgId: vi.fn().mockName("AuthService.setLastOrgId"),
-                token$: tokenSignal
+                token$: tokenSignal,
+                sessionFraction$: sessionFractionSignal,
+                sessionMinutesRemaining$: sessionMinutesRemainingSignal
             });
 
             themeServiceMock = {

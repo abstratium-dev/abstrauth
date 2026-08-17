@@ -635,6 +635,14 @@ URIs when the request was created) to `form-action`. Only origins the server may
 redirect to are ever allowlisted, and all other pages keep the strict
 `form-action 'self'` policy.
 
+For `http://` and `https://` redirect URIs, **both scheme variants** are added to
+`form-action` (e.g. `https://accounts.example.com http://accounts.example.com`).
+This is necessary because Chrome's `form-action` enforcement covers the entire
+redirect chain, not just the initial form submission target. Client applications
+behind a TLS-terminating reverse proxy may issue `http://` redirects for their
+final landing page (e.g. `http://accounts.example.com/signed-in`); without the
+`http://` variant in `form-action`, Chrome would block the entire chain.
+
 ### CSP Directives Explained
 
 | Directive | Value | Purpose |
@@ -647,7 +655,7 @@ redirect to are ever allowlisted, and all other pages keep the strict
 | `connect-src` | `'self'` | Allow AJAX/fetch requests only to same origin |
 | `frame-ancestors` | `'none'` | Prevent page from being embedded in iframes (clickjacking protection) |
 | `base-uri` | `'self'` | Restrict `<base>` tag to same origin |
-| `form-action` | `'self'` (consent page: `'self'` + client redirect URI origin) | Forms can only submit to same origin, plus the validated client callback origin on the consent page |
+| `form-action` | `'self'` (consent page: `'self'` + client redirect URI origin, both http and https variants) | Forms can only submit to same origin, plus the validated client callback origin (both schemes) on the consent page |
 
 ### Additional Security Headers
 

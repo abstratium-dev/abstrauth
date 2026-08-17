@@ -55,9 +55,20 @@ export class AuthService {
     private window = inject(WINDOW);
 
     token$ = signal<Token>(ANONYMOUS);
+    /**
+     * Fraction of the session remaining: 1.0 = just logged in, 0.0 = expired.
+     * Drives the session-clock ring in the header.
+     */
+    sessionFraction$ = signal<number>(0);
+    /**
+     * Whole minutes remaining until sign-out (rounded up). Used for the
+     * session-clock tooltip/aria-label.
+     */
+    sessionMinutesRemaining$ = signal<number>(0);
     private token = ANONYMOUS;
     private initialized = false;
     private signoutWarningTimer: ReturnType<typeof setTimeout> | null = null;
+    private sessionClockInterval: ReturnType<typeof setInterval> | null = null;
 
 
     /**
@@ -84,7 +95,7 @@ export class AuthService {
                 this.token = token;
                 this.token$.set(token);
                 this.initialized = true;
-                this.setupTokenExpiryTimer(token.exp);
+                this.setupTokenExpiryTimer(token);
                 
                 // Handle post-authentication navigation (includes invite validation)
                 // BUT skip navigation if user is on a signin or org-selection page (OAuth flow in progress)
@@ -119,10 +130,15 @@ export class AuthService {
      * sign-out, the warning is skipped entirely (a setTimeout with a 0/negative
      * delay would fire immediately, which is misleading for short-lived
      * sessions where sign-out is imminent anyway).
+     *
+     * Also drives the session-clock ring in the header by recomputing
+     * {@link sessionFraction$} and {@link sessionMinutesRemaining$} on a
+     * 1-second interval. The fraction is `millisUntilExpiry / totalDuration`
+     * where `totalDuration = (exp - iat) * 1000`.
      */
-    private setupTokenExpiryTimer(exp: number): void {
+    private setupTokenExpiryTimer(token: Token): void {
         const now = Date.now();
-        const expiry = new Date(exp * 1000);
+        const expiry = new Date(token.exp * 1000);
         const millisUntilExpiry = expiry.getTime() - now;
         const oneMinLessThanMillisUntilExpiry = Math.max(0, millisUntilExpiry - (1 * 60 * 1000));
 
@@ -141,6 +157,28 @@ export class AuthService {
                 this.toastService.warning('You will be signed out in 2 minutes.');
                 this.signoutWarningTimer = null;
             }, signoutWarningDelay);
+        }
+
+        // Drive the session-clock ring. totalDuration is the full session
+        // lifetime (exp - iat) in ms; the fraction shrinks from 1 -> 0 as the
+        // session approaches expiry.
+        this.clearSessionClockInterval();
+        const totalDuration = Math.max(1, (token.exp - token.iat) * 1000);
+        const tick = () => {
+            const millisLeft = (token.exp * 1000) - Date.now();
+            const fraction = Math.max(0, Math.min(1, millisLeft / totalDuration));
+            const minutesRemaining = Math.max(0, Math.ceil(millisLeft / (60 * 1000)));
+            this.sessionFraction$.set(fraction);
+            this.sessionMinutesRemaining$.set(minutesRemaining);
+        };
+        tick();
+        this.sessionClockInterval = setInterval(tick, 1000);
+    }
+
+    private clearSessionClockInterval(): void {
+        if (this.sessionClockInterval) {
+            clearInterval(this.sessionClockInterval);
+            this.sessionClockInterval = null;
         }
     }
 
@@ -181,6 +219,9 @@ export class AuthService {
             clearTimeout(this.signoutWarningTimer);
             this.signoutWarningTimer = null;
         }
+        this.clearSessionClockInterval();
+        this.sessionFraction$.set(0);
+        this.sessionMinutesRemaining$.set(0);
         this.token = ANONYMOUS;
         this.token.isAuthenticated = false;
         this.token$.set(this.token);

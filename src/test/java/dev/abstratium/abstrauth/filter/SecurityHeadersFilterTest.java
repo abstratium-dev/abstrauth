@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -158,7 +159,31 @@ class SecurityHeadersFilterTest {
             .get("/signin/" + authRequest.getId())
             .then()
             .statusCode(anyOf(is(200), is(404))) // Quinoa may or may not serve the SPA in tests
-            .header("Content-Security-Policy", containsString("form-action 'self' http://localhost:3333"));
+            .header("Content-Security-Policy", containsString("form-action 'self' http://localhost:3333"))
+            // Both http and https variants are included so that Chrome's
+            // form-action enforcement (which covers the entire redirect chain)
+            // does not block the chain when a client app behind a
+            // TLS-terminating reverse proxy issues an http:// redirect.
+            .header("Content-Security-Policy", containsString("https://localhost:3333"));
+    }
+
+    @Test
+    void shouldAllowBothHttpAndHttpsOriginsForHttpsRedirectUri() {
+        AuthorizationRequest authRequest = authorizationService.createAuthorizationRequest(
+                "test-client",
+                "https://accounts.example.com/oauth/callback",
+                "openid profile email",
+                "test-state",
+                "test-challenge",
+                "S256");
+
+        given()
+            .when()
+            .get("/signin/" + authRequest.getId())
+            .then()
+            .statusCode(anyOf(is(200), is(404)))
+            .header("Content-Security-Policy", containsString("https://accounts.example.com"))
+            .header("Content-Security-Policy", containsString("http://accounts.example.com"));
     }
 
     @Test
@@ -218,5 +243,43 @@ class SecurityHeadersFilterTest {
         assertNull(SecurityHeadersFilter.cspSourceForUri(""));
         assertNull(SecurityHeadersFilter.cspSourceForUri("not a uri"));
         assertNull(SecurityHeadersFilter.cspSourceForUri("relative/path"));
+    }
+
+    @Test
+    void shouldDeriveBothSchemesFromHttpRedirectUri() {
+        String sources = SecurityHeadersFilter.cspSourcesForUri("http://localhost:3333/oauth/callback");
+        assertNotNull(sources);
+        assertTrue(sources.contains("http://localhost:3333"), "should contain http variant");
+        assertTrue(sources.contains("https://localhost:3333"), "should contain https variant");
+    }
+
+    @Test
+    void shouldDeriveBothSchemesFromHttpsRedirectUri() {
+        String sources = SecurityHeadersFilter.cspSourcesForUri("https://accounts.example.com/oauth/callback");
+        assertNotNull(sources);
+        assertTrue(sources.contains("https://accounts.example.com"), "should contain https variant");
+        assertTrue(sources.contains("http://accounts.example.com"), "should contain http variant");
+    }
+
+    @Test
+    void shouldKeepNonDefaultPortInBothSchemeVariants() {
+        String sources = SecurityHeadersFilter.cspSourcesForUri("https://client.example.com:8443/cb");
+        assertNotNull(sources);
+        assertTrue(sources.contains("https://client.example.com:8443"), "should contain https variant with port");
+        assertTrue(sources.contains("http://client.example.com:8443"), "should contain http variant with port");
+    }
+
+    @Test
+    void shouldReturnSingleSourceForCustomScheme() {
+        // Custom URL schemes (e.g. myapp://) don't have http/https variants
+        assertEquals("myapp:", SecurityHeadersFilter.cspSourcesForUri("myapp://oauth/callback"));
+    }
+
+    @Test
+    void shouldReturnNullForInvalidOrMissingRedirectUriInSources() {
+        assertNull(SecurityHeadersFilter.cspSourcesForUri(null));
+        assertNull(SecurityHeadersFilter.cspSourcesForUri(""));
+        assertNull(SecurityHeadersFilter.cspSourcesForUri("not a uri"));
+        assertNull(SecurityHeadersFilter.cspSourcesForUri("relative/path"));
     }
 }

@@ -34,6 +34,28 @@ export class HeaderComponent implements OnInit {
         return this.token.isAuthenticated;
     }
 
+    // --- Session-clock ring ---
+    // Radius of the progress ring in SVG user units. Must match the
+    // <circle r="..."> in the template and the stroke-dasharray in the SCSS.
+    private readonly sessionClockRadius = 7;
+
+    get sessionFraction(): number {
+        return this.authService.sessionFraction$();
+    }
+
+    get sessionMinutesRemaining(): number {
+        return this.authService.sessionMinutesRemaining$();
+    }
+
+    /**
+     * stroke-dashoffset for the fill circle. 0 = full ring drawn,
+     * circumference = empty ring. Driven by the fraction of session remaining.
+     */
+    get sessionClockDashoffset(): number {
+        const circumference = 2 * Math.PI * this.sessionClockRadius;
+        return circumference * (1 - this.sessionFraction);
+    }
+
     constructor() {
         effect(() => {
             const token = this.authService.token$();

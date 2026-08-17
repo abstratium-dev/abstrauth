@@ -11,8 +11,6 @@
 
 ## Today
 
-- sign out circle isn't working in abstrauth
-
 - all done :-)
 
 

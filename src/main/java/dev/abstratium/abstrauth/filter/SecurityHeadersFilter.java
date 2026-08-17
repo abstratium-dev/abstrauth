@@ -115,13 +115,13 @@ public class SecurityHeadersFilter {
         router.route("/signin/*").order(Integer.MIN_VALUE).blockingHandler(rc -> {
             if (cspEnabled) {
                 String requestId = requestIdFromPath(rc.request().path());
-                String redirectOrigin = null;
+                String redirectOrigins = null;
                 if (requestId != null) {
-                    redirectOrigin = authorizationService.findAuthorizationRequest(requestId)
-                            .map(authRequest -> cspSourceForUri(authRequest.getRedirectUri()))
+                    redirectOrigins = authorizationService.findAuthorizationRequest(requestId)
+                            .map(authRequest -> cspSourcesForUri(authRequest.getRedirectUri()))
                             .orElse(null);
                 }
-                rc.put(CSP_KEY, buildCspPolicy(redirectOrigin));
+                rc.put(CSP_KEY, buildCspPolicy(redirectOrigins));
             }
             rc.next();
         });
@@ -140,18 +140,19 @@ public class SecurityHeadersFilter {
 
     /**
      * Builds the Content Security Policy, extending {@code form-action 'self'}
-     * with the given origin (a CSP source expression) when present.
+     * with the given space-separated origins (CSP source expressions) when
+     * present.
      *
-     * @param redirectOrigin CSP source expression for the OAuth client's
-     *                       redirect URI origin, or {@code null} to leave the
-     *                       policy unchanged
+     * @param redirectOrigins space-separated CSP source expressions for the
+     *                        OAuth client's redirect URI origin(s), or
+     *                        {@code null} to leave the policy unchanged
      * @return the CSP policy to send in the {@code Content-Security-Policy} header
      */
-    String buildCspPolicy(String redirectOrigin) {
-        if (redirectOrigin == null) {
+    String buildCspPolicy(String redirectOrigins) {
+        if (redirectOrigins == null || redirectOrigins.isBlank()) {
             return cspPolicy;
         }
-        return cspPolicy.replace("form-action 'self'", "form-action 'self' " + redirectOrigin);
+        return cspPolicy.replace("form-action 'self'", "form-action 'self' " + redirectOrigins);
     }
 
     private void setCommonSecurityHeaders(MultiMap headers) {
@@ -186,8 +187,53 @@ public class SecurityHeadersFilter {
     }
 
     /**
-     * Converts a redirect URI into a CSP source expression that matches any
-     * redirect target on that origin:
+     * Converts a redirect URI into CSP source expressions for the
+     * {@code form-action} directive. For http/https URIs, both scheme variants
+     * are returned so that Chrome's form-action enforcement (which covers the
+     * entire redirect chain, not just the initial form submission) does not
+     * block the chain when a client application behind a TLS-terminating
+     * reverse proxy issues an {@code http://} redirect to its final landing
+     * page.
+     *
+     * <p>For example, a redirect URI of
+     * {@code https://accounts.example.com/oauth/callback} produces
+     * {@code "https://accounts.example.com http://accounts.example.com"}.</p>
+     *
+     * <p>For non-http(s) schemes (e.g. custom URL schemes), only
+     * {@code scheme:} is returned.</p>
+     *
+     * @param redirectUri the OAuth client's registered redirect URI
+     * @return space-separated CSP source expressions, or {@code null} if none
+     *         can be derived
+     */
+    static String cspSourcesForUri(String redirectUri) {
+        String primary = cspSourceForUri(redirectUri);
+        if (primary == null) {
+            return null;
+        }
+        // For http/https, also include the opposite scheme. Client apps behind
+        // a TLS-terminating reverse proxy may generate http:// redirects for
+        // their final landing page; Chrome's form-action covers the whole
+        // redirect chain, so we need both schemes in the allowlist.
+        try {
+            URI uri = URI.create(redirectUri);
+            String scheme = uri.getScheme();
+            if ("http".equalsIgnoreCase(scheme)) {
+                String httpsVariant = cspSourceForUri("https" + redirectUri.substring(4));
+                return httpsVariant != null ? primary + " " + httpsVariant : primary;
+            } else if ("https".equalsIgnoreCase(scheme)) {
+                String httpVariant = cspSourceForUri("http" + redirectUri.substring(5));
+                return httpVariant != null ? primary + " " + httpVariant : primary;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // fall through
+        }
+        return primary;
+    }
+
+    /**
+     * Converts a redirect URI into a single CSP source expression that matches
+     * any redirect target on that origin:
      * <ul>
      *   <li>http/https URIs: {@code scheme://host[:port]}</li>
      *   <li>other schemes (e.g. custom URL schemes): {@code scheme:}</li>

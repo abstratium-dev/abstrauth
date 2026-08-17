@@ -457,4 +457,79 @@ describe('AuthService (BFF Pattern)', () => {
         });
     });
 
+    describe('Session-clock signals', () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+            // Freeze Date at epoch so exp/iat truncation to whole seconds has no
+            // sub-second remainder — keeps timer delays deterministic in tests.
+            vi.setSystemTime(new Date(0));
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        // Helper: authenticate via initialize() with a token whose session
+        // lifetime is `durationSeconds` (exp - iat), and flush userinfo.
+        const authenticateWithLifetime = (durationSeconds: number) => {
+            const token: Token = {
+                ...mockUserInfo,
+                iat: Math.floor(Date.now() / 1000),
+                exp: Math.floor(Date.now() / 1000) + durationSeconds,
+            };
+            service.initialize().subscribe();
+            const req = httpMock.expectOne('/api/userinfo');
+            req.flush(token);
+        };
+
+        it('should set sessionFraction to ~1.0 right after authentication', () => {
+            authenticateWithLifetime(10 * 60);
+
+            // Just authenticated: nearly the full session remains.
+            expect(service.sessionFraction$()).toBeCloseTo(1, 1);
+        });
+
+        it('should set sessionMinutesRemaining to the full session minutes right after authentication', () => {
+            authenticateWithLifetime(10 * 60);
+
+            expect(service.sessionMinutesRemaining$()).toBe(10);
+        });
+
+        it('should deplete sessionFraction as time advances', () => {
+            authenticateWithLifetime(10 * 60);
+
+            // Advance 5 minutes (half the session).
+            vi.advanceTimersByTime(5 * 60 * 1000);
+            // The interval ticks every 1s; advancing timers flushes them.
+            expect(service.sessionFraction$()).toBeCloseTo(0.5, 1);
+        });
+
+        it('should decrease sessionMinutesRemaining as time advances', () => {
+            authenticateWithLifetime(10 * 60);
+
+            vi.advanceTimersByTime(7 * 60 * 1000);
+            expect(service.sessionMinutesRemaining$()).toBe(3);
+        });
+
+        it('should clamp sessionFraction to 0 after expiry', () => {
+            authenticateWithLifetime(10 * 60);
+
+            // Advance well past expiry.
+            vi.advanceTimersByTime(20 * 60 * 1000);
+            expect(service.sessionFraction$()).toBe(0);
+            expect(service.sessionMinutesRemaining$()).toBe(0);
+        });
+
+        it('should reset session signals to 0 on resetToken', () => {
+            authenticateWithLifetime(10 * 60);
+
+            expect(service.sessionFraction$()).toBeGreaterThan(0);
+
+            service.resetToken();
+
+            expect(service.sessionFraction$()).toBe(0);
+            expect(service.sessionMinutesRemaining$()).toBe(0);
+        });
+    });
+
 });

@@ -89,3 +89,29 @@
         transform: scale(0.95);
     }
 }
+
+.session-clock {
+    width: 14px;
+    height: 14px;
+    // Start the arc at 12 o'clock instead of 3 o'clock.
+    transform: rotate(-90deg);
+    vertical-align: middle;
+
+    .session-clock-bg {
+        fill: none;
+        stroke: var(--color-border-secondary);
+        stroke-width: 2;
+    }
+
+    .session-clock-fill {
+        fill: none;
+        stroke: var(--color-primary, #4f8ef7);
+        stroke-width: 2;
+        // = 2 * π * r = 2 * π * 7
+        stroke-dasharray: 43.98;
+        // 0 = full ring drawn; 43.98 = empty ring.
+        stroke-dashoffset: 0;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 1s ease;
+    }
+}
